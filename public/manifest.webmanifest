@@ -1,0 +1,17 @@
+{
+  "name": "Driftless",
+  "short_name": "Driftless",
+  "description": "Content management for Driftless",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

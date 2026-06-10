@@ -1,0 +1,533 @@
+/* eslint-disable prettier/prettier */
+import type { AdonisEndpoint } from '@tuyau/core/types'
+import type { Registry } from './schema.d.ts'
+import type { ApiDefinition } from './tree.d.ts'
+
+const placeholder: any = {}
+
+const routes = {
+  'home': {
+    methods: ["GET","HEAD"],
+    pattern: '/',
+    tokens: [{"old":"/","type":0,"val":"/","end":""}],
+    types: placeholder as Registry['home']['types'],
+  },
+  'public.post': {
+    methods: ["GET","HEAD"],
+    pattern: '/posts/:slug',
+    tokens: [{"old":"/posts/:slug","type":0,"val":"posts","end":""},{"old":"/posts/:slug","type":1,"val":"slug","end":""}],
+    types: placeholder as Registry['public.post']['types'],
+  },
+  'public.offline': {
+    methods: ["GET","HEAD"],
+    pattern: '/offline',
+    tokens: [{"old":"/offline","type":0,"val":"offline","end":""}],
+    types: placeholder as Registry['public.offline']['types'],
+  },
+  'public_content.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/public/content',
+    tokens: [{"old":"/api/public/content","type":0,"val":"api","end":""},{"old":"/api/public/content","type":0,"val":"public","end":""},{"old":"/api/public/content","type":0,"val":"content","end":""}],
+    types: placeholder as Registry['public_content.index']['types'],
+  },
+  'public_content.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/public/content/:slug',
+    tokens: [{"old":"/api/public/content/:slug","type":0,"val":"api","end":""},{"old":"/api/public/content/:slug","type":0,"val":"public","end":""},{"old":"/api/public/content/:slug","type":0,"val":"content","end":""},{"old":"/api/public/content/:slug","type":1,"val":"slug","end":""}],
+    types: placeholder as Registry['public_content.show']['types'],
+  },
+  'seo.robots': {
+    methods: ["GET","HEAD"],
+    pattern: '/robots.txt',
+    tokens: [{"old":"/robots.txt","type":0,"val":"robots.txt","end":""}],
+    types: placeholder as Registry['seo.robots']['types'],
+  },
+  'seo.sitemap': {
+    methods: ["GET","HEAD"],
+    pattern: '/sitemap.xml',
+    tokens: [{"old":"/sitemap.xml","type":0,"val":"sitemap.xml","end":""}],
+    types: placeholder as Registry['seo.sitemap']['types'],
+  },
+  'settings.get_auth_config': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/auth/config',
+    tokens: [{"old":"/api/auth/config","type":0,"val":"api","end":""},{"old":"/api/auth/config","type":0,"val":"auth","end":""},{"old":"/api/auth/config","type":0,"val":"config","end":""}],
+    types: placeholder as Registry['settings.get_auth_config']['types'],
+  },
+  'google_auth.status': {
+    methods: ["GET","HEAD"],
+    pattern: '/auth/google/status',
+    tokens: [{"old":"/auth/google/status","type":0,"val":"auth","end":""},{"old":"/auth/google/status","type":0,"val":"google","end":""},{"old":"/auth/google/status","type":0,"val":"status","end":""}],
+    types: placeholder as Registry['google_auth.status']['types'],
+  },
+  'google_auth.start': {
+    methods: ["GET","HEAD"],
+    pattern: '/auth/google',
+    tokens: [{"old":"/auth/google","type":0,"val":"auth","end":""},{"old":"/auth/google","type":0,"val":"google","end":""}],
+    types: placeholder as Registry['google_auth.start']['types'],
+  },
+  'google_auth.callback': {
+    methods: ["GET","HEAD"],
+    pattern: '/auth/google/callback',
+    tokens: [{"old":"/auth/google/callback","type":0,"val":"auth","end":""},{"old":"/auth/google/callback","type":0,"val":"google","end":""},{"old":"/auth/google/callback","type":0,"val":"callback","end":""}],
+    types: placeholder as Registry['google_auth.callback']['types'],
+  },
+  'new_account.create': {
+    methods: ["GET","HEAD"],
+    pattern: '/register',
+    tokens: [{"old":"/register","type":0,"val":"register","end":""}],
+    types: placeholder as Registry['new_account.create']['types'],
+  },
+  'new_account.store': {
+    methods: ["POST"],
+    pattern: '/register',
+    tokens: [{"old":"/register","type":0,"val":"register","end":""}],
+    types: placeholder as Registry['new_account.store']['types'],
+  },
+  'session.create': {
+    methods: ["GET","HEAD"],
+    pattern: '/login',
+    tokens: [{"old":"/login","type":0,"val":"login","end":""}],
+    types: placeholder as Registry['session.create']['types'],
+  },
+  'session.store': {
+    methods: ["POST"],
+    pattern: '/login',
+    tokens: [{"old":"/login","type":0,"val":"login","end":""}],
+    types: placeholder as Registry['session.store']['types'],
+  },
+  'legacy.signup.store': {
+    methods: ["POST"],
+    pattern: '/signup',
+    tokens: [{"old":"/signup","type":0,"val":"signup","end":""}],
+    types: placeholder as Registry['legacy.signup.store']['types'],
+  },
+  'session.destroy': {
+    methods: ["POST"],
+    pattern: '/logout',
+    tokens: [{"old":"/logout","type":0,"val":"logout","end":""}],
+    types: placeholder as Registry['session.destroy']['types'],
+  },
+  'session.me': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/me',
+    tokens: [{"old":"/api/me","type":0,"val":"api","end":""},{"old":"/api/me","type":0,"val":"me","end":""}],
+    types: placeholder as Registry['session.me']['types'],
+  },
+  'session.update_profile': {
+    methods: ["PUT"],
+    pattern: '/api/me',
+    tokens: [{"old":"/api/me","type":0,"val":"api","end":""},{"old":"/api/me","type":0,"val":"me","end":""}],
+    types: placeholder as Registry['session.update_profile']['types'],
+  },
+  'dashboard.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/dashboard',
+    tokens: [{"old":"/admin/dashboard","type":0,"val":"admin","end":""},{"old":"/admin/dashboard","type":0,"val":"dashboard","end":""}],
+    types: placeholder as Registry['dashboard.index']['types'],
+  },
+  'dashboard.analytics_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/analytics',
+    tokens: [{"old":"/admin/analytics","type":0,"val":"admin","end":""},{"old":"/admin/analytics","type":0,"val":"analytics","end":""}],
+    types: placeholder as Registry['dashboard.analytics_page']['types'],
+  },
+  'dashboard.profile_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/profile',
+    tokens: [{"old":"/admin/profile","type":0,"val":"admin","end":""},{"old":"/admin/profile","type":0,"val":"profile","end":""}],
+    types: placeholder as Registry['dashboard.profile_page']['types'],
+  },
+  'users.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/users',
+    tokens: [{"old":"/admin/users","type":0,"val":"admin","end":""},{"old":"/admin/users","type":0,"val":"users","end":""}],
+    types: placeholder as Registry['users.page']['types'],
+  },
+  'users.generate_password': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/users/generate-password',
+    tokens: [{"old":"/api/admin/users/generate-password","type":0,"val":"api","end":""},{"old":"/api/admin/users/generate-password","type":0,"val":"admin","end":""},{"old":"/api/admin/users/generate-password","type":0,"val":"users","end":""},{"old":"/api/admin/users/generate-password","type":0,"val":"generate-password","end":""}],
+    types: placeholder as Registry['users.generate_password']['types'],
+  },
+  'users.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/users',
+    tokens: [{"old":"/api/admin/users","type":0,"val":"api","end":""},{"old":"/api/admin/users","type":0,"val":"admin","end":""},{"old":"/api/admin/users","type":0,"val":"users","end":""}],
+    types: placeholder as Registry['users.index']['types'],
+  },
+  'users.store': {
+    methods: ["POST"],
+    pattern: '/api/admin/users',
+    tokens: [{"old":"/api/admin/users","type":0,"val":"api","end":""},{"old":"/api/admin/users","type":0,"val":"admin","end":""},{"old":"/api/admin/users","type":0,"val":"users","end":""}],
+    types: placeholder as Registry['users.store']['types'],
+  },
+  'users.update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/users/:id',
+    tokens: [{"old":"/api/admin/users/:id","type":0,"val":"api","end":""},{"old":"/api/admin/users/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/users/:id","type":0,"val":"users","end":""},{"old":"/api/admin/users/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['users.update']['types'],
+  },
+  'users.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/users/:id',
+    tokens: [{"old":"/api/admin/users/:id","type":0,"val":"api","end":""},{"old":"/api/admin/users/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/users/:id","type":0,"val":"users","end":""},{"old":"/api/admin/users/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['users.destroy']['types'],
+  },
+  'roles.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/roles',
+    tokens: [{"old":"/admin/roles","type":0,"val":"admin","end":""},{"old":"/admin/roles","type":0,"val":"roles","end":""}],
+    types: placeholder as Registry['roles.page']['types'],
+  },
+  'roles.new_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/roles/new',
+    tokens: [{"old":"/admin/roles/new","type":0,"val":"admin","end":""},{"old":"/admin/roles/new","type":0,"val":"roles","end":""},{"old":"/admin/roles/new","type":0,"val":"new","end":""}],
+    types: placeholder as Registry['roles.new_page']['types'],
+  },
+  'roles.detail_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/roles/:id',
+    tokens: [{"old":"/admin/roles/:id","type":0,"val":"admin","end":""},{"old":"/admin/roles/:id","type":0,"val":"roles","end":""},{"old":"/admin/roles/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['roles.detail_page']['types'],
+  },
+  'roles.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/roles',
+    tokens: [{"old":"/api/admin/roles","type":0,"val":"api","end":""},{"old":"/api/admin/roles","type":0,"val":"admin","end":""},{"old":"/api/admin/roles","type":0,"val":"roles","end":""}],
+    types: placeholder as Registry['roles.index']['types'],
+  },
+  'roles.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/roles/:id',
+    tokens: [{"old":"/api/admin/roles/:id","type":0,"val":"api","end":""},{"old":"/api/admin/roles/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/roles/:id","type":0,"val":"roles","end":""},{"old":"/api/admin/roles/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['roles.show']['types'],
+  },
+  'roles.store': {
+    methods: ["POST"],
+    pattern: '/api/admin/roles',
+    tokens: [{"old":"/api/admin/roles","type":0,"val":"api","end":""},{"old":"/api/admin/roles","type":0,"val":"admin","end":""},{"old":"/api/admin/roles","type":0,"val":"roles","end":""}],
+    types: placeholder as Registry['roles.store']['types'],
+  },
+  'roles.update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/roles/:id',
+    tokens: [{"old":"/api/admin/roles/:id","type":0,"val":"api","end":""},{"old":"/api/admin/roles/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/roles/:id","type":0,"val":"roles","end":""},{"old":"/api/admin/roles/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['roles.update']['types'],
+  },
+  'roles.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/roles/:id',
+    tokens: [{"old":"/api/admin/roles/:id","type":0,"val":"api","end":""},{"old":"/api/admin/roles/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/roles/:id","type":0,"val":"roles","end":""},{"old":"/api/admin/roles/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['roles.destroy']['types'],
+  },
+  'permissions.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/permissions',
+    tokens: [{"old":"/admin/permissions","type":0,"val":"admin","end":""},{"old":"/admin/permissions","type":0,"val":"permissions","end":""}],
+    types: placeholder as Registry['permissions.page']['types'],
+  },
+  'permissions.new_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/permissions/new',
+    tokens: [{"old":"/admin/permissions/new","type":0,"val":"admin","end":""},{"old":"/admin/permissions/new","type":0,"val":"permissions","end":""},{"old":"/admin/permissions/new","type":0,"val":"new","end":""}],
+    types: placeholder as Registry['permissions.new_page']['types'],
+  },
+  'permissions.detail_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/permissions/:id',
+    tokens: [{"old":"/admin/permissions/:id","type":0,"val":"admin","end":""},{"old":"/admin/permissions/:id","type":0,"val":"permissions","end":""},{"old":"/admin/permissions/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['permissions.detail_page']['types'],
+  },
+  'permissions.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/permissions',
+    tokens: [{"old":"/api/admin/permissions","type":0,"val":"api","end":""},{"old":"/api/admin/permissions","type":0,"val":"admin","end":""},{"old":"/api/admin/permissions","type":0,"val":"permissions","end":""}],
+    types: placeholder as Registry['permissions.index']['types'],
+  },
+  'permissions.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/permissions/:id',
+    tokens: [{"old":"/api/admin/permissions/:id","type":0,"val":"api","end":""},{"old":"/api/admin/permissions/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/permissions/:id","type":0,"val":"permissions","end":""},{"old":"/api/admin/permissions/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['permissions.show']['types'],
+  },
+  'permissions.store': {
+    methods: ["POST"],
+    pattern: '/api/admin/permissions',
+    tokens: [{"old":"/api/admin/permissions","type":0,"val":"api","end":""},{"old":"/api/admin/permissions","type":0,"val":"admin","end":""},{"old":"/api/admin/permissions","type":0,"val":"permissions","end":""}],
+    types: placeholder as Registry['permissions.store']['types'],
+  },
+  'permissions.update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/permissions/:id',
+    tokens: [{"old":"/api/admin/permissions/:id","type":0,"val":"api","end":""},{"old":"/api/admin/permissions/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/permissions/:id","type":0,"val":"permissions","end":""},{"old":"/api/admin/permissions/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['permissions.update']['types'],
+  },
+  'permissions.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/permissions/:id',
+    tokens: [{"old":"/api/admin/permissions/:id","type":0,"val":"api","end":""},{"old":"/api/admin/permissions/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/permissions/:id","type":0,"val":"permissions","end":""},{"old":"/api/admin/permissions/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['permissions.destroy']['types'],
+  },
+  'content.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/content',
+    tokens: [{"old":"/admin/content","type":0,"val":"admin","end":""},{"old":"/admin/content","type":0,"val":"content","end":""}],
+    types: placeholder as Registry['content.page']['types'],
+  },
+  'content.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/content',
+    tokens: [{"old":"/api/admin/content","type":0,"val":"api","end":""},{"old":"/api/admin/content","type":0,"val":"admin","end":""},{"old":"/api/admin/content","type":0,"val":"content","end":""}],
+    types: placeholder as Registry['content.index']['types'],
+  },
+  'content.store': {
+    methods: ["POST"],
+    pattern: '/api/admin/content',
+    tokens: [{"old":"/api/admin/content","type":0,"val":"api","end":""},{"old":"/api/admin/content","type":0,"val":"admin","end":""},{"old":"/api/admin/content","type":0,"val":"content","end":""}],
+    types: placeholder as Registry['content.store']['types'],
+  },
+  'content.update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/content/:id',
+    tokens: [{"old":"/api/admin/content/:id","type":0,"val":"api","end":""},{"old":"/api/admin/content/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/content/:id","type":0,"val":"content","end":""},{"old":"/api/admin/content/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['content.update']['types'],
+  },
+  'content.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/content/:id',
+    tokens: [{"old":"/api/admin/content/:id","type":0,"val":"api","end":""},{"old":"/api/admin/content/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/content/:id","type":0,"val":"content","end":""},{"old":"/api/admin/content/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['content.destroy']['types'],
+  },
+  'cms.collections_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/cms/collections',
+    tokens: [{"old":"/admin/cms/collections","type":0,"val":"admin","end":""},{"old":"/admin/cms/collections","type":0,"val":"cms","end":""},{"old":"/admin/cms/collections","type":0,"val":"collections","end":""}],
+    types: placeholder as Registry['cms.collections_page']['types'],
+  },
+  'cms.collections_new_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/cms/collections/new',
+    tokens: [{"old":"/admin/cms/collections/new","type":0,"val":"admin","end":""},{"old":"/admin/cms/collections/new","type":0,"val":"cms","end":""},{"old":"/admin/cms/collections/new","type":0,"val":"collections","end":""},{"old":"/admin/cms/collections/new","type":0,"val":"new","end":""}],
+    types: placeholder as Registry['cms.collections_new_page']['types'],
+  },
+  'cms.collection_detail_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/cms/collections/:key',
+    tokens: [{"old":"/admin/cms/collections/:key","type":0,"val":"admin","end":""},{"old":"/admin/cms/collections/:key","type":0,"val":"cms","end":""},{"old":"/admin/cms/collections/:key","type":0,"val":"collections","end":""},{"old":"/admin/cms/collections/:key","type":1,"val":"key","end":""}],
+    types: placeholder as Registry['cms.collection_detail_page']['types'],
+  },
+  'cms.collections_index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/cms/collections',
+    tokens: [{"old":"/api/admin/cms/collections","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"collections","end":""}],
+    types: placeholder as Registry['cms.collections_index']['types'],
+  },
+  'cms.collections_show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/cms/collections/:key',
+    tokens: [{"old":"/api/admin/cms/collections/:key","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections/:key","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections/:key","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections/:key","type":0,"val":"collections","end":""},{"old":"/api/admin/cms/collections/:key","type":1,"val":"key","end":""}],
+    types: placeholder as Registry['cms.collections_show']['types'],
+  },
+  'cms.collections_store': {
+    methods: ["POST"],
+    pattern: '/api/admin/cms/collections',
+    tokens: [{"old":"/api/admin/cms/collections","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"collections","end":""}],
+    types: placeholder as Registry['cms.collections_store']['types'],
+  },
+  'cms.collections_update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/cms/collections/:key',
+    tokens: [{"old":"/api/admin/cms/collections/:key","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections/:key","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections/:key","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections/:key","type":0,"val":"collections","end":""},{"old":"/api/admin/cms/collections/:key","type":1,"val":"key","end":""}],
+    types: placeholder as Registry['cms.collections_update']['types'],
+  },
+  'cms.collections_destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/cms/collections/:key',
+    tokens: [{"old":"/api/admin/cms/collections/:key","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections/:key","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections/:key","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections/:key","type":0,"val":"collections","end":""},{"old":"/api/admin/cms/collections/:key","type":1,"val":"key","end":""}],
+    types: placeholder as Registry['cms.collections_destroy']['types'],
+  },
+  'cms.fields_store': {
+    methods: ["POST"],
+    pattern: '/api/admin/cms/collections/:key/fields',
+    tokens: [{"old":"/api/admin/cms/collections/:key/fields","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections/:key/fields","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections/:key/fields","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections/:key/fields","type":0,"val":"collections","end":""},{"old":"/api/admin/cms/collections/:key/fields","type":1,"val":"key","end":""},{"old":"/api/admin/cms/collections/:key/fields","type":0,"val":"fields","end":""}],
+    types: placeholder as Registry['cms.fields_store']['types'],
+  },
+  'cms.fields_update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/cms/collections/:key/fields/:fieldKey',
+    tokens: [{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"collections","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":1,"val":"key","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"fields","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":1,"val":"fieldKey","end":""}],
+    types: placeholder as Registry['cms.fields_update']['types'],
+  },
+  'cms.fields_reorder': {
+    methods: ["PATCH"],
+    pattern: '/api/admin/cms/collections/:key/fields/reorder',
+    tokens: [{"old":"/api/admin/cms/collections/:key/fields/reorder","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections/:key/fields/reorder","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections/:key/fields/reorder","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections/:key/fields/reorder","type":0,"val":"collections","end":""},{"old":"/api/admin/cms/collections/:key/fields/reorder","type":1,"val":"key","end":""},{"old":"/api/admin/cms/collections/:key/fields/reorder","type":0,"val":"fields","end":""},{"old":"/api/admin/cms/collections/:key/fields/reorder","type":0,"val":"reorder","end":""}],
+    types: placeholder as Registry['cms.fields_reorder']['types'],
+  },
+  'cms.fields_destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/cms/collections/:key/fields/:fieldKey',
+    tokens: [{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"collections","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":1,"val":"key","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"fields","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":1,"val":"fieldKey","end":""}],
+    types: placeholder as Registry['cms.fields_destroy']['types'],
+  },
+  'cms.records_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/cms/:key',
+    tokens: [{"old":"/admin/cms/:key","type":0,"val":"admin","end":""},{"old":"/admin/cms/:key","type":0,"val":"cms","end":""},{"old":"/admin/cms/:key","type":1,"val":"key","end":""}],
+    types: placeholder as Registry['cms.records_page']['types'],
+  },
+  'cms.new_record_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/cms/:key/new',
+    tokens: [{"old":"/admin/cms/:key/new","type":0,"val":"admin","end":""},{"old":"/admin/cms/:key/new","type":0,"val":"cms","end":""},{"old":"/admin/cms/:key/new","type":1,"val":"key","end":""},{"old":"/admin/cms/:key/new","type":0,"val":"new","end":""}],
+    types: placeholder as Registry['cms.new_record_page']['types'],
+  },
+  'cms.record_detail_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/cms/:key/:id',
+    tokens: [{"old":"/admin/cms/:key/:id","type":0,"val":"admin","end":""},{"old":"/admin/cms/:key/:id","type":0,"val":"cms","end":""},{"old":"/admin/cms/:key/:id","type":1,"val":"key","end":""},{"old":"/admin/cms/:key/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['cms.record_detail_page']['types'],
+  },
+  'cms.records_index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/cms/:key/records',
+    tokens: [{"old":"/api/admin/cms/:key/records","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"records","end":""}],
+    types: placeholder as Registry['cms.records_index']['types'],
+  },
+  'cms.records_show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/cms/:key/records/:id',
+    tokens: [{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records/:id","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"records","end":""},{"old":"/api/admin/cms/:key/records/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['cms.records_show']['types'],
+  },
+  'cms.records_store': {
+    methods: ["POST"],
+    pattern: '/api/admin/cms/:key/records',
+    tokens: [{"old":"/api/admin/cms/:key/records","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"records","end":""}],
+    types: placeholder as Registry['cms.records_store']['types'],
+  },
+  'cms.records_update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/cms/:key/records/:id',
+    tokens: [{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records/:id","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"records","end":""},{"old":"/api/admin/cms/:key/records/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['cms.records_update']['types'],
+  },
+  'cms.records_destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/cms/:key/records/:id',
+    tokens: [{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records/:id","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records/:id","type":0,"val":"records","end":""},{"old":"/api/admin/cms/:key/records/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['cms.records_destroy']['types'],
+  },
+  'cms.revisions_index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/cms/:key/records/:id/revisions',
+    tokens: [{"old":"/api/admin/cms/:key/records/:id/revisions","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions","type":0,"val":"records","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions","type":1,"val":"id","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions","type":0,"val":"revisions","end":""}],
+    types: placeholder as Registry['cms.revisions_index']['types'],
+  },
+  'cms.revisions_restore': {
+    methods: ["POST"],
+    pattern: '/api/admin/cms/:key/records/:id/revisions/:revisionId/restore',
+    tokens: [{"old":"/api/admin/cms/:key/records/:id/revisions/:revisionId/restore","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions/:revisionId/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions/:revisionId/restore","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions/:revisionId/restore","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions/:revisionId/restore","type":0,"val":"records","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions/:revisionId/restore","type":1,"val":"id","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions/:revisionId/restore","type":0,"val":"revisions","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions/:revisionId/restore","type":1,"val":"revisionId","end":""},{"old":"/api/admin/cms/:key/records/:id/revisions/:revisionId/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['cms.revisions_restore']['types'],
+  },
+  'media.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/media',
+    tokens: [{"old":"/admin/media","type":0,"val":"admin","end":""},{"old":"/admin/media","type":0,"val":"media","end":""}],
+    types: placeholder as Registry['media.page']['types'],
+  },
+  'media.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/media',
+    tokens: [{"old":"/api/admin/media","type":0,"val":"api","end":""},{"old":"/api/admin/media","type":0,"val":"admin","end":""},{"old":"/api/admin/media","type":0,"val":"media","end":""}],
+    types: placeholder as Registry['media.index']['types'],
+  },
+  'media.store': {
+    methods: ["POST"],
+    pattern: '/api/admin/media',
+    tokens: [{"old":"/api/admin/media","type":0,"val":"api","end":""},{"old":"/api/admin/media","type":0,"val":"admin","end":""},{"old":"/api/admin/media","type":0,"val":"media","end":""}],
+    types: placeholder as Registry['media.store']['types'],
+  },
+  'media.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/media/:id',
+    tokens: [{"old":"/api/admin/media/:id","type":0,"val":"api","end":""},{"old":"/api/admin/media/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/media/:id","type":0,"val":"media","end":""},{"old":"/api/admin/media/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['media.destroy']['types'],
+  },
+  'settings.settings_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/settings',
+    tokens: [{"old":"/admin/settings","type":0,"val":"admin","end":""},{"old":"/admin/settings","type":0,"val":"settings","end":""}],
+    types: placeholder as Registry['settings.settings_page']['types'],
+  },
+  'settings.integrations_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/integrations',
+    tokens: [{"old":"/admin/integrations","type":0,"val":"admin","end":""},{"old":"/admin/integrations","type":0,"val":"integrations","end":""}],
+    types: placeholder as Registry['settings.integrations_page']['types'],
+  },
+  'settings.integrations_google_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/integrations/google',
+    tokens: [{"old":"/admin/integrations/google","type":0,"val":"admin","end":""},{"old":"/admin/integrations/google","type":0,"val":"integrations","end":""},{"old":"/admin/integrations/google","type":0,"val":"google","end":""}],
+    types: placeholder as Registry['settings.integrations_google_page']['types'],
+  },
+  'settings.integrations_captcha_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/integrations/captcha',
+    tokens: [{"old":"/admin/integrations/captcha","type":0,"val":"admin","end":""},{"old":"/admin/integrations/captcha","type":0,"val":"integrations","end":""},{"old":"/admin/integrations/captcha","type":0,"val":"captcha","end":""}],
+    types: placeholder as Registry['settings.integrations_captcha_page']['types'],
+  },
+  'settings.integrations_ga_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/integrations/google-analytics',
+    tokens: [{"old":"/admin/integrations/google-analytics","type":0,"val":"admin","end":""},{"old":"/admin/integrations/google-analytics","type":0,"val":"integrations","end":""},{"old":"/admin/integrations/google-analytics","type":0,"val":"google-analytics","end":""}],
+    types: placeholder as Registry['settings.integrations_ga_page']['types'],
+  },
+  'settings.integrations_clarity_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/integrations/clarity',
+    tokens: [{"old":"/admin/integrations/clarity","type":0,"val":"admin","end":""},{"old":"/admin/integrations/clarity","type":0,"val":"integrations","end":""},{"old":"/admin/integrations/clarity","type":0,"val":"clarity","end":""}],
+    types: placeholder as Registry['settings.integrations_clarity_page']['types'],
+  },
+  'settings.get_web_settings': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/settings/web',
+    tokens: [{"old":"/api/admin/settings/web","type":0,"val":"api","end":""},{"old":"/api/admin/settings/web","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/web","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/web","type":0,"val":"web","end":""}],
+    types: placeholder as Registry['settings.get_web_settings']['types'],
+  },
+  'settings.update_web_settings': {
+    methods: ["PUT"],
+    pattern: '/api/admin/settings/web',
+    tokens: [{"old":"/api/admin/settings/web","type":0,"val":"api","end":""},{"old":"/api/admin/settings/web","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/web","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/web","type":0,"val":"web","end":""}],
+    types: placeholder as Registry['settings.update_web_settings']['types'],
+  },
+  'settings.get_integration_settings': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/settings/integrations',
+    tokens: [{"old":"/api/admin/settings/integrations","type":0,"val":"api","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"integrations","end":""}],
+    types: placeholder as Registry['settings.get_integration_settings']['types'],
+  },
+  'settings.update_integration_settings': {
+    methods: ["PUT"],
+    pattern: '/api/admin/settings/integrations',
+    tokens: [{"old":"/api/admin/settings/integrations","type":0,"val":"api","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"integrations","end":""}],
+    types: placeholder as Registry['settings.update_integration_settings']['types'],
+  },
+} as const satisfies Record<string, AdonisEndpoint>
+
+export { routes }
+
+export const registry = {
+  routes,
+  $tree: {} as ApiDefinition,
+}
+
+declare module '@tuyau/core/types' {
+  export interface UserRegistry {
+    routes: typeof routes
+    $tree: ApiDefinition
+  }
+}

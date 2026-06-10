@@ -1,0 +1,15 @@
+---
+description: Inertia React frontend conventions for driftless
+globs: inertia/**
+alwaysApply: false
+---
+
+# Frontend (Inertia + React)
+
+See [docs/ai/frontend.md](../../docs/ai/frontend.md).
+
+- Pages: `inertia/pages/${name}.tsx` (e.g. `admin/users` → `inertia/pages/admin/users.tsx`).
+- Alias `~/` → `inertia/`. Use `Button` from `~/components/ui/button` for actions.
+- Data: TanStack Query hooks in `inertia/hooks/api/` + `~/lib/api-client.ts` for `/api/admin/*`.
+- Check `permissions` shared prop or `~/lib/ability` before showing admin actions.
+- Do not hand-edit `@generated` / `.adonisjs/client/` types.

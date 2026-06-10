@@ -1,0 +1,15 @@
+---
+description: Database migrations and commands for driftless
+globs: database/**,commands/**
+alwaysApply: false
+---
+
+# Database
+
+See [docs/ai/dev-workflow.md](../../docs/ai/dev-workflow.md) and [docs/LEGACY_MIGRATION.md](../../docs/LEGACY_MIGRATION.md).
+
+- Migrations: `database/migrations/`. Run `node ace migration:run`.
+- Seed: `database/seeders/main_seeder.ts` — `node ace db:seed`.
+- Never point migrations at the legacy stack database.
+- Legacy stack import: `node ace migrate:from-legacy` — full steps only in LEGACY_MIGRATION.md.
+- CMS natives reconcile on boot via `providers/cms_provider.ts` after migrations exist.

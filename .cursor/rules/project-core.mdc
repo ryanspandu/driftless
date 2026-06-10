@@ -1,0 +1,15 @@
+---
+description: Driftless core rules for all AI sessions
+alwaysApply: true
+---
+
+# Driftless core
+
+Read [AGENTS.md](../../AGENTS.md) for full context.
+
+- **Dev:** `npm run dev` (not plain `node ace serve`). Postgres: `docker compose up -d`, port 5433.
+- **Vite manifest error in dev:** `rm -f public/assets/.vite/manifest.json` then restart dev.
+- **DB:** `DATABASE_URL` must target driftless DB only. Quote `.env` passwords containing `#`.
+- **Layers:** route → controller → service → model. Thin controllers.
+- **Do not** commit secrets, edit `.adonisjs/client/` generated files, or create commits unless asked.
+- **Docs:** [docs/ai/](../../docs/ai/) for architecture, CMS, auth, frontend, testing.

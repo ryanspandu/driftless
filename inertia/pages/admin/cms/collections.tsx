@@ -1,0 +1,246 @@
+
+import { Link } from "@inertiajs/react";
+import { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  List,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import type { CmsCollectionDto } from "~/types/api";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown_menu";
+import { DataTable, DataTableColumnHeader } from "~/components/data-table";
+import {
+  useCmsCollectionsList,
+  useDeleteCmsCollection,
+} from "~/hooks/api/use-cms-collections";
+import { formatAdminTableDateTime } from "~/lib/utils";
+import { useConfirmDelete } from "~/components/providers/delete-confirm-provider";
+import { cmsRecordListPath } from "~/components/cms/cms-record-actions";
+import { useAbility } from "~/components/providers/ability-provider";
+
+export default function CmsCollectionsPage() {
+  
+  const confirmDelete = useConfirmDelete();
+  const { permissions } = useAbility();
+  const query = useCmsCollectionsList( );
+  const deleteMut = useDeleteCmsCollection( );
+
+  const items: CmsCollectionDto[] = useMemo(
+    () => query.data ?? [],
+    [query.data],
+  );
+
+  const columns = useMemo<ColumnDef<CmsCollectionDto>[]>(
+    () => [
+      {
+        id: "label",
+        accessorFn: (r) => r.label,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Collection" />
+        ),
+        cell: ({ row }) => (
+          <div>
+            <div className="font-medium">{row.original.label}</div>
+            <div className="text-xs text-muted-foreground">
+              {row.original.key}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "source",
+        accessorFn: (r) => r.source,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Source" />
+        ),
+        cell: ({ row }) => (
+          <Badge
+            variant={row.original.source === "PRISMA" ? "secondary" : "default"}
+          >
+            {row.original.source === "PRISMA" ? "Native" : "Dynamic"}
+          </Badge>
+        ),
+      },
+      {
+        id: "fields",
+        accessorFn: (r) => r.fields.length,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Fields" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.fields.length}
+          </span>
+        ),
+      },
+      {
+        id: "group",
+        accessorFn: (r) => r.group ?? "",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Group" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.group ?? "—"}
+          </span>
+        ),
+      },
+      {
+        id: "updated",
+        accessorFn: (r) => r.updatedAt,
+        header: ({ column }) => (
+          <DataTableColumnHeader
+            column={column}
+            title="Updated"
+            className="ml-auto w-full justify-end"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="text-right text-sm text-muted-foreground tabular-nums">
+            {formatAdminTableDateTime(row.original.updatedAt)}
+          </div>
+        ),
+      },
+      {
+        id: "actions",
+        enableSorting: false,
+        header: () => <span className="sr-only">Actions</span>,
+        cell: ({ row }) => {
+          const isNative = row.original.source === "PRISMA";
+          const key = row.original.key;
+          const canReadRecords = permissions.canCms("read", key);
+          const canManageSchema = permissions.canManageCms();
+          const canDeleteCollection =
+            !isNative && permissions.canManageCms();
+
+          return (
+            <div className="flex items-center justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="ghost" size="icon" className="size-8" />
+                  }
+                  aria-label="Row actions"
+                >
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canReadRecords ? (
+                    <DropdownMenuItem
+                      className="gap-2 cursor-pointer"
+                      render={<Link href={cmsRecordListPath(key)} />}
+                    >
+                      <List className="size-4" />
+                      Records
+                    </DropdownMenuItem>
+                  ) : null}
+                  {canManageSchema ? (
+                    <DropdownMenuItem
+                      className="gap-2 cursor-pointer"
+                      render={
+                        <Link
+                          href={`/admin/cms/collections/${encodeURIComponent(key)}`}
+                        />
+                      }
+                    >
+                      <Pencil className="size-4" />
+                      {isNative ? "Inspect schema" : "Edit schema"}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {canDeleteCollection ? (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      className="gap-2 cursor-pointer"
+                      onClick={() => {
+                        void confirmDelete({
+                          title: "Delete collection",
+                          description: `Drop collection "${key}" and its data? This cannot be undone.`,
+                        }).then((confirmed) => {
+                          if (confirmed) deleteMut.mutate(key);
+                        });
+                      }}
+                    >
+                      <Trash2 className="size-4" />
+                      Delete collection
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          );
+        },
+      },
+    ],
+    [confirmDelete, deleteMut, permissions],
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Collections
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Define and manage CMS content types
+            {query.isFetching ? " · refreshing…" : ""}
+          </p>
+        </div>
+        <Button
+          className="gap-2"
+          render={<Link href="/admin/cms/collections/new" />}
+        >
+          <Plus className="size-4" />
+          New collection
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All collections</CardTitle>
+          <CardDescription>
+            {query.isLoading
+              ? "Loading…"
+              : `${items.length} collection${items.length === 1 ? "" : "s"} available`}
+            {query.error ? (
+              <span className="ml-2 text-destructive">
+                · {(query.error as Error).message}
+              </span>
+            ) : null}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            columns={columns}
+            data={items}
+            getRowId={(c) => c.id}
+            hideSyncColumn
+            urlSync={{}}
+            emptyMessage={
+              query.isLoading
+                ? "Loading collections…"
+                : "No collections yet. Create your first one."
+            }
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

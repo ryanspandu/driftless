@@ -1,0 +1,36 @@
+export const BUILTIN_PERMISSIONS: { name: string; description: string }[] = [
+  { name: '*', description: 'Wildcard: full access to every resource.' },
+  { name: 'content:create', description: 'Create content records.' },
+  { name: 'content:read', description: 'Read content records.' },
+  { name: 'content:update', description: 'Update content records.' },
+  { name: 'content:delete', description: 'Delete content records.' },
+  { name: 'user:read', description: 'Read user profiles.' },
+  { name: 'user:manage', description: 'Create / update / delete users.' },
+  { name: 'cms:manage', description: 'Create / edit / delete CMS collection schemas.' },
+  { name: 'role:manage', description: 'Create / edit / delete roles and assign permissions.' },
+  { name: 'permission:manage', description: 'Create / edit / delete permission codes.' },
+  { name: 'settings:manage', description: 'Manage site integrations (Google OAuth, CAPTCHA, etc.).' },
+]
+
+export const BUILTIN_ROLES: { name: string; description: string }[] = [
+  { name: 'SUPERADMIN', description: 'Full access. Automatically granted the * wildcard.' },
+  { name: 'ADMIN', description: 'Operational admin — manages content and users.' },
+  { name: 'USER', description: 'Default signed-in user.' },
+  { name: 'GUEST', description: 'Unauthenticated / public viewer.' },
+]
+
+export const ROLE_PERMISSIONS: Record<string, readonly string[]> = {
+  SUPERADMIN: ['*'],
+  ADMIN: [
+    'content:create',
+    'content:read',
+    'content:update',
+    'content:delete',
+    'user:read',
+    'user:manage',
+    'cms:manage',
+    'settings:manage',
+  ],
+  USER: ['content:create', 'content:read', 'content:update', 'content:delete'],
+  GUEST: ['content:read'],
+}
