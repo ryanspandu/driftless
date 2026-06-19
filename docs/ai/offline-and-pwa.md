@@ -4,8 +4,8 @@ Optional offline editing with local persistence and sync when back online.
 
 ## Enable / disable
 
-- Env: `DISABLE_OFFLINE=1` in `.env` disables offline features (also passed to Vite as `VITE_DISABLE_OFFLINE`).
-- When disabled, null/memory stores avoid Dexie.
+- Env: `DISABLE_OFFLINE=1` in `.env` disables offline features. `vite.config.ts` injects it as `import.meta.env.VITE_DISABLE_OFFLINE`, which `inertia/lib/offline/capability.ts` reads.
+- `detectStorageMode()` returns one of `idb` | `memory` | `disabled`. When disabled (or when IndexedDB is unavailable), Dexie is bypassed in favor of the in-memory store.
 
 ## Stack
 

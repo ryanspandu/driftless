@@ -12,11 +12,19 @@ node ace test
 
 ## Suites
 
-| Suite | Glob | Timeout | Use for |
-|-------|------|---------|---------|
-| `unit` | `tests/unit/**/*.spec.ts` | 2s | Pure logic, small units |
-| `functional` | `tests/functional/**/*.spec.ts` | 30s | HTTP/API, database |
-| `browser` | `tests/browser/**/*.spec.ts` | 5 min | End-to-end UI (Playwright via `@japa/browser-client`) |
+All three suites are registered in `adonisrc.ts`. Only `functional` currently
+has tests and a directory; `tests/unit/` and `tests/browser/` are configured but
+not yet created — add the directory when you write the first spec for them.
+
+| Suite | Glob | Timeout | Status | Use for |
+|-------|------|---------|--------|---------|
+| `unit` | `tests/unit/**/*.spec.ts` | 2s | configured, no tests yet | Pure logic, small units |
+| `functional` | `tests/functional/**/*.spec.ts` | 30s | active | HTTP/API, database |
+| `browser` | `tests/browser/**/*.spec.ts` | 5 min | configured, no tests yet | End-to-end UI (Playwright via `@japa/browser-client`) |
+
+> **Browser suite:** `@japa/browser-client` is a dev dependency, but `playwright`
+> is only present transitively. Install it (`npm i -D playwright` + `npx playwright install`)
+> before writing browser specs.
 
 ## Bootstrap plugins
 

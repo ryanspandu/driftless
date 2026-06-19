@@ -17,6 +17,7 @@ Read **[AGENTS.md](../AGENTS.md)** and **[docs/ai/](../docs/ai/)** for full proj
 | Permission gate | `middleware.permission(...)` on route; check `permissions` on client |
 | CMS collection | `cms_controller`, `cms_service`, pages under `inertia/pages/admin/cms/` |
 | DB schema | `database/migrations/` + model in `app/models/` |
+| Any table / list of data | Shared `DataTable` from `~/components/data-table` (see [docs/ai/frontend.md](../docs/ai/frontend.md#data-tables)) |
 
 ## Dev commands
 
@@ -32,6 +33,7 @@ npm test
 - Use `npm run dev`, not plain `node ace serve`.
 - Stale Vite manifest: delete `public/assets/.vite/manifest.json` if Inertia manifest error in dev.
 - `DATABASE_URL` must be the driftless database.
+- Don't build custom tables — every table uses the shared `DataTable` (search top-left, filters beside it, uniform pagination footer).
 
 ## More
 

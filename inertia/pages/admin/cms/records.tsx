@@ -31,8 +31,6 @@ import {
   cmsRecordLabel,
 } from "~/components/cms/cms-record-actions";
 import { useAbility } from "~/components/providers/ability-provider";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
 import { AppSelect } from "~/components/ui/app-select";
 import {
   DataTable,
@@ -230,43 +228,12 @@ function CmsRecordsPageInner({ collectionKey: key }: { collectionKey: string }) 
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <CardTitle>All records</CardTitle>
-              <CardDescription>
-                {offline.isLoading
-                  ? "Loading…"
-                  : `${total} record${total === 1 ? "" : "s"}`}
-              </CardDescription>
-            </div>
-            <div className="flex flex-col gap-2 md:flex-row md:items-end">
-              <div className="space-y-1">
-                <Label className="text-xs">Search</Label>
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search…"
-                  className="h-9 md:w-56"
-                />
-              </div>
-              {collection?.draftsOn ? (
-                <div className="space-y-1">
-                  <Label className="text-xs">Status</Label>
-                  <AppSelect
-                    value={status}
-                    onChange={(v) => setStatus(v as ContentStatus | "ALL")}
-                    options={[
-                      { value: "ALL", label: "All" },
-                      { value: "DRAFT", label: "Draft" },
-                      { value: "PUBLISHED", label: "Published" },
-                    ]}
-                    isSearchable={false}
-                    className="md:max-w-40"
-                  />
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <CardTitle>All records</CardTitle>
+          <CardDescription>
+            {offline.isLoading
+              ? "Loading…"
+              : `${total} record${total === 1 ? "" : "s"}`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <DataTable
@@ -275,7 +242,24 @@ function CmsRecordsPageInner({ collectionKey: key }: { collectionKey: string }) 
             getRowId={(r) => r.id}
             getSyncStatus={getSyncStatus}
             lastSyncedAt={offline.lastSyncedAt}
-            hideSearch
+            searchPlaceholder="Search…"
+            searchValue={search}
+            onSearchChange={setSearch}
+            filters={
+              collection?.draftsOn ? (
+                <AppSelect
+                  value={status}
+                  onChange={(v) => setStatus(v as ContentStatus | "ALL")}
+                  options={[
+                    { value: "ALL", label: "All" },
+                    { value: "DRAFT", label: "Draft" },
+                    { value: "PUBLISHED", label: "Published" },
+                  ]}
+                  isSearchable={false}
+                  className="w-full sm:w-44"
+                />
+              ) : undefined
+            }
             urlSync={{ paramPrefix: "rec" }}
             emptyMessage={
               offline.isLoading ? "Loading records…" : "No records yet."

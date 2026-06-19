@@ -9,8 +9,8 @@
 ```bash
 docker compose up -d
 cp .env.example .env   # set APP_KEY, DATABASE_URL
+npm install            # required before any `node ace` command
 node ace migration:run && node ace db:seed
-npm install
 npm run dev            # NOT plain `node ace serve`
 ```
 
@@ -29,7 +29,7 @@ npm run dev            # NOT plain `node ace serve`
 | `inertia/` | React pages, components, hooks |
 | `database/` | Migrations, seeders |
 | `commands/` | Ace commands |
-| `tests/` | Japa unit / functional / browser |
+| `tests/` | Japa suites (unit / functional / browser configured; only `functional/` populated) |
 | `docs/ai/` | Deep reference for agents |
 | `docs/LEGACY_MIGRATION.md` | Legacy stack migration only |
 
@@ -54,6 +54,7 @@ npm run dev            # NOT plain `node ace serve`
 - Quote `SEED_ADMIN_PASSWORD` in `.env` if it contains `#`.
 - Keep controllers thin; put logic in `app/services/`.
 - Add permission middleware on new admin API routes.
+- Use the shared `DataTable` (`~/components/data-table`) for **every** table — never a raw `<table>` or a custom table. See [docs/ai/frontend.md](docs/ai/frontend.md#data-tables).
 - Run `npm run typecheck` after substantive TS changes.
 
 **Don't**
@@ -80,7 +81,7 @@ Manual clear if ever needed: `node scripts/clean-vite-dev.mjs`.
 3. **Service** — `app/services/...` if non-trivial.
 4. **Validator** — `app/validators/...` for writes.
 5. **Model / migration** — if schema changes.
-6. **Frontend** — `inertia/pages/...` and/or `inertia/hooks/api/...`.
+6. **Frontend** — `inertia/pages/...` and/or `inertia/hooks/api/...`. For tabular data, use the shared `DataTable`.
 7. **Permissions** — server middleware + client `permissions` / `~/lib/ability`.
 
 ## Documentation index

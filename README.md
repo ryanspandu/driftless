@@ -14,10 +14,10 @@ Successor to the legacy split API/frontend apps.
 ```bash
 docker compose up -d
 cp .env.example .env
-# Set APP_KEY: node ace generate:key
+npm install                 # required before any `node ace` command
+node ace generate:key       # sets APP_KEY in .env
 node ace migration:run
 node ace db:seed
-npm install
 npm run dev
 ```
 
@@ -51,6 +51,15 @@ start/         Routes and HTTP kernel
 config/        Application configuration
 tests/         Japa test suites
 ```
+
+## UI conventions
+
+Every admin table is built from a single shared component (`inertia/components/data-table.tsx`), so tables look and behave the same on every page:
+
+- **Search** box top-left, aligned with the **"Last synced"** indicator on the right; any **filters** sit beside the search box.
+- **Footer** always has three zones: **Rows per page** (default 10) on the left, **pagination** in the center, and **Go to page** on the right.
+
+When adding a page with tabular data, reuse this `DataTable` component rather than writing a new table. Details: [docs/ai/frontend.md](docs/ai/frontend.md#data-tables).
 
 ## License
 

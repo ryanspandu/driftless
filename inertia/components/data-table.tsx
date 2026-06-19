@@ -113,9 +113,9 @@ function applyUpdater<T>(updater: Updater<T>, prev: T): T {
   return typeof updater === "function" ? (updater as (p: T) => T)(prev) : updater;
 }
 
-/** Sticky actions column — matches Card/table row hover and selection (not page bg). */
+/** Sticky actions column — matches the header / row surface and selection (not page bg). */
 const stickyActionsHeadClass =
-  "sticky right-0 z-20 w-12 min-w-12 bg-card";
+  "sticky right-0 z-20 w-12 min-w-12 bg-muted dark:bg-background";
 const stickyActionsCellClass =
   "sticky right-0 z-10 w-12 min-w-12 bg-card group-hover:bg-muted/50 group-data-[state=selected]:bg-muted";
 
@@ -145,7 +145,7 @@ export function DataTableColumnHeader<TData, TValue>({
       type="button"
       variant="ghost"
       className={cn(
-        "-ml-2 h-8 gap-1 px-2 font-medium hover:bg-muted/80",
+        "-ml-2 h-8 gap-1 px-2 font-medium hover:bg-transparent hover:font-bold dark:hover:bg-transparent",
         className
       )}
       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -184,6 +184,15 @@ export type DataTableProps<TData> = {
   className?: string;
   /** When true, hides the built-in search input (e.g. if you add a custom filter elsewhere) */
   hideSearch?: boolean;
+  /**
+   * Controlled search value. When `onSearchChange` is provided the search box
+   * is driven by the parent (e.g. server-side search) and the built-in
+   * client-side global filter is bypassed.
+   */
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  /** Extra filter controls rendered to the right of the search box (left cluster of the toolbar). */
+  filters?: React.ReactNode;
   /** First-column bulk select checkboxes (default: true). Requires stable row ids via `getRowId` or `id` on each row. */
   enableBulkSelect?: boolean;
   /** Stable unique id per row; defaults to `String(row.id)` when present, else row index. */
@@ -250,6 +259,9 @@ function DataTableInner<TData>({
   emptyMessage = "No results.",
   className,
   hideSearch = false,
+  searchValue,
+  onSearchChange,
+  filters,
   enableBulkSelect = true,
   getRowId: getRowIdProp,
   onRowSelectionChange: onRowSelectionChangeProp,
@@ -525,27 +537,34 @@ function DataTableInner<TData>({
     return latest;
   }, [data, hideSyncColumn, lastSyncedAt, resolveSyncStatus]);
 
-  const showToolbar = !hideSearch || !hideSyncColumn;
+  const isControlledSearch = onSearchChange != null;
+  const searchInputValue = isControlledSearch ? searchValue ?? "" : globalFilter;
+  const showToolbar = !hideSearch || !hideSyncColumn || filters != null;
 
   return (
     <TooltipProvider>
     <div className={cn("space-y-4", className)}>
       {showToolbar && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {!hideSearch ? (
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder={searchPlaceholder}
-                value={globalFilter}
-                onChange={(e) => onGlobalFilterChange(e.target.value)}
-                className="pl-8"
-                aria-label="Search table"
-              />
-            </div>
-          ) : (
-            <div />
-          )}
+          <div className="flex w-full flex-col gap-2 sm:max-w-2xl sm:flex-row sm:items-center">
+            {!hideSearch && (
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder={searchPlaceholder}
+                  value={searchInputValue}
+                  onChange={(e) =>
+                    isControlledSearch
+                      ? onSearchChange(e.target.value)
+                      : onGlobalFilterChange(e.target.value)
+                  }
+                  className="pl-8"
+                  aria-label="Search table"
+                />
+              </div>
+            )}
+            {filters}
+          </div>
 
           {!hideSyncColumn && (
             <Tooltip>
@@ -603,7 +622,7 @@ function DataTableInner<TData>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className="group"
+                  className="group hover:bg-muted/50"
                   data-state={row.getIsSelected() ? "selected" : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (

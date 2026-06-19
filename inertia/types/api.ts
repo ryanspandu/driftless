@@ -229,7 +229,9 @@ export interface ContentDto {
   slug: string
   body: string
   status: ContentStatus
-  authorId: string
+  // Mirrors the server DTO (`app/services/content_service.ts`); null until an
+  // author is assigned (e.g. records created offline before sync).
+  authorId: number | null
   createdAt: string
   updatedAt: string
 }

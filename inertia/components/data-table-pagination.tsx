@@ -77,7 +77,6 @@ export function DataTablePagination({
   const end = Math.min((pageIndex + 1) * pageSize, totalRows);
   const canPrevious = pageIndex > 0 && !disabled;
   const canNext = pageIndex < safePageCount - 1 && !disabled;
-  const showPageControls = safePageCount > 1;
 
   React.useEffect(() => {
     setGoToPageInput(String(pageIndex + 1));
@@ -126,16 +125,11 @@ export function DataTablePagination({
           />
         </div>
         <p className="text-sm text-muted-foreground whitespace-nowrap">
-          {start}–{end} of {totalRows}
-          {showPageControls
-            ? ` · Page ${pageIndex + 1} of ${safePageCount}`
-            : null}
+          {start}–{end} of {totalRows} · Page {pageIndex + 1} of {safePageCount}
         </p>
       </div>
 
-      {showPageControls ? (
-        <>
-          <div className="flex flex-wrap items-center justify-center gap-1 lg:flex-[1.5] lg:justify-center">
+      <div className="flex flex-wrap items-center justify-center gap-1 lg:flex-[1.5] lg:justify-center">
             <Button
               variant="outline"
               size="sm"
@@ -221,8 +215,6 @@ export function DataTablePagination({
               aria-label="Go to page number"
             />
           </div>
-        </>
-      ) : null}
     </div>
   );
 }

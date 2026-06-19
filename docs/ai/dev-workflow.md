@@ -10,10 +10,10 @@
 ```bash
 docker compose up -d
 cp .env.example .env
+npm install   # required before any `node ace` command
 # Edit .env — set APP_KEY (node ace generate:key), DATABASE_URL, secrets
 node ace migration:run
 node ace db:seed
-npm install
 npm run dev
 ```
 
@@ -53,7 +53,7 @@ See `.env.example`. Important:
 | `SEED_ADMIN_PASSWORD` | Quote values containing `#` (dotenv comment) |
 | `FORCE_SEED_PASSWORD=1` | Dev only — reset seeded admin password |
 | `DISABLE_OFFLINE=1` | Disables offline/PWA client features when set |
-| `MEDIA_STORAGE_PATH` | Local media files |
+| `MEDIA_STORAGE_PATH` | Local media files (default `./storage/media`); directory is created automatically on first upload |
 | `GOOGLE_*` | OAuth; can also be configured in Admin → Integrations |
 | `TURNSTILE_*`, `HCAPTCHA_*`, `RECAPTCHA_*` | CAPTCHA providers |
 

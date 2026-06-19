@@ -205,7 +205,7 @@ export default function PermissionsPage() {
             columns={columns}
             data={items}
             getRowId={(p) => p.id}
-            hideSearch
+            searchPlaceholder="Search permissions…"
             urlSync={{}}
             emptyMessage={
               query.isLoading

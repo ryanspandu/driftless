@@ -227,7 +227,7 @@ export default function RolesPage() {
             columns={columns}
             data={items}
             getRowId={(r) => r.id}
-            hideSearch
+            searchPlaceholder="Search roles…"
             urlSync={{}}
             emptyMessage={
               rolesQuery.isLoading

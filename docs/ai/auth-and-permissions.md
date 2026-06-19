@@ -4,13 +4,13 @@
 
 - **Guard**: session-based `web` guard (`config/auth.ts`).
 - **Provider**: `sessionUserProvider` with `app/models/user.ts`.
-- **Routes**: `/login`, `/signup`, `/logout`, `/api/me` in `start/routes.ts`.
+- **Routes**: `/login`, `/register`, `/logout`, `/api/me` in `start/routes.ts`. `/signup`, `/auth/signup`, `/auth/register` are legacy redirect aliases to `/register`.
 - **Google OAuth**: `google_auth_controller` — `/auth/google`, callback, status.
 - **CAPTCHA**: Configurable via integration settings + env; used on auth forms when enabled.
 
 Middleware:
 
-- `guest` — signup/login routes only
+- `guest` — register/login routes only
 - `auth` — requires authenticated user (admin area)
 
 ## Authorization (RBAC)
@@ -38,12 +38,17 @@ From `app/services/permission_ability_service.ts`:
 // Explicit
 .use(middleware.permission({ permission: 'role:manage' }))
 
-// Resource + HTTP verb
-.use(middleware.permission({ resource: 'user' }))  // read → user:read, write → user:manage
+// Resource + HTTP verb — `resource` accepts only 'content' | 'user' | 'media'
+.use(middleware.permission({ resource: 'user' }))     // read → user:read, write → user:manage
+.use(middleware.permission({ resource: 'content' }))  // → content:{verb}
+.use(middleware.permission({ resource: 'media' }))    // → cms:media:{verb}  (note the cms: prefix)
 
 // CMS records (uses :key param + method)
-.use(middleware.permission({ cmsRecord: true }))  // → cms:posts:read, etc.
+.use(middleware.permission({ cmsRecord: true }))  // → cms:content:read, etc.
 ```
+
+For any other code (e.g. `settings:manage`, `role:manage`) use the explicit
+`{ permission: '...' }` form — `resource` does not cover them.
 
 ### Client-side checks
 

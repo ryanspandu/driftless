@@ -1,3 +1,4 @@
+import { Fragment, useMemo } from 'react'
 import { Link, router } from '@inertiajs/react'
 import {
   BarChart3,
@@ -47,6 +48,36 @@ export function AppSidebar({ pathname }: { pathname: string }) {
   const collections = collectionsQuery.data ?? []
   const collapsed = false
 
+  // Collections without a group fall under the default "Collections" section.
+  // Each distinct group value becomes its own section (header = group name).
+  const collectionSections = useMemo(() => {
+    type Section = { key: string; label: string; cols: typeof collections }
+    const ungrouped: typeof collections = []
+    const grouped = new Map<string, typeof collections>()
+
+    for (const col of collections) {
+      const group = col.group?.trim()
+      if (!group) {
+        ungrouped.push(col)
+        continue
+      }
+      const existing = grouped.get(group)
+      if (existing) existing.push(col)
+      else grouped.set(group, [col])
+    }
+
+    const sections: Section[] = []
+    if (ungrouped.length > 0) {
+      sections.push({ key: '__ungrouped__', label: 'Collections', cols: ungrouped })
+    }
+    for (const [label, cols] of Array.from(grouped.entries()).sort(([a], [b]) =>
+      a.localeCompare(b)
+    )) {
+      sections.push({ key: `group:${label}`, label, cols })
+    }
+    return sections
+  }, [collections])
+
   return (
     <aside
       className={cn(
@@ -84,17 +115,17 @@ export function AppSidebar({ pathname }: { pathname: string }) {
           )
         })}
 
-        {/* Dynamic collections */}
-        {collections.length > 0 && (
-          <>
+        {/* Dynamic collections, grouped by each collection's `group` value */}
+        {collectionSections.map((section) => (
+          <Fragment key={section.key}>
             {!collapsed && (
               <div className="px-2 pt-3 pb-1">
                 <p className="text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider">
-                  Collections
+                  {section.label}
                 </p>
               </div>
             )}
-            {collections.map((col) => {
+            {section.cols.map((col) => {
               const href = `/admin/cms/${col.key}`
               const active = isActive(pathname, { title: col.label, href, icon: Boxes, activeMatch: 'prefix' })
               return (
@@ -104,7 +135,7 @@ export function AppSidebar({ pathname }: { pathname: string }) {
                   className={cn(
                     'flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors',
                     active
-                      ? 'bg-sidebar-accent text-sidebar-primary font-medium'
+                      ? 'bg-sidebar-accent text-ring font-medium'
                       : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
                   )}
                   title={collapsed ? col.label : undefined}
@@ -114,8 +145,8 @@ export function AppSidebar({ pathname }: { pathname: string }) {
                 </Link>
               )
             })}
-          </>
-        )}
+          </Fragment>
+        ))}
       </nav>
 
       {/* Footer */}

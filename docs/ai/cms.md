@@ -14,7 +14,7 @@ Driftless includes a **dynamic collection** system (schema + records in PostgreS
 
 ## Native registry
 
-`NATIVE_COLLECTIONS` in `app/cms/native_registry.ts` defines built-in types (e.g. `content`). `providers/cms_provider.ts` reconciles them into `cms_collections` / `cms_fields` at boot when tables exist.
+`NATIVE_COLLECTIONS` in `app/cms/native_registry.ts` defines the built-in types `content`, `user`, and `media`. `providers/cms_provider.ts` reconciles them into `cms_collections` / `cms_fields` at boot when tables exist. Because `user` and `media` are native collections, their record permissions (`user:*`, `cms:media:*`) are minted automatically alongside dynamic-collection permissions.
 
 ## IDs
 
@@ -49,6 +49,15 @@ Collection schema routes require `cms:manage`. Record routes use `middleware.per
 | Records | `records.tsx`, `record_detail.tsx` |
 | Schema UI | `inertia/components/cms/schema-builder.tsx` |
 | Hooks | `inertia/hooks/api/use-cms-collections.ts`, `use-cms-records.ts` |
+
+## Sidebar grouping
+
+Each collection has a `group` attribute (editable via the "Group" combobox in the collection editor). The admin sidebar (`inertia/components/admin/sidebar.tsx`) renders collections by group:
+
+- Empty/null `group` → the default **Collections** section.
+- Each distinct `group` value → its own sidebar section (header = the group name), sorted alphabetically.
+
+Changing a collection's group invalidates the collections list query, so the sidebar updates without a reload.
 
 ## Field types
 

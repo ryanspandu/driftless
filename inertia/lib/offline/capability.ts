@@ -7,7 +7,14 @@
 
 export type StorageMode = "idb" | "memory" | "disabled";
 
-const DISABLE_FLAG = "NEXT_PUBLIC_DISABLE_OFFLINE";
+/**
+ * Build-time disable switch. Vite replaces `import.meta.env.VITE_DISABLE_OFFLINE`
+ * with the value of `DISABLE_OFFLINE` from `.env` (see `vite.config.ts`). The
+ * access must stay literal — a dynamic key would not be statically replaced.
+ */
+function offlineDisabled(): boolean {
+  return import.meta.env.VITE_DISABLE_OFFLINE === "1";
+}
 
 function hasIndexedDB(): boolean {
   return (
@@ -52,10 +59,7 @@ export async function probeIndexedDB(): Promise<boolean> {
 }
 
 export async function detectStorageMode(): Promise<StorageMode> {
-  if (
-    typeof process !== "undefined" &&
-    process.env?.[DISABLE_FLAG] === "1"
-  ) {
+  if (offlineDisabled()) {
     return "disabled";
   }
   if (typeof window === "undefined") {

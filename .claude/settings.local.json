@@ -4,7 +4,9 @@
       "Bash(rtk find *)",
       "Bash(rtk read *)",
       "Bash(rtk ls *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(rtk npm *)",
+      "Bash(rtk git *)"
     ]
   }
 }

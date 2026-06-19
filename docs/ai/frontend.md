@@ -41,6 +41,55 @@ Prefer hooks for CRUD tables and mutations; use Inertia props for page shell dat
 - Icons: `lucide-react`, `react-icons`.
 - Rich text: TipTap in `inertia/components/cms/rich-text-editor.tsx`.
 
+## Data tables
+
+**Always use the shared `DataTable` for any tabular data.** Never build a raw `<table>`, a bespoke list-styled-as-table, or a second table abstraction. One component keeps every table on every page identical (toolbar, search, filters, pagination). There is exactly one table component — if you find a raw `<table>` or another table wrapper, migrate it to `DataTable`.
+
+Files:
+
+- `~/components/data-table` — `DataTable`, `DataTableColumnHeader`
+- `~/components/data-table-pagination` — `DataTablePagination` (rendered automatically by `DataTable`)
+- `~/components/ui/table` — low-level primitives (`Table`, `TableRow`, …) used **inside** `DataTable`, not directly in pages
+
+### Uniform layout
+
+- **Toolbar (top):** search box top-left, aligned with **"Last synced"** on the top-right. Extra filters go to the **right of the search box** via the `filters` prop — do not add a separate filter bar elsewhere.
+- **Footer (bottom):** always three zones — **Rows per page** (left, default 10), **pagination** (center), **Go to page** (right). All three render even with a single page (controls just disable).
+- Sortable headers via `DataTableColumnHeader`.
+
+### Search modes
+
+- **Client-side (default):** omit `searchValue`/`onSearchChange`; `DataTable` filters the rows it is given. Use for fully-loaded datasets (roles, permissions, collections).
+- **Server-side (controlled):** pass `searchValue={state}` + `onSearchChange={setState}` and feed the state into your API query; combine with `serverPagination` when the API returns one page at a time (users, cms records). The built-in client filter is bypassed automatically.
+
+### Key props
+
+| Prop | Purpose |
+|------|---------|
+| `columns`, `data` | TanStack `ColumnDef[]` + rows |
+| `getRowId` | Stable row id (defaults to `row.id`) |
+| `searchPlaceholder` | Search input placeholder |
+| `searchValue` / `onSearchChange` | Controlled (server-side) search |
+| `filters` | Filter controls (e.g. `AppSelect`) rendered beside the search box |
+| `urlSync={{ paramPrefix? }}` | Reflect search/sort/page in the URL |
+| `serverPagination={{…}}` | API-driven pagination |
+| `getSyncStatus` / `lastSyncedAt` / `hideSyncColumn` | Offline sync column + "Last synced" label |
+| `emptyMessage` | Empty-state text |
+
+### Example
+
+```tsx
+<DataTable
+  columns={columns}
+  data={rows}
+  getRowId={(r) => r.id}
+  searchPlaceholder="Search by title or slug…"
+  filters={<AppSelect value={status} onChange={setStatus} options={statusOptions} />}
+  urlSync={{ paramPrefix: 'all' }}
+  emptyMessage="No results."
+/>
+```
+
 ## Client libraries
 
 | Path | Purpose |
@@ -54,8 +103,8 @@ Prefer hooks for CRUD tables and mutations; use Inertia props for page shell dat
 
 ## Types and routes
 
-- Tuyau client: `inertia/client` (generated).
-- Do not hand-edit `.adonisjs/client/`.
+- Tuyau client: `inertia/client.ts` (hand-written; imports from `@generated/registry`).
+- Generated code lives in `.adonisjs/client/` (alias `@generated`) — do not hand-edit it.
 
 ## Adding an admin page
 

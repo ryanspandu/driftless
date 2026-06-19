@@ -36,8 +36,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown_menu";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
 import { AppSelect } from "~/components/ui/app-select";
 import { DataTable, DataTableColumnHeader, type SyncStatus } from "~/components/data-table";
 import { UserFormDialog } from "~/components/admin/user-form-dialog";
@@ -331,60 +329,15 @@ function UsersPageInner() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <CardTitle>All users</CardTitle>
-              <CardDescription>
-                {query.isLoading
-                  ? "Loading…"
-                  : `${total} accounts registered`}
-                {query.error ? (
-                  <span className="ml-2 text-destructive">
-                    · {(query.error as Error).message}
-                  </span>
-                ) : null}
-              </CardDescription>
-            </div>
-            <div className="flex flex-col gap-2 md:flex-row md:items-end">
-              <div className="space-y-1">
-                <Label htmlFor="users-search" className="text-xs">
-                  Search
-                </Label>
-                <Input
-                  id="users-search"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  placeholder="Name, email, username…"
-                  className="h-9 md:w-56"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="users-role" className="text-xs">
-                  Role
-                </Label>
-                <AppSelect
-                  id="users-role"
-                  value={roleFilter}
-                  onChange={(v) => {
-                    setRoleFilter(v || "ALL");
-                    setPage(1);
-                  }}
-                  options={[
-                    { value: "ALL", label: "All roles" },
-                    ...(rolesQuery.data ?? []).map((r) => ({
-                      value: r.name,
-                      label: r.name,
-                    })),
-                  ]}
-                  className="md:max-w-40"
-                  isSearchable
-                />
-              </div>
-            </div>
-          </div>
+          <CardTitle>All users</CardTitle>
+          <CardDescription>
+            {query.isLoading ? "Loading…" : `${total} accounts registered`}
+            {query.error ? (
+              <span className="ml-2 text-destructive">
+                · {(query.error as Error).message}
+              </span>
+            ) : null}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <DataTable
@@ -393,7 +346,31 @@ function UsersPageInner() {
             getRowId={(u) => u.id}
             getSyncStatus={getSyncStatus}
             lastSyncedAt={lastSyncedAt}
-            hideSearch
+            searchPlaceholder="Name, email, username…"
+            searchValue={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            filters={
+              <AppSelect
+                id="users-role"
+                value={roleFilter}
+                onChange={(v) => {
+                  setRoleFilter(v || "ALL");
+                  setPage(1);
+                }}
+                options={[
+                  { value: "ALL", label: "All roles" },
+                  ...(rolesQuery.data ?? []).map((r) => ({
+                    value: r.name,
+                    label: r.name,
+                  })),
+                ]}
+                className="w-full sm:w-44"
+                isSearchable
+              />
+            }
             emptyMessage={
               query.isLoading
                 ? "Loading users…"

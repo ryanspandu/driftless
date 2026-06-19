@@ -1,3 +1,8 @@
+interface ImportMetaEnv {
+  /** Build-time offline kill switch, injected from `DISABLE_OFFLINE` in `.env`. */
+  readonly VITE_DISABLE_OFFLINE: string
+}
+
 declare module 'virtual:serwist' {
   export function registerSW(options?: { immediate?: boolean }): void
 }

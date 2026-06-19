@@ -1,4 +1,5 @@
 import './css/app.css'
+import type { ComponentType } from 'react'
 import { client } from './client'
 import { createRoot } from 'react-dom/client'
 import { createInertiaApp } from '@inertiajs/react'
@@ -16,7 +17,7 @@ createInertiaApp({
   resolve: async (name) => {
     const pageModule = await resolvePageComponent(
       `./pages/${name}.tsx`,
-      import.meta.glob('./pages/**/*.tsx')
+      import.meta.glob<{ default: ComponentType }>('./pages/**/*.tsx')
     )
     return pageModule.default
   },

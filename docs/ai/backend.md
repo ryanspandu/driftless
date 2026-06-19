@@ -18,8 +18,8 @@ Keep controllers thin: parse/validate input, call services, return Inertia or JS
 
 | Area | Path pattern | Examples |
 |------|--------------|----------|
-| Public | `app/controllers/public_*.ts` | `public_controller`, `public_content_controller` |
-| Auth | `session_controller`, `new_account_controller`, `google_auth_controller` | Login, signup, OAuth |
+| Public | `app/controllers/public_*.ts`, `seo_controller.ts` | `public_controller`, `public_content_controller`, `seo_controller` (`/robots.txt`, `/sitemap.xml`) |
+| Auth | `session_controller`, `new_account_controller`, `google_auth_controller` | Login, register, OAuth |
 | Admin pages + API | `app/controllers/admin/*_controller.ts` | `users_controller`, `cms_controller` |
 
 Admin controllers often expose:
@@ -34,12 +34,14 @@ Business logic in `app/services/`:
 | Service | Responsibility |
 |---------|----------------|
 | `cms_service` | Collections, fields, records, revisions |
+| `cms_permissions_service` | Mints/syncs CMS record permissions |
 | `content_service` | Native content posts |
 | `users_service`, `roles_service`, `permissions_service` | RBAC |
-| `settings_service` | Web + integration settings |
+| `settings_service` | Web + integration settings (exports class `IntegrationSettingsService`) |
 | `media_service` | File uploads |
 | `permission_ability_service` | Permission string matching |
 | `captcha_service`, `user_auth_service` | Auth helpers |
+| `ulid_service` | ULID generation (`newUlid`) for CMS entities |
 
 ## Validation
 
