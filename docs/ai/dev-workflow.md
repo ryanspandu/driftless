@@ -63,7 +63,11 @@ See `.env.example`. Important:
 node ace migration:run
 node ace migration:rollback
 node ace db:seed
+node ace migration:fresh --seed   # ⚠️ drops ALL tables, re-migrates, re-seeds
 ```
+
+`migration:fresh --seed` rebuilds the database from scratch — use it to reset a
+dev DB to a clean state (e.g. after schema/seed changes). It deletes all data.
 
 ## Legacy migration (legacy stack)
 

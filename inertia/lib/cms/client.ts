@@ -39,6 +39,11 @@ export const cmsCollections = {
   update: (key: string, body: UpdateCmsCollectionRequest) =>
     apiPut<CmsCollectionDto>(`/api/admin/cms/collections/${enc(key)}`, body),
   remove: (key: string) => apiDelete<void>(`/api/admin/cms/collections/${enc(key)}`),
+  trash: () => apiGet<CmsCollectionDto[]>('/api/admin/cms/collections/trash'),
+  restore: (key: string) =>
+    apiPost<CmsCollectionDto>(`/api/admin/cms/collections/${enc(key)}/restore`),
+  forceRemove: (key: string) =>
+    apiDelete<void>(`/api/admin/cms/collections/${enc(key)}/force`),
   addField: (key: string, body: AddCmsFieldRequest) =>
     apiPost<CmsFieldDto>(`/api/admin/cms/collections/${enc(key)}/fields`, body),
   updateField: (key: string, fieldKey: string, body: UpdateCmsFieldRequest) =>
@@ -64,6 +69,12 @@ export const cmsRecords = {
     apiPut<CmsRecordDto>(`/api/admin/cms/${enc(key)}/records/${enc(id)}`, body),
   remove: (key: string, id: string) =>
     apiDelete<void>(`/api/admin/cms/${enc(key)}/records/${enc(id)}`),
+  trash: (key: string) =>
+    apiGet<CmsRecordDto[]>(`/api/admin/cms/${enc(key)}/records/trash`),
+  restore: (key: string, id: string) =>
+    apiPost<CmsRecordDto>(`/api/admin/cms/${enc(key)}/records/${enc(id)}/restore`),
+  forceRemove: (key: string, id: string) =>
+    apiDelete<void>(`/api/admin/cms/${enc(key)}/records/${enc(id)}/force`),
   listRevisions: (key: string, id: string) =>
     apiGet<CmsRevisionDto[]>(`/api/admin/cms/${enc(key)}/records/${enc(id)}/revisions`),
   restoreRevision: (key: string, id: string, revisionId: string) =>

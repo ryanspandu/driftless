@@ -43,6 +43,25 @@ export default class PermissionsController {
     }
   }
 
+  async trash({ response }: HttpContext) {
+    const perms = await permissionsService.findTrashed()
+    return response.json(perms)
+  }
+
+  async restore({ params, response }: HttpContext) {
+    try {
+      const perm = await permissionsService.restore(params.id)
+      return response.json(perm)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  async forceDestroy({ params, response }: HttpContext) {
+    await permissionsService.forceDelete(params.id)
+    return response.json({ success: true })
+  }
+
   async page({ inertia }: HttpContext) {
     return inertia.render('admin/permissions', {})
   }

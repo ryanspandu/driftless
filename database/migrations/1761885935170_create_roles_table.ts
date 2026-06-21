@@ -7,8 +7,8 @@ export default class extends BaseSchema {
       table.string('name', 64).notNullable().unique()
       table.text('description').nullable()
       table.boolean('is_system').notNullable().defaultTo(false)
-      table.timestamp('deleted_at').nullable()
       table.timestamps(true, true)
+      table.timestamp('deleted_at').nullable()
     })
 
     this.schema.createTable('permissions', (table) => {
@@ -16,8 +16,8 @@ export default class extends BaseSchema {
       table.string('name', 128).notNullable().unique()
       table.text('description').nullable()
       table.boolean('is_system').notNullable().defaultTo(false)
-      table.timestamp('deleted_at').nullable()
       table.timestamps(true, true)
+      table.timestamp('deleted_at').nullable()
     })
 
     this.schema.createTable('role_user', (table) => {

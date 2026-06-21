@@ -5,6 +5,7 @@ import { apiFetch } from '~/lib/api-client'
 export const roleQueryKeys = {
   all: ['roles'] as const,
   list: () => ['roles', 'list'] as const,
+  trash: () => ['roles', 'trash'] as const,
   detail: (id: string) => ['roles', 'detail', id] as const,
 }
 
@@ -54,5 +55,36 @@ export function useDeleteRole() {
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/api/admin/roles/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: roleQueryKeys.all }),
+  })
+}
+
+/** Soft-deleted roles (the Trash). */
+export function useTrashedRoles(enabled = true) {
+  return useQuery({
+    queryKey: roleQueryKeys.trash(),
+    enabled,
+    queryFn: () => apiFetch<RoleDto[]>('/api/admin/roles/trash'),
+    staleTime: 10_000,
+  })
+}
+
+export function useRestoreRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<RoleDto>(`/api/admin/roles/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: roleQueryKeys.trash() })
+      void qc.invalidateQueries({ queryKey: roleQueryKeys.all })
+    },
+  })
+}
+
+export function useForceDeleteRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/api/admin/roles/${id}/force`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: roleQueryKeys.trash() }),
   })
 }

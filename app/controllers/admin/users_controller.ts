@@ -77,6 +77,25 @@ export default class UsersController {
     }
   }
 
+  async trash({ response }: HttpContext) {
+    const items = await usersService.findTrashed()
+    return response.json(items)
+  }
+
+  async restore({ params, response }: HttpContext) {
+    try {
+      const user = await usersService.restore(Number(params.id))
+      return response.json(user)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  async forceDestroy({ params, response }: HttpContext) {
+    await usersService.forceDelete(Number(params.id))
+    return response.json({ success: true })
+  }
+
   async generatePassword({ response }: HttpContext) {
     const password = usersService.generatePassword()
     return response.json({ password })

@@ -71,6 +71,47 @@ export default class PermissionsService {
     await perm.save()
   }
 
+  /** Soft-deleted permissions (the Trash). Name is restored to its display form. */
+  async findTrashed(): Promise<PermissionDto[]> {
+    const rows = await Permission.query()
+      .whereNotNull('deleted_at')
+      .orderBy('updated_at', 'desc')
+    return rows.map((r) => {
+      const dto = this.toDto(r)
+      dto.name = this.stripDeletedPrefix(r.id, dto.name)
+      return dto
+    })
+  }
+
+  /** Restore a soft-deleted permission, recovering its original name (suffixed if it now clashes). */
+  async restore(id: string): Promise<PermissionDto> {
+    const perm = await Permission.query()
+      .where('id', id)
+      .whereNotNull('deleted_at')
+      .firstOrFail()
+    const cleanName = this.stripDeletedPrefix(id, perm.name)
+    const clash = await Permission.query()
+      .where('name', cleanName)
+      .whereNull('deleted_at')
+      .whereNot('id', id)
+      .first()
+    perm.name = clash ? `${cleanName}-restored-${id.slice(-6)}` : cleanName
+    perm.deletedAt = null
+    await perm.save()
+    return this.toDto(perm)
+  }
+
+  /** Permanently delete a permission that is already in the Trash. */
+  async forceDelete(id: string): Promise<void> {
+    const perm = await Permission.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    await perm.delete()
+  }
+
+  private stripDeletedPrefix(id: string, value: string): string {
+    const prefix = `__deleted_${id}__`
+    return value.startsWith(prefix) ? value.slice(prefix.length) : value
+  }
+
   private toDto(perm: Permission): PermissionDto {
     return {
       id: perm.id,

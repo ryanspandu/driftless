@@ -2,7 +2,11 @@ import type { ContentDto, CreateContentRequest, UpdateContentRequest } from '~/t
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '~/lib/api-client'
 
-const qk = { list: ['content', 'list'] as const, one: (id: string) => ['content', id] as const }
+const qk = {
+  list: ['content', 'list'] as const,
+  trash: ['content', 'trash'] as const,
+  one: (id: string) => ['content', id] as const,
+}
 
 export function useContentList() {
   return useQuery({
@@ -42,5 +46,36 @@ export function useDeleteContent() {
     mutationFn: (id: string) =>
       apiFetch<void>(`/api/admin/content/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.list }),
+  })
+}
+
+/** Soft-deleted content (the Trash). */
+export function useTrashedContent(enabled = true) {
+  return useQuery({
+    queryKey: qk.trash,
+    queryFn: () => apiFetch<ContentDto[]>('/api/admin/content/trash'),
+    staleTime: 10_000,
+    enabled,
+  })
+}
+
+export function useRestoreContent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<ContentDto>(`/api/admin/content/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.trash })
+      qc.invalidateQueries({ queryKey: qk.list })
+    },
+  })
+}
+
+export function useForceDeleteContent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/api/admin/content/${id}/force`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.trash }),
   })
 }

@@ -1,7 +1,7 @@
 import { MultipartFile } from '@adonisjs/core/bodyparser'
 import app from '@adonisjs/core/services/app'
-import { existsSync, mkdirSync } from 'node:fs'
-import { extname } from 'node:path'
+import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import { extname, join } from 'node:path'
 import Media from '#models/media'
 import { newUlid } from '#services/ulid_service'
 
@@ -82,6 +82,29 @@ export default class MediaService {
     const media = await Media.query().where('id', id).whereNull('deleted_at').firstOrFail()
     media.deletedAt = new Date() as any
     await media.save()
+  }
+
+  /** Soft-deleted media (the Trash). */
+  async findTrashed(): Promise<MediaDto[]> {
+    const rows = await Media.query().whereNotNull('deleted_at').orderBy('created_at', 'desc')
+    return rows.map((m) => this.toDto(m))
+  }
+
+  async restore(id: string): Promise<MediaDto> {
+    const media = await Media.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    media.deletedAt = null as any
+    await media.save()
+    return this.toDto(media)
+  }
+
+  /** Permanently delete a trashed media row and its file on disk. */
+  async forceDelete(id: string): Promise<void> {
+    const media = await Media.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    const filePath = join(this.uploadDir, media.filename)
+    if (existsSync(filePath)) {
+      rmSync(filePath, { force: true })
+    }
+    await media.delete()
   }
 
   private toDto(media: Media): MediaDto {

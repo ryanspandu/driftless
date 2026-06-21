@@ -85,13 +85,13 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
       {children}
       <Dialog open={state !== null} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="max-w-md"
+          className="max-w-lg py-10"
           onClick={(event) => event.stopPropagation()}
         >
           <DialogHeader>
-            <div className="flex items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                <Trash2 className="size-5" />
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                <Trash2 className="size-8" />
               </div>
               <div className="space-y-1.5">
                 <DialogTitle>{title}</DialogTitle>
@@ -99,7 +99,7 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
               </div>
             </div>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="mt-8 justify-center">
             <Button
               type="button"
               variant="outline"

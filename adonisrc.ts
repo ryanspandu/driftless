@@ -64,6 +64,7 @@ export default defineConfig({
     },
     () => import('#providers/api_provider'),
     () => import('#providers/cms_provider'),
+    () => import('#providers/plugins_provider'),
   ],
 
   /*

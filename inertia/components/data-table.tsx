@@ -193,6 +193,8 @@ export type DataTableProps<TData> = {
   onSearchChange?: (value: string) => void;
   /** Extra filter controls rendered to the right of the search box (left cluster of the toolbar). */
   filters?: React.ReactNode;
+  /** Actions rendered on the right of the toolbar, next to "Last synced" (e.g. a Trash button). */
+  toolbarActions?: React.ReactNode;
   /** First-column bulk select checkboxes (default: true). Requires stable row ids via `getRowId` or `id` on each row. */
   enableBulkSelect?: boolean;
   /** Stable unique id per row; defaults to `String(row.id)` when present, else row index. */
@@ -262,6 +264,7 @@ function DataTableInner<TData>({
   searchValue,
   onSearchChange,
   filters,
+  toolbarActions,
   enableBulkSelect = true,
   getRowId: getRowIdProp,
   onRowSelectionChange: onRowSelectionChangeProp,
@@ -539,7 +542,8 @@ function DataTableInner<TData>({
 
   const isControlledSearch = onSearchChange != null;
   const searchInputValue = isControlledSearch ? searchValue ?? "" : globalFilter;
-  const showToolbar = !hideSearch || !hideSyncColumn || filters != null;
+  const showToolbar =
+    !hideSearch || !hideSyncColumn || filters != null || toolbarActions != null;
 
   return (
     <TooltipProvider>
@@ -566,30 +570,35 @@ function DataTableInner<TData>({
             {filters}
           </div>
 
-          {!hideSyncColumn && (
-            <Tooltip>
-              <TooltipTrigger
-                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60"
-                aria-label={
-                  overallLastSyncedAt
-                    ? `Last synced ${formatRelativeTime(overallLastSyncedAt)}`
-                    : "No sync information"
-                }
-              >
-                <RefreshCw className="size-3.5" aria-hidden />
-                <span>
-                  Last synced{" "}
-                  <span className="font-medium tabular-nums text-foreground/80">
-                    {formatRelativeTime(overallLastSyncedAt)}
-                  </span>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {overallLastSyncedAt
-                  ? formatAbsoluteTime(overallLastSyncedAt)
-                  : "No data has been synced yet"}
-              </TooltipContent>
-            </Tooltip>
+          {(toolbarActions != null || !hideSyncColumn) && (
+            <div className="flex items-center gap-2">
+              {toolbarActions}
+              {!hideSyncColumn && (
+                <Tooltip>
+                  <TooltipTrigger
+                    className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60"
+                    aria-label={
+                      overallLastSyncedAt
+                        ? `Last synced ${formatRelativeTime(overallLastSyncedAt)}`
+                        : "No sync information"
+                    }
+                  >
+                    <RefreshCw className="size-3.5" aria-hidden />
+                    <span>
+                      Last synced{" "}
+                      <span className="font-medium tabular-nums text-foreground/80">
+                        {formatRelativeTime(overallLastSyncedAt)}
+                      </span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {overallLastSyncedAt
+                      ? formatAbsoluteTime(overallLastSyncedAt)
+                      : "No data has been synced yet"}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
           )}
         </div>
       )}

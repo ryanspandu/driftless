@@ -35,7 +35,7 @@ Business logic in `app/services/`:
 |---------|----------------|
 | `cms_service` | Collections, fields, records, revisions |
 | `cms_permissions_service` | Mints/syncs CMS record permissions |
-| `content_service` | Native content posts |
+| `content_service` | Content posts (default `/admin/content` pages) |
 | `users_service`, `roles_service`, `permissions_service` | RBAC |
 | `settings_service` | Web + integration settings (exports class `IntegrationSettingsService`) |
 | `media_service` | File uploads |
@@ -67,7 +67,7 @@ Permission middleware options: `{ permission: 'role:manage' }`, `{ resource: 'us
 
 ## Providers
 
-- `providers/cms_provider.ts` — on boot, reconciles `NATIVE_COLLECTIONS` into DB.
+- `providers/cms_provider.ts` — on boot, reconciles `NATIVE_COLLECTIONS` into DB. That array is now empty (no native collections), so it currently does nothing; kept for the dynamic-only CMS.
 - `providers/api_provider.ts` — API-related bindings.
 
 ## Custom commands

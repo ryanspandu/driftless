@@ -10,6 +10,7 @@ export const controllers = {
     Dashboard: () => import('#controllers/admin/dashboard_controller'),
     Media: () => import('#controllers/admin/media_controller'),
     Permissions: () => import('#controllers/admin/permissions_controller'),
+    Plugins: () => import('#controllers/admin/plugins_controller'),
     Roles: () => import('#controllers/admin/roles_controller'),
     Settings: () => import('#controllers/admin/settings_controller'),
     Users: () => import('#controllers/admin/users_controller'),

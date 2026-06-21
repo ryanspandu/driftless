@@ -259,6 +259,22 @@ export interface UpdateContentRequest {
   status?: ContentStatus
 }
 
+export interface PluginMenuItem {
+  title: string
+  href: string
+  /** lucide-react icon name, resolved on the client. */
+  icon: string
+}
+
+export interface PluginDto {
+  name: string
+  label: string
+  description: string
+  version: string
+  enabled: boolean
+  adminMenu: PluginMenuItem | null
+}
+
 export type CmsCollectionSource = 'PRISMA' | 'DYNAMIC'
 export type CmsFieldType =
   | 'TEXT'

@@ -117,6 +117,49 @@ export default class RolesService {
     await role.save()
   }
 
+  /** Soft-deleted roles (the Trash). Name is restored to its display form. */
+  async findTrashed(): Promise<RoleDto[]> {
+    const rows = await Role.query()
+      .whereNotNull('deleted_at')
+      .preload('permissions', (q) => q.whereNull('deleted_at'))
+      .orderBy('updated_at', 'desc')
+    return rows.map((r) => {
+      const dto = this.toDto(r)
+      dto.name = this.stripDeletedPrefix(r.id, dto.name)
+      return dto
+    })
+  }
+
+  /** Restore a soft-deleted role, recovering its original name (suffixed if it now clashes). */
+  async restore(id: string): Promise<RoleDto> {
+    const role = await Role.query()
+      .where('id', id)
+      .whereNotNull('deleted_at')
+      .preload('permissions', (q) => q.whereNull('deleted_at'))
+      .firstOrFail()
+    const cleanName = this.stripDeletedPrefix(id, role.name)
+    const clash = await Role.query()
+      .where('name', cleanName)
+      .whereNull('deleted_at')
+      .whereNot('id', id)
+      .first()
+    role.name = clash ? `${cleanName}-restored-${id.slice(-6)}` : cleanName
+    role.deletedAt = null
+    await role.save()
+    return this.toDto(role)
+  }
+
+  /** Permanently delete a role that is already in the Trash. */
+  async forceDelete(id: string): Promise<void> {
+    const role = await Role.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    await role.delete()
+  }
+
+  private stripDeletedPrefix(id: string, value: string): string {
+    const prefix = `__deleted_${id}__`
+    return value.startsWith(prefix) ? value.slice(prefix.length) : value
+  }
+
   private toDto(role: Role): RoleDto {
     return {
       id: role.id,

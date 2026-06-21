@@ -7,6 +7,27 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
+export class AnnouncementSchema extends BaseModel {
+  static $columns = ['body', 'createdAt', 'createdByUserId', 'deletedAt', 'id', 'published', 'title', 'updatedAt'] as const
+  $columns = AnnouncementSchema.$columns
+  @column()
+  declare body: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: number | null
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare published: boolean
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class CmsCollectionSchema extends BaseModel {
   static $columns = ['createdAt', 'deletedAt', 'draftsOn', 'group', 'icon', 'id', 'key', 'label', 'listConfig', 'modelName', 'revisionsOn', 'source', 'tableName', 'updatedAt'] as const
   $columns = CmsCollectionSchema.$columns
@@ -201,6 +222,25 @@ export class PermissionSchema extends BaseModel {
   declare name: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+}
+
+export class PluginSchema extends BaseModel {
+  static $columns = ['createdAt', 'enabled', 'id', 'installedAt', 'name', 'updatedAt', 'version'] as const
+  $columns = PluginSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare enabled: boolean
+  @column({ isPrimary: true })
+  declare id: string
+  @column.dateTime()
+  declare installedAt: DateTime | null
+  @column()
+  declare name: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare version: string | null
 }
 
 export class RoleUserSchema extends BaseModel {

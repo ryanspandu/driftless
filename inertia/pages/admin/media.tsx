@@ -1,7 +1,9 @@
 
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { FileText, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import type { ColumnDef } from '@tanstack/react-table'
+import type { MediaDto } from '~/types/api'
 import { Button } from '~/components/ui/button'
 import {
   Card,
@@ -10,11 +12,16 @@ import {
   CardHeader,
   CardTitle,
 } from '~/components/ui/card'
+import { DataTableColumnHeader } from '~/components/data-table'
+import { TrashModal } from '~/components/trash-modal'
 import { DragDropImageUpload } from '~/components/drag-drop-image-upload'
 import {
   formatBytes,
   useDeleteMedia,
+  useForceDeleteMedia,
   useMediaList,
+  useRestoreMedia,
+  useTrashedMedia,
   useUploadMedia,
 } from '~/hooks/api/use-media'
 import { formatAdminTableDateTime } from '~/lib/utils'
@@ -28,16 +35,77 @@ function isImageMime(mime: string): boolean {
 export default function MediaPage() {
   const { permissions } = useAbility()
   const confirmDelete = useConfirmDelete()
-  const canWrite = permissions.has('cms:media:create') || permissions.has('*')
-  const canDelete = permissions.has('cms:media:delete') || permissions.has('*')
+  const canWrite = permissions.has('media:manage') || permissions.has('*')
+  const canDelete = permissions.has('media:manage') || permissions.has('*')
 
   const listQuery = useMediaList()
   const uploadMut = useUploadMedia()
   const deleteMut = useDeleteMedia()
   const [uploadError, setUploadError] = useState<string | null>(null)
 
+  const trashedQuery = useTrashedMedia()
+  const restoreMut = useRestoreMedia()
+  const forceMut = useForceDeleteMedia()
+  const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data])
+  const [trashOpen, setTrashOpen] = useState(false)
+
   const items = listQuery.data?.items ?? []
   const total = listQuery.data?.total ?? 0
+
+  const trashButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-1.5"
+      onClick={() => {
+        setTrashOpen(true)
+        void trashedQuery.refetch()
+      }}
+    >
+      <Trash2 className="size-4" />
+      Trash{trashedItems.length ? ` (${trashedItems.length})` : ''}
+    </Button>
+  )
+
+  const trashColumns = useMemo<ColumnDef<MediaDto, unknown>[]>(
+    () => [
+      {
+        id: 'filename',
+        accessorFn: (m) => m.filename,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="File" />,
+        cell: ({ row }) => <span className="font-medium">{row.original.filename}</span>,
+      },
+      {
+        id: 'mimeType',
+        accessorFn: (m) => m.mimeType,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">{row.original.mimeType}</span>
+        ),
+      },
+      {
+        id: 'size',
+        accessorFn: (m) => m.size,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Size" />,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {formatBytes(row.original.size)}
+          </span>
+        ),
+      },
+      {
+        id: 'created',
+        accessorFn: (m) => m.createdAt,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {formatAdminTableDateTime(row.original.createdAt)}
+          </span>
+        ),
+      },
+    ],
+    [],
+  )
 
   const onUpload = useCallback(
     async (file: File) => {
@@ -85,12 +153,17 @@ export default function MediaPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Media library</CardTitle>
-          <CardDescription>
-            {listQuery.isLoading
-              ? 'Loading…'
-              : `${total} file${total === 1 ? '' : 's'} in the library`}
-          </CardDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1.5">
+              <CardTitle>Media library</CardTitle>
+              <CardDescription>
+                {listQuery.isLoading
+                  ? 'Loading…'
+                  : `${total} file${total === 1 ? '' : 's'} in the library`}
+              </CardDescription>
+            </div>
+            {trashButton}
+          </div>
         </CardHeader>
         <CardContent>
           {listQuery.error ? (
@@ -156,6 +229,22 @@ export default function MediaPage() {
           )}
         </CardContent>
       </Card>
+
+      <TrashModal
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        title="Trash — Media"
+        itemNoun="file"
+        rows={trashedItems}
+        columns={trashColumns}
+        isLoading={trashedQuery.isLoading}
+        getRowId={(r) => r.id}
+        onRestore={async (id) => {
+          await restoreMut.mutateAsync(id)
+        }}
+        onForceDelete={(id) => forceMut.mutateAsync(id)}
+        emptyMessage="No deleted files."
+      />
     </div>
   )
 }

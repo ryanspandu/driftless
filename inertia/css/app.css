@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Scan plugin front-end code so Tailwind picks up classes used in plugins/<name>/ui. */
+@source "../../plugins";
+
+/* Smooth in-page anchor navigation (public landing nav links). */
+html {
+  scroll-behavior: smooth;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

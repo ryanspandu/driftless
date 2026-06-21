@@ -38,11 +38,15 @@ import {
 } from "~/components/ui/dropdown_menu";
 import { AppSelect } from "~/components/ui/app-select";
 import { DataTable, DataTableColumnHeader, type SyncStatus } from "~/components/data-table";
+import { TrashModal } from "~/components/trash-modal";
 import { UserFormDialog } from "~/components/admin/user-form-dialog";
 import {
   useCreateUser,
   useDeleteUser,
+  useForceDeleteUser,
   useGeneratePassword,
+  useRestoreUser,
+  useTrashedUsers,
   useUpdateUser,
   useUsersList,
 } from "~/hooks/api/use-users";
@@ -161,6 +165,71 @@ function UsersPageInner() {
   const genPwMut = useGeneratePassword( );
   const rolesQuery = useRolesList( );
   const syncMetaMap = useSyncMetaMap("users");
+
+  const trashedQuery = useTrashedUsers();
+  const restoreMut = useRestoreUser();
+  const forceMut = useForceDeleteUser();
+  const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data]);
+  const [trashOpen, setTrashOpen] = useState(false);
+
+  const trashButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-1.5"
+      onClick={() => {
+        setTrashOpen(true);
+        void trashedQuery.refetch();
+      }}
+    >
+      <Trash2 className="size-4" />
+      Trash{trashedItems.length ? ` (${trashedItems.length})` : ""}
+    </Button>
+  );
+
+  const trashColumns = useMemo<ColumnDef<UserPublic, unknown>[]>(
+    () => [
+      {
+        id: "user",
+        accessorFn: (r) => `${r.firstName ?? ""} ${r.lastName ?? ""} ${r.email}`,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="User" />,
+        cell: ({ row }) => {
+          const u = row.original;
+          return (
+            <div>
+              <div className="font-medium">
+                {u.firstName} {u.lastName}
+              </div>
+              <div className="text-xs text-muted-foreground">{u.email}</div>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "username",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Username" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-muted-foreground text-sm">@{row.original.username}</span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Status" />
+        ),
+        cell: ({ row }) => (
+          <Badge
+            variant={row.original.status === "ACTIVE" ? "default" : "destructive"}
+          >
+            {row.original.status === "ACTIVE" ? "Active" : "Inactive"}
+          </Badge>
+        ),
+      },
+    ],
+    [],
+  );
 
   const items = useMemo(() => query.data?.items ?? [], [query.data]);
   const total = query.data?.total ?? 0;
@@ -347,6 +416,7 @@ function UsersPageInner() {
             getSyncStatus={getSyncStatus}
             lastSyncedAt={lastSyncedAt}
             searchPlaceholder="Name, email, username…"
+            toolbarActions={trashButton}
             searchValue={search}
             onSearchChange={(v) => {
               setSearch(v);
@@ -392,6 +462,22 @@ function UsersPageInner() {
           />
         </CardContent>
       </Card>
+
+      <TrashModal
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        title="Trash — Users"
+        itemNoun="user"
+        rows={trashedItems}
+        columns={trashColumns}
+        isLoading={trashedQuery.isLoading}
+        getRowId={(r) => String(r.id)}
+        onRestore={async (id) => {
+          await restoreMut.mutateAsync(Number(id));
+        }}
+        onForceDelete={(id) => forceMut.mutateAsync(Number(id))}
+        emptyMessage="No deleted users."
+      />
 
       <UserFormDialog
         open={dialog.open}

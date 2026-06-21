@@ -12,4 +12,5 @@ See [docs/ai/dev-workflow.md](../../docs/ai/dev-workflow.md) and [docs/LEGACY_MI
 - Seed: `database/seeders/main_seeder.ts` — `node ace db:seed`.
 - Never point migrations at the legacy stack database.
 - Legacy stack import: `node ace migrate:from-legacy` — full steps only in LEGACY_MIGRATION.md.
-- CMS natives reconcile on boot via `providers/cms_provider.ts` after migrations exist.
+- Reset a dev DB: `node ace migration:fresh --seed` (drops all tables, re-migrates, re-seeds).
+- CMS has no native collections; `providers/cms_provider.ts` reconciles an empty registry (no-op).

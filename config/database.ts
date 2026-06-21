@@ -1,6 +1,20 @@
+import { existsSync, readdirSync } from 'node:fs'
 import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/lucid'
+
+/**
+ * Each plugin owns its schema under `plugins/<name>/migrations`. Discover those
+ * folders at config-load time so plugin migrations run alongside the core ones.
+ */
+function pluginMigrationPaths(): string[] {
+  if (!existsSync('plugins')) return []
+  return readdirSync('plugins', { withFileTypes: true })
+    .filter((d) => d.isDirectory() && existsSync(`plugins/${d.name}/migrations`))
+    .map((d) => `plugins/${d.name}/migrations`)
+}
+
+const migrationPaths = ['database/migrations', ...pluginMigrationPaths()]
 
 const dbConfig = defineConfig({
   connection: env.get('NODE_ENV') === 'test' ? 'sqlite' : 'pg',
@@ -13,7 +27,7 @@ const dbConfig = defineConfig({
       },
       migrations: {
         naturalSort: true,
-        paths: ['database/migrations'],
+        paths: migrationPaths,
       },
       debug: app.inDev,
     },
@@ -26,7 +40,7 @@ const dbConfig = defineConfig({
       useNullAsDefault: true,
       migrations: {
         naturalSort: true,
-        paths: ['database/migrations'],
+        paths: migrationPaths,
       },
     },
   },

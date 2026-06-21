@@ -16,6 +16,7 @@ Read **[AGENTS.md](../AGENTS.md)** and **[docs/ai/](../docs/ai/)** for full proj
 | New admin API | Route + controller + `app/services/*` + `inertia/hooks/api/*.ts` |
 | Permission gate | `middleware.permission(...)` on route; check `permissions` on client |
 | CMS collection | `cms_controller`, `cms_service`, pages under `inertia/pages/admin/cms/` |
+| New plugin (BE+FE in one folder) | `plugins/<name>/` + register in `plugins/registry.ts` — see [docs/ai/plugins.md](../docs/ai/plugins.md) |
 | DB schema | `database/migrations/` + model in `app/models/` |
 | Any table / list of data | Shared `DataTable` from `~/components/data-table` (see [docs/ai/frontend.md](../docs/ai/frontend.md#data-tables)) |
 

@@ -1,7 +1,7 @@
 
 import { Link } from "@inertiajs/react";
 import { useRouter } from "~/hooks/use-inertia-url";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Lock,
   MoreHorizontal,
@@ -28,7 +28,14 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown_menu";
 import { DataTable, DataTableColumnHeader } from "~/components/data-table";
-import { useDeleteRole, useRolesList } from "~/hooks/api/use-roles";
+import { TrashModal } from "~/components/trash-modal";
+import {
+  useDeleteRole,
+  useForceDeleteRole,
+  useRestoreRole,
+  useRolesList,
+  useTrashedRoles,
+} from "~/hooks/api/use-roles";
 import { useAbility } from "~/components/providers/ability-provider";
 import { useConfirmDelete } from "~/components/providers/delete-confirm-provider";
 import { formatAdminTableDateTime } from "~/lib/utils";
@@ -42,7 +49,50 @@ export default function RolesPage() {
   const rolesQuery = useRolesList( );
   const deleteMut = useDeleteRole( );
 
+  const trashedQuery = useTrashedRoles();
+  const restoreMut = useRestoreRole();
+  const forceMut = useForceDeleteRole();
+  const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data]);
+  const [trashOpen, setTrashOpen] = useState(false);
+
   const items = useMemo(() => rolesQuery.data ?? [], [rolesQuery.data]);
+
+  const trashButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-1.5"
+      onClick={() => {
+        setTrashOpen(true);
+        void trashedQuery.refetch();
+      }}
+    >
+      <Trash2 className="size-4" />
+      Trash{trashedItems.length ? ` (${trashedItems.length})` : ""}
+    </Button>
+  );
+
+  const trashColumns = useMemo<ColumnDef<RoleDto, unknown>[]>(
+    () => [
+      {
+        id: "name",
+        accessorFn: (r) => r.name,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Role" />,
+        cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      },
+      {
+        id: "description",
+        accessorFn: (r) => r.description ?? "",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Description" />,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.description ?? "—"}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
 
   const columns = useMemo<ColumnDef<RoleDto>[]>(
     () => [
@@ -228,6 +278,7 @@ export default function RolesPage() {
             data={items}
             getRowId={(r) => r.id}
             searchPlaceholder="Search roles…"
+            toolbarActions={trashButton}
             urlSync={{}}
             emptyMessage={
               rolesQuery.isLoading
@@ -237,6 +288,22 @@ export default function RolesPage() {
           />
         </CardContent>
       </Card>
+
+      <TrashModal
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        title="Trash — Roles"
+        itemNoun="role"
+        rows={trashedItems}
+        columns={trashColumns}
+        isLoading={trashedQuery.isLoading}
+        getRowId={(r) => r.id}
+        onRestore={async (id) => {
+          await restoreMut.mutateAsync(id);
+        }}
+        onForceDelete={(id) => forceMut.mutateAsync(id)}
+        emptyMessage="No deleted roles."
+      />
     </div>
   );
 }

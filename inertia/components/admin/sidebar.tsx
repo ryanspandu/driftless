@@ -1,12 +1,16 @@
-import { Fragment, useMemo } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Link, router } from '@inertiajs/react'
 import {
   BarChart3,
+  Blocks,
   Boxes,
   FileText,
   Home,
   Image as ImageIcon,
   Key,
+  Megaphone,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plug2,
   Settings2,
   Shield,
@@ -15,6 +19,20 @@ import {
 } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
+import { useEnabledPluginsMenu } from '~/hooks/api/use-plugins'
+import { CollectionMenuIcon } from '~/components/cms/collection-menu-icon'
+
+/** lucide icon names a plugin manifest may reference for its sidebar entry. */
+const PLUGIN_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Megaphone,
+  Plug2,
+  FileText,
+  Boxes,
+}
+
+function pluginIcon(name: string): React.ComponentType<{ className?: string }> {
+  return PLUGIN_ICONS[name] ?? Plug2
+}
 
 interface MenuItem {
   title: string
@@ -32,7 +50,8 @@ const navItems: MenuItem[] = [
   { title: 'Permissions', href: '/admin/permissions', icon: Key, activeMatch: 'prefix' },
   { title: 'Media', href: '/admin/media', icon: ImageIcon },
   { title: 'Collections', href: '/admin/cms/collections', icon: Boxes, activeMatch: 'prefix' },
-  { title: 'Integrations', href: '/admin/integrations', icon: Plug2, activeMatch: 'prefix' },
+  { title: 'Plugins', href: '/admin/plugins', icon: Plug2, activeMatch: 'prefix' },
+  { title: 'Integrations', href: '/admin/integrations', icon: Blocks, activeMatch: 'prefix' },
   { title: 'Settings', href: '/admin/settings', icon: Settings2 },
 ]
 
@@ -46,7 +65,22 @@ function isActive(pathname: string, item: MenuItem): boolean {
 export function AppSidebar({ pathname }: { pathname: string }) {
   const collectionsQuery = useCmsCollectionsList()
   const collections = collectionsQuery.data ?? []
-  const collapsed = false
+  const pluginsMenuQuery = useEnabledPluginsMenu()
+  const pluginMenu = pluginsMenuQuery.data ?? []
+
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem('sidebar:collapsed') === '1'
+  })
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('sidebar:collapsed', next ? '1' : '0')
+      }
+      return next
+    })
+  }
 
   // Collections without a group fall under the default "Collections" section.
   // Each distinct group value becomes its own section (header = group name).
@@ -55,7 +89,12 @@ export function AppSidebar({ pathname }: { pathname: string }) {
     const ungrouped: typeof collections = []
     const grouped = new Map<string, typeof collections>()
 
-    for (const col of collections) {
+    // Native collections (source PRISMA: content / media / user) each already
+    // have a dedicated top-level nav item, so only list dynamic collections here
+    // to avoid duplicate sidebar entries.
+    const dynamicCollections = collections.filter((c) => c.source === 'DYNAMIC')
+
+    for (const col of dynamicCollections) {
       const group = col.group?.trim()
       if (!group) {
         ungrouped.push(col)
@@ -85,12 +124,37 @@ export function AppSidebar({ pathname }: { pathname: string }) {
         collapsed ? 'w-14' : 'w-56'
       )}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-3 h-14 px-4 border-b border-sidebar-border shrink-0">
-        <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
-          D
-        </div>
-        {!collapsed && <span className="font-semibold text-sm truncate">Driftless</span>}
+      {/* Logo + collapse toggle */}
+      <div
+        className={cn(
+          'flex items-center h-14 border-b border-sidebar-border shrink-0',
+          collapsed ? 'justify-center px-2' : 'gap-3 px-4'
+        )}
+      >
+        {!collapsed && (
+          <>
+            <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
+              D
+            </div>
+            <span className="font-semibold text-sm truncate">Driftless</span>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          className={cn(
+            'flex items-center justify-center size-8 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors',
+            !collapsed && 'ml-auto'
+          )}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="size-4 shrink-0" />
+          ) : (
+            <PanelLeftClose className="size-4 shrink-0" />
+          )}
+        </button>
       </div>
 
       {/* Nav */}
@@ -140,13 +204,55 @@ export function AppSidebar({ pathname }: { pathname: string }) {
                   )}
                   title={collapsed ? col.label : undefined}
                 >
-                  <Boxes className="size-4 shrink-0" />
+                  {col.icon?.trim() ? (
+                    <CollectionMenuIcon icon={col.icon} className="size-4 shrink-0" />
+                  ) : (
+                    <Boxes className="size-4 shrink-0" />
+                  )}
                   {!collapsed && <span className="truncate">{col.label}</span>}
                 </Link>
               )
             })}
           </Fragment>
         ))}
+
+        {/* Enabled plugins' menu entries */}
+        {pluginMenu.length > 0 && (
+          <Fragment>
+            {!collapsed && (
+              <div className="px-2 pt-3 pb-1">
+                <p className="text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider">
+                  Plugins
+                </p>
+              </div>
+            )}
+            {pluginMenu.map((item) => {
+              const active = isActive(pathname, {
+                title: item.title,
+                href: item.href,
+                icon: Plug2,
+                activeMatch: 'prefix',
+              })
+              const Icon = pluginIcon(item.icon)
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors',
+                    active
+                      ? 'bg-sidebar-accent text-ring font-medium'
+                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                  )}
+                  title={collapsed ? item.title : undefined}
+                >
+                  <Icon className="size-4 shrink-0" />
+                  {!collapsed && <span className="truncate">{item.title}</span>}
+                </Link>
+              )
+            })}
+          </Fragment>
+        )}
       </nav>
 
       {/* Footer */}

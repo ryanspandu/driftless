@@ -23,11 +23,12 @@ npm run dev            # NOT plain `node ace serve`
 | `app/models/` | Lucid models |
 | `app/middleware/` | Auth, permissions, Inertia |
 | `app/validators/` | VineJS validation |
-| `app/cms/` | Native CMS registry |
+| `app/cms/` | CMS native registry (empty — CMS is dynamic-only) |
 | `start/` | Routes, kernel, env |
 | `config/` | Adonis config |
 | `inertia/` | React pages, components, hooks |
 | `database/` | Migrations, seeders |
+| `plugins/` | Self-contained plugins (BE + FE in one folder), toggleable at `/admin/plugins` |
 | `commands/` | Ace commands |
 | `tests/` | Japa suites (unit / functional / browser configured; only `functional/` populated) |
 | `docs/ai/` | Deep reference for agents |
@@ -40,7 +41,7 @@ npm run dev            # NOT plain `node ace serve`
 | Server | AdonisJS 7, Lucid, VineJS, session auth |
 | Client | Inertia 4, React 19, Vite 7, Tailwind 4 |
 | Data | PostgreSQL 16 |
-| CMS | Dynamic collections + native registry, ULIDs, revisions |
+| CMS | Dynamic collections (no natives), ULIDs, revisions |
 | Client data | TanStack Query → `/api/admin/*` |
 | Offline | Dexie + Serwist (optional) |
 | Tests | Japa |
@@ -84,6 +85,17 @@ Manual clear if ever needed: `node scripts/clean-vite-dev.mjs`.
 6. **Frontend** — `inertia/pages/...` and/or `inertia/hooks/api/...`. For tabular data, use the shared `DataTable`.
 7. **Permissions** — server middleware + client `permissions` / `~/lib/ability`.
 
+## Adding a plugin (checklist)
+
+A plugin packages a feature (BE + FE) in one folder under `plugins/<name>/`, toggleable at
+runtime from `/admin/plugins`. Full reference: [docs/ai/plugins.md](docs/ai/plugins.md).
+
+1. **Scaffold** — copy the shape of [`plugins/announcements/`](plugins/announcements): `plugin.ts` (manifest), `routes.ts`, `models/`, `migrations/`, `services/`, `controllers/`, and `ui/admin/index.tsx` + `ui/public/index.tsx` (the two FEs).
+2. **Register** — add one import line to [`plugins/registry.ts`](plugins/registry.ts).
+3. **Guard routes** — every plugin route uses `middleware.pluginEnabled({ name })` (admin API also `middleware.permission(...)`).
+4. **Migrate** — `node ace migration:run` (plugin migrations auto-discovered).
+5. **Build once** — plugin FE is bundled at build time, so a *new* plugin folder needs one `npm run build`. Enable/disable afterward is runtime, no restart.
+
 ## Documentation index
 
 | Doc | Topics |
@@ -94,6 +106,7 @@ Manual clear if ever needed: `node scripts/clean-vite-dev.mjs`.
 | [docs/ai/backend.md](docs/ai/backend.md) | Controllers, services |
 | [docs/ai/frontend.md](docs/ai/frontend.md) | Inertia, React, UI |
 | [docs/ai/cms.md](docs/ai/cms.md) | Collections, records |
+| [docs/ai/plugins.md](docs/ai/plugins.md) | Plugin system, two FEs, enable/disable |
 | [docs/ai/auth-and-permissions.md](docs/ai/auth-and-permissions.md) | Auth, RBAC |
 | [docs/ai/offline-and-pwa.md](docs/ai/offline-and-pwa.md) | Dexie, Serwist |
 | [docs/ai/testing.md](docs/ai/testing.md) | Japa |

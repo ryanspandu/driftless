@@ -9,6 +9,7 @@ import { apiFetch } from '~/lib/api-client'
 export const permissionQueryKeys = {
   all: ['permissions'] as const,
   list: () => ['permissions', 'list'] as const,
+  trash: () => ['permissions', 'trash'] as const,
   detail: (id: string) => ['permissions', 'detail', id] as const,
 }
 
@@ -61,5 +62,36 @@ export function useDeletePermission() {
     mutationFn: (id: string) =>
       apiFetch<void>(`/api/admin/permissions/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: permissionQueryKeys.all }),
+  })
+}
+
+/** Soft-deleted permissions (the Trash). */
+export function useTrashedPermissions(enabled = true) {
+  return useQuery({
+    queryKey: permissionQueryKeys.trash(),
+    enabled,
+    queryFn: () => apiFetch<PermissionDto[]>('/api/admin/permissions/trash'),
+    staleTime: 10_000,
+  })
+}
+
+export function useRestorePermission() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<PermissionDto>(`/api/admin/permissions/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: permissionQueryKeys.trash() })
+      void qc.invalidateQueries({ queryKey: permissionQueryKeys.all })
+    },
+  })
+}
+
+export function useForceDeletePermission() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/api/admin/permissions/${id}/force`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: permissionQueryKeys.trash() }),
   })
 }

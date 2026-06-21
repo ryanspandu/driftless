@@ -1,0 +1,18 @@
+---
+description: Driftless plugin system (co-located BE+FE, runtime toggle)
+globs: plugins/**
+alwaysApply: false
+---
+
+# Plugins
+
+Full reference: [docs/ai/plugins.md](../../docs/ai/plugins.md). Example: `plugins/announcements/`.
+
+- A plugin = one folder `plugins/<name>/` with BE (`routes.ts`, `controllers/`, `services/`, `models/`, `migrations/`) and FE (`ui/admin/index.tsx`, `ui/public/index.tsx`).
+- **Two FEs:** render `plugins/<name>/admin/index` (AdminLayout) and `plugins/<name>/public/index` (PublicLayout) via `renderPage(...)`. Resolved in `inertia/app.tsx`; layout chosen in `layout-shell.tsx`.
+- **Register** a new plugin by adding one import line to `plugins/registry.ts`.
+- **Guard** every plugin route with `middleware.pluginEnabled({ name })`; admin API also `middleware.permission({ permission: '<name>:manage' })`.
+- Manifest `plugin.ts` declares `permissions`, `adminMenu` (lucide icon name), `version`, `registerRoutes`. Provider mints permissions + reconciles the `plugins` table on boot.
+- Use server aliases via `#plugins/*`; plugin UI uses `~/*` and the shared `~/components/data-table` for tables.
+- **Do not** put plugin React files where the server build compiles them — `tsconfig.json` excludes `plugins/**/ui/**`; they are type-checked by `plugins/tsconfig.json`.
+- Enable/disable is runtime (no restart). A **new** plugin folder needs one `npm run build` (FE is bundled at build time). Disable ≠ uninstall (data is kept).

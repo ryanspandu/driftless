@@ -23,7 +23,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5433/driftless \
 node ace migrate:from-legacy
 ```
 
-Then reconcile native CMS collections:
+Then seed builtin permissions, roles, and the admin user:
 
 ```bash
 node ace db:seed

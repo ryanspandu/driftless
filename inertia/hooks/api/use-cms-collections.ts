@@ -12,6 +12,7 @@ import { cmsCollections } from '~/lib/cms/client'
 
 const qk = {
   list: ['cms-collections', 'list'] as const,
+  trash: ['cms-collections', 'trash'] as const,
   one: (key: string) => ['cms-collections', key] as const,
 }
 
@@ -57,7 +58,38 @@ export function useDeleteCmsCollection() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (collectionKey: string) => cmsCollections.remove(collectionKey),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.list }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.list })
+      qc.invalidateQueries({ queryKey: qk.trash })
+    },
+  })
+}
+
+export function useTrashedCmsCollections(enabled = true) {
+  return useQuery({
+    queryKey: qk.trash,
+    queryFn: () => cmsCollections.trash(),
+    staleTime: 10_000,
+    enabled,
+  })
+}
+
+export function useRestoreCmsCollection() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (collectionKey: string) => cmsCollections.restore(collectionKey),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.list })
+      qc.invalidateQueries({ queryKey: qk.trash })
+    },
+  })
+}
+
+export function useForceDeleteCmsCollection() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (collectionKey: string) => cmsCollections.forceRemove(collectionKey),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.trash }),
   })
 }
 

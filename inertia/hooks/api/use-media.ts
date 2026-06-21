@@ -66,6 +66,39 @@ export function useDeleteMedia() {
   })
 }
 
+export function useTrashedMedia(enabled = true) {
+  return useQuery({
+    queryKey: ['media', 'trash'] as const,
+    queryFn: async () => {
+      const res = await api.get<MediaDto[]>('/api/admin/media/trash')
+      return res.data
+    },
+    staleTime: 10_000,
+    enabled,
+  })
+}
+
+export function useRestoreMedia() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.post<MediaDto>(`/api/admin/media/${id}/restore`)
+      return res.data
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['media'] }),
+  })
+}
+
+export function useForceDeleteMedia() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/admin/media/${id}/force`)
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['media'] }),
+  })
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`

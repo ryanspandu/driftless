@@ -1,7 +1,7 @@
 
 import { Link } from "@inertiajs/react";
 import { useRouter } from "~/hooks/use-inertia-url";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Key,
   Lock,
@@ -28,9 +28,13 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown_menu";
 import { DataTable, DataTableColumnHeader } from "~/components/data-table";
+import { TrashModal } from "~/components/trash-modal";
 import {
   useDeletePermission,
+  useForceDeletePermission,
   usePermissionsList,
+  useRestorePermission,
+  useTrashedPermissions,
 } from "~/hooks/api/use-permissions";
 import { useAbility } from "~/components/providers/ability-provider";
 import { useConfirmDelete } from "~/components/providers/delete-confirm-provider";
@@ -45,7 +49,55 @@ export default function PermissionsPage() {
   const query = usePermissionsList( );
   const deleteMut = useDeletePermission( );
 
+  const trashedQuery = useTrashedPermissions();
+  const restoreMut = useRestorePermission();
+  const forceMut = useForceDeletePermission();
+  const trashedItems = useMemo(
+    () => trashedQuery.data ?? [],
+    [trashedQuery.data],
+  );
+  const [trashOpen, setTrashOpen] = useState(false);
+
   const items = useMemo(() => query.data ?? [], [query.data]);
+
+  const trashButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-1.5"
+      onClick={() => {
+        setTrashOpen(true);
+        void trashedQuery.refetch();
+      }}
+    >
+      <Trash2 className="size-4" />
+      Trash{trashedItems.length ? ` (${trashedItems.length})` : ""}
+    </Button>
+  );
+
+  const trashColumns = useMemo<ColumnDef<PermissionDto, unknown>[]>(
+    () => [
+      {
+        id: "name",
+        accessorFn: (p) => p.name,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Code" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-sm font-medium">{row.original.name}</span>
+        ),
+      },
+      {
+        id: "description",
+        accessorFn: (p) => p.description ?? "",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Description" />,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.description ?? "—"}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
 
   const columns = useMemo<ColumnDef<PermissionDto>[]>(
     () => [
@@ -206,6 +258,7 @@ export default function PermissionsPage() {
             data={items}
             getRowId={(p) => p.id}
             searchPlaceholder="Search permissions…"
+            toolbarActions={trashButton}
             urlSync={{}}
             emptyMessage={
               query.isLoading
@@ -215,6 +268,22 @@ export default function PermissionsPage() {
           />
         </CardContent>
       </Card>
+
+      <TrashModal
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        title="Trash — Permissions"
+        itemNoun="permission"
+        rows={trashedItems}
+        columns={trashColumns}
+        isLoading={trashedQuery.isLoading}
+        getRowId={(r) => r.id}
+        onRestore={async (id) => {
+          await restoreMut.mutateAsync(id);
+        }}
+        onForceDelete={(id) => forceMut.mutateAsync(id)}
+        emptyMessage="No deleted permissions."
+      />
     </div>
   );
 }

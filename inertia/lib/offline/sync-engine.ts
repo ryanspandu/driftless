@@ -49,6 +49,7 @@ export class SyncEngine {
   private readonly listeners = new Set<EngineListener>();
   private running = false;
   private runQueued = false;
+  private retryErrorsQueued = false;
   private snapshot: EngineSnapshot = {
     running: false,
     lastRunAt: null,
@@ -103,9 +104,16 @@ export class SyncEngine {
     return this.snapshot;
   }
 
-  /** Non-blocking nudge — safe to call after every mutation. */
-  async trigger(): Promise<void> {
+  /**
+   * Non-blocking nudge — safe to call after every mutation.
+   *
+   * `retryErrors` requeues jobs that previously failed (status `error`) for a
+   * fresh attempt. Pass it only for an explicit user action ("Sync now") so
+   * automatic triggers don't re-run genuinely fatal jobs every cycle.
+   */
+  async trigger(options: { retryErrors?: boolean } = {}): Promise<void> {
     if (this.store.mode === "disabled") return;
+    if (options.retryErrors) this.retryErrorsQueued = true;
     if (this.running) {
       this.runQueued = true;
       return;
@@ -113,6 +121,10 @@ export class SyncEngine {
     this.running = true;
     this.emit({ ...this.snapshot, running: true });
     try {
+      if (this.retryErrorsQueued) {
+        this.retryErrorsQueued = false;
+        await this.requeueErroredJobs();
+      }
       await this.drain();
     } finally {
       this.running = false;
@@ -126,6 +138,21 @@ export class SyncEngine {
         this.runQueued = false;
         void this.trigger();
       }
+    }
+  }
+
+  /** Reset failed jobs to idle so the next drain gives them a fresh attempt. */
+  private async requeueErroredJobs(): Promise<void> {
+    const jobs = await this.store.listAllJobs();
+    const now = new Date().toISOString();
+    for (const job of jobs) {
+      if (job.status !== "error") continue;
+      await this.store.updateJob(job.id, {
+        status: "idle",
+        attempts: 0,
+        nextAttemptAt: now,
+        lastError: null,
+      });
     }
   }
 
@@ -151,7 +178,23 @@ export class SyncEngine {
         }
         await this.store.deleteJob(job.id);
       } catch (err) {
-        await this.handleError(job, err, handler);
+        // The server resource is gone (404) — happens when the DB row was
+        // removed elsewhere but the offline copy lingered. The right outcome
+        // depends on the op:
+        //   • delete → that's the goal: drop the local row + job, no error.
+        //   • update → the target no longer exists, so the local edit can't be
+        //     applied: surface a conflict (keep the local data) rather than a
+        //     hard error, so the user can recreate or discard it.
+        //   • create → a missing collection endpoint is a genuine failure, so
+        //     fall through to normal error handling.
+        if (isGoneError(err) && job.op === "delete") {
+          await this.store.deleteRow(job.entity, job.refId);
+          await this.store.deleteJob(job.id);
+        } else if (isGoneError(err) && job.op === "update") {
+          await this.markGoneConflict(job);
+        } else {
+          await this.handleError(job, err, handler);
+        }
       }
     }
   }
@@ -161,6 +204,22 @@ export class SyncEngine {
     if (direct) return direct;
     if (isCmsEntity(entity)) return this.handlers.get("cms:*");
     return undefined;
+  }
+
+  /**
+   * The row an update targeted was deleted on the server. Park the job as a
+   * conflict and flag the local row so the Sync Center surfaces it; the local
+   * data is kept so the user can recreate or discard the change.
+   */
+  private async markGoneConflict(job: OutboxJob): Promise<void> {
+    const message =
+      "The record was deleted on the server, so your offline changes could not be saved.";
+    await this.store.updateJob(job.id, { status: "conflict", lastError: message });
+    await this.store.setRowMeta(job.entity, job.refId, {
+      conflict: true,
+      lastError: message,
+      pendingSince: null,
+    });
   }
 
   private async handleError(
@@ -223,6 +282,14 @@ export class SyncEngine {
     this.snapshot = next;
     for (const l of this.listeners) l(next);
   }
+}
+
+/** True when the server says the resource is already gone (404 / not found). */
+function isGoneError(err: unknown): boolean {
+  const status = (err as { status?: unknown } | null | undefined)?.status;
+  if (status === 404) return true;
+  const msg = String((err as Error)?.message ?? err).toLowerCase();
+  return msg.includes("404") || msg.includes("not found");
 }
 
 function defaultClassify(err: unknown): "network" | "conflict" | "fatal" {

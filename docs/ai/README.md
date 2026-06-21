@@ -11,7 +11,8 @@ Reference docs for AI coding assistants (Cursor, Claude Code, GitHub Copilot, Co
 | [conventions.md](./conventions.md) | Code style, imports, commits, maintenance |
 | [backend.md](./backend.md) | Controllers, services, validators, middleware |
 | [frontend.md](./frontend.md) | Inertia pages, hooks, UI components |
-| [cms.md](./cms.md) | Collections, fields, natives, revisions |
+| [cms.md](./cms.md) | Dynamic collections, fields, revisions, sidebar grouping |
+| [plugins.md](./plugins.md) | Plugin system: co-located BE+FE, two front-ends, runtime enable/disable |
 | [auth-and-permissions.md](./auth-and-permissions.md) | Session auth, OAuth, permission grammar |
 | [offline-and-pwa.md](./offline-and-pwa.md) | Dexie, sync engine, Serwist |
 | [testing.md](./testing.md) | Japa suites and patterns |

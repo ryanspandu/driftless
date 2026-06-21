@@ -58,6 +58,31 @@ export function useDeleteCmsRecord(key: string) {
   })
 }
 
+export function useTrashedCmsRecords(key: string, enabled = true) {
+  return useQuery<CmsRecordDto[]>({
+    queryKey: ['cms-records', key, 'trash'] as const,
+    enabled: !!key && enabled,
+    queryFn: () => cmsRecords.trash(key),
+    staleTime: 10_000,
+  })
+}
+
+export function useRestoreCmsRecord(key: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => cmsRecords.restore(key, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cms-records', key] }),
+  })
+}
+
+export function useForceDeleteCmsRecord(key: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => cmsRecords.forceRemove(key, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cms-records', key] }),
+  })
+}
+
 export function useCmsRevisions(key: string, id: string) {
   return useQuery<CmsRevisionDto[]>({
     queryKey: qk.revisions(key, id),

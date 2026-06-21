@@ -15,6 +15,7 @@ export const userQueryKeys = {
   all: ['users'] as const,
   list: (q: UserListQuery) => ['users', 'list', normalizeQuery(q)] as const,
   detail: (id: string) => ['users', 'detail', id] as const,
+  trash: ['users', 'trash'] as const,
 }
 
 function normalizeQuery(q: UserListQuery): UserListQuery {
@@ -77,6 +78,37 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/api/admin/users/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: userQueryKeys.all }),
+  })
+}
+
+/** Soft-deleted users (the Trash). */
+export function useTrashedUsers(enabled = true) {
+  return useQuery({
+    queryKey: userQueryKeys.trash,
+    queryFn: () => apiFetch<UserPublic[]>('/api/admin/users/trash'),
+    staleTime: 10_000,
+    enabled,
+  })
+}
+
+export function useRestoreUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<UserPublic>(`/api/admin/users/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: userQueryKeys.trash })
+      void qc.invalidateQueries({ queryKey: userQueryKeys.all })
+    },
+  })
+}
+
+export function useForceDeleteUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<void>(`/api/admin/users/${id}/force`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: userQueryKeys.trash }),
   })
 }
 

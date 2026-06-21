@@ -26,9 +26,11 @@ From `app/services/permission_ability_service.ts`:
 | `*` | Full access |
 | `cms:manage` | Collection/field schema + broad CMS admin |
 | `cms:{key}:{verb}` | Record access for one collection (`read`, `create`, `update`, `delete`) |
-| `{resource}:{action}` | Static resources (`content:read`, `user:manage`, `settings:manage`, …) |
+| `{resource}:{action}` | Static resources (`content:read`, `user:manage`, `media:manage`, `settings:manage`, …) |
 
 `abilityAllowsCode(permissionNames, code)` checks if a user may perform an action.
+
+Builtin permission codes are seeded from `database/seeder_constants.ts`: `*`, `content:create|read|update|delete`, `user:read|manage`, `media:read|manage`, `cms:manage`, `role:manage`, `permission:manage`, `settings:manage`. **There are no native CMS collections** — Content, Media and Users are standalone resources (dedicated pages + the permissions above), not CMS collections. `cms:{key}:*` codes only exist for dynamic collections.
 
 ### Route middleware
 
@@ -41,10 +43,10 @@ From `app/services/permission_ability_service.ts`:
 // Resource + HTTP verb — `resource` accepts only 'content' | 'user' | 'media'
 .use(middleware.permission({ resource: 'user' }))     // read → user:read, write → user:manage
 .use(middleware.permission({ resource: 'content' }))  // → content:{verb}
-.use(middleware.permission({ resource: 'media' }))    // → cms:media:{verb}  (note the cms: prefix)
+.use(middleware.permission({ resource: 'media' }))    // read → media:read, write → media:manage
 
-// CMS records (uses :key param + method)
-.use(middleware.permission({ cmsRecord: true }))  // → cms:content:read, etc.
+// CMS records (uses :key param + method) — only for dynamic collections
+.use(middleware.permission({ cmsRecord: true }))  // → cms:{collectionKey}:read, etc.
 ```
 
 For any other code (e.g. `settings:manage`, `role:manage`) use the explicit

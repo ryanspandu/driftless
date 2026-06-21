@@ -45,9 +45,7 @@ function resolveRequiredPermission(ctx: HttpContext, options: PermissionOptions)
   }
 
   if (options.resource === 'media') {
-    if (verb === 'create') return 'cms:media:create'
-    if (verb === 'delete') return 'cms:media:delete'
-    return 'cms:media:read'
+    return verb === 'read' ? 'media:read' : 'media:manage'
   }
 
   return null

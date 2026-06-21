@@ -307,6 +307,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/users_controller').default['index']>>>
     }
   }
+  'users.trash': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/users/trash'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/users_controller').default['trash']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/users_controller').default['trash']>>>
+    }
+  }
   'users.store': {
     methods: ["POST"]
     pattern: '/api/admin/users'
@@ -317,6 +329,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/users_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/users_controller').default['store']>>>
+    }
+  }
+  'users.restore': {
+    methods: ["POST"]
+    pattern: '/api/admin/users/:id/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/users_controller').default['restore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/users_controller').default['restore']>>>
+    }
+  }
+  'users.force_destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/users/:id/force'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/users_controller').default['forceDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/users_controller').default['forceDestroy']>>>
     }
   }
   'users.update': {
@@ -391,6 +427,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/roles_controller').default['index']>>>
     }
   }
+  'roles.trash': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/roles/trash'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/roles_controller').default['trash']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/roles_controller').default['trash']>>>
+    }
+  }
   'roles.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/roles/:id'
@@ -413,6 +461,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/roles_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/roles_controller').default['store']>>>
+    }
+  }
+  'roles.restore': {
+    methods: ["POST"]
+    pattern: '/api/admin/roles/:id/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/roles_controller').default['restore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/roles_controller').default['restore']>>>
+    }
+  }
+  'roles.force_destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/roles/:id/force'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/roles_controller').default['forceDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/roles_controller').default['forceDestroy']>>>
     }
   }
   'roles.update': {
@@ -487,6 +559,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/permissions_controller').default['index']>>>
     }
   }
+  'permissions.trash': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/permissions/trash'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/permissions_controller').default['trash']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/permissions_controller').default['trash']>>>
+    }
+  }
   'permissions.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/permissions/:id'
@@ -509,6 +593,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/permissions_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/permissions_controller').default['store']>>>
+    }
+  }
+  'permissions.restore': {
+    methods: ["POST"]
+    pattern: '/api/admin/permissions/:id/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/permissions_controller').default['restore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/permissions_controller').default['restore']>>>
+    }
+  }
+  'permissions.force_destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/permissions/:id/force'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/permissions_controller').default['forceDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/permissions_controller').default['forceDestroy']>>>
     }
   }
   'permissions.update': {
@@ -559,6 +667,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['index']>>>
     }
   }
+  'content.trash': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/content/trash'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['trash']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['trash']>>>
+    }
+  }
   'content.store': {
     methods: ["POST"]
     pattern: '/api/admin/content'
@@ -569,6 +689,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['store']>>>
+    }
+  }
+  'content.restore': {
+    methods: ["POST"]
+    pattern: '/api/admin/content/:id/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['restore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['restore']>>>
+    }
+  }
+  'content.force_destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/content/:id/force'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['forceDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['forceDestroy']>>>
     }
   }
   'content.update': {
@@ -643,6 +787,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['collectionsIndex']>>>
     }
   }
+  'cms.collections_trash': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/cms/collections/trash'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['collectionsTrash']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['collectionsTrash']>>>
+    }
+  }
   'cms.collections_show': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/cms/collections/:key'
@@ -665,6 +821,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['collectionsStore']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['collectionsStore']>>>
+    }
+  }
+  'cms.collections_restore': {
+    methods: ["POST"]
+    pattern: '/api/admin/cms/collections/:key/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['collectionsRestore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['collectionsRestore']>>>
+    }
+  }
+  'cms.collections_force_destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/cms/collections/:key/force'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['collectionsForceDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['collectionsForceDestroy']>>>
     }
   }
   'cms.collections_update': {
@@ -787,6 +967,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['recordsIndex']>>>
     }
   }
+  'cms.records_trash': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/cms/:key/records/trash'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['recordsTrash']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['recordsTrash']>>>
+    }
+  }
   'cms.records_show': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/cms/:key/records/:id'
@@ -809,6 +1001,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['recordsStore']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['recordsStore']>>>
+    }
+  }
+  'cms.records_restore': {
+    methods: ["POST"]
+    pattern: '/api/admin/cms/:key/records/:id/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { key: ParamValue; id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['recordsRestore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['recordsRestore']>>>
+    }
+  }
+  'cms.records_force_destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/cms/:key/records/:id/force'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { key: ParamValue; id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['recordsForceDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['recordsForceDestroy']>>>
     }
   }
   'cms.records_update': {
@@ -883,6 +1099,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['index']>>>
     }
   }
+  'media.trash': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/media/trash'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['trash']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['trash']>>>
+    }
+  }
   'media.store': {
     methods: ["POST"]
     pattern: '/api/admin/media'
@@ -893,6 +1121,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['store']>>>
+    }
+  }
+  'media.restore': {
+    methods: ["POST"]
+    pattern: '/api/admin/media/:id/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['restore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['restore']>>>
+    }
+  }
+  'media.force_destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/media/:id/force'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['forceDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['forceDestroy']>>>
     }
   }
   'media.destroy': {
@@ -1025,6 +1277,126 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updateIntegrationSettings']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updateIntegrationSettings']>>>
+    }
+  }
+  'plugins.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/plugins'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['page']>>>
+    }
+  }
+  'plugins.menu': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/plugins/menu'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['menu']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['menu']>>>
+    }
+  }
+  'plugins.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/plugins'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['index']>>>
+    }
+  }
+  'plugins.toggle': {
+    methods: ["PUT"]
+    pattern: '/api/admin/plugins/:name/toggle'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { name: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['toggle']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['toggle']>>>
+    }
+  }
+  'admin.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/announcements'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['page']>>>
+    }
+  }
+  'admin.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/announcements'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['index']>>>
+    }
+  }
+  'admin.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/announcements'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['store']>>>
+    }
+  }
+  'admin.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/announcements/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['update']>>>
+    }
+  }
+  'admin.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/announcements/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['destroy']>>>
+    }
+  }
+  'public.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/announcements'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_public_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_public_controller').default['page']>>>
     }
   }
 }

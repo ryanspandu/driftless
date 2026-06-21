@@ -231,13 +231,49 @@ export default class CmsService {
 
     if (collection.source !== 'DYNAMIC') throw new Error('Native collections cannot be deleted')
 
+    // Soft delete only — the dynamic table and permissions are kept so the
+    // collection can be restored from the Trash. They are dropped on force-delete.
     collection.deletedAt = new Date() as any
     await collection.save()
+  }
+
+  /** Soft-deleted collections (the Trash). */
+  async listTrashedCollections(): Promise<CmsCollectionDto[]> {
+    const rows = await CmsCollection.query()
+      .whereNotNull('deleted_at')
+      .preload('fields', (q) => q.whereNull('deleted_at').orderBy('order'))
+      .orderBy('label')
+    return rows.map((r) => this.collectionToDto(r))
+  }
+
+  async restoreCollection(key: string): Promise<CmsCollectionDto> {
+    const collection = await CmsCollection.query()
+      .where('key', key)
+      .whereNotNull('deleted_at')
+      .preload('fields', (q) => q.whereNull('deleted_at').orderBy('order'))
+      .firstOrFail()
+
+    const clash = await CmsCollection.query().where('key', key).whereNull('deleted_at').first()
+    if (clash) throw new Error(`A collection with key "${key}" already exists`)
+
+    collection.deletedAt = null as any
+    await collection.save()
+    await this.permissions.mintForCollection(key)
+    return this.collectionToDto(collection)
+  }
+
+  /** Permanently delete a trashed collection: drop its dynamic table + permissions. */
+  async forceDeleteCollection(key: string): Promise<void> {
+    const collection = await CmsCollection.query()
+      .where('key', key)
+      .whereNotNull('deleted_at')
+      .firstOrFail()
 
     try {
       await db.rawQuery(`DROP TABLE IF EXISTS "${dynamicTableName(key)}"`)
     } catch {}
     await this.permissions.removeForCollection(key)
+    await collection.delete()
   }
 
   async updateField(
@@ -534,6 +570,30 @@ export default class CmsService {
       throw new Error('User records must be deleted via Admin → Users')
     }
     await db.from(table).where('id', id).update({ deleted_at: new Date().toISOString() })
+  }
+
+  /** Soft-deleted records for a collection (the Trash). */
+  async listTrashedRecords(collectionKey: string): Promise<CmsRecordDto[]> {
+    const { table, collection } = await this.resolveRecordContext(collectionKey)
+    const rows = await db
+      .from(table)
+      .whereNotNull('deleted_at')
+      .select('*')
+      .orderBy(this.orderColumnForTable(table), 'desc')
+    return rows.map((r: any) => this.rowToRecordDto(r, collection))
+  }
+
+  async restoreRecord(collectionKey: string, id: string): Promise<CmsRecordDto> {
+    const { table, collection } = await this.resolveRecordContext(collectionKey)
+    await db.from(table).where('id', id).update({ deleted_at: null })
+    const row = await db.from(table).where('id', id).first()
+    if (!row) throw new Error('Record not found')
+    return this.rowToRecordDto(row, collection)
+  }
+
+  async forceDeleteRecord(collectionKey: string, id: string): Promise<void> {
+    const { table } = await this.resolveRecordContext(collectionKey)
+    await db.from(table).where('id', id).delete()
   }
 
   async getRevisions(collectionKey: string, recordId: string): Promise<CmsRevision[]> {

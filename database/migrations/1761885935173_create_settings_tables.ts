@@ -8,8 +8,8 @@ export default class extends BaseSchema {
         table.string('section', 64).notNullable()
         table.string('key', 128).notNullable()
         table.text('value').notNullable()
-        table.timestamp('deleted_at').nullable()
         table.timestamp('updated_at').notNullable()
+        table.timestamp('deleted_at').nullable()
         table.unique(['section', 'key'])
         table.index(['section'])
       })
@@ -31,8 +31,8 @@ export default class extends BaseSchema {
         table.string('ga4_measurement_id').nullable()
         table.boolean('clarity_enabled').notNullable().defaultTo(false)
         table.string('clarity_project_id').nullable()
-        table.timestamp('deleted_at').nullable()
         table.timestamp('updated_at').notNullable()
+        table.timestamp('deleted_at').nullable()
       })
     }
   }

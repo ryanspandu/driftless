@@ -7,7 +7,7 @@ export default class extends BaseSchema {
         table.string('id').primary()
         table.string('key', 64).notNullable().unique()
         table.string('label').notNullable()
-        table.string('icon').nullable()
+        table.text('icon').nullable()
         table.string('group').nullable()
         table.string('source', 20).notNullable().defaultTo('DYNAMIC')
         table.string('model_name').nullable()
@@ -15,8 +15,8 @@ export default class extends BaseSchema {
         table.text('list_config').notNullable().defaultTo('{}')
         table.boolean('revisions_on').notNullable().defaultTo(true)
         table.boolean('drafts_on').notNullable().defaultTo(true)
-        table.timestamp('deleted_at').nullable()
         table.timestamps(true, true)
+        table.timestamp('deleted_at').nullable()
       })
     }
 
@@ -36,8 +36,8 @@ export default class extends BaseSchema {
         table.boolean('unique').notNullable().defaultTo(false)
         table.integer('order').notNullable().defaultTo(0)
         table.text('config').notNullable().defaultTo('{}')
-        table.timestamp('deleted_at').nullable()
         table.timestamps(true, true)
+        table.timestamp('deleted_at').nullable()
         table.unique(['collection_id', 'key'])
       })
     }
@@ -50,8 +50,8 @@ export default class extends BaseSchema {
         table.text('data').notNullable()
         table.string('status', 20).notNullable().defaultTo('DRAFT')
         table.integer('author_id').nullable()
-        table.timestamp('deleted_at').nullable()
         table.timestamp('created_at').notNullable()
+        table.timestamp('deleted_at').nullable()
         table.index(['collection_key', 'record_id', 'created_at'])
       })
     }
@@ -66,8 +66,8 @@ export default class extends BaseSchema {
         table.integer('width').nullable()
         table.integer('height').nullable()
         table.integer('author_id').nullable()
-        table.timestamp('deleted_at').nullable()
         table.timestamp('created_at').notNullable()
+        table.timestamp('deleted_at').nullable()
       })
     }
   }

@@ -6,10 +6,13 @@ export const BUILTIN_PERMISSIONS: { name: string; description: string }[] = [
   { name: 'content:delete', description: 'Delete content records.' },
   { name: 'user:read', description: 'Read user profiles.' },
   { name: 'user:manage', description: 'Create / update / delete users.' },
+  { name: 'media:read', description: 'Read media library files.' },
+  { name: 'media:manage', description: 'Upload / delete media files.' },
   { name: 'cms:manage', description: 'Create / edit / delete CMS collection schemas.' },
   { name: 'role:manage', description: 'Create / edit / delete roles and assign permissions.' },
   { name: 'permission:manage', description: 'Create / edit / delete permission codes.' },
   { name: 'settings:manage', description: 'Manage site integrations (Google OAuth, CAPTCHA, etc.).' },
+  { name: 'plugin:manage', description: 'Enable / disable installed plugins.' },
 ]
 
 export const BUILTIN_ROLES: { name: string; description: string }[] = [
@@ -28,8 +31,11 @@ export const ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     'content:delete',
     'user:read',
     'user:manage',
+    'media:read',
+    'media:manage',
     'cms:manage',
     'settings:manage',
+    'plugin:manage',
   ],
   USER: ['content:create', 'content:read', 'content:update', 'content:delete'],
   GUEST: ['content:read'],

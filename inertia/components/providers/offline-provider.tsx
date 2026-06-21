@@ -135,7 +135,9 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       degraded: mode !== 'idb' && mode !== 'loading',
       snapshot,
       syncNow: () => {
-        void engine?.trigger()
+        // Manual sync also retries previously-failed jobs (e.g. a delete that
+        // 404'd because the server row was already gone).
+        void engine?.trigger({ retryErrors: true })
       },
     }),
     [store, engine, mode, snapshot]

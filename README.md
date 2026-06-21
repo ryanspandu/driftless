@@ -49,6 +49,7 @@ inertia/       React + Inertia frontend
 database/      Migrations and seeders
 start/         Routes and HTTP kernel
 config/        Application configuration
+plugins/       Self-contained plugins (back-end + front-end in one folder)
 tests/         Japa test suites
 ```
 
@@ -60,6 +61,14 @@ Every admin table is built from a single shared component (`inertia/components/d
 - **Footer** always has three zones: **Rows per page** (default 10) on the left, **pagination** in the center, and **Go to page** on the right.
 
 When adding a page with tabular data, reuse this `DataTable` component rather than writing a new table. Details: [docs/ai/frontend.md](docs/ai/frontend.md#data-tables).
+
+## Plugins
+
+A **plugin** packages a feature — its back-end *and* front-end — in a single folder under `plugins/<name>/`. A plugin can provide an **admin dashboard** and a **public page** for visitors.
+
+- **Manage them** at **Admin → Plugins** (`/admin/plugins`): each installed plugin has an **Active** toggle. Disabling hides its menu and blocks its routes immediately, without a restart; its data is kept and restored when you re-enable it.
+- **Example:** the bundled **Announcements** plugin ([`plugins/announcements/`](plugins/announcements)) — manage entries at `/admin/announcements`, visitors read them at `/announcements`.
+- **Add one:** create a folder under `plugins/`, register it in `plugins/registry.ts`, run migrations, and `npm run build` once. Full guide: [docs/ai/plugins.md](docs/ai/plugins.md).
 
 ## License
 

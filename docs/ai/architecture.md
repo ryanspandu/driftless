@@ -29,7 +29,7 @@ Adonis HTTP (start/routes.ts)
 | `app/middleware/` | Auth, permissions, Inertia shared props |
 | `app/validators/` | VineJS request validation |
 | `app/transformers/` | Shape models for Inertia/API responses |
-| `app/cms/` | Native CMS collection registry |
+| `app/cms/` | CMS native registry (`native_registry.ts`, now empty — CMS is dynamic-only) |
 | `providers/` | `cms_provider`, `api_provider` boot logic |
 | `start/routes.ts` | All route definitions |
 | `start/kernel.ts` | Global and router middleware |

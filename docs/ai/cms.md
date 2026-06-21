@@ -1,6 +1,6 @@
 # CMS
 
-Driftless includes a **dynamic collection** system (schema + records in PostgreSQL) plus **native** collections defined in code.
+Driftless includes a **dynamic collection** system (schema + records in PostgreSQL). All CMS collections are dynamic.
 
 ## Concepts
 
@@ -10,11 +10,10 @@ Driftless includes a **dynamic collection** system (schema + records in PostgreS
 | Field | Typed column definition (TEXT, RICHTEXT, SELECT, SLUG, …) |
 | Record | Row of JSON/data for a collection |
 | Revision | Point-in-time snapshot; restore via API |
-| Native collection | Declared in `app/cms/native_registry.ts`, synced on boot |
 
-## Native registry
+## Native registry (removed)
 
-`NATIVE_COLLECTIONS` in `app/cms/native_registry.ts` defines the built-in types `content`, `user`, and `media`. `providers/cms_provider.ts` reconciles them into `cms_collections` / `cms_fields` at boot when tables exist. Because `user` and `media` are native collections, their record permissions (`user:*`, `cms:media:*`) are minted automatically alongside dynamic-collection permissions.
+There are **no native collections**. Content, Media and Users used to be exposed as native (`source: 'PRISMA'`) collections, but were removed — they are managed exclusively through their dedicated admin pages (`/admin/content`, `/admin/media`, `/admin/users`). `NATIVE_COLLECTIONS` in `app/cms/native_registry.ts` is now empty and `providers/cms_provider.ts` reconciles nothing. Their authorization uses builtin permissions: `content:*`, `user:read`/`user:manage`, `media:read`/`media:manage` (see [auth-and-permissions.md](./auth-and-permissions.md)).
 
 ## IDs
 
@@ -56,6 +55,8 @@ Each collection has a `group` attribute (editable via the "Group" combobox in th
 
 - Empty/null `group` → the default **Collections** section.
 - Each distinct `group` value → its own sidebar section (header = the group name), sorted alphabetically.
+
+The sidebar filters to `source === 'DYNAMIC'` as a safety net; since native collections were removed, only dynamic collections exist anyway. Content / Media / Users live in the fixed top-level nav, not the collection sections.
 
 Changing a collection's group invalidates the collections list query, so the sidebar updates without a reload.
 

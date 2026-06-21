@@ -43,6 +43,25 @@ export default class RolesController {
     }
   }
 
+  async trash({ response }: HttpContext) {
+    const roles = await rolesService.findTrashed()
+    return response.json(roles)
+  }
+
+  async restore({ params, response }: HttpContext) {
+    try {
+      const role = await rolesService.restore(params.id)
+      return response.json(role)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  async forceDestroy({ params, response }: HttpContext) {
+    await rolesService.forceDelete(params.id)
+    return response.json({ success: true })
+  }
+
   async page({ inertia }: HttpContext) {
     return inertia.render('admin/roles', {})
   }

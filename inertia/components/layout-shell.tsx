@@ -20,7 +20,10 @@ export function LayoutShell({
   const { component: pageName } = usePage()
   const page = createElement(Component, { key: pageKey ?? undefined, ...pageProps })
 
-  if (pageName.startsWith('admin/')) {
+  // Admin area: core admin pages ("admin/*") and plugin admin pages
+  // ("plugins/<name>/admin/*"). Plugin public pages fall through to PublicLayout.
+  const isPluginAdmin = /^plugins\/[^/]+\/admin\//.test(pageName)
+  if (pageName.startsWith('admin/') || isPluginAdmin) {
     return (
       <AbilityProvider>
         <OfflineProvider>

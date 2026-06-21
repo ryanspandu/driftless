@@ -1,5 +1,6 @@
 import { middleware } from '#start/kernel'
 import router from '@adonisjs/core/services/router'
+import { registerAllPluginRoutes } from '#plugins/registry'
 
 // ── Public ────────────────────────────────────────────────────────────────────
 
@@ -71,7 +72,10 @@ router
     router
       .group(() => {
         router.get('/api/admin/users', [() => import('#controllers/admin/users_controller'), 'index'])
+        router.get('/api/admin/users/trash', [() => import('#controllers/admin/users_controller'), 'trash'])
         router.post('/api/admin/users', [() => import('#controllers/admin/users_controller'), 'store'])
+        router.post('/api/admin/users/:id/restore', [() => import('#controllers/admin/users_controller'), 'restore'])
+        router.delete('/api/admin/users/:id/force', [() => import('#controllers/admin/users_controller'), 'forceDestroy'])
         router.put('/api/admin/users/:id', [() => import('#controllers/admin/users_controller'), 'update'])
         router.delete('/api/admin/users/:id', [() => import('#controllers/admin/users_controller'), 'destroy'])
       })
@@ -84,8 +88,11 @@ router
     router
       .group(() => {
         router.get('/api/admin/roles', [() => import('#controllers/admin/roles_controller'), 'index'])
+        router.get('/api/admin/roles/trash', [() => import('#controllers/admin/roles_controller'), 'trash'])
         router.get('/api/admin/roles/:id', [() => import('#controllers/admin/roles_controller'), 'show'])
         router.post('/api/admin/roles', [() => import('#controllers/admin/roles_controller'), 'store'])
+        router.post('/api/admin/roles/:id/restore', [() => import('#controllers/admin/roles_controller'), 'restore'])
+        router.delete('/api/admin/roles/:id/force', [() => import('#controllers/admin/roles_controller'), 'forceDestroy'])
         router.put('/api/admin/roles/:id', [() => import('#controllers/admin/roles_controller'), 'update'])
         router.delete('/api/admin/roles/:id', [() => import('#controllers/admin/roles_controller'), 'destroy'])
       })
@@ -98,8 +105,11 @@ router
     router
       .group(() => {
         router.get('/api/admin/permissions', [() => import('#controllers/admin/permissions_controller'), 'index'])
+        router.get('/api/admin/permissions/trash', [() => import('#controllers/admin/permissions_controller'), 'trash'])
         router.get('/api/admin/permissions/:id', [() => import('#controllers/admin/permissions_controller'), 'show'])
         router.post('/api/admin/permissions', [() => import('#controllers/admin/permissions_controller'), 'store'])
+        router.post('/api/admin/permissions/:id/restore', [() => import('#controllers/admin/permissions_controller'), 'restore'])
+        router.delete('/api/admin/permissions/:id/force', [() => import('#controllers/admin/permissions_controller'), 'forceDestroy'])
         router.put('/api/admin/permissions/:id', [() => import('#controllers/admin/permissions_controller'), 'update'])
         router.delete('/api/admin/permissions/:id', [() => import('#controllers/admin/permissions_controller'), 'destroy'])
       })
@@ -110,7 +120,10 @@ router
     router
       .group(() => {
         router.get('/api/admin/content', [() => import('#controllers/admin/content_controller'), 'index'])
+        router.get('/api/admin/content/trash', [() => import('#controllers/admin/content_controller'), 'trash'])
         router.post('/api/admin/content', [() => import('#controllers/admin/content_controller'), 'store'])
+        router.post('/api/admin/content/:id/restore', [() => import('#controllers/admin/content_controller'), 'restore'])
+        router.delete('/api/admin/content/:id/force', [() => import('#controllers/admin/content_controller'), 'forceDestroy'])
         router.put('/api/admin/content/:id', [() => import('#controllers/admin/content_controller'), 'update'])
         router.delete('/api/admin/content/:id', [() => import('#controllers/admin/content_controller'), 'destroy'])
       })
@@ -123,8 +136,11 @@ router
     router
       .group(() => {
         router.get('/api/admin/cms/collections', [() => import('#controllers/admin/cms_controller'), 'collectionsIndex'])
+        router.get('/api/admin/cms/collections/trash', [() => import('#controllers/admin/cms_controller'), 'collectionsTrash'])
         router.get('/api/admin/cms/collections/:key', [() => import('#controllers/admin/cms_controller'), 'collectionsShow'])
         router.post('/api/admin/cms/collections', [() => import('#controllers/admin/cms_controller'), 'collectionsStore'])
+        router.post('/api/admin/cms/collections/:key/restore', [() => import('#controllers/admin/cms_controller'), 'collectionsRestore'])
+        router.delete('/api/admin/cms/collections/:key/force', [() => import('#controllers/admin/cms_controller'), 'collectionsForceDestroy'])
         router.put('/api/admin/cms/collections/:key', [() => import('#controllers/admin/cms_controller'), 'collectionsUpdate'])
         router.delete('/api/admin/cms/collections/:key', [() => import('#controllers/admin/cms_controller'), 'collectionsDestroy'])
         router.post('/api/admin/cms/collections/:key/fields', [() => import('#controllers/admin/cms_controller'), 'fieldsStore'])
@@ -141,8 +157,11 @@ router
     router
       .group(() => {
         router.get('/api/admin/cms/:key/records', [() => import('#controllers/admin/cms_controller'), 'recordsIndex'])
+        router.get('/api/admin/cms/:key/records/trash', [() => import('#controllers/admin/cms_controller'), 'recordsTrash'])
         router.get('/api/admin/cms/:key/records/:id', [() => import('#controllers/admin/cms_controller'), 'recordsShow'])
         router.post('/api/admin/cms/:key/records', [() => import('#controllers/admin/cms_controller'), 'recordsStore'])
+        router.post('/api/admin/cms/:key/records/:id/restore', [() => import('#controllers/admin/cms_controller'), 'recordsRestore'])
+        router.delete('/api/admin/cms/:key/records/:id/force', [() => import('#controllers/admin/cms_controller'), 'recordsForceDestroy'])
         router.put('/api/admin/cms/:key/records/:id', [() => import('#controllers/admin/cms_controller'), 'recordsUpdate'])
         router.delete('/api/admin/cms/:key/records/:id', [() => import('#controllers/admin/cms_controller'), 'recordsDestroy'])
         router.get('/api/admin/cms/:key/records/:id/revisions', [() => import('#controllers/admin/cms_controller'), 'revisionsIndex'])
@@ -158,7 +177,10 @@ router
     router
       .group(() => {
         router.get('/api/admin/media', [() => import('#controllers/admin/media_controller'), 'index'])
+        router.get('/api/admin/media/trash', [() => import('#controllers/admin/media_controller'), 'trash'])
         router.post('/api/admin/media', [() => import('#controllers/admin/media_controller'), 'store'])
+        router.post('/api/admin/media/:id/restore', [() => import('#controllers/admin/media_controller'), 'restore'])
+        router.delete('/api/admin/media/:id/force', [() => import('#controllers/admin/media_controller'), 'forceDestroy'])
         router.delete('/api/admin/media/:id', [() => import('#controllers/admin/media_controller'), 'destroy'])
       })
       .use(middleware.permission({ resource: 'media' }))
@@ -181,5 +203,20 @@ router
     router.put('/api/admin/settings/integrations', [() => import('#controllers/admin/settings_controller'), 'updateIntegrationSettings']).use(
       middleware.permission({ permission: 'settings:manage' })
     )
+
+    // Plugins (manage installed plugins + active toggle)
+    router.get('/admin/plugins', [() => import('#controllers/admin/plugins_controller'), 'page'])
+    // Sidebar menu for enabled plugins — available to any admin (no plugin:manage).
+    router.get('/api/admin/plugins/menu', [() => import('#controllers/admin/plugins_controller'), 'menu'])
+    router
+      .group(() => {
+        router.get('/api/admin/plugins', [() => import('#controllers/admin/plugins_controller'), 'index'])
+        router.put('/api/admin/plugins/:name/toggle', [() => import('#controllers/admin/plugins_controller'), 'toggle'])
+      })
+      .use(middleware.permission({ permission: 'plugin:manage' }))
   })
   .use(middleware.auth())
+
+// ── Plugins (routes registered by each plugin; guarded per-request) ─────────────
+
+registerAllPluginRoutes(router, middleware)

@@ -29,6 +29,7 @@ declare module '@adonisjs/inertia/types' {
     'admin/permissions': ExtractProps<(typeof import('../../inertia/pages/admin/permissions.tsx'))['default']>
     'admin/permissions/new': ExtractProps<(typeof import('../../inertia/pages/admin/permissions/new.tsx'))['default']>
     'admin/permissions/show': ExtractProps<(typeof import('../../inertia/pages/admin/permissions/show.tsx'))['default']>
+    'admin/plugins': ExtractProps<(typeof import('../../inertia/pages/admin/plugins.tsx'))['default']>
     'admin/profile': ExtractProps<(typeof import('../../inertia/pages/admin/profile.tsx'))['default']>
     'admin/roles': ExtractProps<(typeof import('../../inertia/pages/admin/roles.tsx'))['default']>
     'admin/roles/new': ExtractProps<(typeof import('../../inertia/pages/admin/roles/new.tsx'))['default']>

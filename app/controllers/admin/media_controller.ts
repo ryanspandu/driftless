@@ -34,6 +34,21 @@ export default class MediaController {
     return response.json({ success: true })
   }
 
+  async trash({ response }: HttpContext) {
+    const items = await mediaService.findTrashed()
+    return response.json(items)
+  }
+
+  async restore({ params, response }: HttpContext) {
+    const media = await mediaService.restore(params.id)
+    return response.json(media)
+  }
+
+  async forceDestroy({ params, response }: HttpContext) {
+    await mediaService.forceDelete(params.id)
+    return response.json({ success: true })
+  }
+
   async page({ inertia }: HttpContext) {
     return inertia.render('admin/media', {})
   }

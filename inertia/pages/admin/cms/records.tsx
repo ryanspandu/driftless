@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, Trash2 } from "lucide-react";
 import type {
   CmsCollectionDto,
   CmsRecordDto,
@@ -38,7 +38,13 @@ import {
   type SyncStatus,
 } from "~/components/data-table";
 import { RevisionsPanel } from "~/components/cms/revisions-panel";
+import { TrashModal } from "~/components/trash-modal";
 import { useCmsCollection } from "~/hooks/api/use-cms-collections";
+import {
+  useForceDeleteCmsRecord,
+  useRestoreCmsRecord,
+  useTrashedCmsRecords,
+} from "~/hooks/api/use-cms-records";
 import { useOfflineRecords } from "~/hooks/offline/use-offline-records";
 import { useConfirmDelete } from "~/components/providers/delete-confirm-provider";
 import { toSyncStatus } from "~/lib/offline/sync-status";
@@ -130,6 +136,64 @@ function CmsRecordsPageInner({ collectionKey: key }: { collectionKey: string }) 
   }, [status, writeListFiltersToUrl]);
 
   const offline = useOfflineRecords(key);
+
+  const trashedQuery = useTrashedCmsRecords(key);
+  const restoreMut = useRestoreCmsRecord(key);
+  const forceMut = useForceDeleteCmsRecord(key);
+  const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data]);
+  const [trashOpen, setTrashOpen] = useState(false);
+
+  const trashButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-1.5"
+      onClick={() => {
+        setTrashOpen(true);
+        void trashedQuery.refetch();
+      }}
+    >
+      <Trash2 className="size-4" />
+      Trash{trashedItems.length ? ` (${trashedItems.length})` : ""}
+    </Button>
+  );
+
+  const trashColumns = useMemo<ColumnDef<CmsRecordDto, unknown>[]>(() => {
+    const cols: ColumnDef<CmsRecordDto, unknown>[] = [
+      {
+        id: "label",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Record" />,
+        cell: ({ row }) => (
+          <span className="font-medium">
+            {collection ? cmsRecordLabel(row.original, collection) : row.original.id}
+          </span>
+        ),
+      },
+    ];
+    if (collection?.draftsOn) {
+      cols.push({
+        id: "status",
+        accessorFn: (r) => r.status,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+        cell: ({ row }) => (
+          <Badge variant={row.original.status === "PUBLISHED" ? "default" : "secondary"}>
+            {row.original.status === "PUBLISHED" ? "Published" : "Draft"}
+          </Badge>
+        ),
+      });
+    }
+    cols.push({
+      id: "updated",
+      accessorFn: (r) => r.updatedAt,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground tabular-nums">
+          {formatAdminTableDateTime(row.original.updatedAt)}
+        </span>
+      ),
+    });
+    return cols;
+  }, [collection]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -242,6 +306,7 @@ function CmsRecordsPageInner({ collectionKey: key }: { collectionKey: string }) 
             getRowId={(r) => r.id}
             getSyncStatus={getSyncStatus}
             lastSyncedAt={offline.lastSyncedAt}
+            toolbarActions={trashButton}
             searchPlaceholder="Search…"
             searchValue={search}
             onSearchChange={setSearch}
@@ -278,6 +343,23 @@ function CmsRecordsPageInner({ collectionKey: key }: { collectionKey: string }) 
           recordId={revisionsFor}
         />
       ) : null}
+
+      <TrashModal
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        title="Trash — Records"
+        itemNoun="record"
+        rows={trashedItems}
+        columns={trashColumns}
+        isLoading={trashedQuery.isLoading}
+        getRowId={(r) => r.id}
+        onRestore={async (id) => {
+          await restoreMut.mutateAsync(id);
+          await offline.refresh();
+        }}
+        onForceDelete={(id) => forceMut.mutateAsync(id)}
+        emptyMessage="No deleted records."
+      />
     </div>
   );
 }

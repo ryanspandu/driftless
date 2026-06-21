@@ -95,6 +95,42 @@ export default class ContentService {
     await row.save()
   }
 
+  /** Soft-deleted rows (the Trash). Slug is restored to its display form. */
+  async findTrashed(): Promise<ContentDto[]> {
+    const rows = await Content.query().whereNotNull('deleted_at').orderBy('updated_at', 'desc')
+    return rows.map((r) => {
+      const dto = this.toDto(r)
+      dto.slug = this.stripDeletedPrefix(r.id, dto.slug)
+      return dto
+    })
+  }
+
+  /** Restore a soft-deleted row, recovering its original slug (suffixed if it now clashes). */
+  async restore(id: string): Promise<ContentDto> {
+    const row = await Content.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    const cleanSlug = this.stripDeletedPrefix(id, row.slug)
+    const clash = await Content.query()
+      .where('slug', cleanSlug)
+      .whereNull('deleted_at')
+      .whereNot('id', id)
+      .first()
+    row.slug = clash ? `${cleanSlug}-restored-${id.slice(-6)}` : cleanSlug
+    row.deletedAt = null
+    await row.save()
+    return this.toDto(row)
+  }
+
+  /** Permanently delete a row that is already in the Trash. */
+  async forceDelete(id: string): Promise<void> {
+    const row = await Content.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    await row.delete()
+  }
+
+  private stripDeletedPrefix(id: string, value: string): string {
+    const prefix = `__deleted_${id}__`
+    return value.startsWith(prefix) ? value.slice(prefix.length) : value
+  }
+
   private toDto(row: Content): ContentDto {
     return {
       id: row.id,

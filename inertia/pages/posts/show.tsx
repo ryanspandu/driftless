@@ -34,7 +34,7 @@ const PostShow: FC<PostShowProps> = ({ post }) => {
         <meta name="twitter:title" content={post.title} />
         <meta name="twitter:description" content={description} />
       </Head>
-      <article className="cms-shell mx-auto max-w-3xl flex-1 p-8">
+      <article className="cms-shell mx-auto max-w-3xl flex-1 px-8 pb-8 pt-24">
         <Link href="/" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'mb-6')}>
           ← Back
         </Link>

@@ -7,15 +7,37 @@ interface DialogProps {
   children: React.ReactNode
 }
 
+const DIALOG_ANIMATION_MS = 200
+
 function Dialog({ open, onOpenChange, children }: DialogProps) {
-  if (!open) return null
+  // Keep the dialog mounted through the close animation, then unmount.
+  const [mounted, setMounted] = React.useState(open)
+  const [visible, setVisible] = React.useState(false)
+
+  React.useEffect(() => {
+    if (open) {
+      setMounted(true)
+      // Defer to the next tick so the enter transition runs from the closed state.
+      const t = window.setTimeout(() => setVisible(true), 10)
+      return () => window.clearTimeout(t)
+    }
+    setVisible(false)
+    const t = window.setTimeout(() => setMounted(false), DIALOG_ANIMATION_MS)
+    return () => window.clearTimeout(t)
+  }, [open])
+
+  if (!mounted) return null
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      data-state={visible ? 'open' : 'closed'}
+      className="group/dialog fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4"
+    >
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 group-data-[state=closed]/dialog:opacity-0 group-data-[state=open]/dialog:opacity-100"
         onClick={() => onOpenChange(false)}
       />
-      <div className="relative z-10">{children}</div>
+      {children}
     </div>
   )
 }
@@ -27,7 +49,10 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
     <div
       ref={ref}
       className={cn(
-        'w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-xl',
+        'relative z-10 w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-xl',
+        'transition-all duration-200 ease-out',
+        'group-data-[state=closed]/dialog:scale-95 group-data-[state=closed]/dialog:opacity-0',
+        'group-data-[state=open]/dialog:scale-100 group-data-[state=open]/dialog:opacity-100',
         className
       )}
       {...props}

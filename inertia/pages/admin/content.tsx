@@ -21,8 +21,14 @@ import {
 } from "~/components/ui/dropdown_menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { DataTable, DataTableColumnHeader } from "~/components/data-table";
+import { TrashModal } from "~/components/trash-modal";
 import { ContentFormDialog } from "~/components/admin/content-form-dialog";
 import { useOfflineContent, type OfflineContentRow } from "~/hooks/offline/use-offline-content";
+import {
+  useTrashedContent,
+  useRestoreContent,
+  useForceDeleteContent,
+} from "~/hooks/api/use-content";
 import { syncStatusOf } from "~/lib/offline/sync-status";
 import {
   mergeSearchParamsLive,
@@ -58,10 +64,72 @@ function ContentPageInner() {
     rows,
     isLoading,
     lastSyncedAt,
+    refresh,
     create,
     update,
     remove,
   } = useOfflineContent();
+
+  const trashedQuery = useTrashedContent();
+  const restoreMut = useRestoreContent();
+  const forceDeleteMut = useForceDeleteContent();
+  const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data]);
+  const [trashOpen, setTrashOpen] = useState(false);
+
+  const trashButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-1.5"
+      onClick={() => {
+        setTrashOpen(true);
+        void trashedQuery.refetch();
+      }}
+    >
+      <Trash2 className="size-4" />
+      Trash{trashedItems.length ? ` (${trashedItems.length})` : ""}
+    </Button>
+  );
+
+  const trashColumns = useMemo<ColumnDef<ContentDto, unknown>[]>(
+    () => [
+      {
+        id: "title",
+        accessorFn: (r) => r.title,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
+        cell: ({ row }) => <span className="font-medium">{row.original.title}</span>,
+      },
+      {
+        id: "slug",
+        accessorFn: (r) => r.slug,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Slug" />,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">{row.original.slug}</span>
+        ),
+      },
+      {
+        id: "status",
+        accessorFn: (r) => r.status,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+        cell: ({ row }) => (
+          <Badge variant={row.original.status === "PUBLISHED" ? "default" : "secondary"}>
+            {row.original.status === "PUBLISHED" ? "Published" : "Draft"}
+          </Badge>
+        ),
+      },
+      {
+        id: "updated",
+        accessorFn: (r) => r.updatedAt,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {formatAdminTableDateTime(row.original.updatedAt)}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
 
   const [dialog, setDialog] = useState<{ open: boolean; mode: DialogMode }>(
     { open: false, mode: { kind: "create" } },
@@ -226,6 +294,7 @@ function ContentPageInner() {
                   getSyncStatus={getSync}
                   lastSyncedAt={lastSyncedAt}
                   searchPlaceholder="Search by title or slug…"
+                  toolbarActions={trashButton}
                   urlSync={{ paramPrefix: 'all' }}
                   emptyMessage={
                     isLoading ? 'Loading…' : 'No content yet — create your first post.'
@@ -242,6 +311,7 @@ function ContentPageInner() {
                   getSyncStatus={getSync}
                   lastSyncedAt={lastSyncedAt}
                   searchPlaceholder="Search published posts…"
+                  toolbarActions={trashButton}
                   urlSync={{ paramPrefix: 'published' }}
                   emptyMessage="No published posts match your search."
                 />
@@ -256,6 +326,7 @@ function ContentPageInner() {
                   getSyncStatus={getSync}
                   lastSyncedAt={lastSyncedAt}
                   searchPlaceholder="Search drafts…"
+                  toolbarActions={trashButton}
                   urlSync={{ paramPrefix: 'draft' }}
                   emptyMessage="No drafts match your search."
                 />
@@ -264,6 +335,23 @@ function ContentPageInner() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <TrashModal
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        title="Trash — Content"
+        itemNoun="post"
+        rows={trashedItems}
+        columns={trashColumns}
+        isLoading={trashedQuery.isLoading}
+        getRowId={(r) => r.id}
+        onRestore={async (id) => {
+          await restoreMut.mutateAsync(id);
+          await refresh();
+        }}
+        onForceDelete={(id) => forceDeleteMut.mutateAsync(id)}
+        emptyMessage="No deleted content."
+      />
 
       <ContentFormDialog
         open={dialog.open}

@@ -193,6 +193,63 @@ export default class UsersService {
     await user.save()
   }
 
+  /** Soft-deleted users (the Trash). Email and username are restored to their display form. */
+  async findTrashed(): Promise<UserPublic[]> {
+    const rows = await User.query()
+      .whereNotNull('deleted_at')
+      .preload('roles')
+      .orderBy('updated_at', 'desc')
+    return rows.map((u) => {
+      const dto = this.toDto(u)
+      dto.email = this.stripDeletedPrefix(u.id, dto.email)
+      if (dto.username) dto.username = this.stripDeletedPrefix(u.id, dto.username)
+      return dto
+    })
+  }
+
+  /** Restore a soft-deleted user, recovering its original email/username (suffixed if it now clashes). */
+  async restore(id: number): Promise<UserPublic> {
+    const user = await User.query()
+      .where('id', id)
+      .whereNotNull('deleted_at')
+      .preload('roles')
+      .firstOrFail()
+
+    const cleanEmail = this.stripDeletedPrefix(id, user.email)
+    const emailClash = await User.query()
+      .where('email', cleanEmail)
+      .whereNull('deleted_at')
+      .whereNot('id', id)
+      .first()
+    user.email = emailClash ? `restored-${id}-${cleanEmail}` : cleanEmail
+
+    if (user.username) {
+      const cleanUsername = this.stripDeletedPrefix(id, user.username)
+      const usernameClash = await User.query()
+        .where('username', cleanUsername)
+        .whereNull('deleted_at')
+        .whereNot('id', id)
+        .first()
+      user.username = usernameClash ? `${cleanUsername}-restored-${id}` : cleanUsername
+    }
+
+    user.deletedAt = null as any
+    await user.save()
+    await user.load('roles')
+    return this.toDto(user)
+  }
+
+  /** Permanently delete a user that is already in the Trash. */
+  async forceDelete(id: number): Promise<void> {
+    const user = await User.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    await user.delete()
+  }
+
+  private stripDeletedPrefix(id: number, value: string): string {
+    const prefix = `__deleted_${id}__`
+    return value.startsWith(prefix) ? value.slice(prefix.length) : value
+  }
+
   generatePassword(length = 16): string {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
     let pw = ''

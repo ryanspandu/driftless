@@ -44,6 +44,29 @@ export default class CmsController {
     }
   }
 
+  async collectionsTrash({ response }: HttpContext) {
+    const collections = await cmsService.listTrashedCollections()
+    return response.json(collections)
+  }
+
+  async collectionsRestore({ params, response }: HttpContext) {
+    try {
+      const col = await cmsService.restoreCollection(params.key)
+      return response.json(col)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  async collectionsForceDestroy({ params, response }: HttpContext) {
+    try {
+      await cmsService.forceDeleteCollection(params.key)
+      return response.json({ success: true })
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
   async fieldsStore({ params, request, response }: HttpContext) {
     const { key, label, type, required, unique, config } = request.all()
     try {
@@ -122,6 +145,25 @@ export default class CmsController {
 
   async recordsDestroy({ params, response }: HttpContext) {
     await cmsService.deleteRecord(params.key, params.id)
+    return response.json({ success: true })
+  }
+
+  async recordsTrash({ params, response }: HttpContext) {
+    const records = await cmsService.listTrashedRecords(params.key)
+    return response.json(records)
+  }
+
+  async recordsRestore({ params, response }: HttpContext) {
+    try {
+      const record = await cmsService.restoreRecord(params.key, params.id)
+      return response.json(record)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  async recordsForceDestroy({ params, response }: HttpContext) {
+    await cmsService.forceDeleteRecord(params.key, params.id)
     return response.json({ success: true })
   }
 

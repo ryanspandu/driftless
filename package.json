@@ -19,7 +19,7 @@
     "test": "node ace test",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit && tsc --noEmit --project inertia/tsconfig.json"
+    "typecheck": "tsc --noEmit && tsc --noEmit --project inertia/tsconfig.json && tsc --noEmit --project plugins/tsconfig.json"
   },
   "imports": {
     "#controllers/*": "./app/controllers/*.js",
@@ -35,6 +35,7 @@
     "#transformers/*": "./app/transformers/*.js",
     "#validators/*": "./app/validators/*.js",
     "#providers/*": "./providers/*.js",
+    "#plugins/*": "./plugins/*.js",
     "#cms/*": "./app/cms/*.js",
     "#policies/*": "./app/policies/*.js",
     "#abilities/*": "./app/abilities/*.js",

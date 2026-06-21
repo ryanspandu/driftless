@@ -1,0 +1,17 @@
+// Type-checks plugin front-end code under plugins/<name>/ui using the client
+// preset, so JSX / React / DOM types are available and "~/*" resolves to the
+// shared Inertia codebase. The server build (root tsconfig) excludes these files.
+{
+  "extends": "@adonisjs/tsconfig/tsconfig.client.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "paths": {
+      "~/*": ["../inertia/*"],
+      "@generated/*": ["../.adonisjs/client/*"]
+    }
+  },
+  "include": ["./*/ui/**/*.ts", "./*/ui/**/*.tsx"]
+}

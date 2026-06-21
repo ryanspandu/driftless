@@ -156,11 +156,29 @@ const routes = {
     tokens: [{"old":"/api/admin/users","type":0,"val":"api","end":""},{"old":"/api/admin/users","type":0,"val":"admin","end":""},{"old":"/api/admin/users","type":0,"val":"users","end":""}],
     types: placeholder as Registry['users.index']['types'],
   },
+  'users.trash': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/users/trash',
+    tokens: [{"old":"/api/admin/users/trash","type":0,"val":"api","end":""},{"old":"/api/admin/users/trash","type":0,"val":"admin","end":""},{"old":"/api/admin/users/trash","type":0,"val":"users","end":""},{"old":"/api/admin/users/trash","type":0,"val":"trash","end":""}],
+    types: placeholder as Registry['users.trash']['types'],
+  },
   'users.store': {
     methods: ["POST"],
     pattern: '/api/admin/users',
     tokens: [{"old":"/api/admin/users","type":0,"val":"api","end":""},{"old":"/api/admin/users","type":0,"val":"admin","end":""},{"old":"/api/admin/users","type":0,"val":"users","end":""}],
     types: placeholder as Registry['users.store']['types'],
+  },
+  'users.restore': {
+    methods: ["POST"],
+    pattern: '/api/admin/users/:id/restore',
+    tokens: [{"old":"/api/admin/users/:id/restore","type":0,"val":"api","end":""},{"old":"/api/admin/users/:id/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/users/:id/restore","type":0,"val":"users","end":""},{"old":"/api/admin/users/:id/restore","type":1,"val":"id","end":""},{"old":"/api/admin/users/:id/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['users.restore']['types'],
+  },
+  'users.force_destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/users/:id/force',
+    tokens: [{"old":"/api/admin/users/:id/force","type":0,"val":"api","end":""},{"old":"/api/admin/users/:id/force","type":0,"val":"admin","end":""},{"old":"/api/admin/users/:id/force","type":0,"val":"users","end":""},{"old":"/api/admin/users/:id/force","type":1,"val":"id","end":""},{"old":"/api/admin/users/:id/force","type":0,"val":"force","end":""}],
+    types: placeholder as Registry['users.force_destroy']['types'],
   },
   'users.update': {
     methods: ["PUT"],
@@ -198,6 +216,12 @@ const routes = {
     tokens: [{"old":"/api/admin/roles","type":0,"val":"api","end":""},{"old":"/api/admin/roles","type":0,"val":"admin","end":""},{"old":"/api/admin/roles","type":0,"val":"roles","end":""}],
     types: placeholder as Registry['roles.index']['types'],
   },
+  'roles.trash': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/roles/trash',
+    tokens: [{"old":"/api/admin/roles/trash","type":0,"val":"api","end":""},{"old":"/api/admin/roles/trash","type":0,"val":"admin","end":""},{"old":"/api/admin/roles/trash","type":0,"val":"roles","end":""},{"old":"/api/admin/roles/trash","type":0,"val":"trash","end":""}],
+    types: placeholder as Registry['roles.trash']['types'],
+  },
   'roles.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/roles/:id',
@@ -209,6 +233,18 @@ const routes = {
     pattern: '/api/admin/roles',
     tokens: [{"old":"/api/admin/roles","type":0,"val":"api","end":""},{"old":"/api/admin/roles","type":0,"val":"admin","end":""},{"old":"/api/admin/roles","type":0,"val":"roles","end":""}],
     types: placeholder as Registry['roles.store']['types'],
+  },
+  'roles.restore': {
+    methods: ["POST"],
+    pattern: '/api/admin/roles/:id/restore',
+    tokens: [{"old":"/api/admin/roles/:id/restore","type":0,"val":"api","end":""},{"old":"/api/admin/roles/:id/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/roles/:id/restore","type":0,"val":"roles","end":""},{"old":"/api/admin/roles/:id/restore","type":1,"val":"id","end":""},{"old":"/api/admin/roles/:id/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['roles.restore']['types'],
+  },
+  'roles.force_destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/roles/:id/force',
+    tokens: [{"old":"/api/admin/roles/:id/force","type":0,"val":"api","end":""},{"old":"/api/admin/roles/:id/force","type":0,"val":"admin","end":""},{"old":"/api/admin/roles/:id/force","type":0,"val":"roles","end":""},{"old":"/api/admin/roles/:id/force","type":1,"val":"id","end":""},{"old":"/api/admin/roles/:id/force","type":0,"val":"force","end":""}],
+    types: placeholder as Registry['roles.force_destroy']['types'],
   },
   'roles.update': {
     methods: ["PUT"],
@@ -246,6 +282,12 @@ const routes = {
     tokens: [{"old":"/api/admin/permissions","type":0,"val":"api","end":""},{"old":"/api/admin/permissions","type":0,"val":"admin","end":""},{"old":"/api/admin/permissions","type":0,"val":"permissions","end":""}],
     types: placeholder as Registry['permissions.index']['types'],
   },
+  'permissions.trash': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/permissions/trash',
+    tokens: [{"old":"/api/admin/permissions/trash","type":0,"val":"api","end":""},{"old":"/api/admin/permissions/trash","type":0,"val":"admin","end":""},{"old":"/api/admin/permissions/trash","type":0,"val":"permissions","end":""},{"old":"/api/admin/permissions/trash","type":0,"val":"trash","end":""}],
+    types: placeholder as Registry['permissions.trash']['types'],
+  },
   'permissions.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/permissions/:id',
@@ -257,6 +299,18 @@ const routes = {
     pattern: '/api/admin/permissions',
     tokens: [{"old":"/api/admin/permissions","type":0,"val":"api","end":""},{"old":"/api/admin/permissions","type":0,"val":"admin","end":""},{"old":"/api/admin/permissions","type":0,"val":"permissions","end":""}],
     types: placeholder as Registry['permissions.store']['types'],
+  },
+  'permissions.restore': {
+    methods: ["POST"],
+    pattern: '/api/admin/permissions/:id/restore',
+    tokens: [{"old":"/api/admin/permissions/:id/restore","type":0,"val":"api","end":""},{"old":"/api/admin/permissions/:id/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/permissions/:id/restore","type":0,"val":"permissions","end":""},{"old":"/api/admin/permissions/:id/restore","type":1,"val":"id","end":""},{"old":"/api/admin/permissions/:id/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['permissions.restore']['types'],
+  },
+  'permissions.force_destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/permissions/:id/force',
+    tokens: [{"old":"/api/admin/permissions/:id/force","type":0,"val":"api","end":""},{"old":"/api/admin/permissions/:id/force","type":0,"val":"admin","end":""},{"old":"/api/admin/permissions/:id/force","type":0,"val":"permissions","end":""},{"old":"/api/admin/permissions/:id/force","type":1,"val":"id","end":""},{"old":"/api/admin/permissions/:id/force","type":0,"val":"force","end":""}],
+    types: placeholder as Registry['permissions.force_destroy']['types'],
   },
   'permissions.update': {
     methods: ["PUT"],
@@ -282,11 +336,29 @@ const routes = {
     tokens: [{"old":"/api/admin/content","type":0,"val":"api","end":""},{"old":"/api/admin/content","type":0,"val":"admin","end":""},{"old":"/api/admin/content","type":0,"val":"content","end":""}],
     types: placeholder as Registry['content.index']['types'],
   },
+  'content.trash': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/content/trash',
+    tokens: [{"old":"/api/admin/content/trash","type":0,"val":"api","end":""},{"old":"/api/admin/content/trash","type":0,"val":"admin","end":""},{"old":"/api/admin/content/trash","type":0,"val":"content","end":""},{"old":"/api/admin/content/trash","type":0,"val":"trash","end":""}],
+    types: placeholder as Registry['content.trash']['types'],
+  },
   'content.store': {
     methods: ["POST"],
     pattern: '/api/admin/content',
     tokens: [{"old":"/api/admin/content","type":0,"val":"api","end":""},{"old":"/api/admin/content","type":0,"val":"admin","end":""},{"old":"/api/admin/content","type":0,"val":"content","end":""}],
     types: placeholder as Registry['content.store']['types'],
+  },
+  'content.restore': {
+    methods: ["POST"],
+    pattern: '/api/admin/content/:id/restore',
+    tokens: [{"old":"/api/admin/content/:id/restore","type":0,"val":"api","end":""},{"old":"/api/admin/content/:id/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/content/:id/restore","type":0,"val":"content","end":""},{"old":"/api/admin/content/:id/restore","type":1,"val":"id","end":""},{"old":"/api/admin/content/:id/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['content.restore']['types'],
+  },
+  'content.force_destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/content/:id/force',
+    tokens: [{"old":"/api/admin/content/:id/force","type":0,"val":"api","end":""},{"old":"/api/admin/content/:id/force","type":0,"val":"admin","end":""},{"old":"/api/admin/content/:id/force","type":0,"val":"content","end":""},{"old":"/api/admin/content/:id/force","type":1,"val":"id","end":""},{"old":"/api/admin/content/:id/force","type":0,"val":"force","end":""}],
+    types: placeholder as Registry['content.force_destroy']['types'],
   },
   'content.update': {
     methods: ["PUT"],
@@ -324,6 +396,12 @@ const routes = {
     tokens: [{"old":"/api/admin/cms/collections","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"collections","end":""}],
     types: placeholder as Registry['cms.collections_index']['types'],
   },
+  'cms.collections_trash': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/cms/collections/trash',
+    tokens: [{"old":"/api/admin/cms/collections/trash","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections/trash","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections/trash","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections/trash","type":0,"val":"collections","end":""},{"old":"/api/admin/cms/collections/trash","type":0,"val":"trash","end":""}],
+    types: placeholder as Registry['cms.collections_trash']['types'],
+  },
   'cms.collections_show': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/cms/collections/:key',
@@ -335,6 +413,18 @@ const routes = {
     pattern: '/api/admin/cms/collections',
     tokens: [{"old":"/api/admin/cms/collections","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections","type":0,"val":"collections","end":""}],
     types: placeholder as Registry['cms.collections_store']['types'],
+  },
+  'cms.collections_restore': {
+    methods: ["POST"],
+    pattern: '/api/admin/cms/collections/:key/restore',
+    tokens: [{"old":"/api/admin/cms/collections/:key/restore","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections/:key/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections/:key/restore","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections/:key/restore","type":0,"val":"collections","end":""},{"old":"/api/admin/cms/collections/:key/restore","type":1,"val":"key","end":""},{"old":"/api/admin/cms/collections/:key/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['cms.collections_restore']['types'],
+  },
+  'cms.collections_force_destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/cms/collections/:key/force',
+    tokens: [{"old":"/api/admin/cms/collections/:key/force","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections/:key/force","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections/:key/force","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections/:key/force","type":0,"val":"collections","end":""},{"old":"/api/admin/cms/collections/:key/force","type":1,"val":"key","end":""},{"old":"/api/admin/cms/collections/:key/force","type":0,"val":"force","end":""}],
+    types: placeholder as Registry['cms.collections_force_destroy']['types'],
   },
   'cms.collections_update': {
     methods: ["PUT"],
@@ -396,6 +486,12 @@ const routes = {
     tokens: [{"old":"/api/admin/cms/:key/records","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"records","end":""}],
     types: placeholder as Registry['cms.records_index']['types'],
   },
+  'cms.records_trash': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/cms/:key/records/trash',
+    tokens: [{"old":"/api/admin/cms/:key/records/trash","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records/trash","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records/trash","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records/trash","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records/trash","type":0,"val":"records","end":""},{"old":"/api/admin/cms/:key/records/trash","type":0,"val":"trash","end":""}],
+    types: placeholder as Registry['cms.records_trash']['types'],
+  },
   'cms.records_show': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/cms/:key/records/:id',
@@ -407,6 +503,18 @@ const routes = {
     pattern: '/api/admin/cms/:key/records',
     tokens: [{"old":"/api/admin/cms/:key/records","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records","type":0,"val":"records","end":""}],
     types: placeholder as Registry['cms.records_store']['types'],
+  },
+  'cms.records_restore': {
+    methods: ["POST"],
+    pattern: '/api/admin/cms/:key/records/:id/restore',
+    tokens: [{"old":"/api/admin/cms/:key/records/:id/restore","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records/:id/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records/:id/restore","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records/:id/restore","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records/:id/restore","type":0,"val":"records","end":""},{"old":"/api/admin/cms/:key/records/:id/restore","type":1,"val":"id","end":""},{"old":"/api/admin/cms/:key/records/:id/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['cms.records_restore']['types'],
+  },
+  'cms.records_force_destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/cms/:key/records/:id/force',
+    tokens: [{"old":"/api/admin/cms/:key/records/:id/force","type":0,"val":"api","end":""},{"old":"/api/admin/cms/:key/records/:id/force","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/:key/records/:id/force","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/:key/records/:id/force","type":1,"val":"key","end":""},{"old":"/api/admin/cms/:key/records/:id/force","type":0,"val":"records","end":""},{"old":"/api/admin/cms/:key/records/:id/force","type":1,"val":"id","end":""},{"old":"/api/admin/cms/:key/records/:id/force","type":0,"val":"force","end":""}],
+    types: placeholder as Registry['cms.records_force_destroy']['types'],
   },
   'cms.records_update': {
     methods: ["PUT"],
@@ -444,11 +552,29 @@ const routes = {
     tokens: [{"old":"/api/admin/media","type":0,"val":"api","end":""},{"old":"/api/admin/media","type":0,"val":"admin","end":""},{"old":"/api/admin/media","type":0,"val":"media","end":""}],
     types: placeholder as Registry['media.index']['types'],
   },
+  'media.trash': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/media/trash',
+    tokens: [{"old":"/api/admin/media/trash","type":0,"val":"api","end":""},{"old":"/api/admin/media/trash","type":0,"val":"admin","end":""},{"old":"/api/admin/media/trash","type":0,"val":"media","end":""},{"old":"/api/admin/media/trash","type":0,"val":"trash","end":""}],
+    types: placeholder as Registry['media.trash']['types'],
+  },
   'media.store': {
     methods: ["POST"],
     pattern: '/api/admin/media',
     tokens: [{"old":"/api/admin/media","type":0,"val":"api","end":""},{"old":"/api/admin/media","type":0,"val":"admin","end":""},{"old":"/api/admin/media","type":0,"val":"media","end":""}],
     types: placeholder as Registry['media.store']['types'],
+  },
+  'media.restore': {
+    methods: ["POST"],
+    pattern: '/api/admin/media/:id/restore',
+    tokens: [{"old":"/api/admin/media/:id/restore","type":0,"val":"api","end":""},{"old":"/api/admin/media/:id/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/media/:id/restore","type":0,"val":"media","end":""},{"old":"/api/admin/media/:id/restore","type":1,"val":"id","end":""},{"old":"/api/admin/media/:id/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['media.restore']['types'],
+  },
+  'media.force_destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/media/:id/force',
+    tokens: [{"old":"/api/admin/media/:id/force","type":0,"val":"api","end":""},{"old":"/api/admin/media/:id/force","type":0,"val":"admin","end":""},{"old":"/api/admin/media/:id/force","type":0,"val":"media","end":""},{"old":"/api/admin/media/:id/force","type":1,"val":"id","end":""},{"old":"/api/admin/media/:id/force","type":0,"val":"force","end":""}],
+    types: placeholder as Registry['media.force_destroy']['types'],
   },
   'media.destroy': {
     methods: ["DELETE"],
@@ -515,6 +641,66 @@ const routes = {
     pattern: '/api/admin/settings/integrations',
     tokens: [{"old":"/api/admin/settings/integrations","type":0,"val":"api","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"integrations","end":""}],
     types: placeholder as Registry['settings.update_integration_settings']['types'],
+  },
+  'plugins.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/plugins',
+    tokens: [{"old":"/admin/plugins","type":0,"val":"admin","end":""},{"old":"/admin/plugins","type":0,"val":"plugins","end":""}],
+    types: placeholder as Registry['plugins.page']['types'],
+  },
+  'plugins.menu': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/plugins/menu',
+    tokens: [{"old":"/api/admin/plugins/menu","type":0,"val":"api","end":""},{"old":"/api/admin/plugins/menu","type":0,"val":"admin","end":""},{"old":"/api/admin/plugins/menu","type":0,"val":"plugins","end":""},{"old":"/api/admin/plugins/menu","type":0,"val":"menu","end":""}],
+    types: placeholder as Registry['plugins.menu']['types'],
+  },
+  'plugins.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/plugins',
+    tokens: [{"old":"/api/admin/plugins","type":0,"val":"api","end":""},{"old":"/api/admin/plugins","type":0,"val":"admin","end":""},{"old":"/api/admin/plugins","type":0,"val":"plugins","end":""}],
+    types: placeholder as Registry['plugins.index']['types'],
+  },
+  'plugins.toggle': {
+    methods: ["PUT"],
+    pattern: '/api/admin/plugins/:name/toggle',
+    tokens: [{"old":"/api/admin/plugins/:name/toggle","type":0,"val":"api","end":""},{"old":"/api/admin/plugins/:name/toggle","type":0,"val":"admin","end":""},{"old":"/api/admin/plugins/:name/toggle","type":0,"val":"plugins","end":""},{"old":"/api/admin/plugins/:name/toggle","type":1,"val":"name","end":""},{"old":"/api/admin/plugins/:name/toggle","type":0,"val":"toggle","end":""}],
+    types: placeholder as Registry['plugins.toggle']['types'],
+  },
+  'admin.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/announcements',
+    tokens: [{"old":"/admin/announcements","type":0,"val":"admin","end":""},{"old":"/admin/announcements","type":0,"val":"announcements","end":""}],
+    types: placeholder as Registry['admin.page']['types'],
+  },
+  'admin.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/announcements',
+    tokens: [{"old":"/api/admin/announcements","type":0,"val":"api","end":""},{"old":"/api/admin/announcements","type":0,"val":"admin","end":""},{"old":"/api/admin/announcements","type":0,"val":"announcements","end":""}],
+    types: placeholder as Registry['admin.index']['types'],
+  },
+  'admin.store': {
+    methods: ["POST"],
+    pattern: '/api/admin/announcements',
+    tokens: [{"old":"/api/admin/announcements","type":0,"val":"api","end":""},{"old":"/api/admin/announcements","type":0,"val":"admin","end":""},{"old":"/api/admin/announcements","type":0,"val":"announcements","end":""}],
+    types: placeholder as Registry['admin.store']['types'],
+  },
+  'admin.update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/announcements/:id',
+    tokens: [{"old":"/api/admin/announcements/:id","type":0,"val":"api","end":""},{"old":"/api/admin/announcements/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/announcements/:id","type":0,"val":"announcements","end":""},{"old":"/api/admin/announcements/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['admin.update']['types'],
+  },
+  'admin.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/announcements/:id',
+    tokens: [{"old":"/api/admin/announcements/:id","type":0,"val":"api","end":""},{"old":"/api/admin/announcements/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/announcements/:id","type":0,"val":"announcements","end":""},{"old":"/api/admin/announcements/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['admin.destroy']['types'],
+  },
+  'public.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/announcements',
+    tokens: [{"old":"/announcements","type":0,"val":"announcements","end":""}],
+    types: placeholder as Registry['public.page']['types'],
   },
 } as const satisfies Record<string, AdonisEndpoint>
 
