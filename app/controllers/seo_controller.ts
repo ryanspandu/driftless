@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
 import ContentService from '#services/content_service'
+import Page from '#models/page'
 
 const contentService = new ContentService()
 
@@ -30,12 +31,17 @@ Host: ${base}
   async sitemap({ response }: HttpContext) {
     const base = siteUrl()
     const posts = await contentService.findPublishedList()
+    const pages = await Page.query().where('status', 'PUBLISHED').whereNull('deleted_at')
 
     const entries = [
       { loc: `${base}/`, lastmod: new Date().toISOString() },
       ...posts.map((p) => ({
         loc: `${base}/posts/${encodeURIComponent(p.slug)}`,
         lastmod: p.updatedAt,
+      })),
+      ...pages.map((p) => ({
+        loc: `${base}/${p.path.split('/').map(encodeURIComponent).join('/')}`,
+        lastmod: p.updatedAt.toISO() ?? new Date().toISOString(),
       })),
     ]
 

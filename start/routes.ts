@@ -11,6 +11,13 @@ router.get('/offline', [() => import('#controllers/public_controller'), 'offline
 router.get('/api/public/content', [() => import('#controllers/public_content_controller'), 'index'])
 router.get('/api/public/content/:slug', [() => import('#controllers/public_content_controller'), 'show'])
 
+// Public, read-only CMS collection records (consumed by builder CollectionList blocks)
+router.get('/api/public/cms/:key/records', [() => import('#controllers/public_cms_controller'), 'records'])
+router.get('/api/public/cms/:key/records/:id', [() => import('#controllers/public_cms_controller'), 'record'])
+
+// Public, read-only template content (consumed by client-side TemplateRef blocks)
+router.get('/api/public/templates/:id', [() => import('#controllers/public_templates_controller'), 'show'])
+
 router.get('/robots.txt', [() => import('#controllers/seo_controller'), 'robots'])
 router.get('/sitemap.xml', [() => import('#controllers/seo_controller'), 'sitemap'])
 router.get('/health', ({ response }) => response.json({ ok: true }))
@@ -129,6 +136,43 @@ router
       })
       .use(middleware.permission({ resource: 'content' }))
 
+    // Pages (visual builder)
+    router.get('/admin/pages', [() => import('#controllers/admin/pages_controller'), 'page'])
+    router.get('/admin/pages/:id/edit', [() => import('#controllers/admin/pages_controller'), 'edit'])
+    router
+      .group(() => {
+        router.get('/api/admin/pages', [() => import('#controllers/admin/pages_controller'), 'index'])
+        router.get('/api/admin/pages/trash', [() => import('#controllers/admin/pages_controller'), 'trash'])
+        router.get('/api/admin/pages/collections', [() => import('#controllers/admin/pages_controller'), 'collections'])
+        router.post('/api/admin/pages', [() => import('#controllers/admin/pages_controller'), 'store'])
+        router.post('/api/admin/pages/:id/restore', [() => import('#controllers/admin/pages_controller'), 'restore'])
+        router.delete('/api/admin/pages/:id/force', [() => import('#controllers/admin/pages_controller'), 'forceDestroy'])
+        router.get('/api/admin/pages/:id/revisions', [() => import('#controllers/admin/pages_controller'), 'revisions'])
+        router.post('/api/admin/pages/:id/revisions/:revisionId/restore', [
+          () => import('#controllers/admin/pages_controller'),
+          'restoreRevision',
+        ])
+        router.get('/api/admin/pages/:id', [() => import('#controllers/admin/pages_controller'), 'show'])
+        router.put('/api/admin/pages/:id', [() => import('#controllers/admin/pages_controller'), 'update'])
+        router.delete('/api/admin/pages/:id', [() => import('#controllers/admin/pages_controller'), 'destroy'])
+      })
+      .use(middleware.permission({ resource: 'page' }))
+
+    // Templates (unified header / footer / component / layout builder)
+    router.get('/admin/templates', [() => import('#controllers/admin/templates_controller'), 'page'])
+    router.get('/admin/templates/:id/edit', [() => import('#controllers/admin/templates_controller'), 'edit'])
+    router
+      .group(() => {
+        router.get('/api/admin/templates', [() => import('#controllers/admin/templates_controller'), 'index'])
+        router.post('/api/admin/templates', [() => import('#controllers/admin/templates_controller'), 'store'])
+        router.post('/api/admin/templates/:id/duplicate', [() => import('#controllers/admin/templates_controller'), 'duplicate'])
+        router.post('/api/admin/templates/:id/default', [() => import('#controllers/admin/templates_controller'), 'setDefault'])
+        router.get('/api/admin/templates/:id', [() => import('#controllers/admin/templates_controller'), 'show'])
+        router.put('/api/admin/templates/:id', [() => import('#controllers/admin/templates_controller'), 'update'])
+        router.delete('/api/admin/templates/:id', [() => import('#controllers/admin/templates_controller'), 'destroy'])
+      })
+      .use(middleware.permission({ resource: 'template' }))
+
     // CMS Collections
     router.get('/admin/cms/collections', [() => import('#controllers/admin/cms_controller'), 'collectionsPage'])
     router.get('/admin/cms/collections/new', [() => import('#controllers/admin/cms_controller'), 'collectionsNewPage'])
@@ -220,3 +264,7 @@ router
 // ── Plugins (routes registered by each plugin; guarded per-request) ─────────────
 
 registerAllPluginRoutes(router, middleware)
+
+// ── Public CMS pages (catch-all — MUST stay last) ───────────────────────────────
+// Resolves a published builder page by its `path`; 404s reserved prefixes & misses.
+router.get('*', [() => import('#controllers/pages_public_controller'), 'show'])

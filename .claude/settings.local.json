@@ -34,7 +34,15 @@
       "Bash(node -e \"console.log\\(require\\('lucide-react/package.json'\\).version\\)\")",
       "Bash(node -e \"const L=require\\('lucide-react'\\); ['Blocks','Cable','Workflow','Puzzle','Webhook','Link2','Link','Network','PlugZap','Share2','Unplug','Waypoints','Combine'].forEach\\(n=>console.log\\(n.padEnd\\(10\\), n in L ? 'YES' : 'no'\\)\\)\")",
       "Bash(node -e \"const L=require\\('lucide-react'\\); ['Boxes','ShieldCheck','ImageIcon','Image','CloudOff','History','Blocks','Zap','ArrowRight','Check','CheckCircle2','Star','Sparkles','Layers','Workflow','Users','Rocket','Play','Quote','Gauge'].forEach\\(n=>console.log\\(n.padEnd\\(14\\), n in L ? 'YES':'no'\\)\\)\")",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "WebSearch",
+      "WebFetch(domain:puckeditor.com)",
+      "WebFetch(domain:dev.to)",
+      "Bash(npm view *)",
+      "Bash(node -e \"const p=require\\('./node_modules/@measured/puck/package.json'\\); console.log\\(JSON.stringify\\(p.exports, null, 1\\)\\); console.log\\('types:', p.types||p.typings\\)\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3333/health)",
+      "Bash(echo \"health: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3333/health\\)\")"
     ]
   }
 }

@@ -12,6 +12,13 @@ export interface ApiDefinition {
     index: typeof routes['public_content.index']
     show: typeof routes['public_content.show']
   }
+  publicCms: {
+    records: typeof routes['public_cms.records']
+    record: typeof routes['public_cms.record']
+  }
+  publicTemplates: {
+    show: typeof routes['public_templates.show']
+  }
   seo: {
     robots: typeof routes['seo.robots']
     sitemap: typeof routes['seo.sitemap']
@@ -102,6 +109,32 @@ export interface ApiDefinition {
     update: typeof routes['content.update']
     destroy: typeof routes['content.destroy']
   }
+  pages: {
+    page: typeof routes['pages.page']
+    edit: typeof routes['pages.edit']
+    index: typeof routes['pages.index']
+    trash: typeof routes['pages.trash']
+    collections: typeof routes['pages.collections']
+    store: typeof routes['pages.store']
+    restore: typeof routes['pages.restore']
+    forceDestroy: typeof routes['pages.force_destroy']
+    revisions: typeof routes['pages.revisions']
+    restoreRevision: typeof routes['pages.restore_revision']
+    show: typeof routes['pages.show']
+    update: typeof routes['pages.update']
+    destroy: typeof routes['pages.destroy']
+  }
+  templates: {
+    page: typeof routes['templates.page']
+    edit: typeof routes['templates.edit']
+    index: typeof routes['templates.index']
+    store: typeof routes['templates.store']
+    duplicate: typeof routes['templates.duplicate']
+    setDefault: typeof routes['templates.set_default']
+    show: typeof routes['templates.show']
+    update: typeof routes['templates.update']
+    destroy: typeof routes['templates.destroy']
+  }
   cms: {
     collectionsPage: typeof routes['cms.collections_page']
     collectionsNewPage: typeof routes['cms.collections_new_page']
@@ -153,5 +186,8 @@ export interface ApiDefinition {
     store: typeof routes['admin.store']
     update: typeof routes['admin.update']
     destroy: typeof routes['admin.destroy']
+  }
+  pagesPublic: {
+    show: typeof routes['pages_public.show']
   }
 }

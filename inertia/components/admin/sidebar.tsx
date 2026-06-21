@@ -4,15 +4,19 @@ import {
   BarChart3,
   Blocks,
   Boxes,
+  ChevronDown,
   FileText,
   Home,
   Image as ImageIcon,
   Key,
+  LayoutPanelTop,
+  LayoutTemplate,
   Megaphone,
   PanelLeftClose,
   PanelLeftOpen,
   Plug2,
   Settings2,
+  Shapes,
   Shield,
   Users,
   LogOut,
@@ -41,17 +45,41 @@ interface MenuItem {
   activeMatch?: 'exact' | 'prefix'
 }
 
-const navItems: MenuItem[] = [
+interface NavParent {
+  title: string
+  icon: React.ComponentType<{ className?: string }>
+  children: MenuItem[]
+}
+
+/** A nav entry is either a flat link or a collapsible parent (with sub-items). */
+type NavEntry = MenuItem | NavParent
+const isParent = (entry: NavEntry): entry is NavParent => 'children' in entry
+
+const navEntries: NavEntry[] = [
   { title: 'Dashboard', href: '/admin/dashboard', icon: Home },
   { title: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-  { title: 'Content', href: '/admin/content', icon: FileText, activeMatch: 'prefix' },
-  { title: 'Users', href: '/admin/users', icon: Users, activeMatch: 'prefix' },
-  { title: 'Roles', href: '/admin/roles', icon: Shield, activeMatch: 'prefix' },
-  { title: 'Permissions', href: '/admin/permissions', icon: Key, activeMatch: 'prefix' },
+  {
+    title: 'UI',
+    icon: LayoutPanelTop,
+    children: [
+      { title: 'Content', href: '/admin/content', icon: FileText, activeMatch: 'prefix' },
+      { title: 'Pages', href: '/admin/pages', icon: LayoutTemplate, activeMatch: 'prefix' },
+      { title: 'Templates', href: '/admin/templates', icon: Shapes, activeMatch: 'prefix' },
+    ],
+  },
   { title: 'Media', href: '/admin/media', icon: ImageIcon },
   { title: 'Collections', href: '/admin/cms/collections', icon: Boxes, activeMatch: 'prefix' },
   { title: 'Plugins', href: '/admin/plugins', icon: Plug2, activeMatch: 'prefix' },
   { title: 'Integrations', href: '/admin/integrations', icon: Blocks, activeMatch: 'prefix' },
+  {
+    title: 'User Management',
+    icon: Users,
+    children: [
+      { title: 'Users', href: '/admin/users', icon: Users, activeMatch: 'prefix' },
+      { title: 'Roles', href: '/admin/roles', icon: Shield, activeMatch: 'prefix' },
+      { title: 'Permissions', href: '/admin/permissions', icon: Key, activeMatch: 'prefix' },
+    ],
+  },
   { title: 'Settings', href: '/admin/settings', icon: Settings2 },
 ]
 
@@ -77,6 +105,25 @@ export function AppSidebar({ pathname }: { pathname: string }) {
       const next = !prev
       if (typeof window !== 'undefined') {
         window.localStorage.setItem('sidebar:collapsed', next ? '1' : '0')
+      }
+      return next
+    })
+  }
+
+  // Which parent menus are expanded (persisted; defaults to open when a child is active).
+  const [openParents, setOpenParents] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {}
+    try {
+      return JSON.parse(window.localStorage.getItem('sidebar:openParents') || '{}')
+    } catch {
+      return {}
+    }
+  })
+  const toggleParent = (title: string) => {
+    setOpenParents((prev) => {
+      const next = { ...prev, [title]: !prev[title] }
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('sidebar:openParents', JSON.stringify(next))
       }
       return next
     })
@@ -116,6 +163,26 @@ export function AppSidebar({ pathname }: { pathname: string }) {
     }
     return sections
   }, [collections])
+
+  const renderItem = (item: MenuItem) => {
+    const active = isActive(pathname, item)
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={cn(
+          'flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors',
+          active
+            ? 'bg-sidebar-accent text-ring font-medium'
+            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+        )}
+        title={collapsed ? item.title : undefined}
+      >
+        <item.icon className="size-4 shrink-0" />
+        {!collapsed && <span className="truncate">{item.title}</span>}
+      </Link>
+    )
+  }
 
   return (
     <aside
@@ -159,25 +226,53 @@ export function AppSidebar({ pathname }: { pathname: string }) {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-        {navItems.map((item) => {
-          const active = isActive(pathname, item)
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors',
-                active
-                  ? 'bg-sidebar-accent text-ring font-medium'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-              )}
-              title={collapsed ? item.title : undefined}
-            >
-              <item.icon className="size-4 shrink-0" />
-              {!collapsed && <span className="truncate">{item.title}</span>}
-            </Link>
-          )
-        })}
+        {collapsed
+          ? // Icon-only sidebar: flatten parent children to plain icon links.
+            navEntries
+              .flatMap((entry) => (isParent(entry) ? entry.children : [entry]))
+              .map((item) => renderItem(item))
+          : navEntries.map((entry) => {
+              if (!isParent(entry)) return renderItem(entry)
+              const open = !!openParents[entry.title]
+              const childActive = entry.children.some((c) => isActive(pathname, c))
+              return (
+                <div key={entry.title}>
+                  <button
+                    type="button"
+                    onClick={() => toggleParent(entry.title)}
+                    aria-expanded={open}
+                    className={cn(
+                      'flex w-full items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors',
+                      childActive
+                        ? 'text-sidebar-foreground font-medium'
+                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                    )}
+                  >
+                    <entry.icon className="size-4 shrink-0" />
+                    <span className="truncate">{entry.title}</span>
+                    <ChevronDown
+                      className={cn(
+                        'ml-auto size-4 shrink-0 transition-transform duration-200',
+                        open ? '' : '-rotate-90'
+                      )}
+                    />
+                  </button>
+                  {/* Animated expand/collapse via grid-rows 0fr → 1fr */}
+                  <div
+                    className={cn(
+                      'grid transition-[grid-template-rows] duration-200 ease-out',
+                      open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                    )}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="mt-0.5 ml-4 space-y-0.5 border-l border-sidebar-border pl-2">
+                        {entry.children.map((item) => renderItem(item))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
 
         {/* Dynamic collections, grouped by each collection's `group` value */}
         {collectionSections.map((section) => (

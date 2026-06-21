@@ -6,9 +6,16 @@ const inertiaConfig = defineConfig({
    */
   ssr: {
     /**
-     * Toggle SSR mode for Inertia pages.
+     * SSR is enabled but scoped to the public page renderer only (`pages`
+     * allowlist below). Every other page — the whole admin app — stays CSR.
      */
-    enabled: false,
+    enabled: true,
+
+    /**
+     * Only the SSR builder-page component is server-rendered. Pages whose render
+     * mode is CSR use `public/page` (not listed) and stay client-rendered.
+     */
+    pages: ['public/page_ssr'],
 
     /**
      * Entry file used by the SSR server build.

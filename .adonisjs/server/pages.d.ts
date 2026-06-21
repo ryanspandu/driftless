@@ -26,6 +26,8 @@ declare module '@adonisjs/inertia/types' {
     'admin/integrations/google-analytics': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/google-analytics.tsx'))['default']>
     'admin/integrations/google': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/google.tsx'))['default']>
     'admin/media': ExtractProps<(typeof import('../../inertia/pages/admin/media.tsx'))['default']>
+    'admin/pages/builder': ExtractProps<(typeof import('../../inertia/pages/admin/pages/builder.tsx'))['default']>
+    'admin/pages/index': ExtractProps<(typeof import('../../inertia/pages/admin/pages/index.tsx'))['default']>
     'admin/permissions': ExtractProps<(typeof import('../../inertia/pages/admin/permissions.tsx'))['default']>
     'admin/permissions/new': ExtractProps<(typeof import('../../inertia/pages/admin/permissions/new.tsx'))['default']>
     'admin/permissions/show': ExtractProps<(typeof import('../../inertia/pages/admin/permissions/show.tsx'))['default']>
@@ -35,6 +37,8 @@ declare module '@adonisjs/inertia/types' {
     'admin/roles/new': ExtractProps<(typeof import('../../inertia/pages/admin/roles/new.tsx'))['default']>
     'admin/roles/show': ExtractProps<(typeof import('../../inertia/pages/admin/roles/show.tsx'))['default']>
     'admin/settings': ExtractProps<(typeof import('../../inertia/pages/admin/settings.tsx'))['default']>
+    'admin/templates/builder': ExtractProps<(typeof import('../../inertia/pages/admin/templates/builder.tsx'))['default']>
+    'admin/templates/index': ExtractProps<(typeof import('../../inertia/pages/admin/templates/index.tsx'))['default']>
     'admin/users': ExtractProps<(typeof import('../../inertia/pages/admin/users.tsx'))['default']>
     'auth/login': ExtractProps<(typeof import('../../inertia/pages/auth/login.tsx'))['default']>
     'auth/signup': ExtractProps<(typeof import('../../inertia/pages/auth/signup.tsx'))['default']>
@@ -43,5 +47,7 @@ declare module '@adonisjs/inertia/types' {
     'home': ExtractProps<(typeof import('../../inertia/pages/home.tsx'))['default']>
     'offline': ExtractProps<(typeof import('../../inertia/pages/offline.tsx'))['default']>
     'posts/show': ExtractProps<(typeof import('../../inertia/pages/posts/show.tsx'))['default']>
+    'public/page_ssr': ExtractProps<(typeof import('../../inertia/pages/public/page_ssr.tsx'))['default']>
+    'public/page': ExtractProps<(typeof import('../../inertia/pages/public/page.tsx'))['default']>
   }
 }

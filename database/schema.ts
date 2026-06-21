@@ -61,6 +61,31 @@ export class CmsCollectionSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class CmsDemoPostSchema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'excerpt', 'id', 'image', 'slug', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsDemoPostSchema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare excerpt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare image: string | null
+  @column()
+  declare slug: string | null
+  @column()
+  declare status: string
+  @column()
+  declare title: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class CmsFieldSchema extends BaseModel {
   static $columns = ['collectionId', 'config', 'createdAt', 'deletedAt', 'id', 'key', 'label', 'order', 'required', 'type', 'unique', 'updatedAt'] as const
   $columns = CmsFieldSchema.$columns
@@ -196,6 +221,62 @@ export class MediaSchema extends BaseModel {
   declare width: number | null
 }
 
+export class PageRevisionSchema extends BaseModel {
+  static $columns = ['authorId', 'content', 'createdAt', 'id', 'pageId', 'seo', 'status'] as const
+  $columns = PageRevisionSchema.$columns
+  @column()
+  declare authorId: number | null
+  @column()
+  declare content: any
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare pageId: string
+  @column()
+  declare seo: any
+  @column()
+  declare status: string
+}
+
+export class PageSchema extends BaseModel {
+  static $columns = ['authorId', 'content', 'createdAt', 'deletedAt', 'footerTemplateId', 'headerTemplateId', 'id', 'layoutId', 'path', 'publishedAt', 'renderMode', 'renderedHtml', 'seo', 'status', 'title', 'updatedAt'] as const
+  $columns = PageSchema.$columns
+  @column()
+  declare authorId: number | null
+  @column()
+  declare content: any
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare footerTemplateId: string | null
+  @column()
+  declare headerTemplateId: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare layoutId: string | null
+  @column()
+  declare path: string
+  @column.dateTime()
+  declare publishedAt: DateTime | null
+  @column()
+  declare renderMode: string
+  @column()
+  declare renderedHtml: string | null
+  @column()
+  declare seo: any
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class PermissionRoleSchema extends BaseModel {
   static $columns = ['permissionId', 'roleId'] as const
   $columns = PermissionRoleSchema.$columns
@@ -267,6 +348,27 @@ export class RoleSchema extends BaseModel {
   declare isSystem: boolean
   @column()
   declare name: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class TemplateSchema extends BaseModel {
+  static $columns = ['content', 'createdAt', 'deletedAt', 'id', 'isDefault', 'name', 'type', 'updatedAt'] as const
+  $columns = TemplateSchema.$columns
+  @column()
+  declare content: any
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare isDefault: boolean
+  @column()
+  declare name: string
+  @column()
+  declare type: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }

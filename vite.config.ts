@@ -14,7 +14,7 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
-    inertia({ ssr: { enabled: false, entrypoint: 'inertia/ssr.tsx' } }),
+    inertia({ ssr: { enabled: true, entrypoint: 'inertia/ssr.tsx' } }),
     adonisjs({
       entrypoints: ['inertia/app.tsx', 'inertia/sw.ts'],
       reload: ['resources/views/**/*.edge'],

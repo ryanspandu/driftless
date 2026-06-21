@@ -7,7 +7,7 @@ type CmsVerb = 'read' | 'create' | 'update' | 'delete'
 type PermissionOptions =
   | { permission: string }
   | { cmsRecord: true }
-  | { resource: 'content' | 'user' | 'media' }
+  | { resource: 'content' | 'user' | 'media' | 'page' | 'template' }
 
 function verbForMethod(method: string): CmsVerb {
   switch (method.toUpperCase()) {
@@ -42,6 +42,14 @@ function resolveRequiredPermission(ctx: HttpContext, options: PermissionOptions)
 
   if (options.resource === 'content') {
     return `content:${verb}`
+  }
+
+  if (options.resource === 'page') {
+    return `page:${verb}`
+  }
+
+  if (options.resource === 'template') {
+    return `template:${verb}`
   }
 
   if (options.resource === 'media') {

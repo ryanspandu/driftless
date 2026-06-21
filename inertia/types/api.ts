@@ -259,6 +259,81 @@ export interface UpdateContentRequest {
   status?: ContentStatus
 }
 
+export type PageRenderMode = 'SSR' | 'SSG' | 'CSR'
+
+/** List row — omits the (potentially large) Puck block tree. */
+export interface PageSummaryDto {
+  id: string
+  title: string
+  path: string
+  status: ContentStatus
+  renderMode: PageRenderMode
+  layoutId: string | null
+  headerTemplateId: string | null
+  footerTemplateId: string | null
+  authorId: number | null
+  publishedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PageDto extends PageSummaryDto {
+  content: Record<string, unknown>
+  seo: Record<string, unknown>
+}
+
+export interface CreatePageRequest {
+  title: string
+  path: string
+  status?: ContentStatus
+  renderMode?: PageRenderMode
+  layoutId?: string | null
+  headerTemplateId?: string | null
+  footerTemplateId?: string | null
+  content?: Record<string, unknown>
+  seo?: Record<string, unknown>
+}
+
+export interface UpdatePageRequest {
+  title?: string
+  path?: string
+  status?: ContentStatus
+  renderMode?: PageRenderMode
+  layoutId?: string | null
+  headerTemplateId?: string | null
+  footerTemplateId?: string | null
+  content?: Record<string, unknown>
+  seo?: Record<string, unknown>
+}
+
+export type TemplateType = 'HEADER' | 'FOOTER' | 'COMPONENT' | 'LAYOUT'
+
+export interface TemplateSummaryDto {
+  id: string
+  name: string
+  type: TemplateType
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TemplateDto extends TemplateSummaryDto {
+  content: Record<string, unknown>
+}
+
+export interface CreateTemplateRequest {
+  name: string
+  type: TemplateType
+  content?: Record<string, unknown>
+  isDefault?: boolean
+}
+
+export interface UpdateTemplateRequest {
+  name?: string
+  content?: Record<string, unknown>
+  isDefault?: boolean
+}
+
 export interface PluginMenuItem {
   title: string
   href: string

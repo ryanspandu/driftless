@@ -156,4 +156,59 @@ html {
 .tiptap-content pre code { background: transparent; padding: 0; }
 .tiptap-content a { color: var(--primary); text-decoration: underline; text-underline-offset: 0.2em; }
 .tiptap-content hr { border: 0; border-top: 1px solid var(--border); margin: 1.25em 0; }
+
+/* Puck builder — render the component drawer as a 3-column grid of icon tiles.
+   Targets Puck's internal Drawer container (hash-agnostic substring match);
+   the tiles themselves come from the `componentItem` override. */
+[class*='_ComponentList-content_'] [class*='_Drawer_'] {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 0.5rem !important;
+  align-items: start !important;
+}
+/* Stretch each draggable (and its tile) to fill the grid cell — scoped to the
+   panel so it never touches Puck's drag overlay (portaled to <body>). */
+[class*='_ComponentList-content_'] [class*='_Drawer-draggable_'] {
+  margin: 0 !important;
+}
+[class*='_ComponentList-content_'] [class*='_Drawer-draggable_'] > * {
+  width: 100% !important;
+}
+
+/* Dark mode for the Puck editor: Puck defines its palette on :root (light only),
+   so invert its grey ramp + swap white/black under html.dark (higher specificity
+   than :root, wins regardless of stylesheet order). Applies to the editor chrome
+   and — via the `iframe` override syncing the class — the preview canvas too. */
+html.dark {
+  /* Native form controls (Puck uses real <select>/<input>) render light unless
+     the document opts into a dark color scheme. */
+  color-scheme: dark;
+  --puck-color-white: #1e1e1e;
+  --puck-color-black: #ffffff;
+  --puck-color-grey-01: #fafafa;
+  --puck-color-grey-02: #f5f5f5;
+  --puck-color-grey-03: #efefef;
+  --puck-color-grey-04: #dcdcdc;
+  --puck-color-grey-05: #c3c3c3;
+  --puck-color-grey-06: #ababab;
+  --puck-color-grey-07: #949494;
+  --puck-color-grey-08: #767676;
+  --puck-color-grey-09: #5a5a5a;
+  --puck-color-grey-10: #404040;
+  --puck-color-grey-11: #292929;
+  --puck-color-grey-12: #181818;
+  /* Subtle near-white azure tints (hover/selected backgrounds: Outline, radios,
+     array fields…) → dark slate-blue so they don't appear as bright patches.
+     12 = subtlest (closest to bg), 10 = most pronounced. */
+  --puck-color-azure-10: #2b3a55;
+  --puck-color-azure-11: #233247;
+  --puck-color-azure-12: #1e2a3d;
+}
+
+/* Puck's base button label color is var(--puck-color-white), which we repurposed
+   as a dark surface — that turned solid-accent buttons' text (e.g. Publish) dark.
+   Force real white on every button except `secondary` (which uses currentColor). */
+html.dark [class*='_Button_']:not([class*='--secondary']) {
+  color: #fff;
+}
 .tiptap-content p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--muted-foreground); float: left; pointer-events: none; height: 0; }

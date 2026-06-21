@@ -1,6 +1,6 @@
 import { defaultCache } from '@serwist/vite/worker'
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from 'serwist'
-import { NetworkOnly, Serwist } from 'serwist'
+import { NetworkFirst, NetworkOnly, Serwist } from 'serwist'
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -25,7 +25,17 @@ const noPrivateCache: RuntimeCaching[] = [
   },
 ]
 
-const runtimeCaching: RuntimeCaching[] = [...noPrivateCache, ...defaultCache]
+// Public page documents (builder pages, posts, home) — network-first so they
+// work offline once visited; the `/offline` fallback covers a cold cache.
+const publicPageCache: RuntimeCaching[] = [
+  {
+    matcher: ({ request, url, sameOrigin }) =>
+      sameOrigin && request.destination === 'document' && !isPrivatePath(url.pathname),
+    handler: new NetworkFirst({ cacheName: 'public-pages', networkTimeoutSeconds: 3 }),
+  },
+]
+
+const runtimeCaching: RuntimeCaching[] = [...noPrivateCache, ...publicPageCache, ...defaultCache]
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
