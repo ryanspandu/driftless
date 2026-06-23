@@ -1,5 +1,6 @@
 
 import type { LocalStore } from "./local-store";
+import { storageKeyForSyncedRow } from "./row-key";
 import { isCmsEntity, type EntityName, type OutboxJob, type SyncOp } from "./schema";
 
 /**
@@ -81,7 +82,7 @@ export class SyncEngine {
         void this.trigger();
       }
     }, 60_000);
-    void this.refreshSnapshot();
+    void this.reconcileOrphanConflicts().then(() => this.refreshSnapshot());
   }
 
   stop(): void {
@@ -125,6 +126,7 @@ export class SyncEngine {
         this.retryErrorsQueued = false;
         await this.requeueErroredJobs();
       }
+      await this.reconcileOrphanConflicts();
       await this.drain();
     } finally {
       this.running = false;
@@ -137,6 +139,23 @@ export class SyncEngine {
       if (this.runQueued) {
         this.runQueued = false;
         void this.trigger();
+      }
+    }
+  }
+
+  /**
+   * Drop conflict jobs whose target row no longer exists locally. These are
+   * orphans — e.g. an edit queued against a local id that a later create
+   * replaced with a server id — so the conflict is stale and safe to clear.
+   * Genuine conflicts (the edited row still exists locally) are left intact.
+   */
+  private async reconcileOrphanConflicts(): Promise<void> {
+    const jobs = await this.store.listAllJobs();
+    for (const job of jobs) {
+      if (job.status !== "conflict") continue;
+      const row = await this.store.getById(job.entity, job.refId);
+      if (!row) {
+        await this.store.deleteJob(job.id);
       }
     }
   }
@@ -175,6 +194,23 @@ export class SyncEngine {
             result.row,
             result.updatedAt,
           );
+          // A create may be re-keyed to the server id. Re-point any follow-up
+          // jobs (edits/deletes queued before this create drained) so they
+          // target the real id instead of the now-dead local one.
+          if (job.op === "create") {
+            const serverRefId = storageKeyForSyncedRow(job.refId, result.row);
+            if (serverRefId !== job.refId) {
+              await this.store.repointJobs(job.entity, job.refId, serverRefId);
+              // `jobs` is a snapshot taken before this pass; keep its entries in
+              // step with the re-pointed rows so a follow-up job already queued
+              // in this same pass targets the new id instead of the dead one.
+              for (const queued of jobs) {
+                if (queued.entity === job.entity && queued.refId === job.refId) {
+                  queued.refId = serverRefId;
+                }
+              }
+            }
+          }
         }
         await this.store.deleteJob(job.id);
       } catch (err) {

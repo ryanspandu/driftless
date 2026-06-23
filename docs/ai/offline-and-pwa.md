@@ -26,6 +26,26 @@ Production registers SW in `inertia/app.tsx` via `virtual:serwist`.
 - Edits queue locally; sync drains outbox when network returns.
 - UI: sync status components, overlay hooks.
 
+## Outbox: create + follow-up edits (no orphaned conflicts)
+
+A create gets a client ULID locally; the server returns its own id, so the row is re-keyed on
+sync (`markSynced` + `row-key.ts`). To stop a follow-up edit/delete from orphaning onto the dead
+local id (which would 404 → a stuck "conflict"):
+
+- **Coalesce** (`use-offline-content.ts`, `use-offline-records.ts`): editing a row whose create is
+  still queued folds the change into that queued create (`store.mergePendingCreatePayload`)
+  instead of enqueuing a separate update; deleting one drops the queued create
+  (`store.dropPendingCreate`) with no server round-trip.
+- **Re-point** (`sync-engine.ts`): after a create syncs, queued jobs referencing the old local id
+  are re-pointed to the server id (`store.repointJobs`, in the DB and the in-flight pass).
+- **Reconcile** (`sync-engine.ts` `reconcileOrphanConflicts`, on start + every trigger): conflict
+  jobs whose local row no longer exists are dropped (clears any pre-existing orphans). Genuine
+  "record deleted on the server" conflicts (the edited row still exists) are kept.
+
+`conflict` is only ever set for an **update that 404s** (`markGoneConflict`) or a handler that
+classifies an error as `conflict` (HTTP 409). No app endpoint returns 409, so a create can never
+be directly mis-classified.
+
 ## Build notes
 
 - Serwist `globDirectory` points at `public/assets` (dev) or `build/public/assets` (production).

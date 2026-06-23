@@ -21,11 +21,13 @@ declare module '@adonisjs/inertia/types' {
     'admin/content': ExtractProps<(typeof import('../../inertia/pages/admin/content.tsx'))['default']>
     'admin/dashboard': ExtractProps<(typeof import('../../inertia/pages/admin/dashboard.tsx'))['default']>
     'admin/integrations': ExtractProps<(typeof import('../../inertia/pages/admin/integrations.tsx'))['default']>
+    'admin/integrations/api-tokens': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/api-tokens.tsx'))['default']>
     'admin/integrations/captcha': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/captcha.tsx'))['default']>
     'admin/integrations/clarity': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/clarity.tsx'))['default']>
     'admin/integrations/google-analytics': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/google-analytics.tsx'))['default']>
     'admin/integrations/google': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/google.tsx'))['default']>
     'admin/media': ExtractProps<(typeof import('../../inertia/pages/admin/media.tsx'))['default']>
+    'admin/not_found': ExtractProps<(typeof import('../../inertia/pages/admin/not_found.tsx'))['default']>
     'admin/pages/builder': ExtractProps<(typeof import('../../inertia/pages/admin/pages/builder.tsx'))['default']>
     'admin/pages/index': ExtractProps<(typeof import('../../inertia/pages/admin/pages/index.tsx'))['default']>
     'admin/permissions': ExtractProps<(typeof import('../../inertia/pages/admin/permissions.tsx'))['default']>
@@ -37,6 +39,7 @@ declare module '@adonisjs/inertia/types' {
     'admin/roles/new': ExtractProps<(typeof import('../../inertia/pages/admin/roles/new.tsx'))['default']>
     'admin/roles/show': ExtractProps<(typeof import('../../inertia/pages/admin/roles/show.tsx'))['default']>
     'admin/settings': ExtractProps<(typeof import('../../inertia/pages/admin/settings.tsx'))['default']>
+    'admin/settings/application': ExtractProps<(typeof import('../../inertia/pages/admin/settings/application.tsx'))['default']>
     'admin/templates/builder': ExtractProps<(typeof import('../../inertia/pages/admin/templates/builder.tsx'))['default']>
     'admin/templates/index': ExtractProps<(typeof import('../../inertia/pages/admin/templates/index.tsx'))['default']>
     'admin/users': ExtractProps<(typeof import('../../inertia/pages/admin/users.tsx'))['default']>

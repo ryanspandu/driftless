@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
+import type User from '#models/user'
 import UserTransformer from '#transformers/user_transformer'
 import { collectUserPermissions } from '#services/permission_ability_service'
 import BaseInertiaMiddleware from '@adonisjs/inertia/inertia_middleware'
@@ -39,7 +40,8 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
 
   async handle(ctx: HttpContext, next: NextFn) {
     if (ctx.auth?.user) {
-      await ctx.auth.user.load('roles', (q) => q.preload('permissions'))
+      // Narrow the cross-guard union to the concrete model for relation typing.
+      await (ctx.auth.user as User).load('roles', (q) => q.preload('permissions'))
     }
     await this.init(ctx)
 

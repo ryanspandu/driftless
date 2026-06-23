@@ -82,6 +82,36 @@ export interface LocalStore {
 
   deleteJob(id: number): Promise<void>;
 
+  /**
+   * Fold an edit into a not-yet-started (`idle`) create job for the same row,
+   * merging the given fields into its queued payload. Returns true when a
+   * pending create was found and updated, so the caller can skip enqueuing a
+   * separate update job that would orphan once the create gets a server id.
+   */
+  mergePendingCreatePayload(
+    entity: EntityName,
+    refId: string,
+    partial: Record<string, unknown>,
+  ): Promise<boolean>;
+
+  /**
+   * Drop a not-yet-started (`idle`) create job for the given row. Returns true
+   * when one was removed — the row was never created remotely, so a delete
+   * needs no server round-trip.
+   */
+  dropPendingCreate(entity: EntityName, refId: string): Promise<boolean>;
+
+  /**
+   * Re-point every outbox job referencing `fromRefId` to `toRefId`. Called
+   * after a create syncs and its row is re-keyed to the server id, so queued
+   * follow-up edits/deletes target the real id instead of the dead local one.
+   */
+  repointJobs(
+    entity: EntityName,
+    fromRefId: string,
+    toRefId: string,
+  ): Promise<void>;
+
   countJobsByStatus(): Promise<Record<OutboxStatus, number>>;
 
   /** Drop everything; used on logout / account switch. */

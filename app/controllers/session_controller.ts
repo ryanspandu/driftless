@@ -54,7 +54,9 @@ export default class SessionController {
   }
 
   async me({ auth, response }: HttpContext) {
-    const user = auth.user!
+    // `auth.user` is a union across guards (session + api token); narrow to the
+    // concrete model so relation methods (`.load`) type correctly.
+    const user = auth.user! as User
     await user.load('roles', (q) => q.preload('permissions'))
 
     return response.json({

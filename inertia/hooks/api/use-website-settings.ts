@@ -22,6 +22,8 @@ export function useUpdateWebsiteSettings() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: websiteSettingsQueryKey })
       void qc.invalidateQueries({ queryKey: ['auth', 'public-config'] })
+      // The sidebar reads hidden-nav from this; refresh it so toggles apply live.
+      void qc.invalidateQueries({ queryKey: ['nav-config'] })
     },
   })
 }

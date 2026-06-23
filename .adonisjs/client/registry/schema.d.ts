@@ -1471,6 +1471,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['settingsPage']>>>
     }
   }
+  'settings.application_settings_page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/settings/application'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['applicationSettingsPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['applicationSettingsPage']>>>
+    }
+  }
   'settings.integrations_page': {
     methods: ["GET","HEAD"]
     pattern: '/admin/integrations'
@@ -1579,6 +1591,54 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updateIntegrationSettings']>>>
     }
   }
+  'settings.integrations_api_tokens_page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/integrations/api-tokens'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['integrationsApiTokensPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['integrationsApiTokensPage']>>>
+    }
+  }
+  'api_tokens.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/api-tokens'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/api_tokens_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/api_tokens_controller').default['index']>>>
+    }
+  }
+  'api_tokens.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/api-tokens'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/api_tokens_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/api_tokens_controller').default['store']>>>
+    }
+  }
+  'api_tokens.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/api-tokens/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/api_tokens_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/api_tokens_controller').default['destroy']>>>
+    }
+  }
   'plugins.page': {
     methods: ["GET","HEAD"]
     pattern: '/admin/plugins'
@@ -1625,6 +1685,174 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['toggle']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['toggle']>>>
+    }
+  }
+  'modules.menu': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/modules/menu'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/modules_controller').default['menu']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/modules_controller').default['menu']>>>
+    }
+  }
+  'settings.nav_config': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/nav-config'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['navConfig']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['navConfig']>>>
+    }
+  }
+  'modules.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/modules'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/modules_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/modules_controller').default['index']>>>
+    }
+  }
+  'modules.toggle': {
+    methods: ["PUT"]
+    pattern: '/api/admin/modules/:name/toggle'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { name: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/modules_controller').default['toggle']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/modules_controller').default['toggle']>>>
+    }
+  }
+  'v1.content.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/content'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/api/v1/content_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api/v1/content_controller').default['index']>>>
+    }
+  }
+  'v1.content.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/content/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/api/v1/content_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api/v1/content_controller').default['show']>>>
+    }
+  }
+  'v1.content.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/content'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/api/v1/content_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api/v1/content_controller').default['store']>>>
+    }
+  }
+  'v1.content.update': {
+    methods: ["PUT"]
+    pattern: '/api/v1/content/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/api/v1/content_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api/v1/content_controller').default['update']>>>
+    }
+  }
+  'v1.content.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/content/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/api/v1/content_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api/v1/content_controller').default['destroy']>>>
+    }
+  }
+  'v1.cms.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/cms/:key/records'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/api/v1/cms_records_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api/v1/cms_records_controller').default['index']>>>
+    }
+  }
+  'v1.cms.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/cms/:key/records/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { key: ParamValue; id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/api/v1/cms_records_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api/v1/cms_records_controller').default['show']>>>
+    }
+  }
+  'v1.cms.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/cms/:key/records'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/api/v1/cms_records_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api/v1/cms_records_controller').default['store']>>>
+    }
+  }
+  'v1.cms.update': {
+    methods: ["PUT"]
+    pattern: '/api/v1/cms/:key/records/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { key: ParamValue; id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/api/v1/cms_records_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api/v1/cms_records_controller').default['update']>>>
+    }
+  }
+  'v1.cms.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/cms/:key/records/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { key: ParamValue; id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/api/v1/cms_records_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api/v1/cms_records_controller').default['destroy']>>>
     }
   }
   'admin.page': {
@@ -1697,6 +1925,66 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_public_controller').default['page']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_public_controller').default['page']>>>
+    }
+  }
+  'ctrl.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/tasks'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['page']>>>
+    }
+  }
+  'ctrl.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/tasks'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['index']>>>
+    }
+  }
+  'ctrl.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/tasks'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['store']>>>
+    }
+  }
+  'ctrl.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/tasks/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['update']>>>
+    }
+  }
+  'ctrl.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/tasks/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['destroy']>>>
     }
   }
   'pages_public.show': {

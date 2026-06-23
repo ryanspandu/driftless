@@ -50,5 +50,8 @@ export const middleware = router.named({
   guest: () => import('#middleware/guest_middleware'),
   auth: () => import('#middleware/auth_middleware'),
   permission: () => import('#middleware/require_permission_middleware'),
+  tokenAbility: () => import('#middleware/require_token_ability_middleware'),
   pluginEnabled: () => import('#middleware/plugin_enabled_middleware'),
+  moduleEnabled: () => import('#middleware/module_enabled_middleware'),
+  navEnabled: () => import('#middleware/nav_enabled_middleware'),
 })

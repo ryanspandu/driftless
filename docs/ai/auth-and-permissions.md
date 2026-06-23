@@ -4,6 +4,7 @@
 
 - **Guard**: session-based `web` guard (`config/auth.ts`).
 - **Provider**: `sessionUserProvider` with `app/models/user.ts`.
+- **API tokens**: a second `api` guard (`tokensGuard`, `@adonisjs/auth/access_tokens`) for the external `/api/v1` — opaque Personal Access Tokens (`auth_access_tokens` table, `withAccessTokens` on User), minted/revoked at `/admin/integrations/api-tokens` (needs `token:manage`). Effective access = user RBAC ∩ token abilities. See [api-v1.md](./api-v1.md).
 - **Routes**: `/login`, `/register`, `/logout`, `/api/me` in `start/routes.ts`. `/signup`, `/auth/signup`, `/auth/register` are legacy redirect aliases to `/register`.
 - **Google OAuth**: `google_auth_controller` — `/auth/google`, callback, status.
 - **CAPTCHA**: Configurable via integration settings + env; used on auth forms when enabled.
@@ -30,7 +31,7 @@ From `app/services/permission_ability_service.ts`:
 
 `abilityAllowsCode(permissionNames, code)` checks if a user may perform an action.
 
-Builtin permission codes are seeded from `database/seeder_constants.ts`: `*`, `content:create|read|update|delete`, `user:read|manage`, `media:read|manage`, `cms:manage`, `role:manage`, `permission:manage`, `settings:manage`. **There are no native CMS collections** — Content, Media and Users are standalone resources (dedicated pages + the permissions above), not CMS collections. `cms:{key}:*` codes only exist for dynamic collections.
+Builtin permission codes are seeded from `database/seeder_constants.ts`: `*`, `content:create|read|update|delete`, `user:read|manage`, `media:read|manage`, `cms:manage`, `page:*`, `template:*`, `role:manage`, `permission:manage`, `settings:manage`, `plugin:manage`, `token:manage`. **There are no native CMS collections** — Content, Media and Users are standalone resources (dedicated pages + the permissions above), not CMS collections. `cms:{key}:*` codes only exist for dynamic collections.
 
 ### Route middleware
 

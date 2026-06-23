@@ -73,6 +73,13 @@ export class NullLocalStore implements LocalStore {
   }
   async updateJob(): Promise<void> {}
   async deleteJob(): Promise<void> {}
+  async mergePendingCreatePayload(): Promise<boolean> {
+    return false;
+  }
+  async dropPendingCreate(): Promise<boolean> {
+    return false;
+  }
+  async repointJobs(): Promise<void> {}
   async countJobsByStatus(): Promise<Record<OutboxStatus, number>> {
     return { idle: 0, running: 0, error: 0, conflict: 0 };
   }

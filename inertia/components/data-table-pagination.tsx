@@ -107,7 +107,7 @@ export function DataTablePagination({
     >
       <div className="flex flex-wrap items-center gap-4 lg:min-w-0 lg:flex-1">
         <div className="flex items-center gap-2">
-          <Label htmlFor={rowsPerPageId} className="text-muted-foreground">
+          <Label htmlFor={rowsPerPageId} className="text-xs text-muted-foreground">
             Rows per page
           </Label>
           <AppSelect
@@ -124,7 +124,7 @@ export function DataTablePagination({
             className="w-[4.5rem]"
           />
         </div>
-        <p className="text-sm text-muted-foreground whitespace-nowrap">
+        <p className="text-xs text-muted-foreground whitespace-nowrap">
           {start}–{end} of {totalRows} · Page {pageIndex + 1} of {safePageCount}
         </p>
       </div>
@@ -154,7 +154,7 @@ export function DataTablePagination({
               item === "ellipsis" ? (
                 <span
                   key={`e-${i}`}
-                  className="flex size-8 items-center justify-center text-sm text-muted-foreground"
+                  className="flex size-8 items-center justify-center text-xs text-muted-foreground"
                   aria-hidden
                 >
                   …
@@ -197,14 +197,14 @@ export function DataTablePagination({
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-2 lg:min-w-0 lg:flex-1 lg:justify-end">
-            <Label htmlFor={goToPageId} className="text-muted-foreground">
+            <Label htmlFor={goToPageId} className="text-xs text-muted-foreground">
               Go to page
             </Label>
             <Input
               id={goToPageId}
               type="text"
               inputMode="numeric"
-              className="h-8 w-14 px-2 text-center tabular-nums"
+              className="h-8 w-14 px-2 text-center text-xs tabular-nums"
               value={goToPageInput}
               onChange={(e) => setGoToPageInput(e.target.value)}
               onKeyDown={(e) => {

@@ -44,4 +44,17 @@ export default await Env.create(new URL('../', import.meta.url), {
   CAPTCHA_SECRET_KEY: Env.schema.string.optional(),
 
   DISABLE_OFFLINE: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Rate limiter (@adonisjs/limiter) + Redis store
+  |----------------------------------------------------------
+  */
+  LIMITER_STORE: Env.schema.enum(['redis', 'memory'] as const),
+  REDIS_HOST: Env.schema.string.optional(),
+  REDIS_PORT: Env.schema.number.optional(),
+  REDIS_PASSWORD: Env.schema.string.optional(),
+
+  /** Comma-separated production CORS allowlist for the external API. */
+  CORS_ALLOWED_ORIGINS: Env.schema.string.optional(),
 })

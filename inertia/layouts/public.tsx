@@ -1,5 +1,6 @@
 import { type ReactElement, type ReactNode, useEffect, useState } from 'react'
 import { Link, usePage } from '@inertiajs/react'
+import { useTheme } from 'next-themes'
 import { toast, Toaster } from 'sonner'
 import { Layers } from 'lucide-react'
 import { type Data } from '@generated/data'
@@ -23,6 +24,27 @@ export default function PublicLayout({
   const { url, props } = usePage<Data.SharedProps>()
   const [scrolled, setScrolled] = useState(false)
 
+  const { resolvedTheme } = useTheme()
+  // The public site is always light — strip the admin dark-mode class from
+  // <html> while a public page is mounted (restored on the way back). The
+  // `.theme-light` scope already keeps the *content* light; this also clears the
+  // dark <html>/<body> canvas, scrollbar, and color-scheme. A MutationObserver
+  // is needed because next-themes re-applies the class on hydration (its provider
+  // effect runs after this child effect).
+  useEffect(() => {
+    const html = document.documentElement
+    const stripDark = () => {
+      if (html.classList.contains('dark')) html.classList.remove('dark')
+    }
+    stripDark()
+    const observer = new MutationObserver(stripDark)
+    observer.observe(html, { attributes: true, attributeFilter: ['class'] })
+    return () => {
+      observer.disconnect()
+      if (resolvedTheme === 'dark') html.classList.add('dark')
+    }
+  }, [resolvedTheme])
+
   useEffect(() => {
     toast.dismiss()
   }, [url])
@@ -40,7 +62,7 @@ export default function PublicLayout({
   }, [])
 
   return (
-    <div className="cms-shell flex min-h-screen flex-col bg-background">
+    <div className="theme-light cms-shell flex min-h-screen flex-col bg-background">
       <PublicWebMeta />
       <AnalyticsScripts />
 

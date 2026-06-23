@@ -5,10 +5,12 @@
 
 export const controllers = {
   admin: {
+    ApiTokens: () => import('#controllers/admin/api_tokens_controller'),
     Cms: () => import('#controllers/admin/cms_controller'),
     Content: () => import('#controllers/admin/content_controller'),
     Dashboard: () => import('#controllers/admin/dashboard_controller'),
     Media: () => import('#controllers/admin/media_controller'),
+    Modules: () => import('#controllers/admin/modules_controller'),
     Pages: () => import('#controllers/admin/pages_controller'),
     Permissions: () => import('#controllers/admin/permissions_controller'),
     Plugins: () => import('#controllers/admin/plugins_controller'),
@@ -16,6 +18,12 @@ export const controllers = {
     Settings: () => import('#controllers/admin/settings_controller'),
     Templates: () => import('#controllers/admin/templates_controller'),
     Users: () => import('#controllers/admin/users_controller'),
+  },
+  api: {
+    v1: {
+      CmsRecords: () => import('#controllers/api/v1/cms_records_controller'),
+      Content: () => import('#controllers/api/v1/content_controller'),
+    },
   },
   GoogleAuth: () => import('#controllers/google_auth_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),

@@ -6,18 +6,12 @@ import type { PageSummaryDto } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '~/components/ui/card'
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown_menu'
+import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { TrashModal } from '~/components/trash-modal'
 import { PageFormDialog } from '~/components/admin/page-form-dialog'
@@ -80,14 +74,12 @@ export default function PagesPage() {
         id: 'title',
         accessorFn: (r) => r.title,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
-        cell: ({ row }) => <span className="font-medium">{row.original.title}</span>,
-      },
-      {
-        id: 'path',
-        accessorFn: (r) => r.path,
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Path" />,
+        // Primary cell: title with the page path as muted secondary text beneath it.
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">/{row.original.path}</span>
+          <div className="flex flex-col leading-tight">
+            <span className="font-medium">{row.original.title}</span>
+            <span className="text-xs text-muted-foreground">/{row.original.path}</span>
+          </div>
         ),
       },
       {
@@ -95,7 +87,7 @@ export default function PagesPage() {
         accessorFn: (r) => r.status,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
         cell: ({ row }) => (
-          <Badge variant={row.original.status === 'PUBLISHED' ? 'default' : 'secondary'}>
+          <Badge variant={row.original.status === 'PUBLISHED' ? 'success' : 'secondary'}>
             {row.original.status === 'PUBLISHED' ? 'Published' : 'Draft'}
           </Badge>
         ),
@@ -121,7 +113,7 @@ export default function PagesPage() {
           />
         ),
         cell: ({ row }) => (
-          <div className="text-right text-sm text-muted-foreground tabular-nums">
+          <div className="text-right text-xs text-muted-foreground tabular-nums">
             {formatAdminTableDateTime(row.original.updatedAt)}
           </div>
         ),
@@ -195,42 +187,30 @@ export default function PagesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Pages</h1>
-          <p className="text-sm text-muted-foreground">
-            Build landing &amp; marketing pages with the visual builder
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button className="gap-2" onClick={() => setDialog({ open: true, mode: { kind: 'create' } })}>
+      <PageHeader
+        title="Pages"
+        subtitle="Build landing & marketing pages with the visual builder"
+        count={listQuery.isLoading ? undefined : rows.length}
+        actions={
+          <Button
+            className="gap-2"
+            onClick={() => setDialog({ open: true, mode: { kind: 'create' } })}
+          >
             <Plus className="size-4" />
             New page
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All pages</CardTitle>
-          <CardDescription>
-            {listQuery.isLoading ? 'Loading…' : `${rows.length} pages`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            columns={columns}
-            data={rows}
-            getRowId={(r) => r.id}
-            hideSyncColumn
-            searchPlaceholder="Search by title or path…"
-            toolbarActions={trashButton}
-            emptyMessage={
-              listQuery.isLoading ? 'Loading…' : 'No pages yet — create your first page.'
-            }
-          />
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={rows}
+        getRowId={(r) => r.id}
+        hideSyncColumn
+        searchPlaceholder="Search by title or path…"
+        toolbarActions={trashButton}
+        emptyMessage={listQuery.isLoading ? 'Loading…' : 'No pages yet — create your first page.'}
+      />
 
       <TrashModal
         open={trashOpen}

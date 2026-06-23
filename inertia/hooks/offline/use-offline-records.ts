@@ -218,16 +218,26 @@ export function useOfflineRecords(
         updatedAt: new Date().toISOString(),
       };
       await store.upsertLocal(entity, { id, data: next }, "update");
-      const payload: CmsUpdatePayload = { ...patch, collectionKey };
-      await store.enqueueJob(
-        buildJob({
-          entity,
-          op: "update",
-          refId: id,
-          payload,
-          baseUpdatedAt: existing._sync.baseUpdatedAt ?? null,
-        }),
+      // Fold the edit into a still-queued create instead of enqueuing a
+      // separate update that would orphan (404 → conflict) once the create is
+      // assigned a server id.
+      const coalesced = await store.mergePendingCreatePayload(
+        entity,
+        id,
+        patch as Record<string, unknown>,
       );
+      if (!coalesced) {
+        const payload: CmsUpdatePayload = { ...patch, collectionKey };
+        await store.enqueueJob(
+          buildJob({
+            entity,
+            op: "update",
+            refId: id,
+            payload,
+            baseUpdatedAt: existing._sync.baseUpdatedAt ?? null,
+          }),
+        );
+      }
       setBump((n) => n + 1);
       void engine?.trigger();
     },
@@ -246,17 +256,24 @@ export function useOfflineRecords(
 
       const existing = await store.getById<CmsRecordDto>(entity, id);
       if (!existing) return;
-      await store.softDeleteLocal(entity, id);
-      const payload: CmsDeletePayload = { collectionKey };
-      await store.enqueueJob(
-        buildJob({
-          entity,
-          op: "delete",
-          refId: id,
-          payload,
-          baseUpdatedAt: existing._sync.baseUpdatedAt ?? null,
-        }),
-      );
+      // If the create is still queued, the row never reached the server — drop
+      // the queued create and the local row; no delete request needed.
+      const dropped = await store.dropPendingCreate(entity, id);
+      if (dropped) {
+        await store.deleteRow(entity, id);
+      } else {
+        await store.softDeleteLocal(entity, id);
+        const payload: CmsDeletePayload = { collectionKey };
+        await store.enqueueJob(
+          buildJob({
+            entity,
+            op: "delete",
+            refId: id,
+            payload,
+            baseUpdatedAt: existing._sync.baseUpdatedAt ?? null,
+          }),
+        );
+      }
       setBump((n) => n + 1);
       void engine?.trigger();
     },

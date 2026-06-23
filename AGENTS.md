@@ -29,7 +29,8 @@ npm run dev            # NOT plain `node ace serve`
 | `inertia/` | React pages, components, hooks |
 | `database/` | Migrations, seeders |
 | `plugins/` | Self-contained plugins (BE + FE in one folder), toggleable at `/admin/plugins` |
-| `commands/` | Ace commands |
+| `modules/` | First-party app **modules** (BE + FE in one folder), DB-toggled at `/admin/settings/application`. Like plugins but core. See [docs/ai/modules.md](docs/ai/modules.md). |
+| `commands/` | Ace commands (incl. `make:module` scaffolder) |
 | `tests/` | Japa suites (unit / functional / browser configured; only `functional/` populated) |
 | `docs/ai/` | Deep reference for agents |
 | `docs/LEGACY_MIGRATION.md` | Legacy stack migration only |
@@ -55,6 +56,8 @@ npm run dev            # NOT plain `node ace serve`
 - Quote `SEED_ADMIN_PASSWORD` in `.env` if it contains `#`.
 - Keep controllers thin; put logic in `app/services/`.
 - Add permission middleware on new admin API routes.
+- Browse `/api/docs` (Scalar, via adonis-autoswagger) in dev for the auto-generated OpenAPI of `/api/*` — **dev-only**, see [docs/ai/api-docs.md](docs/ai/api-docs.md).
+- The external, token-authed API is `/api/v1/*` (Bearer access tokens; effective access = RBAC ∩ token ability; Redis rate-limit). Mint/revoke tokens at `/admin/integrations/api-tokens` (`token:manage`). See [docs/ai/api-v1.md](docs/ai/api-v1.md).
 - Use the shared `DataTable` (`~/components/data-table`) for **every** table — never a raw `<table>` or a custom table. See [docs/ai/frontend.md](docs/ai/frontend.md#data-tables).
 - Run `npm run typecheck` after substantive TS changes.
 
@@ -107,6 +110,8 @@ runtime from `/admin/plugins`. Full reference: [docs/ai/plugins.md](docs/ai/plug
 | [docs/ai/frontend.md](docs/ai/frontend.md) | Inertia, React, UI |
 | [docs/ai/cms.md](docs/ai/cms.md) | Collections, records |
 | [docs/ai/plugins.md](docs/ai/plugins.md) | Plugin system, two FEs, enable/disable |
+| [docs/ai/api-docs.md](docs/ai/api-docs.md) | OpenAPI docs (adonis-autoswagger + Scalar at `/api/docs`, dev-only) |
+| [docs/ai/api-v1.md](docs/ai/api-v1.md) | External token API (`/api/v1`, PAT, RBAC ∩ ability, Redis rate-limit) |
 | [docs/ai/auth-and-permissions.md](docs/ai/auth-and-permissions.md) | Auth, RBAC |
 | [docs/ai/offline-and-pwa.md](docs/ai/offline-and-pwa.md) | Dexie, Serwist |
 | [docs/ai/testing.md](docs/ai/testing.md) | Japa |

@@ -1,6 +1,7 @@
 import app from '@adonisjs/core/services/app'
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
 import type { StatusPageRange, StatusPageRenderer } from '@adonisjs/core/types/http'
+import { renderPage } from '#helpers/inertia_render'
 
 export default class HttpExceptionHandler extends ExceptionHandler {
   /**
@@ -21,10 +22,13 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * to return the HTML contents to send as a response.
    */
   protected statusPages: Record<StatusPageRange, StatusPageRenderer> = {
-    '404': (_, ctx) =>
-      ctx.inertia.render('errors/not_found', {
-        path: ctx.request.url(),
-      }),
+    '404': (_, ctx) => {
+      // Admin pages get the in-dashboard 404 (sidebar chrome); everything else
+      // gets the public 404.
+      const path = ctx.request.url()
+      const page = path.startsWith('/admin') ? 'admin/not_found' : 'errors/not_found'
+      return renderPage(ctx.inertia, page, { path })
+    },
     '500..599': (_, ctx) => ctx.inertia.render('errors/server_error', {}),
   }
 

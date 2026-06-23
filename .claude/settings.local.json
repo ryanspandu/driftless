@@ -42,7 +42,17 @@
       "Bash(node -e \"const p=require\\('./node_modules/@measured/puck/package.json'\\); console.log\\(JSON.stringify\\(p.exports, null, 1\\)\\); console.log\\('types:', p.types||p.typings\\)\")",
       "Bash(echo \"EXIT: $?\")",
       "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3333/health)",
-      "Bash(echo \"health: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3333/health\\)\")"
+      "Bash(echo \"health: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3333/health\\)\")",
+      "Bash(rtk tree *)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/@tuyau/core/package.json'\\).version\\)\")",
+      "WebFetch(domain:tuyau.julr.dev)",
+      "WebFetch(domain:docs.adonisjs.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(cd /tmp/tuyau-readme; echo \"===== config-ish & UI strings across all chunks =====\"; rtk grep -rohE \"\\\\b\\(scalar|swagger|rapidoc|elements|stoplight|provider|spec|securitySchemes|servers|info|title|version|contact|license|exclude|tags|operationId|requestBody|responses|cdn|html\\)\\\\b\" package/build/*.js 2>/dev/null | sort | uniq -c | sort -rn | head -40; echo; echo \"===== look for default config object / defu usage =====\"; rtk grep -rohE \"defu\\\\\\([^\\)]*\\\\\\)|path ?[:=] ?[\\\\\"'][^\\\\\"']+[\\\\\"']|ui ?[:=]|provider ?[:=] ?[\\\\\"'][^\\\\\"']+\" package/build/*.js 2>/dev/null | head -30; echo; echo \"===== generator file head =====\"; head -c 1500 package/build/generator-TVMJOS26.js)",
+      "Bash(/usr/bin/find /tmp/package -type f '\\(' -name *.d.ts -o -name *.json '\\)')",
+      "Bash(awk 'NR>=374 && NR<=392' /tmp/package/build/chunk-Z2EYRCZY.js)",
+      "Bash(npm i *)"
     ]
   }
 }

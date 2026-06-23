@@ -221,16 +221,26 @@ export function useOfflineContent(): UseOfflineContentResult {
         updatedAt: new Date().toISOString(),
       };
       await store.upsertLocal("content", { id, data: next }, "update");
-      const payload: ContentUpdatePayload = patch;
-      await store.enqueueJob(
-        buildJob({
-          entity: "content",
-          op: "update",
-          refId: id,
-          payload,
-          baseUpdatedAt: existing._sync.baseUpdatedAt ?? null,
-        }),
+      // If this row's create is still queued, fold the edit into that create
+      // instead of enqueuing a separate update — the latter would orphan (404 →
+      // conflict) once the create is assigned a different server id.
+      const coalesced = await store.mergePendingCreatePayload(
+        "content",
+        id,
+        patch as Record<string, unknown>,
       );
+      if (!coalesced) {
+        const payload: ContentUpdatePayload = patch;
+        await store.enqueueJob(
+          buildJob({
+            entity: "content",
+            op: "update",
+            refId: id,
+            payload,
+            baseUpdatedAt: existing._sync.baseUpdatedAt ?? null,
+          }),
+        );
+      }
       setBump((n) => n + 1);
       void engine?.trigger();
     },
@@ -249,16 +259,23 @@ export function useOfflineContent(): UseOfflineContentResult {
 
       const existing = await store.getById<ContentDto>("content", id);
       if (!existing) return;
-      await store.softDeleteLocal("content", id);
-      await store.enqueueJob(
-        buildJob({
-          entity: "content",
-          op: "delete",
-          refId: id,
-          payload: null,
-          baseUpdatedAt: existing._sync.baseUpdatedAt ?? null,
-        }),
-      );
+      // If the create is still queued, the row never reached the server — drop
+      // the queued create and the local row; no delete request needed.
+      const dropped = await store.dropPendingCreate("content", id);
+      if (dropped) {
+        await store.deleteRow("content", id);
+      } else {
+        await store.softDeleteLocal("content", id);
+        await store.enqueueJob(
+          buildJob({
+            entity: "content",
+            op: "delete",
+            refId: id,
+            payload: null,
+            baseUpdatedAt: existing._sync.baseUpdatedAt ?? null,
+          }),
+        );
+      }
       setBump((n) => n + 1);
       void engine?.trigger();
     },

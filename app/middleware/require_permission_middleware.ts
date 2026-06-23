@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
+import type User from '#models/user'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
 
 type CmsVerb = 'read' | 'create' | 'update' | 'delete'
@@ -61,7 +62,9 @@ function resolveRequiredPermission(ctx: HttpContext, options: PermissionOptions)
 
 export default class RequirePermissionMiddleware {
   async handle(ctx: HttpContext, next: NextFn, options: PermissionOptions) {
-    const user = ctx.auth.user
+    // `auth.user` is a union across guards (session + api token); narrow to the
+    // concrete model so relation methods (`.load`) type correctly.
+    const user = ctx.auth.user as User | undefined
     if (!user) {
       return ctx.response.status(401).json({ message: 'Unauthorized' })
     }

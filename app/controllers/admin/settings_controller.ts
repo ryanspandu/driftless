@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { WebSettingsService, IntegrationSettingsService } from '#services/settings_service'
+import { renderPage } from '#helpers/inertia_render'
 
 const webSettingsService = new WebSettingsService()
 const integrationService = new IntegrationSettingsService()
@@ -13,8 +14,15 @@ export default class SettingsController {
 
   async updateWebSettings({ request, response }: HttpContext) {
     const { patches } = request.all()
-    const settings = await webSettingsService.applyPatches(patches)
-    return response.json(settings)
+    if (!Array.isArray(patches)) {
+      return response.status(422).json({ message: '`patches` must be an array.' })
+    }
+    try {
+      const settings = await webSettingsService.applyPatches(patches)
+      return response.json(settings)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
   }
 
   // Integration settings
@@ -34,9 +42,19 @@ export default class SettingsController {
     return response.json(config)
   }
 
+  /** App toggles for any admin (landing on/off + hidden sidebar nav). */
+  async navConfig({ response }: HttpContext) {
+    const cfg = await webSettingsService.getAppConfig()
+    return response.json(cfg)
+  }
+
   // Pages
   async settingsPage({ inertia }: HttpContext) {
     return inertia.render('admin/settings', {})
+  }
+
+  async applicationSettingsPage({ inertia }: HttpContext) {
+    return renderPage(inertia, 'admin/settings/application', {})
   }
 
   async integrationsPage({ inertia }: HttpContext) {
@@ -57,5 +75,9 @@ export default class SettingsController {
 
   async integrationsClarityPage({ inertia }: HttpContext) {
     return inertia.render('admin/integrations/clarity', {})
+  }
+
+  async integrationsApiTokensPage({ inertia }: HttpContext) {
+    return inertia.render('admin/integrations/api-tokens', {})
   }
 }

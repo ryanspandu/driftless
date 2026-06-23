@@ -1,7 +1,7 @@
 
 import { Link } from "@inertiajs/react";
 import { FormEvent, useEffect, useState } from "react";
-import { Plug2 } from "lucide-react";
+import { Plug2, SlidersHorizontal } from "lucide-react";
 import { WEBSITE_SETTING_SECTIONS } from "~/types/api";
 import { ImageSettingControl } from "~/components/admin/image-setting-control";
 import { WebsiteLogoDropzone } from "~/components/admin/website-logo-dropzone";
@@ -76,6 +76,23 @@ export default function SettingsPage() {
           <CardContent>
             <Button variant="outline" render={<Link href="/admin/integrations" />}>
               Open integrations
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader className="flex flex-row items-start gap-3 space-y-0">
+            <SlidersHorizontal className="mt-0.5 size-5 text-muted-foreground" aria-hidden />
+            <div className="space-y-1">
+              <CardTitle className="text-base">Application</CardTitle>
+              <CardDescription>
+                Public site on/off, hide sidebar menus, and enable/disable modules.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" render={<Link href="/admin/settings/application" />}>
+              Open application settings
             </Button>
           </CardContent>
         </Card>

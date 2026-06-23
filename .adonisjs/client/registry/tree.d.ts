@@ -26,6 +26,7 @@ export interface ApiDefinition {
   settings: {
     getAuthConfig: typeof routes['settings.get_auth_config']
     settingsPage: typeof routes['settings.settings_page']
+    applicationSettingsPage: typeof routes['settings.application_settings_page']
     integrationsPage: typeof routes['settings.integrations_page']
     integrationsGooglePage: typeof routes['settings.integrations_google_page']
     integrationsCaptchaPage: typeof routes['settings.integrations_captcha_page']
@@ -35,6 +36,8 @@ export interface ApiDefinition {
     updateWebSettings: typeof routes['settings.update_web_settings']
     getIntegrationSettings: typeof routes['settings.get_integration_settings']
     updateIntegrationSettings: typeof routes['settings.update_integration_settings']
+    integrationsApiTokensPage: typeof routes['settings.integrations_api_tokens_page']
+    navConfig: typeof routes['settings.nav_config']
   }
   googleAuth: {
     status: typeof routes['google_auth.status']
@@ -174,11 +177,37 @@ export interface ApiDefinition {
     forceDestroy: typeof routes['media.force_destroy']
     destroy: typeof routes['media.destroy']
   }
+  apiTokens: {
+    index: typeof routes['api_tokens.index']
+    store: typeof routes['api_tokens.store']
+    destroy: typeof routes['api_tokens.destroy']
+  }
   plugins: {
     page: typeof routes['plugins.page']
     menu: typeof routes['plugins.menu']
     index: typeof routes['plugins.index']
     toggle: typeof routes['plugins.toggle']
+  }
+  modules: {
+    menu: typeof routes['modules.menu']
+    index: typeof routes['modules.index']
+    toggle: typeof routes['modules.toggle']
+  }
+  v1: {
+    content: {
+      index: typeof routes['v1.content.index']
+      show: typeof routes['v1.content.show']
+      store: typeof routes['v1.content.store']
+      update: typeof routes['v1.content.update']
+      destroy: typeof routes['v1.content.destroy']
+    }
+    cms: {
+      index: typeof routes['v1.cms.index']
+      show: typeof routes['v1.cms.show']
+      store: typeof routes['v1.cms.store']
+      update: typeof routes['v1.cms.update']
+      destroy: typeof routes['v1.cms.destroy']
+    }
   }
   admin: {
     page: typeof routes['admin.page']
@@ -186,6 +215,13 @@ export interface ApiDefinition {
     store: typeof routes['admin.store']
     update: typeof routes['admin.update']
     destroy: typeof routes['admin.destroy']
+  }
+  ctrl: {
+    page: typeof routes['ctrl.page']
+    index: typeof routes['ctrl.index']
+    store: typeof routes['ctrl.store']
+    update: typeof routes['ctrl.update']
+    destroy: typeof routes['ctrl.destroy']
   }
   pagesPublic: {
     show: typeof routes['pages_public.show']

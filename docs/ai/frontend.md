@@ -90,6 +90,48 @@ Files:
 />
 ```
 
+## Admin list-page design pattern
+
+Every admin list/table page follows one pattern (`inertia/pages/admin/content.tsx` is canonical):
+
+- **`<PageHeader title subtitle? count? actions? />`** (`~/components/admin/page-header`) is the
+  page's only `<h1>` — title + muted count chip + subtitle + right-aligned actions. The top bar
+  shows a **breadcrumb** (`Admin › X`), not a duplicate title.
+- **No `<Card>` wrapper** around a `DataTable` — the table renders directly (it has its own
+  elevated `bg-card` surface, toolbar, and pagination).
+- **Status/category filter → segmented control** in the DataTable `filters` slot
+  (`bg-muted p-1`, active = `bg-background shadow-sm`), not big tabs above the table.
+- **Primary cell**: stacked `flex flex-col leading-tight` with `font-medium` primary +
+  `text-xs text-muted-foreground` secondary (e.g. title + slug).
+- **Tinted status badges**: `~/components/ui/badge` has `success` (green) / `warning` (amber)
+  in addition to default/secondary/destructive/outline.
+- **Density is global** in `~/components/ui/table.tsx`: body `text-[13px]`, header cells
+  `text-[13px]`, `py-2.5`; date/secondary cells `text-xs text-muted-foreground tabular-nums`.
+  The DataTable search box is filled (`bg-muted/60`).
+
+## Sidebar
+
+`inertia/components/admin/sidebar.tsx`: Phosphor icons, **active-only duotone** (active row gets
+`weight="duotone"` + brand-tinted bg + a left accent bar via the `--sidebar-active*` tokens in
+`app.css`). Sections: core nav → **Apps** (enabled [modules](./modules.md)) → dynamic Collections
+→ Plugins → a user chip footer. Core nav entries are hidden when their title is in
+`hidden_nav` (read from `/api/admin/nav-config`); see [modules.md](./modules.md) for the
+Settings → Application toggles and the in-dashboard 404 (`admin/not_found`).
+
+## Theme scoping (important)
+
+Dark/light mode (`next-themes`, `.dark` on `<html>`) affects **only the dashboard and auth** —
+NOT the public/FE site. The public shell is forced light:
+
+- The dark variant is `@custom-variant dark (&:is(.dark *):not(.theme-light *))`, and light vars
+  live on `:root, .theme-light`. `.theme-light` **also re-sets `color`/`background-color`**
+  (inherited `color` from `<body>` would otherwise leak white text into un-coloured headings).
+- FE roots carry `.theme-light` (`PublicLayout`, and the `public/page*` wrappers in
+  `layout-shell.tsx`). `PublicLayout` additionally strips `.dark` from `<html>` while mounted (a
+  `MutationObserver`, restored via `useTheme().resolvedTheme`).
+- **When adding a public/FE page:** route it through `PublicLayout` or wrap its root in
+  `.theme-light`; never wrap admin/auth pages in it.
+
 ## Client libraries
 
 | Path | Purpose |

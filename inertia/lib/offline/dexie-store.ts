@@ -404,6 +404,55 @@ export class DexieLocalStore implements LocalStore {
     return out;
   }
 
+  private async findIdleCreateJob(
+    entity: EntityName,
+    refId: string,
+  ): Promise<OutboxJob | undefined> {
+    return this.db.outbox
+      .where("entity")
+      .equals(entity)
+      .and((j) => j.refId === refId && j.op === "create" && j.status === "idle")
+      .first();
+  }
+
+  async mergePendingCreatePayload(
+    entity: EntityName,
+    refId: string,
+    partial: Record<string, unknown>,
+  ): Promise<boolean> {
+    const job = await this.findIdleCreateJob(entity, refId);
+    if (!job) return false;
+    const payload = { ...(job.payload as Record<string, unknown>) };
+    for (const [k, v] of Object.entries(partial)) {
+      if (v !== undefined) payload[k] = v;
+    }
+    await this.db.outbox.update(job.id, { payload });
+    return true;
+  }
+
+  async dropPendingCreate(entity: EntityName, refId: string): Promise<boolean> {
+    const job = await this.findIdleCreateJob(entity, refId);
+    if (!job) return false;
+    await this.db.outbox.delete(job.id);
+    return true;
+  }
+
+  async repointJobs(
+    entity: EntityName,
+    fromRefId: string,
+    toRefId: string,
+  ): Promise<void> {
+    if (fromRefId === toRefId) return;
+    const jobs = await this.db.outbox
+      .where("entity")
+      .equals(entity)
+      .and((j) => j.refId === fromRefId)
+      .toArray();
+    for (const j of jobs) {
+      await this.db.outbox.update(j.id, { refId: toRefId });
+    }
+  }
+
   async clearAll(): Promise<void> {
     await Promise.all([
       this.db.users.clear(),

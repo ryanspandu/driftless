@@ -1,36 +1,43 @@
 import { Fragment, useMemo, useState } from 'react'
 import { Link, router } from '@inertiajs/react'
 import {
-  BarChart3,
-  Blocks,
-  Boxes,
-  ChevronDown,
+  Browsers,
+  CaretDown,
+  ChartBar,
   FileText,
-  Home,
+  House,
   Image as ImageIcon,
   Key,
-  LayoutPanelTop,
-  LayoutTemplate,
-  Megaphone,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plug2,
-  Settings2,
+  Plug,
+  PuzzlePiece,
   Shapes,
-  Shield,
+  ShieldCheck,
+  SidebarSimple,
+  SignOut,
+  SlidersHorizontal,
+  Stack,
+  SquaresFour,
   Users,
-  LogOut,
-} from 'lucide-react'
+  type Icon,
+} from '@phosphor-icons/react'
+// Dynamic collection/plugin icons are still referenced by Lucide name in stored
+// data, so those code paths keep using Lucide (see CollectionMenuIcon, pluginIcon).
+import { Boxes, FileText as LucideFileText, Megaphone, Plug2 } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
 import { useEnabledPluginsMenu } from '~/hooks/api/use-plugins'
+import { useModulesMenu } from '~/hooks/api/use-modules'
+import { useNavConfig } from '~/hooks/api/use-nav-config'
+import { useAbility } from '~/components/providers/ability-provider'
 import { CollectionMenuIcon } from '~/components/cms/collection-menu-icon'
+import { phosphorIconByName } from '~/lib/phosphor-icon'
+import { Avatar, AvatarFallback } from '~/components/ui/avatar'
 
 /** lucide icon names a plugin manifest may reference for its sidebar entry. */
 const PLUGIN_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Megaphone,
   Plug2,
-  FileText,
+  FileText: LucideFileText,
   Boxes,
 }
 
@@ -41,13 +48,13 @@ function pluginIcon(name: string): React.ComponentType<{ className?: string }> {
 interface MenuItem {
   title: string
   href: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: Icon
   activeMatch?: 'exact' | 'prefix'
 }
 
 interface NavParent {
   title: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: Icon
   children: MenuItem[]
 }
 
@@ -56,38 +63,61 @@ type NavEntry = MenuItem | NavParent
 const isParent = (entry: NavEntry): entry is NavParent => 'children' in entry
 
 const navEntries: NavEntry[] = [
-  { title: 'Dashboard', href: '/admin/dashboard', icon: Home },
-  { title: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+  { title: 'Dashboard', href: '/admin/dashboard', icon: House },
+  { title: 'Analytics', href: '/admin/analytics', icon: ChartBar },
   {
     title: 'UI',
-    icon: LayoutPanelTop,
+    icon: SquaresFour,
     children: [
       { title: 'Content', href: '/admin/content', icon: FileText, activeMatch: 'prefix' },
-      { title: 'Pages', href: '/admin/pages', icon: LayoutTemplate, activeMatch: 'prefix' },
+      { title: 'Pages', href: '/admin/pages', icon: Browsers, activeMatch: 'prefix' },
       { title: 'Templates', href: '/admin/templates', icon: Shapes, activeMatch: 'prefix' },
     ],
   },
   { title: 'Media', href: '/admin/media', icon: ImageIcon },
-  { title: 'Collections', href: '/admin/cms/collections', icon: Boxes, activeMatch: 'prefix' },
-  { title: 'Plugins', href: '/admin/plugins', icon: Plug2, activeMatch: 'prefix' },
-  { title: 'Integrations', href: '/admin/integrations', icon: Blocks, activeMatch: 'prefix' },
+  { title: 'Collections', href: '/admin/cms/collections', icon: Stack, activeMatch: 'prefix' },
+  { title: 'Plugins', href: '/admin/plugins', icon: Plug, activeMatch: 'prefix' },
+  { title: 'Integrations', href: '/admin/integrations', icon: PuzzlePiece, activeMatch: 'prefix' },
   {
     title: 'User Management',
     icon: Users,
     children: [
       { title: 'Users', href: '/admin/users', icon: Users, activeMatch: 'prefix' },
-      { title: 'Roles', href: '/admin/roles', icon: Shield, activeMatch: 'prefix' },
+      { title: 'Roles', href: '/admin/roles', icon: ShieldCheck, activeMatch: 'prefix' },
       { title: 'Permissions', href: '/admin/permissions', icon: Key, activeMatch: 'prefix' },
     ],
   },
-  { title: 'Settings', href: '/admin/settings', icon: Settings2 },
+  { title: 'Settings', href: '/admin/settings', icon: SlidersHorizontal },
 ]
 
-function isActive(pathname: string, item: MenuItem): boolean {
+/** Active-state matching only needs the href + match strategy, not the icon. */
+type ActiveTarget = { href: string; activeMatch?: 'exact' | 'prefix' }
+
+function isActive(pathname: string, item: ActiveTarget): boolean {
   if (item.activeMatch === 'prefix') {
     return pathname === item.href || pathname.startsWith(item.href + '/')
   }
   return pathname === item.href
+}
+
+/** Shared classes for a nav row in its active vs. resting state. */
+function rowClasses(active: boolean): string {
+  return cn(
+    'group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-colors',
+    active
+      ? 'bg-sidebar-active font-medium text-sidebar-active-foreground'
+      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+  )
+}
+
+/** The brand-coloured indicator bar shown on the active row's left edge. */
+function ActiveBar() {
+  return (
+    <span
+      aria-hidden
+      className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-sidebar-active-bar"
+    />
+  )
 }
 
 export function AppSidebar({ pathname }: { pathname: string }) {
@@ -95,6 +125,23 @@ export function AppSidebar({ pathname }: { pathname: string }) {
   const collections = collectionsQuery.data ?? []
   const pluginsMenuQuery = useEnabledPluginsMenu()
   const pluginMenu = pluginsMenuQuery.data ?? []
+  const modulesMenuQuery = useModulesMenu()
+  const moduleMenu = modulesMenuQuery.data ?? []
+  const navConfigQuery = useNavConfig()
+  const hiddenNav = navConfigQuery.data?.hiddenNav ?? []
+  const { me, permissions } = useAbility()
+
+  const displayName =
+    me?.fullName?.trim() ||
+    [me?.firstName, me?.lastName].filter(Boolean).join(' ').trim() ||
+    me?.username ||
+    'User'
+  const roleLabel = me?.roles?.[0] ?? 'Member'
+  const initials = me
+    ? `${me.firstName?.[0] ?? ''}${me.lastName?.[0] ?? ''}`.toUpperCase() ||
+      me.email?.[0]?.toUpperCase() ||
+      'U'
+    : 'U'
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -164,25 +211,66 @@ export function AppSidebar({ pathname }: { pathname: string }) {
     return sections
   }, [collections])
 
+  const logout = () => router.post('/logout')
+
+  /** Section header with a sentence-case label and a trailing hairline divider. */
+  const sectionHeader = (label: string) =>
+    !collapsed && (
+      <div className="flex items-center gap-2 px-2.5 pt-4 pb-1.5">
+        <span className="text-[11px] font-medium text-sidebar-foreground/45">{label}</span>
+        <span className="h-px flex-1 bg-sidebar-border" />
+      </div>
+    )
+
   const renderItem = (item: MenuItem) => {
     const active = isActive(pathname, item)
     return (
       <Link
         key={item.href}
         href={item.href}
-        className={cn(
-          'flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors',
-          active
-            ? 'bg-sidebar-accent text-ring font-medium'
-            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-        )}
+        className={rowClasses(active)}
         title={collapsed ? item.title : undefined}
       >
-        <item.icon className="size-4 shrink-0" />
+        {active && <ActiveBar />}
+        <item.icon
+          weight={active ? 'duotone' : 'regular'}
+          className="size-[18px] shrink-0 transition-transform duration-150 group-hover:scale-110"
+        />
         {!collapsed && <span className="truncate">{item.title}</span>}
       </Link>
     )
   }
+
+  /** A single module nav link (flat module, or a group's sub-item). */
+  const renderModuleLink = (label: string, href: string, iconName?: string) => {
+    const active = isActive(pathname, { href, activeMatch: 'prefix' })
+    const Icon = phosphorIconByName(iconName)
+    return (
+      <Link
+        key={href}
+        href={href}
+        className={rowClasses(active)}
+        title={collapsed ? label : undefined}
+      >
+        {active && <ActiveBar />}
+        <Icon
+          weight={active ? 'duotone' : 'regular'}
+          className="size-[18px] shrink-0 transition-transform duration-150 group-hover:scale-110"
+        />
+        {!collapsed && <span className="truncate">{label}</span>}
+      </Link>
+    )
+  }
+
+  // Core nav entries the user hasn't hidden from Settings → Application.
+  const visibleNavEntries = navEntries.filter((e) => !hiddenNav.includes(e.title))
+
+  // Enabled modules' nav, filtered by the current user's permissions.
+  const canSeeModule = (perm?: string) => !perm || permissions.has(perm)
+  const visibleModules = moduleMenu
+    .filter((g) => canSeeModule(g.permission))
+    .map((g) => ({ ...g, items: g.items?.filter((i) => canSeeModule(i.permission)) }))
+    .filter((g) => (g.items ? g.items.length > 0 : !!g.href))
 
   return (
     <aside
@@ -200,10 +288,13 @@ export function AppSidebar({ pathname }: { pathname: string }) {
       >
         {!collapsed && (
           <>
-            <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground ring-2 ring-primary/15">
               D
             </div>
-            <span className="font-semibold text-sm truncate">Driftless</span>
+            <div className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate text-sm font-semibold">Driftless</span>
+              <span className="truncate text-[11px] text-sidebar-foreground/50">Admin panel</span>
+            </div>
           </>
         )}
         <button
@@ -216,11 +307,7 @@ export function AppSidebar({ pathname }: { pathname: string }) {
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {collapsed ? (
-            <PanelLeftOpen className="size-4 shrink-0" />
-          ) : (
-            <PanelLeftClose className="size-4 shrink-0" />
-          )}
+          <SidebarSimple className="size-[18px] shrink-0" />
         </button>
       </div>
 
@@ -228,10 +315,10 @@ export function AppSidebar({ pathname }: { pathname: string }) {
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {collapsed
           ? // Icon-only sidebar: flatten parent children to plain icon links.
-            navEntries
+            visibleNavEntries
               .flatMap((entry) => (isParent(entry) ? entry.children : [entry]))
               .map((item) => renderItem(item))
-          : navEntries.map((entry) => {
+          : visibleNavEntries.map((entry) => {
               if (!isParent(entry)) return renderItem(entry)
               const open = !!openParents[entry.title]
               const childActive = entry.children.some((c) => isActive(pathname, c))
@@ -242,15 +329,18 @@ export function AppSidebar({ pathname }: { pathname: string }) {
                     onClick={() => toggleParent(entry.title)}
                     aria-expanded={open}
                     className={cn(
-                      'flex w-full items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors',
+                      'group flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-colors',
                       childActive
                         ? 'text-sidebar-foreground font-medium'
                         : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
                     )}
                   >
-                    <entry.icon className="size-4 shrink-0" />
+                    <entry.icon
+                      weight={childActive ? 'duotone' : 'regular'}
+                      className="size-[18px] shrink-0 transition-transform duration-150 group-hover:scale-110"
+                    />
                     <span className="truncate">{entry.title}</span>
-                    <ChevronDown
+                    <CaretDown
                       className={cn(
                         'ml-auto size-4 shrink-0 transition-transform duration-200',
                         open ? '' : '-rotate-90'
@@ -274,35 +364,90 @@ export function AppSidebar({ pathname }: { pathname: string }) {
               )
             })}
 
+        {/* First-party modules — "Apps" section (collapsible groups or flat links) */}
+        {visibleModules.length > 0 && (
+          <Fragment>
+            {sectionHeader('Apps')}
+            {collapsed
+              ? visibleModules.flatMap((g) =>
+                  g.items?.length
+                    ? g.items.map((i) => renderModuleLink(i.label, i.href, i.icon ?? g.icon))
+                    : g.href
+                      ? [renderModuleLink(g.label, g.href, g.icon)]
+                      : []
+                )
+              : visibleModules.map((g) => {
+                  if (!g.items?.length) {
+                    return g.href ? renderModuleLink(g.label, g.href, g.icon) : null
+                  }
+                  const key = `module:${g.name}`
+                  const open = !!openParents[key]
+                  const childActive = g.items.some((i) =>
+                    isActive(pathname, { href: i.href, activeMatch: 'prefix' })
+                  )
+                  const GroupIcon = phosphorIconByName(g.icon)
+                  return (
+                    <div key={g.name}>
+                      <button
+                        type="button"
+                        onClick={() => toggleParent(key)}
+                        aria-expanded={open}
+                        className={cn(
+                          'group flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-colors',
+                          childActive
+                            ? 'text-sidebar-foreground font-medium'
+                            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                        )}
+                      >
+                        <GroupIcon
+                          weight={childActive ? 'duotone' : 'regular'}
+                          className="size-[18px] shrink-0 transition-transform duration-150 group-hover:scale-110"
+                        />
+                        <span className="truncate">{g.label}</span>
+                        <CaretDown
+                          className={cn(
+                            'ml-auto size-4 shrink-0 transition-transform duration-200',
+                            open ? '' : '-rotate-90'
+                          )}
+                        />
+                      </button>
+                      <div
+                        className={cn(
+                          'grid transition-[grid-template-rows] duration-200 ease-out',
+                          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                        )}
+                      >
+                        <div className="overflow-hidden">
+                          <div className="mt-0.5 ml-4 space-y-0.5 border-l border-sidebar-border pl-2">
+                            {g.items.map((i) => renderModuleLink(i.label, i.href, i.icon))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+          </Fragment>
+        )}
+
         {/* Dynamic collections, grouped by each collection's `group` value */}
         {collectionSections.map((section) => (
           <Fragment key={section.key}>
-            {!collapsed && (
-              <div className="px-2 pt-3 pb-1">
-                <p className="text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider">
-                  {section.label}
-                </p>
-              </div>
-            )}
+            {sectionHeader(section.label)}
             {section.cols.map((col) => {
               const href = `/admin/cms/${col.key}`
-              const active = isActive(pathname, { title: col.label, href, icon: Boxes, activeMatch: 'prefix' })
+              const active = isActive(pathname, { href, activeMatch: 'prefix' })
               return (
                 <Link
                   key={col.id}
                   href={href}
-                  className={cn(
-                    'flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors',
-                    active
-                      ? 'bg-sidebar-accent text-ring font-medium'
-                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-                  )}
+                  className={rowClasses(active)}
                   title={collapsed ? col.label : undefined}
                 >
+                  {active && <ActiveBar />}
                   {col.icon?.trim() ? (
-                    <CollectionMenuIcon icon={col.icon} className="size-4 shrink-0" />
+                    <CollectionMenuIcon icon={col.icon} className="size-[18px] shrink-0" />
                   ) : (
-                    <Boxes className="size-4 shrink-0" />
+                    <Boxes className="size-[18px] shrink-0" />
                   )}
                   {!collapsed && <span className="truncate">{col.label}</span>}
                 </Link>
@@ -314,34 +459,19 @@ export function AppSidebar({ pathname }: { pathname: string }) {
         {/* Enabled plugins' menu entries */}
         {pluginMenu.length > 0 && (
           <Fragment>
-            {!collapsed && (
-              <div className="px-2 pt-3 pb-1">
-                <p className="text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider">
-                  Plugins
-                </p>
-              </div>
-            )}
+            {sectionHeader('Plugins')}
             {pluginMenu.map((item) => {
-              const active = isActive(pathname, {
-                title: item.title,
-                href: item.href,
-                icon: Plug2,
-                activeMatch: 'prefix',
-              })
+              const active = isActive(pathname, { href: item.href, activeMatch: 'prefix' })
               const Icon = pluginIcon(item.icon)
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={cn(
-                    'flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors',
-                    active
-                      ? 'bg-sidebar-accent text-ring font-medium'
-                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-                  )}
+                  className={rowClasses(active)}
                   title={collapsed ? item.title : undefined}
                 >
-                  <Icon className="size-4 shrink-0" />
+                  {active && <ActiveBar />}
+                  <Icon className="size-[18px] shrink-0" />
                   {!collapsed && <span className="truncate">{item.title}</span>}
                 </Link>
               )
@@ -350,20 +480,40 @@ export function AppSidebar({ pathname }: { pathname: string }) {
         )}
       </nav>
 
-      {/* Footer */}
+      {/* Footer — account chip + sign out */}
       <div className="shrink-0 border-t border-sidebar-border p-2">
-        <a
-          href="/logout"
-          onClick={(e) => {
-            e.preventDefault()
-            router.post('/logout')
-          }}
-          className="flex items-center gap-3 px-2 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
-          title={collapsed ? 'Log out' : undefined}
-        >
-          <LogOut className="size-4 shrink-0" />
-          {!collapsed && <span>Log out</span>}
-        </a>
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={logout}
+            className="flex w-full items-center justify-center rounded-lg px-2 py-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+            title="Log out"
+            aria-label="Log out"
+          >
+            <SignOut className="size-[18px] shrink-0" />
+          </button>
+        ) : (
+          <div className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5">
+            <Avatar className="size-8">
+              <AvatarFallback className="bg-primary/15 text-[11px] font-medium text-sidebar-active-foreground">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate text-sm font-medium text-sidebar-foreground">{displayName}</p>
+              <p className="truncate text-xs capitalize text-sidebar-foreground/50">{roleLabel}</p>
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="flex shrink-0 items-center justify-center rounded-md p-1.5 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+              title="Log out"
+              aria-label="Log out"
+            >
+              <SignOut className="size-[18px] shrink-0" />
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   )

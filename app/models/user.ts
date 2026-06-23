@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
+import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import { BaseModel, column, manyToMany } from '@adonisjs/lucid/orm'
 import type { ManyToMany } from '@adonisjs/lucid/types/relations'
 import Role from '#models/role'
@@ -65,6 +66,12 @@ export default class User extends compose(BaseModel, AuthFinder) {
     pivotRelatedForeignKey: 'role_id',
   })
   declare roles: ManyToMany<typeof Role>
+
+  /**
+   * Personal Access Tokens for the external token-authenticated API (`/api/v1`).
+   * Opaque, hashed in DB, revocable, with per-token `abilities` (scopes).
+   */
+  static accessTokens = DbAccessTokensProvider.forModel(User)
 
   get initials() {
     const name = this.fullName || `${this.firstName ?? ''} ${this.lastName ?? ''}`.trim()

@@ -1,17 +1,11 @@
-
 import { useCallback, useMemo, useState } from 'react'
 import { FileText, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { MediaDto } from '~/types/api'
 import { Button } from '~/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '~/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
+import { PageHeader } from '~/components/admin/page-header'
 import { DataTableColumnHeader } from '~/components/data-table'
 import { TrashModal } from '~/components/trash-modal'
 import { DragDropImageUpload } from '~/components/drag-drop-image-upload'
@@ -88,7 +82,7 @@ export default function MediaPage() {
         accessorFn: (m) => m.size,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Size" />,
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground tabular-nums">
+          <span className="text-xs text-muted-foreground tabular-nums">
             {formatBytes(row.original.size)}
           </span>
         ),
@@ -98,13 +92,13 @@ export default function MediaPage() {
         accessorFn: (m) => m.createdAt,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground tabular-nums">
+          <span className="text-xs text-muted-foreground tabular-nums">
             {formatAdminTableDateTime(row.original.createdAt)}
           </span>
         ),
       },
     ],
-    [],
+    []
   )
 
   const onUpload = useCallback(
@@ -124,14 +118,12 @@ export default function MediaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Media</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage images, documents, and other assets
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Media"
+        subtitle="Manage images, documents, and other assets"
+        count={listQuery.isLoading ? undefined : total}
+        actions={trashButton}
+      />
 
       {canWrite ? (
         <Card>
@@ -151,84 +143,63 @@ export default function MediaPage() {
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-2">
-            <div className="space-y-1.5">
-              <CardTitle>Media library</CardTitle>
-              <CardDescription>
-                {listQuery.isLoading
-                  ? 'Loading…'
-                  : `${total} file${total === 1 ? '' : 's'} in the library`}
-              </CardDescription>
-            </div>
-            {trashButton}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {listQuery.error ? (
-            <p className="text-sm text-destructive">{(listQuery.error as Error).message}</p>
-          ) : listQuery.isLoading ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="size-6 animate-spin" />
-            </div>
-          ) : items.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No files yet. Upload your first asset above.
-            </p>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  className="group relative flex aspect-square flex-col overflow-hidden rounded-lg border bg-muted/50"
-                >
-                  {isImageMime(item.mimeType) ? (
-                    <img
-                      src={item.url}
-                      alt={item.filename}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex flex-1 flex-col items-center justify-center p-4">
-                      <FileText className="size-10 text-muted-foreground/60" />
-                    </div>
-                  )}
-                  <div className="border-t bg-background/95 p-2">
-                    <p className="truncate text-xs font-medium" title={item.filename}>
-                      {item.filename}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {formatBytes(item.size)} · {formatAdminTableDateTime(item.createdAt)}
-                    </p>
-                  </div>
-                  {canDelete ? (
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute right-2 top-2 size-8 opacity-0 transition-opacity group-hover:opacity-100"
-                      disabled={deleteMut.isPending}
-                      onClick={() => {
-                        void confirmDelete({
-                          description: `Delete "${item.filename}"?`,
-                        }).then((confirmed) => {
-                          if (!confirmed) return
-                          deleteMut.mutate(item.id, {
-                            onSuccess: () => toast.success('File deleted'),
-                            onError: (e) => toast.error((e as Error).message),
-                          })
-                        })
-                      }}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  ) : null}
+      {listQuery.error ? (
+        <p className="text-sm text-destructive">{(listQuery.error as Error).message}</p>
+      ) : listQuery.isLoading ? (
+        <div className="flex items-center justify-center py-12 text-muted-foreground">
+          <Loader2 className="size-6 animate-spin" />
+        </div>
+      ) : items.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No files yet. Upload your first asset above.
+        </p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="group relative flex aspect-square flex-col overflow-hidden rounded-lg border bg-muted/50"
+            >
+              {isImageMime(item.mimeType) ? (
+                <img src={item.url} alt={item.filename} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center p-4">
+                  <FileText className="size-10 text-muted-foreground/60" />
                 </div>
-              ))}
+              )}
+              <div className="border-t bg-background/95 p-2">
+                <p className="truncate text-xs font-medium" title={item.filename}>
+                  {item.filename}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {formatBytes(item.size)} · {formatAdminTableDateTime(item.createdAt)}
+                </p>
+              </div>
+              {canDelete ? (
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute right-2 top-2 size-8 opacity-0 transition-opacity group-hover:opacity-100"
+                  disabled={deleteMut.isPending}
+                  onClick={() => {
+                    void confirmDelete({
+                      description: `Delete "${item.filename}"?`,
+                    }).then((confirmed) => {
+                      if (!confirmed) return
+                      deleteMut.mutate(item.id, {
+                        onSuccess: () => toast.success('File deleted'),
+                        onError: (e) => toast.error((e as Error).message),
+                      })
+                    })
+                  }}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              ) : null}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      )}
 
       <TrashModal
         open={trashOpen}

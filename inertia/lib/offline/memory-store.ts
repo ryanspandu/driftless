@@ -227,6 +227,53 @@ export class MemoryLocalStore implements LocalStore {
     return out;
   }
 
+  private findIdleCreateJob(
+    entity: EntityName,
+    refId: string,
+  ): OutboxJob | undefined {
+    return this.jobs.find(
+      (j) =>
+        j.entity === entity &&
+        j.refId === refId &&
+        j.op === "create" &&
+        j.status === "idle",
+    );
+  }
+
+  async mergePendingCreatePayload(
+    entity: EntityName,
+    refId: string,
+    partial: Record<string, unknown>,
+  ): Promise<boolean> {
+    const job = this.findIdleCreateJob(entity, refId);
+    if (!job) return false;
+    const payload = { ...(job.payload as Record<string, unknown>) };
+    for (const [k, v] of Object.entries(partial)) {
+      if (v !== undefined) payload[k] = v;
+    }
+    job.payload = payload;
+    return true;
+  }
+
+  async dropPendingCreate(entity: EntityName, refId: string): Promise<boolean> {
+    const job = this.findIdleCreateJob(entity, refId);
+    if (!job) return false;
+    const idx = this.jobs.indexOf(job);
+    if (idx >= 0) this.jobs.splice(idx, 1);
+    return true;
+  }
+
+  async repointJobs(
+    entity: EntityName,
+    fromRefId: string,
+    toRefId: string,
+  ): Promise<void> {
+    if (fromRefId === toRefId) return;
+    for (const j of this.jobs) {
+      if (j.entity === entity && j.refId === fromRefId) j.refId = toRefId;
+    }
+  }
+
   async clearAll(): Promise<void> {
     this.tables.clear();
     this.jobs.length = 0;

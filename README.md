@@ -38,6 +38,7 @@ Open http://localhost:3333 (default). Admin seed credentials are in `.env.exampl
 
 | Audience | Entry |
 |----------|--------|
+| **Users / admins** | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) |
 | **AI assistants** | [AGENTS.md](AGENTS.md) → [docs/ai/](docs/ai/) |
 | **Migration from legacy stack** | [docs/LEGACY_MIGRATION.md](docs/LEGACY_MIGRATION.md) |
 
@@ -50,6 +51,7 @@ database/      Migrations and seeders
 start/         Routes and HTTP kernel
 config/        Application configuration
 plugins/       Self-contained plugins (back-end + front-end in one folder)
+modules/       First-party app modules (back-end + front-end in one folder)
 tests/         Japa test suites
 ```
 
@@ -69,6 +71,14 @@ A **plugin** packages a feature — its back-end *and* front-end — in a single
 - **Manage them** at **Admin → Plugins** (`/admin/plugins`): each installed plugin has an **Active** toggle. Disabling hides its menu and blocks its routes immediately, without a restart; its data is kept and restored when you re-enable it.
 - **Example:** the bundled **Announcements** plugin ([`plugins/announcements/`](plugins/announcements)) — manage entries at `/admin/announcements`, visitors read them at `/announcements`.
 - **Add one:** create a folder under `plugins/`, register it in `plugins/registry.ts`, run migrations, and `npm run build` once. Full guide: [docs/ai/plugins.md](docs/ai/plugins.md).
+
+## Modules
+
+A **module** is a first-party feature area — back-end *and* front-end — in a single folder under `modules/<name>/`. Same packaging as a plugin, but for core parts of *your* product; enabled modules get a first-class **Apps** group in the sidebar.
+
+- **Manage them** at **Settings → Application** (`/admin/settings/application`): toggle each module on/off (DB-backed, no restart). The same panel turns the public site on/off (dashboard-only SAAS mode) and hides core sidebar menus (hidden menus' pages return a clean in-dashboard 404).
+- **Example:** the bundled **Tasks** module ([`modules/tasks/`](modules/tasks)) — a lightweight task tracker at `/admin/tasks`.
+- **Add one:** `node ace make:module <name>`, register it in `modules/registry.ts`, run migrations, and `npm run build` once. Full guide: [docs/ai/modules.md](docs/ai/modules.md).
 
 ## License
 

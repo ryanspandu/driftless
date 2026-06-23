@@ -341,6 +341,34 @@ export interface PluginMenuItem {
   icon: string
 }
 
+export interface ModuleNavSubItem {
+  label: string
+  href: string
+  /** phosphor icon name, resolved on the client. */
+  icon?: string
+  permission?: string
+}
+
+/** A module's sidebar nav group (manifest `nav` + module name). */
+export interface ModuleMenuItem {
+  name: string
+  label: string
+  /** phosphor icon name, resolved on the client. */
+  icon: string
+  order?: number
+  href?: string
+  permission?: string
+  items?: ModuleNavSubItem[]
+}
+
+export interface ModuleDto {
+  name: string
+  label: string
+  description: string
+  version: string
+  enabled: boolean
+}
+
 export interface PluginDto {
   name: string
   label: string
@@ -486,3 +514,40 @@ export interface MediaDto {
   createdAt: string
   updatedAt: string
 }
+
+// ── Personal Access Tokens (external API /api/v1) ──────────────────────────────
+
+export interface ApiTokenDto {
+  id: string
+  name: string | null
+  abilities: string[]
+  lastUsedAt: string | null
+  expiresAt: string | null
+  createdAt: string
+}
+
+/** Returned ONCE on creation — includes the plaintext token value (never re-shown). */
+export interface ApiTokenCreatedDto extends ApiTokenDto {
+  token: string
+}
+
+export interface CreateApiTokenRequest {
+  name: string
+  abilities?: string[]
+  /** Human duration like '30 days' / '1 year', or null/omitted for no expiry. */
+  expiresIn?: string | null
+}
+
+/**
+ * Abilities a PAT can be scoped to. Effective access at request time is the
+ * intersection of these with the token owner's RBAC permissions.
+ */
+export const API_TOKEN_ABILITIES = [
+  { id: '*', label: 'Full access (all abilities)' },
+  { id: 'content:read', label: 'Content — read' },
+  { id: 'content:write', label: 'Content — write (create / update / delete)' },
+  { id: 'cms:read', label: 'CMS records — read' },
+  { id: 'cms:write', label: 'CMS records — write (create / update / delete)' },
+] as const
+
+export type ApiTokenAbility = (typeof API_TOKEN_ABILITIES)[number]['id']

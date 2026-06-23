@@ -115,7 +115,7 @@ function applyUpdater<T>(updater: Updater<T>, prev: T): T {
 
 /** Sticky actions column — matches the header / row surface and selection (not page bg). */
 const stickyActionsHeadClass =
-  "sticky right-0 z-20 w-12 min-w-12 bg-muted dark:bg-background";
+  "sticky right-0 z-20 w-12 min-w-12 bg-muted";
 const stickyActionsCellClass =
   "sticky right-0 z-10 w-12 min-w-12 bg-card group-hover:bg-muted/50 group-data-[state=selected]:bg-muted";
 
@@ -137,7 +137,7 @@ export function DataTableColumnHeader<TData, TValue>({
   className?: string;
 }) {
   if (!column.getCanSort()) {
-    return <div className={cn(className)}>{title}</div>;
+    return <div className={cn("text-[13px] font-medium", className)}>{title}</div>;
   }
 
   return (
@@ -145,7 +145,7 @@ export function DataTableColumnHeader<TData, TValue>({
       type="button"
       variant="ghost"
       className={cn(
-        "-ml-2 h-8 gap-1 px-2 font-medium hover:bg-transparent hover:font-bold dark:hover:bg-transparent",
+        "-ml-2 h-7 gap-1 px-2 text-[13px] font-medium hover:bg-transparent hover:font-bold dark:hover:bg-transparent",
         className
       )}
       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -159,12 +159,12 @@ export function DataTableColumnHeader<TData, TValue>({
     >
       <span>{title}</span>
       {column.getIsSorted() === "desc" ? (
-        <ArrowDown className="size-4 shrink-0 opacity-80" aria-hidden />
+        <ArrowDown className="size-3.5 shrink-0 opacity-80" aria-hidden />
       ) : column.getIsSorted() === "asc" ? (
-        <ArrowUp className="size-4 shrink-0 opacity-80" aria-hidden />
+        <ArrowUp className="size-3.5 shrink-0 opacity-80" aria-hidden />
       ) : (
         <ArrowUpDown
-          className="size-4 shrink-0 text-muted-foreground opacity-60"
+          className="size-3.5 shrink-0 text-muted-foreground opacity-60"
           aria-hidden
         />
       )}
@@ -180,7 +180,7 @@ export type DataTableProps<TData> = {
   pageSizeOptions?: number[];
   /** Initial rows per page (default: 10) */
   defaultPageSize?: number;
-  emptyMessage?: string;
+  emptyMessage?: React.ReactNode;
   className?: string;
   /** When true, hides the built-in search input (e.g. if you add a custom filter elsewhere) */
   hideSearch?: boolean;
@@ -358,7 +358,7 @@ function DataTableInner<TData>({
         enableSorting: false,
         enableGlobalFilter: false,
         header: () => (
-          <div className="text-center text-xs font-medium text-muted-foreground">
+          <div className="text-center text-[13px] font-medium text-muted-foreground">
             Sync
           </div>
         ),
@@ -562,7 +562,7 @@ function DataTableInner<TData>({
                       ? onSearchChange(e.target.value)
                       : onGlobalFilterChange(e.target.value)
                   }
-                  className="pl-8"
+                  className="h-9 border-transparent bg-muted/60 pl-8 shadow-none focus-visible:border-border focus-visible:bg-background"
                   aria-label="Search table"
                 />
               </div>
@@ -603,7 +603,7 @@ function DataTableInner<TData>({
         </div>
       )}
 
-      <div className="data-table rounded-lg border border-border overflow-x-auto">
+      <div className="data-table rounded-lg border border-border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

@@ -13,8 +13,11 @@ Reference docs for AI coding assistants (Cursor, Claude Code, GitHub Copilot, Co
 | [frontend.md](./frontend.md) | Inertia pages, hooks, UI components |
 | [cms.md](./cms.md) | Dynamic collections, fields, revisions, sidebar grouping |
 | [plugins.md](./plugins.md) | Plugin system: co-located BE+FE, two front-ends, runtime enable/disable |
+| [modules.md](./modules.md) | Module system: first-party app areas (DB-toggled), `make:module`, Settings → Application |
 | [auth-and-permissions.md](./auth-and-permissions.md) | Session auth, OAuth, permission grammar |
 | [offline-and-pwa.md](./offline-and-pwa.md) | Dexie, sync engine, Serwist |
+| [api-docs.md](./api-docs.md) | Auto OpenAPI docs (adonis-autoswagger + Scalar at `/api/docs`, **dev-only**); implemented |
+| [api-v1.md](./api-v1.md) | External token-authed API (`/api/v1`, PAT + access tokens, content/CMS, RBAC ∩ ability, Redis rate-limit); **implemented** |
 | [testing.md](./testing.md) | Japa suites and patterns |
 
 ## Legacy / ops

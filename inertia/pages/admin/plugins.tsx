@@ -4,7 +4,7 @@ import { Plug2 } from 'lucide-react'
 import type { PluginDto } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Switch } from '~/components/ui/switch'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
+import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { usePluginsList, useTogglePlugin } from '~/hooks/api/use-plugins'
 
@@ -54,7 +54,7 @@ export default function PluginsPage() {
         accessorFn: (r) => (r.enabled ? 'active' : 'inactive'),
         header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
         cell: ({ row }) => (
-          <Badge variant={row.original.enabled ? 'default' : 'secondary'}>
+          <Badge variant={row.original.enabled ? 'success' : 'secondary'}>
             {row.original.enabled ? 'Active' : 'Inactive'}
           </Badge>
         ),
@@ -81,39 +81,26 @@ export default function PluginsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Plugins</h1>
-        <p className="text-sm text-muted-foreground">
-          Enable or disable installed plugins. Disabling immediately hides a plugin from the menu
-          and blocks its routes — its data is kept and restored when re-enabled.
-        </p>
-      </div>
+      <PageHeader
+        title="Plugins"
+        subtitle="Enable or disable installed plugins. Disabling immediately hides a plugin from the menu and blocks its routes — its data is kept and restored when re-enabled."
+        count={pluginsQuery.isLoading ? undefined : items.length}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Installed plugins</CardTitle>
-          <CardDescription>
-            {pluginsQuery.isLoading
-              ? 'Loading plugins…'
-              : `${items.length} plugin${items.length === 1 ? '' : 's'} detected.`}
-            {pluginsQuery.error ? (
-              <span className="text-destructive"> · {(pluginsQuery.error as Error).message}</span>
-            ) : null}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            columns={columns}
-            data={items}
-            getRowId={(r) => r.name}
-            searchPlaceholder="Search plugins…"
-            hideSyncColumn
-            enableBulkSelect={false}
-            urlSync={{}}
-            emptyMessage={pluginsQuery.isLoading ? 'Loading plugins…' : 'No plugins installed.'}
-          />
-        </CardContent>
-      </Card>
+      {pluginsQuery.error ? (
+        <p className="text-sm text-destructive">{(pluginsQuery.error as Error).message}</p>
+      ) : null}
+
+      <DataTable
+        columns={columns}
+        data={items}
+        getRowId={(r) => r.name}
+        searchPlaceholder="Search plugins…"
+        hideSyncColumn
+        enableBulkSelect={false}
+        urlSync={{}}
+        emptyMessage={pluginsQuery.isLoading ? 'Loading plugins…' : 'No plugins installed.'}
+      />
     </div>
   )
 }

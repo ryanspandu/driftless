@@ -30,15 +30,18 @@ export function LayoutShell({
   }
 
   // CMS-rendered public pages render standalone (the page defines its own shell).
-  // Both the CSR (`public/page`) and SSR (`public/page_ssr`) variants.
+  // Both the CSR (`public/page`) and SSR (`public/page_ssr`) variants. The
+  // `theme-light` scope keeps the public site light regardless of the admin
+  // dark-mode toggle (`contents` so it adds no box of its own).
   if (pageName === 'public/page' || pageName === 'public/page_ssr') {
-    return page
+    return <div className="contents theme-light">{page}</div>
   }
 
   // Admin area: core admin pages ("admin/*") and plugin admin pages
   // ("plugins/<name>/admin/*"). Plugin public pages fall through to PublicLayout.
   const isPluginAdmin = /^plugins\/[^/]+\/admin\//.test(pageName)
-  if (pageName.startsWith('admin/') || isPluginAdmin) {
+  const isModuleAdmin = /^modules\/[^/]+\/admin\//.test(pageName)
+  if (pageName.startsWith('admin/') || isPluginAdmin || isModuleAdmin) {
     return (
       <AbilityProvider>
         <OfflineProvider>

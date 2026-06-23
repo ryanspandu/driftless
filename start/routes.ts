@@ -1,6 +1,21 @@
+import app from '@adonisjs/core/services/app'
 import { middleware } from '#start/kernel'
 import router from '@adonisjs/core/services/router'
+import { apiV1Throttle } from '#start/limiter'
 import { registerAllPluginRoutes } from '#plugins/registry'
+import { registerAllModuleRoutes } from '#modules/registry'
+
+/**
+ * Resolve the adonis-autoswagger singleton across CJS/ESM interop variations.
+ * Its published types say the default export is the instance, but under NodeNext
+ * the instance can land at `mod.default` or `mod.default.default` — probe for the
+ * one that actually has `.docs`.
+ */
+async function loadAutoSwagger(): Promise<any> {
+  const mod: any = await import('adonis-autoswagger')
+  const cand = mod.default
+  return cand?.docs ? cand : (cand?.default ?? cand)
+}
 
 // ── Public ────────────────────────────────────────────────────────────────────
 
@@ -21,6 +36,32 @@ router.get('/api/public/templates/:id', [() => import('#controllers/public_templ
 router.get('/robots.txt', [() => import('#controllers/seo_controller'), 'robots'])
 router.get('/sitemap.xml', [() => import('#controllers/seo_controller'), 'sitemap'])
 router.get('/health', ({ response }) => response.json({ ok: true }))
+
+// ── API docs (dev-only): OpenAPI spec + Scalar UI via adonis-autoswagger ────────
+// Not registered in production, so /api/docs and /api/openapi do not exist there.
+// The spec is scoped to the JSON API surface (`/api/*`), excluding the doc routes.
+if (!app.inProduction) {
+  router.get('/api/openapi', async () => {
+    const AutoSwagger = await loadAutoSwagger()
+    const { default: swagger } = await import('#config/swagger')
+    const all: any = router.toJSON()
+    const scoped = {
+      ...all,
+      root: (all.root ?? []).filter(
+        (r: any) =>
+          String(r.pattern).startsWith('/api/') &&
+          r.pattern !== '/api/docs' &&
+          r.pattern !== '/api/openapi'
+      ),
+    }
+    return AutoSwagger.docs(scoped, swagger)
+  })
+
+  router.get('/api/docs', async () => {
+    const AutoSwagger = await loadAutoSwagger()
+    return AutoSwagger.scalar('/api/openapi')
+  })
+}
 
 // ── Auth Config (public) ──────────────────────────────────────────────────────
 
@@ -43,8 +84,7 @@ router
 
     // Legacy aliases (explicit names — same controller action must not reuse new_account.store)
     router.get('/signup', ({ response }) => response.redirect('/register'))
-    router
-      .post('/signup', [() => import('#controllers/new_account_controller'), 'store'])
+    router.post('/signup', [() => import('#controllers/new_account_controller'), 'store'])
       .as('legacy.signup.store')
 
     // Inertia page paths use auth/*; keep canonical URLs at /login and /register.
@@ -73,8 +113,7 @@ router
 
     // Users
     router.get('/admin/users', [() => import('#controllers/admin/users_controller'), 'page'])
-    router
-      .get('/api/admin/users/generate-password', [() => import('#controllers/admin/users_controller'), 'generatePassword'])
+    router.get('/api/admin/users/generate-password', [() => import('#controllers/admin/users_controller'), 'generatePassword'])
       .use(middleware.permission({ permission: 'user:manage' }))
     router
       .group(() => {
@@ -231,6 +270,7 @@ router
 
     // Settings
     router.get('/admin/settings', [() => import('#controllers/admin/settings_controller'), 'settingsPage'])
+    router.get('/admin/settings/application', [() => import('#controllers/admin/settings_controller'), 'applicationSettingsPage'])
     router.get('/admin/integrations', [() => import('#controllers/admin/settings_controller'), 'integrationsPage'])
     router.get('/admin/integrations/google', [() => import('#controllers/admin/settings_controller'), 'integrationsGooglePage'])
     router.get('/admin/integrations/captcha', [() => import('#controllers/admin/settings_controller'), 'integrationsCaptchaPage'])
@@ -238,15 +278,22 @@ router
     router.get('/admin/integrations/clarity', [() => import('#controllers/admin/settings_controller'), 'integrationsClarityPage'])
 
     router.get('/api/admin/settings/web', [() => import('#controllers/admin/settings_controller'), 'getWebSettings'])
-    router.put('/api/admin/settings/web', [() => import('#controllers/admin/settings_controller'), 'updateWebSettings']).use(
-      middleware.permission({ permission: 'settings:manage' })
-    )
-    router.get('/api/admin/settings/integrations', [() => import('#controllers/admin/settings_controller'), 'getIntegrationSettings']).use(
-      middleware.permission({ permission: 'settings:manage' })
-    )
-    router.put('/api/admin/settings/integrations', [() => import('#controllers/admin/settings_controller'), 'updateIntegrationSettings']).use(
-      middleware.permission({ permission: 'settings:manage' })
-    )
+    router.put('/api/admin/settings/web', [() => import('#controllers/admin/settings_controller'), 'updateWebSettings'])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+    router.get('/api/admin/settings/integrations', [() => import('#controllers/admin/settings_controller'), 'getIntegrationSettings'])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+    router.put('/api/admin/settings/integrations', [() => import('#controllers/admin/settings_controller'), 'updateIntegrationSettings'])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+
+    // API Tokens (Personal Access Tokens for the external /api/v1 API)
+    router.get('/admin/integrations/api-tokens', [() => import('#controllers/admin/settings_controller'), 'integrationsApiTokensPage'])
+    router
+      .group(() => {
+        router.get('/api/admin/api-tokens', [() => import('#controllers/admin/api_tokens_controller'), 'index'])
+        router.post('/api/admin/api-tokens', [() => import('#controllers/admin/api_tokens_controller'), 'store'])
+        router.delete('/api/admin/api-tokens/:id', [() => import('#controllers/admin/api_tokens_controller'), 'destroy'])
+      })
+      .use(middleware.permission({ permission: 'token:manage' }))
 
     // Plugins (manage installed plugins + active toggle)
     router.get('/admin/plugins', [() => import('#controllers/admin/plugins_controller'), 'page'])
@@ -258,12 +305,80 @@ router
         router.put('/api/admin/plugins/:name/toggle', [() => import('#controllers/admin/plugins_controller'), 'toggle'])
       })
       .use(middleware.permission({ permission: 'plugin:manage' }))
+
+    // Modules (first-party app areas; enable/disable from Settings)
+    // Sidebar nav for enabled modules — available to any admin.
+    router.get('/api/admin/modules/menu', [() => import('#controllers/admin/modules_controller'), 'menu'])
+    // App nav config (landing on/off + hidden core nav) — available to any admin.
+    router.get('/api/admin/nav-config', [() => import('#controllers/admin/settings_controller'), 'navConfig'])
+    router
+      .group(() => {
+        router.get('/api/admin/modules', [() => import('#controllers/admin/modules_controller'), 'index'])
+        router.put('/api/admin/modules/:name/toggle', [() => import('#controllers/admin/modules_controller'), 'toggle'])
+      })
+      .use(middleware.permission({ permission: 'settings:manage' }))
   })
   .use(middleware.auth())
+  .use(middleware.navEnabled())
+
+// ── API v1 (external, token-authenticated) ──────────────────────────────────────
+// Bearer access tokens (guard 'api'). Effective access = RBAC (permission middleware)
+// ∩ token abilities (tokenAbility middleware). Reuses existing services.
+router
+  .group(() => {
+    // Content (explicit route names — avoids Tuyau registry name clashes with the
+    // admin content controller, which derives the same `content.*` names).
+    router
+      .group(() => {
+        router.get('/api/v1/content', [() => import('#controllers/api/v1/content_controller'), 'index'])
+          .as('v1.content.index')
+          .use(middleware.tokenAbility({ ability: 'content:read' }))
+        router.get('/api/v1/content/:id', [() => import('#controllers/api/v1/content_controller'), 'show'])
+          .as('v1.content.show')
+          .use(middleware.tokenAbility({ ability: 'content:read' }))
+        router.post('/api/v1/content', [() => import('#controllers/api/v1/content_controller'), 'store'])
+          .as('v1.content.store')
+          .use(middleware.tokenAbility({ ability: 'content:write' }))
+        router.put('/api/v1/content/:id', [() => import('#controllers/api/v1/content_controller'), 'update'])
+          .as('v1.content.update')
+          .use(middleware.tokenAbility({ ability: 'content:write' }))
+        router.delete('/api/v1/content/:id', [() => import('#controllers/api/v1/content_controller'), 'destroy'])
+          .as('v1.content.destroy')
+          .use(middleware.tokenAbility({ ability: 'content:write' }))
+      })
+      .use(middleware.permission({ resource: 'content' }))
+
+    // CMS records
+    router
+      .group(() => {
+        router.get('/api/v1/cms/:key/records', [() => import('#controllers/api/v1/cms_records_controller'), 'index'])
+          .as('v1.cms.index')
+          .use(middleware.tokenAbility({ ability: 'cms:read' }))
+        router.get('/api/v1/cms/:key/records/:id', [() => import('#controllers/api/v1/cms_records_controller'), 'show'])
+          .as('v1.cms.show')
+          .use(middleware.tokenAbility({ ability: 'cms:read' }))
+        router.post('/api/v1/cms/:key/records', [() => import('#controllers/api/v1/cms_records_controller'), 'store'])
+          .as('v1.cms.store')
+          .use(middleware.tokenAbility({ ability: 'cms:write' }))
+        router.put('/api/v1/cms/:key/records/:id', [() => import('#controllers/api/v1/cms_records_controller'), 'update'])
+          .as('v1.cms.update')
+          .use(middleware.tokenAbility({ ability: 'cms:write' }))
+        router.delete('/api/v1/cms/:key/records/:id', [() => import('#controllers/api/v1/cms_records_controller'), 'destroy'])
+          .as('v1.cms.destroy')
+          .use(middleware.tokenAbility({ ability: 'cms:write' }))
+      })
+      .use(middleware.permission({ cmsRecord: true }))
+  })
+  .use(middleware.auth({ guards: ['api'] }))
+  .use(apiV1Throttle)
 
 // ── Plugins (routes registered by each plugin; guarded per-request) ─────────────
 
 registerAllPluginRoutes(router, middleware)
+
+// ── Modules (first-party app areas; routes guarded per-request) ─────────────────
+
+registerAllModuleRoutes(router, middleware)
 
 // ── Public CMS pages (catch-all — MUST stay last) ───────────────────────────────
 // Resolves a published builder page by its `path`; 404s reserved prefixes & misses.

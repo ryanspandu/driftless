@@ -58,6 +58,8 @@ export default defineConfig({
     () => import('@adonisjs/cors/cors_provider'),
     () => import('@adonisjs/inertia/inertia_provider'),
     () => import('@adonisjs/auth/auth_provider'),
+    () => import('@adonisjs/redis/redis_provider'),
+    () => import('@adonisjs/limiter/limiter_provider'),
     {
       file: () => import('#providers/vite_dev_provider'),
       environment: ['web', 'test'],
@@ -65,6 +67,7 @@ export default defineConfig({
     () => import('#providers/api_provider'),
     () => import('#providers/cms_provider'),
     () => import('#providers/plugins_provider'),
+    () => import('#providers/modules_provider'),
   ],
 
   /*

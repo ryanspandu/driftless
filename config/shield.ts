@@ -1,4 +1,5 @@
 import env from '#start/env'
+import type { HttpContext } from '@adonisjs/core/http'
 import { defineConfig } from '@adonisjs/shield'
 
 const shieldConfig = defineConfig({
@@ -34,10 +35,10 @@ const shieldConfig = defineConfig({
     enabled: env.get('NODE_ENV') !== 'test',
 
     /**
-     * Route patterns to exclude from CSRF checks.
-     * Useful for external webhooks or API endpoints.
+     * Route patterns to exclude from CSRF checks. The external token-authed API
+     * (`/api/v1/*`) uses Bearer tokens, not cookies, so CSRF does not apply.
      */
-    exceptRoutes: [],
+    exceptRoutes: (ctx: HttpContext) => ctx.request.url().startsWith('/api/v1/'),
 
     /**
      * Expose an encrypted XSRF-TOKEN cookie for frontend HTTP clients.

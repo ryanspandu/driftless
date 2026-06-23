@@ -101,10 +101,15 @@ export function AppSelect({
       clearIndicator: () => "text-muted-foreground p-0.5 hover:text-foreground",
       menu: () =>
         "mt-1 overflow-hidden rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-md",
-      menuList: () => "max-h-[min(20rem,var(--radix-select-content-available-height,300px))] overflow-y-auto p-1",
+      menuList: () =>
+        cn(
+          "max-h-[min(20rem,var(--radix-select-content-available-height,300px))] overflow-y-auto p-1",
+          size === "sm" ? "text-xs" : "text-sm",
+        ),
       option: ({ isFocused, isSelected }) =>
         cn(
-          "cursor-pointer rounded-md px-2 py-1.5",
+          "cursor-pointer rounded-md px-2 py-1",
+          size === "sm" ? "text-xs" : "text-sm",
           isFocused && "bg-accent text-accent-foreground",
           isSelected && "bg-accent/80 font-medium",
         ),

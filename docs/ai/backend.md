@@ -82,8 +82,38 @@ Permission middleware options: `{ permission: 'role:manage' }`, `{ resource: 'us
 4. Validator for write operations.
 5. Frontend hook in `inertia/hooks/api/` (see [frontend.md](./frontend.md)).
 
+## API documentation (OpenAPI)
+
+`adonis-autoswagger` generates an OpenAPI 3.0 spec on the fly from the registered routes + Lucid models.
+**Dev-only** — the `/api/openapi` (spec) and `/api/docs` (Scalar UI) routes live inside an
+`if (!app.inProduction) { ... }` block in `start/routes.ts`, so they do not exist in prod.
+
+- In dev (`npm run dev`): browse **`/api/docs`** for the Scalar UI, or **`/api/openapi`** for the raw spec.
+- Schemas are **auto-derived from Lucid models (`app/models/*`) and validators in `app/validators/*`** — no
+  config per endpoint for those shapes. Note: **inline** `vine.compile()` validators inside controllers are
+  not auto-discovered.
+- Enrich per-endpoint detail with JSDoc `@`-annotations on controller actions (`@summary`,
+  `@responseBody`, `@requestBody`, …); un-annotated actions get a "MISSING" warning and sparse detail.
+- Endpoints are grouped by `tagIndex: 2` (the 2nd path segment) in `config/swagger.ts` → `admin` /
+  `public` (and future `v1`).
+- Only `/api/*` routes are documented — the `/api/openapi` route filters `router.toJSON()` to `/api/*`
+  (excluding the doc routes).
+
+Full reference: [api-docs.md](./api-docs.md).
+
+## External API (`/api/v1`)
+
+A versioned, **token-authenticated** surface for other apps — separate from the session-guarded
+`/api/admin/*` (which stays first-party). Thin controllers in `app/controllers/api/v1/` reuse the same
+services; routes are guarded by `middleware.auth({ guards: ['api'] })` + the reused
+`middleware.permission(...)` + `middleware.tokenAbility({ ability })`, so **effective access = RBAC ∩ token
+ability**. Bearer access tokens (`@adonisjs/auth/access_tokens`) are minted as Personal Access Tokens at
+`/admin/integrations/api-tokens`; requests are rate-limited via Redis (`@adonisjs/limiter`). v1 routes
+need explicit `.as('v1.*')` names to avoid Tuyau registry clashes. Full reference: [api-v1.md](./api-v1.md).
+
 ## Related
 
 - [architecture.md](./architecture.md)
 - [auth-and-permissions.md](./auth-and-permissions.md)
 - [cms.md](./cms.md)
+- [api-docs.md](./api-docs.md)

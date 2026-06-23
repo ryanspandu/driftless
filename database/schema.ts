@@ -28,6 +28,31 @@ export class AnnouncementSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class AuthAccessTokenSchema extends BaseModel {
+  static $columns = ['abilities', 'createdAt', 'expiresAt', 'hash', 'id', 'lastUsedAt', 'name', 'tokenableId', 'type', 'updatedAt'] as const
+  $columns = AuthAccessTokenSchema.$columns
+  @column()
+  declare abilities: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime | null
+  @column.dateTime()
+  declare expiresAt: DateTime | null
+  @column()
+  declare hash: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare lastUsedAt: DateTime | null
+  @column()
+  declare name: string | null
+  @column()
+  declare tokenableId: number
+  @column()
+  declare type: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class CmsCollectionSchema extends BaseModel {
   static $columns = ['createdAt', 'deletedAt', 'draftsOn', 'group', 'icon', 'id', 'key', 'label', 'listConfig', 'modelName', 'revisionsOn', 'source', 'tableName', 'updatedAt'] as const
   $columns = CmsCollectionSchema.$columns
@@ -221,6 +246,25 @@ export class MediaSchema extends BaseModel {
   declare width: number | null
 }
 
+export class ModuleSchema extends BaseModel {
+  static $columns = ['createdAt', 'enabled', 'id', 'installedAt', 'name', 'updatedAt', 'version'] as const
+  $columns = ModuleSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare enabled: boolean
+  @column({ isPrimary: true })
+  declare id: string
+  @column.dateTime()
+  declare installedAt: DateTime | null
+  @column()
+  declare name: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare version: string | null
+}
+
 export class PageRevisionSchema extends BaseModel {
   static $columns = ['authorId', 'content', 'createdAt', 'id', 'pageId', 'seo', 'status'] as const
   $columns = PageRevisionSchema.$columns
@@ -348,6 +392,33 @@ export class RoleSchema extends BaseModel {
   declare isSystem: boolean
   @column()
   declare name: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class TaskSchema extends BaseModel {
+  static $columns = ['assignedUserId', 'createdAt', 'createdByUserId', 'deletedAt', 'description', 'dueDate', 'id', 'priority', 'status', 'title', 'updatedAt'] as const
+  $columns = TaskSchema.$columns
+  @column()
+  declare assignedUserId: number | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: number | null
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare description: string | null
+  @column.date()
+  declare dueDate: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare priority: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }

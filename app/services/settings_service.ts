@@ -14,6 +14,11 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
     site_description: 'A modern CMS',
     favicon_url: '/logo.svg',
   },
+  // App configuration toggles (managed from Settings → Application).
+  app_config: {
+    landing_enabled: '1', // '0' hides the public landing/posts (dashboard-only)
+    hidden_nav: '', // comma-separated core sidebar nav titles to hide
+  },
 }
 
 function encryptSecret(plain: string): string {
@@ -31,10 +36,7 @@ export function decryptSecret(enc: string): string | null {
     const key = crypto.scryptSync(env.get('APP_KEY').release(), 'salt', 32)
     const iv = Buffer.from(ivHex, 'hex')
     const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv)
-    const decrypted = Buffer.concat([
-      decipher.update(Buffer.from(encHex, 'hex')),
-      decipher.final(),
-    ])
+    const decrypted = Buffer.concat([decipher.update(Buffer.from(encHex, 'hex')), decipher.final()])
     return decrypted.toString('utf8')
   } catch {
     return null
@@ -144,27 +146,50 @@ export class WebSettingsService {
     }
   }
 
-  async applyPatches(patches: Array<{ section: string; key: string; value: string }>): Promise<WebsiteSettingsDto> {
+  async applyPatches(
+    patches: Array<{ section: string; key: string; value: string }>
+  ): Promise<WebsiteSettingsDto> {
     for (const p of patches) {
+      const value = String(p.value ?? '')
       const existing = await WebSetting.query()
         .where('section', p.section)
         .where('key', p.key)
         .whereNull('deleted_at')
         .first()
 
+      if (value === '') {
+        // Empty = reset to the in-memory default; drop the override row so we
+        // never persist an empty string (and re-toggling can't conflict).
+        if (existing) await existing.delete()
+        continue
+      }
+
       if (existing) {
-        existing.value = p.value
+        existing.value = value
         await existing.save()
       } else {
         await WebSetting.create({
           id: newUlid(),
           section: p.section,
           key: p.key,
-          value: p.value,
+          value,
         })
       }
     }
     return this.getDto()
+  }
+
+  /** App-level toggles (landing on/off + hidden sidebar nav) for any admin. */
+  async getAppConfig(): Promise<{ landingEnabled: boolean; hiddenNav: string[] }> {
+    const sections = await this.getMergedSections()
+    const cfg = sections['app_config'] ?? {}
+    return {
+      landingEnabled: (cfg['landing_enabled'] ?? '1') !== '0',
+      hiddenNav: (cfg['hidden_nav'] ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }
   }
 }
 
@@ -181,7 +206,11 @@ export class IntegrationSettingsService {
     return `${base}/auth/google/callback`
   }
 
-  async resolveGoogleOAuth(): Promise<{ clientId: string; clientSecret: string; redirectUri: string } | null> {
+  async resolveGoogleOAuth(): Promise<{
+    clientId: string
+    clientSecret: string
+    redirectUri: string
+  } | null> {
     const row = await this.getOrCreate()
     if (!row.googleAuthEnabled) return null
 
@@ -200,9 +229,10 @@ export class IntegrationSettingsService {
   async getAuthPublicConfig(): Promise<AuthPublicConfig> {
     const row = await this.getOrCreate()
     const google = await this.resolveGoogleOAuth()
-    const captchaOk = row.captchaEnabled && !!(row.captchaSiteKey || env.get('TURNSTILE_SITE_KEY', ''))
-    const siteKey = captchaOk ? (row.captchaSiteKey || env.get('TURNSTILE_SITE_KEY', '')) : null
-    const provider = captchaOk ? (row.captchaProvider || 'turnstile') : null
+    const captchaOk =
+      row.captchaEnabled && !!(row.captchaSiteKey || env.get('TURNSTILE_SITE_KEY', ''))
+    const siteKey = captchaOk ? row.captchaSiteKey || env.get('TURNSTILE_SITE_KEY', '') : null
+    const provider = captchaOk ? row.captchaProvider || 'turnstile' : null
 
     const webSvc = new WebSettingsService()
     const web = await webSvc.getPublicAppearance()
@@ -219,11 +249,16 @@ export class IntegrationSettingsService {
       analytics: {
         googleAnalytics: {
           enabled: row.ga4Enabled && !!(row.ga4MeasurementId || env.get('GA4_MEASUREMENT_ID', '')),
-          measurementId: row.ga4Enabled ? (row.ga4MeasurementId || env.get('GA4_MEASUREMENT_ID', '') || null) : null,
+          measurementId: row.ga4Enabled
+            ? row.ga4MeasurementId || env.get('GA4_MEASUREMENT_ID', '') || null
+            : null,
         },
         microsoftClarity: {
-          enabled: row.clarityEnabled && !!(row.clarityProjectId || env.get('CLARITY_PROJECT_ID', '')),
-          projectId: row.clarityEnabled ? (row.clarityProjectId || env.get('CLARITY_PROJECT_ID', '') || null) : null,
+          enabled:
+            row.clarityEnabled && !!(row.clarityProjectId || env.get('CLARITY_PROJECT_ID', '')),
+          projectId: row.clarityEnabled
+            ? row.clarityProjectId || env.get('CLARITY_PROJECT_ID', '') || null
+            : null,
         },
       },
       web,
@@ -232,7 +267,9 @@ export class IntegrationSettingsService {
 
   async getAdminSettings(): Promise<IntegrationSettingsAdmin> {
     const row = await this.getOrCreate()
-    const googleSecretPlain = row.googleClientSecretEnc ? decryptSecret(row.googleClientSecretEnc) : null
+    const googleSecretPlain = row.googleClientSecretEnc
+      ? decryptSecret(row.googleClientSecretEnc)
+      : null
     const captchaSecretPlain = row.captchaSecretEnc ? decryptSecret(row.captchaSecretEnc) : null
 
     return {
@@ -241,7 +278,9 @@ export class IntegrationSettingsService {
       googleClientSecretMasked: maskSecret(googleSecretPlain),
       hasGoogleClientSecretInDb: !!googleSecretPlain,
       googleRedirectUriHint: this.buildGoogleRedirectUri(),
-      envGoogleOAuthFallback: !!(env.get('GOOGLE_CLIENT_ID', '') && env.get('GOOGLE_CLIENT_SECRET', '')),
+      envGoogleOAuthFallback: !!(
+        env.get('GOOGLE_CLIENT_ID', '') && env.get('GOOGLE_CLIENT_SECRET', '')
+      ),
       captchaEnabled: row.captchaEnabled,
       captchaProvider: row.captchaProvider,
       captchaSiteKey: row.captchaSiteKey,
@@ -260,21 +299,23 @@ export class IntegrationSettingsService {
     }
   }
 
-  async update(dto: Partial<{
-    googleAuthEnabled: boolean
-    googleClientId: string | null
-    googleClientSecret: string | null
-    captchaEnabled: boolean
-    captchaProvider: string | null
-    captchaSiteKey: string | null
-    captchaSecret: string | null
-    captchaOnLogin: boolean
-    captchaOnRegister: boolean
-    ga4Enabled: boolean
-    ga4MeasurementId: string | null
-    clarityEnabled: boolean
-    clarityProjectId: string | null
-  }>): Promise<IntegrationSettingsAdmin> {
+  async update(
+    dto: Partial<{
+      googleAuthEnabled: boolean
+      googleClientId: string | null
+      googleClientSecret: string | null
+      captchaEnabled: boolean
+      captchaProvider: string | null
+      captchaSiteKey: string | null
+      captchaSecret: string | null
+      captchaOnLogin: boolean
+      captchaOnRegister: boolean
+      ga4Enabled: boolean
+      ga4MeasurementId: string | null
+      clarityEnabled: boolean
+      clarityProjectId: string | null
+    }>
+  ): Promise<IntegrationSettingsAdmin> {
     const row = await this.getOrCreate()
 
     if (dto.googleAuthEnabled !== undefined) row.googleAuthEnabled = dto.googleAuthEnabled
@@ -295,9 +336,11 @@ export class IntegrationSettingsService {
     if (dto.captchaOnLogin !== undefined) row.captchaOnLogin = dto.captchaOnLogin
     if (dto.captchaOnRegister !== undefined) row.captchaOnRegister = dto.captchaOnRegister
     if (dto.ga4Enabled !== undefined) row.ga4Enabled = dto.ga4Enabled
-    if (dto.ga4MeasurementId !== undefined) row.ga4MeasurementId = dto.ga4MeasurementId?.trim() || null
+    if (dto.ga4MeasurementId !== undefined)
+      row.ga4MeasurementId = dto.ga4MeasurementId?.trim() || null
     if (dto.clarityEnabled !== undefined) row.clarityEnabled = dto.clarityEnabled
-    if (dto.clarityProjectId !== undefined) row.clarityProjectId = dto.clarityProjectId?.trim() || null
+    if (dto.clarityProjectId !== undefined)
+      row.clarityProjectId = dto.clarityProjectId?.trim() || null
 
     await row.save()
     return this.getAdminSettings()

@@ -1,6 +1,6 @@
 
 import { Link } from "@inertiajs/react";
-import { ArrowLeft, Plug2, Shield } from "lucide-react";
+import { ArrowLeft, KeyRound, Plug2, Shield } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import {
   GoogleAnalyticsBrandImg,
@@ -113,6 +113,16 @@ export default function IntegrationsIndexPage() {
                 icon={ClarityTileIcon}
                 status={clarityOn ? "On" : "Off"}
                 statusVariant={clarityOn ? "success" : "muted"}
+              />
+            </li>
+            <li>
+              <IntegrationHubCard
+                href="/admin/integrations/api-tokens"
+                title="API Tokens"
+                description="Personal Access Tokens for the external /api/v1 API."
+                icon={KeyRound}
+                status="Manage"
+                statusVariant="muted"
               />
             </li>
           </ul>

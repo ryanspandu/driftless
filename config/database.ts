@@ -14,7 +14,19 @@ function pluginMigrationPaths(): string[] {
     .map((d) => `plugins/${d.name}/migrations`)
 }
 
-const migrationPaths = ['database/migrations', ...pluginMigrationPaths()]
+/** Each module owns its schema under `modules/<name>/migrations` (same pattern). */
+function moduleMigrationPaths(): string[] {
+  if (!existsSync('modules')) return []
+  return readdirSync('modules', { withFileTypes: true })
+    .filter((d) => d.isDirectory() && existsSync(`modules/${d.name}/migrations`))
+    .map((d) => `modules/${d.name}/migrations`)
+}
+
+const migrationPaths = [
+  'database/migrations',
+  ...pluginMigrationPaths(),
+  ...moduleMigrationPaths(),
+]
 
 const dbConfig = defineConfig({
   connection: env.get('NODE_ENV') === 'test' ? 'sqlite' : 'pg',

@@ -29,6 +29,20 @@ createInertiaApp({
       return pluginModule.default
     }
 
+    // Module pages mirror plugins: "modules/<name>/<area>/<page>" lives at
+    // modules/<name>/ui/<area>/<page>.tsx (co-located with the module back-end).
+    if (name.startsWith('modules/')) {
+      const rel = name.slice('modules/'.length)
+      const slash = rel.indexOf('/')
+      const mod = rel.slice(0, slash)
+      const rest = rel.slice(slash + 1)
+      const moduleModule = await resolvePageComponent(
+        `../modules/${mod}/ui/${rest}.tsx`,
+        import.meta.glob<{ default: ComponentType }>('../modules/*/ui/**/*.tsx')
+      )
+      return moduleModule.default
+    }
+
     const pageModule = await resolvePageComponent(
       `./pages/${name}.tsx`,
       import.meta.glob<{ default: ComponentType }>('./pages/**/*.tsx')

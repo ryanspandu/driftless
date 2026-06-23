@@ -19,7 +19,7 @@
     "test": "node ace test",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit && tsc --noEmit --project inertia/tsconfig.json && tsc --noEmit --project plugins/tsconfig.json"
+    "typecheck": "tsc --noEmit && tsc --noEmit --project inertia/tsconfig.json && tsc --noEmit --project plugins/tsconfig.json && tsc --noEmit --project modules/tsconfig.json"
   },
   "imports": {
     "#controllers/*": "./app/controllers/*.js",
@@ -36,6 +36,7 @@
     "#validators/*": "./app/validators/*.js",
     "#providers/*": "./providers/*.js",
     "#plugins/*": "./plugins/*.js",
+    "#modules/*": "./modules/*.js",
     "#cms/*": "./app/cms/*.js",
     "#policies/*": "./app/policies/*.js",
     "#abilities/*": "./app/abilities/*.js",
@@ -62,6 +63,7 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
+    "adonis-autoswagger": "^3.73.0",
     "eslint": "^10.4.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -78,7 +80,9 @@
     "@adonisjs/core": "^7.3.3",
     "@adonisjs/cors": "^3.0.0",
     "@adonisjs/inertia": "^4.2.0",
+    "@adonisjs/limiter": "^3.0.1",
     "@adonisjs/lucid": "^22.4.2",
+    "@adonisjs/redis": "^10.0.0",
     "@adonisjs/session": "^8.1.0",
     "@adonisjs/shield": "^9.0.0",
     "@adonisjs/static": "^2.0.1",
@@ -91,6 +95,7 @@
     "@inertiajs/react": "^2.3.24",
     "@marsidev/react-turnstile": "^1.5.2",
     "@measured/puck": "^0.20.2",
+    "@phosphor-icons/react": "^2.1.10",
     "@serwist/vite": "^9.5.11",
     "@serwist/window": "^9.5.11",
     "@tanstack/react-query": "^5.100.14",

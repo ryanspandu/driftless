@@ -1,3 +1,6 @@
+import { Fragment } from 'react'
+import { Link } from '@inertiajs/react'
+import { CaretRight } from '@phosphor-icons/react'
 import { ConnectionIndicator } from '~/components/admin/connection-indicator'
 import { SyncCenter } from '~/components/admin/sync-center'
 import { ThemeToggle } from '~/components/admin/theme-toggle'
@@ -7,14 +10,17 @@ const PAGE_LABELS: Record<string, string> = {
   '/admin/dashboard': 'Dashboard',
   '/admin/analytics': 'Analytics',
   '/admin/content': 'Content',
-  '/admin/media': 'Media Library',
+  '/admin/media': 'Media',
   '/admin/users': 'Users',
   '/admin/roles': 'Roles',
   '/admin/permissions': 'Permissions',
-  '/admin/settings': 'Website Settings',
+  '/admin/plugins': 'Plugins',
+  '/admin/pages': 'Pages',
+  '/admin/templates': 'Templates',
+  '/admin/settings': 'Settings',
   '/admin/profile': 'Profile',
   '/admin/integrations': 'Integrations',
-  '/admin/cms/collections': 'CMS Collections',
+  '/admin/cms/collections': 'Collections',
 }
 
 function getPageLabel(pathname: string): string {
@@ -32,16 +38,41 @@ function getPageLabel(pathname: string): string {
   return 'Admin'
 }
 
+/** Breadcrumb trail for the top bar. The root crumb links back to the dashboard. */
+function getCrumbs(pathname: string): { label: string; href?: string }[] {
+  if (pathname === '/admin/dashboard') return [{ label: 'Dashboard' }]
+  return [{ label: 'Admin', href: '/admin/dashboard' }, { label: getPageLabel(pathname) }]
+}
+
 interface AdminHeaderProps {
   pathname: string
 }
 
 export function AdminHeader({ pathname }: AdminHeaderProps) {
+  const crumbs = getCrumbs(pathname)
   return (
     <header className="flex h-14 items-center gap-3 border-b border-border bg-card px-4 shrink-0">
-      <div className="flex-1 min-w-0">
-        <h1 className="text-sm font-semibold truncate">{getPageLabel(pathname)}</h1>
-      </div>
+      <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+        {crumbs.map((crumb, i) => (
+          <Fragment key={`${crumb.label}-${i}`}>
+            {i > 0 && (
+              <CaretRight className="size-3.5 shrink-0 text-muted-foreground/50" aria-hidden />
+            )}
+            {crumb.href ? (
+              <Link
+                href={crumb.href}
+                className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {crumb.label}
+              </Link>
+            ) : (
+              <span className="truncate font-medium text-foreground" aria-current="page">
+                {crumb.label}
+              </span>
+            )}
+          </Fragment>
+        ))}
+      </nav>
       <div className="flex items-center gap-2">
         <SyncCenter />
         <ConnectionIndicator />

@@ -12,6 +12,7 @@
     "build/**",
     "bower_components/**",
     "jspm_packages/**",
-    "plugins/**/ui/**"
+    "plugins/**/ui/**",
+    "modules/**/ui/**"
   ]
 }
