@@ -80,6 +80,9 @@ export class NullLocalStore implements LocalStore {
     return false;
   }
   async repointJobs(): Promise<void> {}
+  async dropJobsForRow(): Promise<number> {
+    return 0
+  }
   async countJobsByStatus(): Promise<Record<OutboxStatus, number>> {
     return { idle: 0, running: 0, error: 0, conflict: 0 };
   }

@@ -1,8 +1,8 @@
 # API v1 — external token-authenticated API
 
 **Status:** IMPLEMENTED — backend + hardening DONE + runtime-verified (2026-06-23). Phases 1–4 shipped:
-access-tokens `api` guard + `withAccessTokens` on User + `auth_access_tokens` migration; `token:manage`
-permission; admin PAT CRUD (`/api/admin/api-tokens`) + admin UI page (`/admin/integrations/api-tokens`);
+access-tokens `api` guard + `withAccessTokens` on User + `auth_access_tokens` migration; **self-service**
+PAT management (no extra permission); admin PAT CRUD (`/api/admin/api-tokens`) + admin UI page (`/admin/integrations/api-tokens`);
 `/api/v1/content` + `/api/v1/cms/:key/records` token-guarded, layered RBAC ∩ token-ability; **Redis-backed
 rate limiting** (`@adonisjs/limiter`, 120 req/min per token) + **env-driven prod CORS allowlist**
 (`CORS_ALLOWED_ORIGINS`). Verified by live HTTP: GET+valid token → 200 + data; no/bad token → 401; write
@@ -68,7 +68,7 @@ docs feature ([api-docs.md](./api-docs.md)) already reserves a `bearerAuth` secu
 
 - An `api` access-tokens guard + the `withAccessTokens` mixin on the User model + an `auth_access_tokens`
   migration.
-- A PAT management surface (admin UI + session-guarded CRUD endpoints + a `token:manage` permission).
+- A PAT management surface (admin UI + session-guarded CRUD endpoints; **self-service** — each user manages their own tokens, no extra permission).
 - The `/api/v1/*` routes + thin controllers + a token-ability check.
 - Rate limiting (`@adonisjs/limiter`), CORS allowlist, and OpenAPI tagging/security for v1.
 
@@ -83,12 +83,12 @@ docs feature ([api-docs.md](./api-docs.md)) already reserves a `bearerAuth` secu
 4. Typecheck green.
 
 ### Phase 2 — PAT management (depends on Phase 1)
-5. Add permission `token:manage` to [database/seeder_constants.ts](../../database/seeder_constants.ts)
-   (and assign to SUPERADMIN/ADMIN as appropriate). Re-seed.
+5. **Self-service model (decided):** any authenticated admin-area user manages their **own** tokens — no
+   `token:manage` permission (a token can't exceed its owner's RBAC, so self-service is safe).
 6. `ApiTokensController` (admin): `index` (list — never returns plaintext), `store` (create → returns
-   plaintext **once**), `destroy` (revoke). Backed by `User.accessTokens` APIs.
-7. Routes under `/api/admin/api-tokens`, session-guarded + `middleware.permission({ permission:
-   'token:manage' })`. Inertia page route `/admin/integrations/api-tokens` (or a Settings sub-page).
+   plaintext **once**), `destroy` (revoke). Backed by `User.accessTokens` APIs, scoped to `auth.user`.
+7. Routes under `/api/admin/api-tokens`, session-guarded only (no permission middleware). Inertia page
+   route `/admin/integrations/api-tokens` (kept under Settings → Integrations).
 8. Admin UI page: create form (name + abilities multiselect + optional expiry), one-time plaintext reveal
    with copy, list with revoke. Follow the admin list-page pattern (see [frontend.md](./frontend.md)).
 

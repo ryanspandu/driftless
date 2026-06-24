@@ -285,15 +285,13 @@ router
     router.put('/api/admin/settings/integrations', [() => import('#controllers/admin/settings_controller'), 'updateIntegrationSettings'])
       .use(middleware.permission({ permission: 'settings:manage' }))
 
-    // API Tokens (Personal Access Tokens for the external /api/v1 API)
+    // API Tokens (Personal Access Tokens for the external /api/v1 API).
+    // Self-service: any authenticated admin-area user manages their OWN tokens
+    // (the controller scopes to auth.user), so no extra permission is required.
     router.get('/admin/integrations/api-tokens', [() => import('#controllers/admin/settings_controller'), 'integrationsApiTokensPage'])
-    router
-      .group(() => {
-        router.get('/api/admin/api-tokens', [() => import('#controllers/admin/api_tokens_controller'), 'index'])
-        router.post('/api/admin/api-tokens', [() => import('#controllers/admin/api_tokens_controller'), 'store'])
-        router.delete('/api/admin/api-tokens/:id', [() => import('#controllers/admin/api_tokens_controller'), 'destroy'])
-      })
-      .use(middleware.permission({ permission: 'token:manage' }))
+    router.get('/api/admin/api-tokens', [() => import('#controllers/admin/api_tokens_controller'), 'index'])
+    router.post('/api/admin/api-tokens', [() => import('#controllers/admin/api_tokens_controller'), 'store'])
+    router.delete('/api/admin/api-tokens/:id', [() => import('#controllers/admin/api_tokens_controller'), 'destroy'])
 
     // Plugins (manage installed plugins + active toggle)
     router.get('/admin/plugins', [() => import('#controllers/admin/plugins_controller'), 'page'])

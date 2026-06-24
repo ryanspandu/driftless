@@ -25,7 +25,12 @@ const RichTextField = lazy(() =>
 
 export const puckConfig: Config = {
   root: {
-    render: ({ children }: { children?: ReactNode }) => <>{children}</>,
+    // Keep the rendered page in the light theme: the canvas previews the public
+    // page (always light) even while the editor chrome follows the admin's dark
+    // mode. Applies in the editor canvas and on the public/SSR render alike.
+    render: ({ children }: { children?: ReactNode }) => (
+      <div className="theme-light">{children}</div>
+    ),
   },
   components: {
     Section: {

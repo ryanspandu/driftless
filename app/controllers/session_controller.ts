@@ -74,7 +74,7 @@ export default class SessionController {
 
   async updateProfile({ auth, request, response }: HttpContext) {
     const user = auth.user!
-    const { firstName, lastName, username, phone, address } = request.all()
+    const { firstName, lastName, username, phone, address, email } = request.all()
 
     if (username && username !== user.username) {
       const taken = await User.query()
@@ -84,6 +84,20 @@ export default class SessionController {
         .first()
       if (taken) return response.status(422).json({ message: 'Username already taken' })
       user.username = username
+    }
+
+    if (email && email !== user.email) {
+      const normalized = String(email).trim()
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+        return response.status(422).json({ message: 'Invalid email address' })
+      }
+      const taken = await User.query()
+        .whereRaw('LOWER(email) = ?', [normalized.toLowerCase()])
+        .whereNull('deleted_at')
+        .whereNot('id', user.id)
+        .first()
+      if (taken) return response.status(422).json({ message: 'Email already in use' })
+      user.email = normalized
     }
 
     if (firstName !== undefined) user.firstName = firstName

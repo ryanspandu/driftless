@@ -35,7 +35,6 @@ import {
   TableRow,
 } from '~/components/ui/table'
 import { PageHeader } from '~/components/admin/page-header'
-import { Can } from '~/components/providers/ability-provider'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import {
   useApiTokens,
@@ -399,24 +398,5 @@ function ApiTokensPageInner() {
 }
 
 export default function ApiTokensPage() {
-  return (
-    <Can permission="token:manage" fallback={<NoAccess />}>
-      <ApiTokensPageInner />
-    </Can>
-  )
-}
-
-function NoAccess() {
-  return (
-    <div className="space-y-2">
-      <h1 className="text-2xl font-semibold tracking-tight">API Tokens</h1>
-      <p className="text-sm text-muted-foreground">
-        You need the <code className="rounded bg-muted px-1">token:manage</code> permission to manage API
-        tokens.
-      </p>
-      <Button variant="outline" render={<Link href="/admin/dashboard" />}>
-        Back to dashboard
-      </Button>
-    </div>
-  )
+  return <ApiTokensPageInner />
 }

@@ -1,4 +1,4 @@
-import { useEffect, type ComponentType, type ReactNode } from 'react'
+import { type ComponentType } from 'react'
 import type { Overrides } from '@measured/puck'
 import {
   Columns3,
@@ -39,31 +39,12 @@ const LABELS: Record<string, string> = {
 /**
  * Puck UI overrides shared by the page builder and the header/footer editor:
  * render the component drawer as a 3-column grid of labelled icon tiles.
+ *
+ * The canvas runs WITHOUT Puck's iframe (`iframe={{ enabled: false }}` in the
+ * builders) and the builders wrap themselves in `.theme-light`, so the preview
+ * stays light even when the dashboard is dark — no iframe override needed here.
  */
-/**
- * The preview canvas previews the PUBLIC page, so it stays light even when the
- * dashboard is dark. Puck mirrors the host <html> attributes (incl. the `.dark`
- * class) into its iframe via `syncAttributes`, so we strip `dark` from the iframe
- * document and pin a light color-scheme, re-stripping whenever Puck re-syncs.
- */
-function IframeLightLock({ doc, children }: { doc?: Document; children: ReactNode }) {
-  useEffect(() => {
-    if (!doc) return
-    const html = doc.documentElement
-    const enforceLight = () => {
-      html.classList.remove('dark')
-      html.style.colorScheme = 'light'
-    }
-    enforceLight()
-    const observer = new MutationObserver(enforceLight)
-    observer.observe(html, { attributes: true, attributeFilter: ['class'] })
-    return () => observer.disconnect()
-  }, [doc])
-  return <>{children}</>
-}
-
 export const puckOverrides: Partial<Overrides> = {
-  iframe: ({ children, document }) => <IframeLightLock doc={document}>{children}</IframeLightLock>,
   // The 3-column grid layout itself is done in CSS (app.css) on Puck's internal
   // `_Drawer_` container — `components` only wraps the whole list, not the items.
   componentItem: ({ name }) => {

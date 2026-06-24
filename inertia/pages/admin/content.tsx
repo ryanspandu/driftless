@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
 import type { ColumnDef } from '@tanstack/react-table'
-import { FileText, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CloudUpload, FileText, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { ContentDto } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown_menu'
 import { PageHeader } from '~/components/admin/page-header'
@@ -47,7 +48,8 @@ function ContentPageInner() {
     })
     replaceUrlIfChanged(pathname, router, merged, { scroll: false })
   }
-  const { rows, isLoading, lastSyncedAt, refresh, create, update, remove } = useOfflineContent()
+  const { rows, isLoading, lastSyncedAt, refresh, create, update, remove, discardConflict, recreateFromConflict } =
+    useOfflineContent()
 
   const trashedQuery = useTrashedContent()
   const restoreMut = useRestoreContent()
@@ -197,12 +199,41 @@ function ContentPageInner() {
                 <Trash2 className="size-4" />
                 Delete
               </DropdownMenuItem>
+              {row.original.sync.conflict && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="gap-2"
+                    onClick={() => void recreateFromConflict(row.original.id)}
+                  >
+                    <CloudUpload className="size-4" />
+                    Recreate on server
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    className="gap-2"
+                    onClick={() => {
+                      void confirmDelete({
+                        title: 'Discard local change?',
+                        description:
+                          'This record no longer exists on the server. Discarding permanently drops your offline copy of this post.',
+                        confirmLabel: 'Discard',
+                      }).then((confirmed) => {
+                        if (confirmed) void discardConflict(row.original.id)
+                      })
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                    Discard local change
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         ),
       },
     ],
-    [confirmDelete, remove]
+    [confirmDelete, remove, discardConflict, recreateFromConflict]
   )
 
   const getRowId = (r: OfflineContentRow) => r.id

@@ -202,10 +202,11 @@ html {
   width: 100% !important;
 }
 
-/* Dark mode for the Puck editor: Puck defines its palette on :root (light only),
-   so invert its grey ramp + swap white/black under html.dark (higher specificity
-   than :root, wins regardless of stylesheet order). Applies to the editor chrome
-   and — via the `iframe` override syncing the class — the preview canvas too. */
+/* Dark mode for the Puck editor chrome: Puck defines its palette on :root (light
+   only), so invert its grey ramp + swap white/black under html.dark (higher
+   specificity than :root, wins regardless of stylesheet order). This themes the
+   editor chrome only; the preview canvas stays light via the `.theme-light`
+   wrapper in the Puck root render (see config.tsx). */
 html.dark {
   /* Native form controls (Puck uses real <select>/<input>) render light unless
      the document opts into a dark color scheme. */

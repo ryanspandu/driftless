@@ -20,6 +20,7 @@ import {
   type DataTableUrlSyncState,
 } from "~/hooks/use-data-table-url-sync";
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -55,6 +56,10 @@ export type SyncStatus = {
   syncedAt?: Date | string | null;
   /** ISO string / Date when the local change was queued, for "pending" rows. */
   pendingSince?: Date | string | null;
+  /** True when an offline change could not be reconciled and needs the user to resolve it. */
+  conflict?: boolean;
+  /** Human-readable reason shown in the Sync tooltip when conflict/error. */
+  error?: string | null;
 };
 
 function toDate(value: Date | string | null | undefined): Date | null {
@@ -366,6 +371,7 @@ function DataTableInner<TData>({
           const status = resolveSyncStatus(row.original);
           const syncedAt = toDate(status.syncedAt);
           const pendingSince = toDate(status.pendingSince);
+          const isConflict = !status.synced && !!status.conflict;
 
           return (
             <div className="flex items-center justify-center">
@@ -375,12 +381,19 @@ function DataTableInner<TData>({
                   aria-label={
                     status.synced
                       ? `Synced ${syncedAt ? formatRelativeTime(syncedAt) : ""}`.trim()
-                      : "Not yet synced to server"
+                      : isConflict
+                        ? "Sync conflict — needs attention"
+                        : "Not yet synced to server"
                   }
                 >
                   {status.synced ? (
                     <CheckCircle2
                       className="size-4 text-emerald-600 dark:text-emerald-400"
+                      aria-hidden
+                    />
+                  ) : isConflict ? (
+                    <AlertTriangle
+                      className="size-4 text-amber-600 dark:text-amber-400"
                       aria-hidden
                     />
                   ) : (
@@ -406,6 +419,16 @@ function DataTableInner<TData>({
                           </span>
                         </>
                       ) : null}
+                    </span>
+                  ) : isConflict ? (
+                    <span className="flex max-w-[220px] flex-col gap-0.5">
+                      <span className="font-medium text-amber-500">
+                        Sync conflict
+                      </span>
+                      <span className="text-xs opacity-90">
+                        {status.error ??
+                          "This change could not be saved to the server."}
+                      </span>
                     </span>
                   ) : (
                     <span>

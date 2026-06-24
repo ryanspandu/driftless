@@ -12,6 +12,11 @@ import { cn } from '~/lib/utils'
 
 const EMPTY_DOC = { content: [], root: {} } as unknown as Data
 
+// See pages/builder.tsx: render the canvas in the host document (no iframe) to
+// avoid Puck's freeze-prone auto-frame path; stable refs so props are identity-stable.
+const PUCK_IFRAME = { enabled: false }
+const PUCK_VIEWPORTS = [...builderViewports]
+
 export default function TemplateBuilder({ id }: { id: string }) {
   const templateQuery = useTemplate(id)
   const updateMut = useUpdateTemplate()
@@ -60,7 +65,8 @@ export default function TemplateBuilder({ id }: { id: string }) {
           data={initial}
           onPublish={save}
           overrides={puckOverrides}
-          viewports={[...builderViewports]}
+          viewports={PUCK_VIEWPORTS}
+          iframe={PUCK_IFRAME}
         />
       </div>
 

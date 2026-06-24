@@ -37,6 +37,10 @@ export interface UseOfflineContentResult {
   create: (input: CreateContentRequest) => Promise<void>;
   update: (id: string, patch: UpdateContentRequest) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  /** Drop a conflicted row's local copy and its parked outbox job. */
+  discardConflict: (id: string) => Promise<void>;
+  /** Re-queue a conflicted row as a fresh create so it lands as a new record. */
+  recreateFromConflict: (id: string) => Promise<void>;
 }
 
 /**
@@ -282,6 +286,61 @@ export function useOfflineContent(): UseOfflineContentResult {
     [store, engine, refresh],
   );
 
+  // Conflict resolution — only meaningful for the Dexie/Memory stores, where a
+  // row can be parked in `_sync.conflict` after an offline edit hit a server
+  // that no longer has the record (404).
+  const discardConflict = useCallback(
+    async (id: string) => {
+      if (!store || store instanceof NullLocalStore) return;
+      // The server row is already gone, so dropping the local copy + its parked
+      // job needs no round-trip.
+      await store.dropJobsForRow("content", id);
+      await store.deleteRow("content", id);
+      setBump((n) => n + 1);
+      void engine?.trigger();
+    },
+    [store, engine],
+  );
+
+  const recreateFromConflict = useCallback(
+    async (id: string) => {
+      if (!store || store instanceof NullLocalStore) return;
+      const existing = await store.getById<ContentDto>("content", id);
+      if (!existing) return;
+      // Clear the parked update job and re-arm the row as a brand-new create:
+      // the create handler POSTs it, the server assigns a fresh id, and
+      // `markSynced` re-keys the local row to it.
+      await store.dropJobsForRow("content", id);
+      await store.setRowMeta("content", id, {
+        conflict: false,
+        lastError: null,
+        synced: false,
+        pendingSince: new Date().toISOString(),
+        localOp: "create",
+      });
+      const d = existing.data;
+      const payload: ContentCreatePayload = {
+        id,
+        title: d.title,
+        slug: d.slug,
+        body: d.body,
+        status: d.status,
+      };
+      await store.enqueueJob(
+        buildJob({
+          entity: "content",
+          op: "create",
+          refId: id,
+          payload,
+          baseUpdatedAt: null,
+        }),
+      );
+      setBump((n) => n + 1);
+      void engine?.trigger();
+    },
+    [store, engine],
+  );
+
   const isLoading =
     !hasLoaded &&
     (store instanceof DexieLocalStore ? dexieRows == null : !store || store instanceof NullLocalStore);
@@ -295,5 +354,7 @@ export function useOfflineContent(): UseOfflineContentResult {
     create,
     update,
     remove,
+    discardConflict,
+    recreateFromConflict,
   };
 }

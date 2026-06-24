@@ -453,6 +453,18 @@ export class DexieLocalStore implements LocalStore {
     }
   }
 
+  async dropJobsForRow(entity: EntityName, refId: string): Promise<number> {
+    const jobs = await this.db.outbox
+      .where("entity")
+      .equals(entity)
+      .and((j) => j.refId === refId)
+      .toArray();
+    for (const j of jobs) {
+      await this.db.outbox.delete(j.id);
+    }
+    return jobs.length;
+  }
+
   async clearAll(): Promise<void> {
     await Promise.all([
       this.db.users.clear(),

@@ -14,6 +14,13 @@ import { cn } from '~/lib/utils'
 
 const EMPTY_DOC = { content: [], root: {} } as unknown as Data
 
+// Render the canvas in the host document instead of an isolated iframe. Puck's
+// iframe auto-frame (style/attribute sync + cross-document measurement) is the
+// heavy, freeze-prone path; disabling it keeps the editor responsive. Stable
+// module-level refs so these props don't change identity across renders.
+const PUCK_IFRAME = { enabled: false }
+const PUCK_VIEWPORTS = [...builderViewports]
+
 export default function PageBuilder({ id }: { id: string }) {
   const pageQuery = usePageRecord(id)
   const updateMut = useUpdatePage()
@@ -86,7 +93,8 @@ export default function PageBuilder({ id }: { id: string }) {
           data={initial}
           onPublish={save}
           overrides={puckOverrides}
-          viewports={[...builderViewports]}
+          viewports={PUCK_VIEWPORTS}
+          iframe={PUCK_IFRAME}
         />
       </div>
 

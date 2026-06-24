@@ -112,6 +112,13 @@ export interface LocalStore {
     toRefId: string,
   ): Promise<void>;
 
+  /**
+   * Delete every outbox job referencing `refId`. Used to resolve a conflict:
+   * either discard the local change or re-queue it as a fresh create, both of
+   * which must first clear the parked job. Returns the number removed.
+   */
+  dropJobsForRow(entity: EntityName, refId: string): Promise<number>;
+
   countJobsByStatus(): Promise<Record<OutboxStatus, number>>;
 
   /** Drop everything; used on logout / account switch. */

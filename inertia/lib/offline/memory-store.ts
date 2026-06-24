@@ -274,6 +274,18 @@ export class MemoryLocalStore implements LocalStore {
     }
   }
 
+  async dropJobsForRow(entity: EntityName, refId: string): Promise<number> {
+    let removed = 0;
+    for (let i = this.jobs.length - 1; i >= 0; i--) {
+      const j = this.jobs[i];
+      if (j.entity === entity && j.refId === refId) {
+        this.jobs.splice(i, 1);
+        removed++;
+      }
+    }
+    return removed;
+  }
+
   async clearAll(): Promise<void> {
     this.tables.clear();
     this.jobs.length = 0;

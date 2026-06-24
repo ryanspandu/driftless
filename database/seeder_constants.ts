@@ -21,7 +21,6 @@ export const BUILTIN_PERMISSIONS: { name: string; description: string }[] = [
   { name: 'permission:manage', description: 'Create / edit / delete permission codes.' },
   { name: 'settings:manage', description: 'Manage site integrations (Google OAuth, CAPTCHA, etc.).' },
   { name: 'plugin:manage', description: 'Enable / disable installed plugins.' },
-  { name: 'token:manage', description: 'Create / revoke personal access tokens for the external API.' },
 ]
 
 export const BUILTIN_ROLES: { name: string; description: string }[] = [
@@ -53,7 +52,6 @@ export const ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     'template:delete',
     'settings:manage',
     'plugin:manage',
-    'token:manage',
   ],
   USER: ['content:create', 'content:read', 'content:update', 'content:delete'],
   GUEST: ['content:read'],
