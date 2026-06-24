@@ -15,8 +15,9 @@ import {
 } from 'lucide-react'
 import { cn } from '~/lib/utils'
 
-/** Icon per block type (keyed by the Puck component name). */
-const ICONS: Record<string, ComponentType<{ className?: string }>> = {
+/** Icon per block type (keyed by the Puck component name). Shared with the
+ *  Layers tree (layers-tree.tsx) so tiles and tree rows use the same glyphs. */
+export const ICONS: Record<string, ComponentType<{ className?: string }>> = {
   Section: RectangleHorizontal,
   Container: Square,
   Columns: Columns3,
@@ -31,22 +32,19 @@ const ICONS: Record<string, ComponentType<{ className?: string }>> = {
 }
 
 /** Friendlier labels for multi-word component names. */
-const LABELS: Record<string, string> = {
+export const LABELS: Record<string, string> = {
   RichText: 'Rich text',
   CollectionList: 'Collection',
 }
 
 /**
- * Puck UI overrides shared by the page builder and the header/footer editor:
- * render the component drawer as a 3-column grid of labelled icon tiles.
- *
- * The canvas runs WITHOUT Puck's iframe (`iframe={{ enabled: false }}` in the
- * builders) and the builders wrap themselves in `.theme-light`, so the preview
- * stays light even when the dashboard is dark — no iframe override needed here.
+ * Puck UI overrides for the builder. The Components/Detail/Layers panels are laid
+ * out by the custom layout in `builder-shell.tsx` (not via `fields`/`outline`
+ * overrides — those are position-locked and feed `Puck.Fields`/`Puck.Outline`).
+ * The only override left is `componentItem`, which styles each drawer tile; the
+ * 3-column grid itself is CSS (app.css) on Puck's internal `_Drawer_` container.
  */
 export const puckOverrides: Partial<Overrides> = {
-  // The 3-column grid layout itself is done in CSS (app.css) on Puck's internal
-  // `_Drawer_` container — `components` only wraps the whole list, not the items.
   componentItem: ({ name }) => {
     const Icon = ICONS[name] ?? Square
     const label = LABELS[name] ?? name

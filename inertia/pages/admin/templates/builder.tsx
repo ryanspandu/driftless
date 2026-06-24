@@ -6,6 +6,7 @@ import { Toaster, toast } from 'sonner'
 import { puckConfig } from '~/puck/config'
 import { builderViewports } from '~/puck/style-fields'
 import { puckOverrides } from '~/puck/overrides'
+import { BuilderShell } from '~/puck/builder-shell'
 import { useTemplate, useUpdateTemplate } from '~/hooks/api/use-templates'
 import { buttonVariants } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
@@ -45,32 +46,31 @@ export default function TemplateBuilder({ id }: { id: string }) {
   }
 
   return (
-    <div className="flex h-screen flex-col">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b bg-background px-3">
-        <div className="flex items-center gap-2">
-          <Link
-            href="/admin/templates"
-            className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}
-          >
-            <ArrowLeft className="size-4" />
-            Templates
-          </Link>
-          <span className="text-sm font-medium">{template.name}</span>
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1">
-        <Puck
-          config={puckConfig}
-          data={initial}
-          onPublish={save}
-          overrides={puckOverrides}
-          viewports={PUCK_VIEWPORTS}
-          iframe={PUCK_IFRAME}
-        />
-      </div>
+    <Puck
+      config={puckConfig}
+      data={initial}
+      onPublish={save}
+      overrides={puckOverrides}
+      viewports={PUCK_VIEWPORTS}
+      iframe={PUCK_IFRAME}
+    >
+      <BuilderShell
+        onPublish={save}
+        topbarStart={
+          <>
+            <Link
+              href="/admin/templates"
+              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}
+            >
+              <ArrowLeft className="size-4" />
+              Templates
+            </Link>
+            <span className="truncate text-sm font-medium">{template.name}</span>
+          </>
+        }
+      />
 
       <Toaster richColors position="bottom-right" />
-    </div>
+    </Puck>
   )
 }

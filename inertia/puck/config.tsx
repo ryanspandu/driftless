@@ -254,7 +254,9 @@ export const puckConfig: Config = {
       label: 'Spacer',
       fields: { height: { type: 'text', label: 'Height' } },
       defaultProps: { height: '40px' },
-      render: ({ height }) => <div style={{ height: height || '40px' }} aria-hidden />,
+      // Routed through Box (not a bare div) so it honours `_hidden` like every
+      // other block.
+      render: ({ height, ...s }) => <Box s={s} style={{ height: height || '40px' }} />,
     },
 
     Divider: {
@@ -268,4 +270,18 @@ export const puckConfig: Config = {
       ),
     },
   },
+}
+
+// Lock support: a `_locked` layer (toggled from the Layers panel) freezes its
+// drag / delete / duplicate / edit affordances. Puck only exposes permissions
+// per component, so attach the same resolver to every block. Unlocking always
+// works because it's done from the Layers tree via a programmatic dispatch,
+// which isn't gated by these (UI-level) permissions.
+const lockedPermissions = { drag: false, duplicate: false, delete: false, edit: false }
+function resolveLockPermissions(data: { props?: Record<string, unknown> }) {
+  return data?.props?._locked ? lockedPermissions : {}
+}
+for (const component of Object.values(puckConfig.components)) {
+  ;(component as { resolvePermissions?: typeof resolveLockPermissions }).resolvePermissions =
+    resolveLockPermissions
 }

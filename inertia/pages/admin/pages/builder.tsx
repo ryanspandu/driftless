@@ -7,6 +7,7 @@ import { Toaster, toast } from 'sonner'
 import { puckConfig } from '~/puck/config'
 import { builderViewports } from '~/puck/style-fields'
 import { puckOverrides } from '~/puck/overrides'
+import { BuilderShell } from '~/puck/builder-shell'
 import { usePage as usePageRecord, useUpdatePage } from '~/hooks/api/use-pages'
 import { Button, buttonVariants } from '~/components/ui/button'
 import { PageRevisionsPanel } from '~/components/admin/page-revisions-panel'
@@ -50,53 +51,54 @@ export default function PageBuilder({ id }: { id: string }) {
   }
 
   return (
-    <div className="flex h-screen flex-col">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b bg-background px-3">
-        <div className="flex items-center gap-2">
-          <Link
-            href="/admin/pages"
-            className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}
-          >
-            <ArrowLeft className="size-4" />
-            Pages
-          </Link>
-          <span className="text-sm font-medium">{page.title}</span>
-          <span className="text-xs text-muted-foreground">/{page.path}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setHistoryOpen(true)}
-          >
-            <History className="size-4" />
-            History
-          </Button>
-          {page.status === 'PUBLISHED' ? (
-            <a
-              href={`/${page.path}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+    <Puck
+      config={puckConfig}
+      data={initial}
+      onPublish={save}
+      overrides={puckOverrides}
+      viewports={PUCK_VIEWPORTS}
+      iframe={PUCK_IFRAME}
+    >
+      <BuilderShell
+        onPublish={save}
+        topbarStart={
+          <>
+            <Link
+              href="/admin/pages"
+              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}
             >
-              <ExternalLink className="size-4" />
-              View live
-            </a>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1">
-        <Puck
-          config={puckConfig}
-          data={initial}
-          onPublish={save}
-          overrides={puckOverrides}
-          viewports={PUCK_VIEWPORTS}
-          iframe={PUCK_IFRAME}
-        />
-      </div>
+              <ArrowLeft className="size-4" />
+              Pages
+            </Link>
+            <span className="truncate text-sm font-medium">{page.title}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">/{page.path}</span>
+          </>
+        }
+        topbarEnd={
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setHistoryOpen(true)}
+            >
+              <History className="size-4" />
+              History
+            </Button>
+            {page.status === 'PUBLISHED' ? (
+              <a
+                href={`/${page.path}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <ExternalLink className="size-4" />
+                View live
+              </a>
+            ) : null}
+          </>
+        }
+      />
 
       <PageRevisionsPanel
         open={historyOpen}
@@ -106,6 +108,6 @@ export default function PageBuilder({ id }: { id: string }) {
       />
 
       <Toaster richColors position="bottom-right" />
-    </div>
+    </Puck>
   )
 }

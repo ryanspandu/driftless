@@ -1,0 +1,391 @@
+import { useMemo, useState, type ComponentType, type DragEvent } from 'react'
+import { usePuck, type ComponentData, type Config } from '@measured/puck'
+import { ChevronDown, ChevronRight, Eye, EyeOff, Lock, LockOpen, Square } from 'lucide-react'
+import { cn } from '~/lib/utils'
+import { ICONS, LABELS } from './overrides'
+
+/**
+ * Webflow-style Layers tree for the builder's right-panel "Layers" tab.
+ *
+ * Built directly from Puck's data (`appState.data.content`, recursing into each
+ * component's `slot` props) so we control every row — needed for rename,
+ * drag-reorder, and later visibility / lock. Selection, rename, reorder, and
+ * expand/collapse are wired through `usePuck()`.
+ *
+ * Custom metadata lives on the component's own props under `_`-prefixed keys
+ * (here `_label`), so it travels with the page JSON — no schema/DB migration.
+ */
+
+interface TreeNode {
+  id: string
+  type: string
+  label: string
+  hidden: boolean
+  locked: boolean
+  children: TreeNode[]
+}
+
+type RawItem = { type: string; props?: Record<string, unknown> }
+type DropPos = 'before' | 'after'
+
+/** Slot field names for a component type (Puck `type: 'slot'` fields). */
+function slotFieldsFor(type: string, config: Config): string[] {
+  const fields = config.components?.[type]?.fields
+  if (!fields) return []
+  return Object.entries(fields)
+    .filter(([, f]) => (f as { type?: string } | undefined)?.type === 'slot')
+    .map(([key]) => key)
+}
+
+function buildTree(items: RawItem[] | undefined, config: Config): TreeNode[] {
+  if (!Array.isArray(items)) return []
+  const out: TreeNode[] = []
+  for (const item of items) {
+    const props = (item.props ?? {}) as Record<string, unknown>
+    const id = typeof props.id === 'string' ? props.id : null
+    if (!id) continue
+    const children = slotFieldsFor(item.type, config).flatMap((slot) =>
+      buildTree(props[slot] as RawItem[] | undefined, config)
+    )
+    const custom = typeof props._label === 'string' ? props._label.trim() : ''
+    out.push({
+      id,
+      type: item.type,
+      label: custom || LABELS[item.type] || item.type,
+      hidden: props._hidden === true,
+      locked: props._locked === true,
+      children,
+    })
+  }
+  return out
+}
+
+/** Map of node id → set of all its descendant ids (used to block invalid drops). */
+function buildDescendants(tree: TreeNode[]): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>()
+  const collect = (node: TreeNode): Set<string> => {
+    const set = new Set<string>()
+    for (const child of node.children) {
+      set.add(child.id)
+      for (const d of collect(child)) set.add(d)
+    }
+    map.set(node.id, set)
+    return set
+  }
+  for (const node of tree) collect(node)
+  return map
+}
+
+export function LayersTree() {
+  const { appState, config, dispatch, getSelectorForId, getItemById, selectedItem } = usePuck()
+
+  const content = appState.data.content as unknown as RawItem[] | undefined
+  const tree = useMemo(() => buildTree(content, config), [content, config])
+  const descendants = useMemo(() => buildDescendants(tree), [tree])
+  const selectedId = (selectedItem?.props as { id?: string } | undefined)?.id ?? null
+
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ id: string; pos: DropPos } | null>(null)
+
+  const select = (id: string) => {
+    const sel = getSelectorForId(id)
+    if (sel) dispatch({ type: 'setUi', ui: { itemSelector: sel } })
+  }
+
+  const rename = (id: string, label: string) => {
+    const sel = getSelectorForId(id)
+    const item = getItemById(id)
+    if (!sel || !item) return
+    const nextProps = { ...(item.props as Record<string, unknown>) }
+    const trimmed = label.trim()
+    if (trimmed) nextProps._label = trimmed
+    else delete nextProps._label
+    dispatch({
+      type: 'replace',
+      destinationZone: sel.zone,
+      destinationIndex: sel.index,
+      data: { ...item, props: nextProps } as ComponentData,
+    })
+  }
+
+  const toggleHidden = (id: string) => {
+    const sel = getSelectorForId(id)
+    const item = getItemById(id)
+    if (!sel || !item) return
+    const props = item.props as Record<string, unknown>
+    const nextProps = { ...props }
+    if (props._hidden) delete nextProps._hidden
+    else nextProps._hidden = true
+    dispatch({
+      type: 'replace',
+      destinationZone: sel.zone,
+      destinationIndex: sel.index,
+      data: { ...item, props: nextProps } as ComponentData,
+    })
+  }
+
+  const toggleLocked = (id: string) => {
+    const sel = getSelectorForId(id)
+    const item = getItemById(id)
+    if (!sel || !item) return
+    const props = item.props as Record<string, unknown>
+    const nextProps = { ...props }
+    if (props._locked) delete nextProps._locked
+    else nextProps._locked = true
+    dispatch({
+      type: 'replace',
+      destinationZone: sel.zone,
+      destinationIndex: sel.index,
+      data: { ...item, props: nextProps } as ComponentData,
+    })
+  }
+
+  const toggle = (id: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  // True when `targetId` is a valid place to drop the dragged node.
+  const canDrop = (targetId: string) =>
+    !!dragId && targetId !== dragId && !descendants.get(dragId)?.has(targetId)
+
+  const resetDrag = () => {
+    setDragId(null)
+    setDropTarget(null)
+  }
+
+  const onRowDragOver = (e: DragEvent<HTMLDivElement>, targetId: string) => {
+    if (!canDrop(targetId)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const rect = e.currentTarget.getBoundingClientRect()
+    const pos: DropPos = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+    setDropTarget((prev) => (prev && prev.id === targetId && prev.pos === pos ? prev : { id: targetId, pos }))
+  }
+
+  const onRowDrop = () => {
+    if (!dragId || !dropTarget || !canDrop(dropTarget.id)) return resetDrag()
+    const src = getSelectorForId(dragId)
+    const tgt = getSelectorForId(dropTarget.id)
+    if (!src || !tgt) return resetDrag()
+
+    const destZone = tgt.zone
+    let destIndex = dropTarget.pos === 'after' ? tgt.index + 1 : tgt.index
+
+    if (src.zone === destZone) {
+      // Removing the source first shifts everything after it down by one.
+      if (src.index < destIndex) destIndex -= 1
+      if (destIndex !== src.index) {
+        dispatch({ type: 'reorder', sourceIndex: src.index, destinationIndex: destIndex, destinationZone: destZone })
+      }
+    } else {
+      dispatch({
+        type: 'move',
+        sourceIndex: src.index,
+        sourceZone: src.zone,
+        destinationIndex: destIndex,
+        destinationZone: destZone,
+      })
+    }
+    resetDrag()
+  }
+
+  if (tree.length === 0) {
+    return (
+      <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+        No layers yet. Drop a component on the canvas to get started.
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-1.5" onDragEnd={resetDrag}>
+      {tree.map((node) => (
+        <TreeRow
+          key={node.id}
+          node={node}
+          depth={0}
+          selectedId={selectedId}
+          collapsed={collapsed}
+          dropTarget={dropTarget}
+          onSelect={select}
+          onToggle={toggle}
+          onRename={rename}
+          onToggleHidden={toggleHidden}
+          onToggleLocked={toggleLocked}
+          onDragStartRow={setDragId}
+          onDragOverRow={onRowDragOver}
+          onDropRow={onRowDrop}
+        />
+      ))}
+    </div>
+  )
+}
+
+function TreeRow({
+  node,
+  depth,
+  selectedId,
+  collapsed,
+  dropTarget,
+  onSelect,
+  onToggle,
+  onRename,
+  onToggleHidden,
+  onToggleLocked,
+  onDragStartRow,
+  onDragOverRow,
+  onDropRow,
+}: {
+  node: TreeNode
+  depth: number
+  selectedId: string | null
+  collapsed: Set<string>
+  dropTarget: { id: string; pos: DropPos } | null
+  onSelect: (id: string) => void
+  onToggle: (id: string) => void
+  onRename: (id: string, label: string) => void
+  onToggleHidden: (id: string) => void
+  onToggleLocked: (id: string) => void
+  onDragStartRow: (id: string) => void
+  onDragOverRow: (e: DragEvent<HTMLDivElement>, id: string) => void
+  onDropRow: () => void
+}) {
+  const Icon: ComponentType<{ className?: string }> = ICONS[node.type] ?? Square
+  const hasChildren = node.children.length > 0
+  const expanded = hasChildren && !collapsed.has(node.id)
+  const isSelected = node.id === selectedId
+  const isDropTarget = dropTarget?.id === node.id
+  const [editing, setEditing] = useState(false)
+
+  const commit = (value: string) => {
+    onRename(node.id, value)
+    setEditing(false)
+  }
+
+  return (
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        draggable={!editing && !node.locked}
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move'
+          e.dataTransfer.setData('text/plain', node.id)
+          onDragStartRow(node.id)
+        }}
+        onDragOver={(e) => onDragOverRow(e, node.id)}
+        onDrop={(e) => {
+          e.preventDefault()
+          onDropRow()
+        }}
+        onClick={() => {
+          if (!editing) onSelect(node.id)
+        }}
+        onDoubleClick={() => setEditing(true)}
+        style={{ paddingLeft: depth * 14 + 6 }}
+        className={cn(
+          'group relative flex items-center gap-1.5 rounded-md py-1 pr-1.5 text-sm transition-colors',
+          isSelected
+            ? 'bg-primary/15 text-foreground'
+            : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+        )}
+      >
+        {isDropTarget && (
+          <span
+            className={cn(
+              'pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-primary',
+              dropTarget?.pos === 'before' ? 'top-0' : 'bottom-0'
+            )}
+          />
+        )}
+        {hasChildren ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggle(node.id)
+            }}
+            className="flex size-4 shrink-0 items-center justify-center opacity-70 hover:opacity-100"
+            aria-label={expanded ? 'Collapse' : 'Expand'}
+          >
+            {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+          </button>
+        ) : (
+          <span className="size-4 shrink-0" />
+        )}
+        <Icon className={cn('size-3.5 shrink-0', node.hidden ? 'opacity-30' : 'opacity-70')} />
+        {editing ? (
+          <input
+            autoFocus
+            defaultValue={node.label}
+            onClick={(e) => e.stopPropagation()}
+            onBlur={(e) => commit(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commit((e.target as HTMLInputElement).value)
+              else if (e.key === 'Escape') setEditing(false)
+            }}
+            className="min-w-0 flex-1 rounded border border-input bg-background px-1 py-0.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+          />
+        ) : (
+          <>
+            <span className={cn('min-w-0 flex-1 truncate select-none', node.hidden && 'opacity-50')}>
+              {node.label}
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleLocked(node.id)
+              }}
+              className={cn(
+                'flex size-5 shrink-0 items-center justify-center rounded hover:bg-muted',
+                node.locked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              )}
+              aria-label={node.locked ? 'Unlock layer' : 'Lock layer'}
+            >
+              {node.locked ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleHidden(node.id)
+              }}
+              className={cn(
+                'flex size-5 shrink-0 items-center justify-center rounded hover:bg-muted',
+                node.hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              )}
+              aria-label={node.hidden ? 'Show layer' : 'Hide layer'}
+            >
+              {node.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+            </button>
+          </>
+        )}
+      </div>
+      {expanded &&
+        node.children.map((child) => (
+          <TreeRow
+            key={child.id}
+            node={child}
+            depth={depth + 1}
+            selectedId={selectedId}
+            collapsed={collapsed}
+            dropTarget={dropTarget}
+            onSelect={onSelect}
+            onToggle={onToggle}
+            onRename={onRename}
+            onToggleHidden={onToggleHidden}
+            onToggleLocked={onToggleLocked}
+            onDragStartRow={onDragStartRow}
+            onDragOverRow={onDragOverRow}
+            onDropRow={onDropRow}
+          />
+        ))}
+    </>
+  )
+}

@@ -126,9 +126,19 @@ export function Box({
   style?: CSSProperties
   children?: ReactNode
 }) {
+  // `_hidden` (toggled from the Layers panel) hides the block on the published
+  // page / SSR (render nothing). In the editor (`puck.isEditing`) it stays
+  // visible but dimmed so it can still be selected and un-hidden. `puck` is spread
+  // into `s` by Puck; when absent (e.g. plain SSR) we simply hide it.
+  const hidden = s._hidden === true
+  const isEditing = !!(s.puck as { isEditing?: boolean } | undefined)?.isEditing
+  if (hidden && !isEditing) return null
   return createElement(
     as,
-    { className: cn(className, str(s, 'className')), style: { ...styleToCss(s), ...style } },
+    {
+      className: cn(className, str(s, 'className')),
+      style: { ...styleToCss(s), ...style, ...(hidden ? { opacity: 0.4 } : null) },
+    },
     children
   )
 }
