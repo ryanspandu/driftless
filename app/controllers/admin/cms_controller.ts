@@ -16,9 +16,9 @@ export default class CmsController {
   }
 
   async collectionsStore({ request, response }: HttpContext) {
-    const { key, label, icon, group, revisionsOn, draftsOn, fields } = request.all()
+    const { key, label, icon, group, revisionsOn, draftsOn, kind, fields } = request.all()
     try {
-      const col = await cmsService.createCollection({ key, label, icon, group, revisionsOn, draftsOn, fields })
+      const col = await cmsService.createCollection({ key, label, icon, group, revisionsOn, draftsOn, kind, fields })
       return response.status(201).json(col)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
@@ -26,9 +26,9 @@ export default class CmsController {
   }
 
   async collectionsUpdate({ params, request, response }: HttpContext) {
-    const { label, icon, group, revisionsOn, draftsOn } = request.all()
+    const { label, icon, group, revisionsOn, draftsOn, kind } = request.all()
     try {
-      const col = await cmsService.updateCollection(params.key, { label, icon, group, revisionsOn, draftsOn })
+      const col = await cmsService.updateCollection(params.key, { label, icon, group, revisionsOn, draftsOn, kind })
       return response.json(col)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
@@ -101,6 +101,40 @@ export default class CmsController {
     try {
       const fields = await cmsService.reorderFields(params.key, fieldKeys ?? [])
       return response.json(fields)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  // Components
+  async componentsIndex({ response }: HttpContext) {
+    return response.json(await cmsService.listComponents())
+  }
+
+  async componentsStore({ request, response }: HttpContext) {
+    const { key, label, icon, fields } = request.all()
+    try {
+      const c = await cmsService.createComponent({ key, label, icon, fields })
+      return response.status(201).json(c)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  async componentsUpdate({ params, request, response }: HttpContext) {
+    const { label, icon, fields } = request.all()
+    try {
+      const c = await cmsService.updateComponent(params.key, { label, icon, fields })
+      return response.json(c)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  async componentsDestroy({ params, response }: HttpContext) {
+    try {
+      await cmsService.deleteComponent(params.key)
+      return response.json({ success: true })
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
@@ -195,11 +229,26 @@ export default class CmsController {
     return inertia.render('admin/cms/collections/new', {})
   }
 
+  async componentsPage({ inertia }: HttpContext) {
+    return inertia.render('admin/cms/components', {})
+  }
+
   async collectionDetailPage({ params, inertia }: HttpContext) {
     return inertia.render('admin/cms/collection_detail', { collectionKey: params.key })
   }
 
-  async recordsPage({ params, inertia }: HttpContext) {
+  async recordsPage({ params, inertia, response }: HttpContext) {
+    // Single types have no list view: jump straight to their sole entry,
+    // or to the new-entry form if none exists yet.
+    const collection = await cmsService.findCollection(params.key)
+    if (collection.kind === 'single') {
+      const soleId = await cmsService.findSoleRecordId(params.key)
+      return response.redirect(
+        soleId
+          ? `/admin/cms/${params.key}/${soleId}`
+          : `/admin/cms/${params.key}/new`
+      )
+    }
     return inertia.render('admin/cms/records', { collectionKey: params.key })
   }
 
@@ -210,7 +259,16 @@ export default class CmsController {
     })
   }
 
-  async newRecordPage({ params, inertia }: HttpContext) {
+  async newRecordPage({ params, inertia, response }: HttpContext) {
+    // A single type already holding its entry can't create a second one —
+    // redirect back to editing the existing record.
+    const collection = await cmsService.findCollection(params.key)
+    if (collection.kind === 'single') {
+      const soleId = await cmsService.findSoleRecordId(params.key)
+      if (soleId) {
+        return response.redirect(`/admin/cms/${params.key}/${soleId}`)
+      }
+    }
     return inertia.render('admin/cms/record_detail', {
       collectionKey: params.key,
       recordId: 'new',

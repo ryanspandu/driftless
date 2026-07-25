@@ -18,6 +18,7 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
   router
     .group(() => {
       router.get('/api/admin/tasks', [Ctrl, 'index'])
+      router.get('/api/admin/tasks/assignees', [Ctrl, 'assignees'])
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'tasks:read' }))
@@ -27,6 +28,7 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
   router
     .group(() => {
       router.post('/api/admin/tasks', [Ctrl, 'store'])
+      router.patch('/api/admin/tasks/:id/move', [Ctrl, 'move'])
       router.put('/api/admin/tasks/:id', [Ctrl, 'update'])
       router.delete('/api/admin/tasks/:id', [Ctrl, 'destroy'])
     })

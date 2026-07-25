@@ -1,9 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { WebSettingsService, IntegrationSettingsService } from '#services/settings_service'
+import PagesService from '#services/pages_service'
 import { renderPage } from '#helpers/inertia_render'
 
 const webSettingsService = new WebSettingsService()
 const integrationService = new IntegrationSettingsService()
+const pagesService = new PagesService()
 
 export default class SettingsController {
   // Web settings
@@ -23,6 +25,21 @@ export default class SettingsController {
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
+  }
+
+  // Global (site-wide) custom code — CSS/JS injected on every published page.
+  async getPageCode({ response }: HttpContext) {
+    const snippets = await webSettingsService.getGlobalCode()
+    return response.json({ snippets })
+  }
+
+  async updatePageCode({ request, response }: HttpContext) {
+    const { snippets } = request.all()
+    const saved = await webSettingsService.setGlobalCode(snippets)
+    // Site-wide code changes affect every public page → bust SSG snapshots so
+    // cached HTML is re-rendered with the new code.
+    await pagesService.invalidateAllSnapshots()
+    return response.json({ snippets: saved })
   }
 
   // Integration settings
@@ -51,6 +68,11 @@ export default class SettingsController {
   // Pages
   async settingsPage({ inertia }: HttpContext) {
     return inertia.render('admin/settings', {})
+  }
+
+  /** Public website settings — site/SEO + global meta tags + global custom code. */
+  async websiteSettingsPage({ inertia }: HttpContext) {
+    return inertia.render('admin/website-settings', {})
   }
 
   async applicationSettingsPage({ inertia }: HttpContext) {

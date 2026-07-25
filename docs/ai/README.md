@@ -12,6 +12,7 @@ Reference docs for AI coding assistants (Cursor, Claude Code, GitHub Copilot, Co
 | [backend.md](./backend.md) | Controllers, services, validators, middleware |
 | [frontend.md](./frontend.md) | Inertia pages, hooks, UI components |
 | [cms.md](./cms.md) | Dynamic collections, fields, revisions, sidebar grouping |
+| [cms-content-modeling.md](./cms-content-modeling.md) | Field-type catalog, single types, relations (4 cardinalities), components (inline + registry), per-field width |
 | [plugins.md](./plugins.md) | Plugin system: co-located BE+FE, two front-ends, runtime enable/disable |
 | [modules.md](./modules.md) | Module system: first-party app areas (DB-toggled), `make:module`, Settings → Application |
 | [auth-and-permissions.md](./auth-and-permissions.md) | Session auth, OAuth, permission grammar |
@@ -19,6 +20,15 @@ Reference docs for AI coding assistants (Cursor, Claude Code, GitHub Copilot, Co
 | [api-docs.md](./api-docs.md) | Auto OpenAPI docs (adonis-autoswagger + Scalar at `/api/docs`, **dev-only**); implemented |
 | [api-v1.md](./api-v1.md) | External token-authed API (`/api/v1`, PAT + access tokens, content/CMS, RBAC ∩ ability, Redis rate-limit); **implemented** |
 | [testing.md](./testing.md) | Japa suites and patterns |
+
+## Page builder
+
+| Doc | Topics |
+|-----|--------|
+| [pages-builder.md](./pages-builder.md) | Puck visual page builder: blocks, render modes (SSR/SSG/CSR), collection binding |
+| [builder-layers.md](./builder-layers.md) | Webflow-style custom builder layout: Layers tree + Detail style panel + navbar |
+| [templates.md](./templates.md) | Reusable HEADER/FOOTER/LAYOUT/COMPONENT templates + per-page composition |
+| [page-settings.md](./page-settings.md) | Page Settings (SEO, General) + per-page & site-wide custom code/meta; `/admin/website-settings` |
 
 ## Legacy / ops
 

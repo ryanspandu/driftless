@@ -1,6 +1,6 @@
 import { useMemo, useState, type ComponentType, type DragEvent } from 'react'
 import { usePuck, type ComponentData, type Config } from '@measured/puck'
-import { ChevronDown, ChevronRight, Eye, EyeOff, Lock, LockOpen, Square } from 'lucide-react'
+import { ChevronDown, ChevronRight, Eye, EyeOff, Lock, LockOpen, Square, Trash2 } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { ICONS, LABELS } from './overrides'
 
@@ -22,11 +22,13 @@ interface TreeNode {
   label: string
   hidden: boolean
   locked: boolean
+  /** True when the component type has a slot — i.e. it can hold children. */
+  isContainer: boolean
   children: TreeNode[]
 }
 
 type RawItem = { type: string; props?: Record<string, unknown> }
-type DropPos = 'before' | 'after'
+type DropPos = 'before' | 'after' | 'inside'
 
 /** Slot field names for a component type (Puck `type: 'slot'` fields). */
 function slotFieldsFor(type: string, config: Config): string[] {
@@ -44,16 +46,19 @@ function buildTree(items: RawItem[] | undefined, config: Config): TreeNode[] {
     const props = (item.props ?? {}) as Record<string, unknown>
     const id = typeof props.id === 'string' ? props.id : null
     if (!id) continue
-    const children = slotFieldsFor(item.type, config).flatMap((slot) =>
+    const slots = slotFieldsFor(item.type, config)
+    const children = slots.flatMap((slot) =>
       buildTree(props[slot] as RawItem[] | undefined, config)
     )
     const custom = typeof props._label === 'string' ? props._label.trim() : ''
+    const configLabel = (config.components?.[item.type] as { label?: string } | undefined)?.label
     out.push({
       id,
       type: item.type,
-      label: custom || LABELS[item.type] || item.type,
+      label: custom || configLabel || LABELS[item.type] || item.type,
       hidden: props._hidden === true,
       locked: props._locked === true,
+      isContainer: slots.length > 0,
       children,
     })
   }
@@ -141,6 +146,15 @@ export function LayersTree() {
     })
   }
 
+  const remove = (id: string) => {
+    const sel = getSelectorForId(id)
+    if (!sel) return
+    // Clear selection first if we're deleting the selected layer (avoids a stale
+    // selectedItem in the Detail panel between dispatches).
+    if (selectedId === id) dispatch({ type: 'setUi', ui: { itemSelector: null } })
+    dispatch({ type: 'remove', index: sel.index, zone: sel.zone })
+  }
+
   const toggle = (id: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev)
@@ -158,24 +172,64 @@ export function LayersTree() {
     setDropTarget(null)
   }
 
-  const onRowDragOver = (e: DragEvent<HTMLDivElement>, targetId: string) => {
+  const onRowDragOver = (e: DragEvent<HTMLDivElement>, targetId: string, isContainer: boolean) => {
     if (!canDrop(targetId)) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     const rect = e.currentTarget.getBoundingClientRect()
-    const pos: DropPos = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+    const y = e.clientY - rect.top
+    let pos: DropPos
+    if (isContainer) {
+      // Top / bottom thirds = sibling before/after; middle = drop INSIDE — the
+      // only way to fill an (often empty) container from the tree.
+      if (y < rect.height * 0.3) pos = 'before'
+      else if (y > rect.height * 0.7) pos = 'after'
+      else pos = 'inside'
+    } else {
+      pos = y < rect.height / 2 ? 'before' : 'after'
+    }
     setDropTarget((prev) => (prev && prev.id === targetId && prev.pos === pos ? prev : { id: targetId, pos }))
+  }
+
+  // Drop INTO a container: address its first slot zone (`${id}:${slot}`) and
+  // append — works even when the container is currently empty.
+  const dropInside = (containerId: string, src: { index: number; zone: string }) => {
+    const item = getItemById(containerId)
+    const slot = slotFieldsFor(item?.type ?? '', config)[0]
+    if (!slot) return
+    const destZone = `${containerId}:${slot}`
+    const arr = (item?.props as Record<string, unknown> | undefined)?.[slot]
+    let destIndex = Array.isArray(arr) ? arr.length : 0
+    if (src.zone === destZone) {
+      if (src.index < destIndex) destIndex -= 1
+      if (destIndex !== src.index) {
+        dispatch({ type: 'reorder', sourceIndex: src.index, destinationIndex: destIndex, destinationZone: destZone })
+      }
+    } else {
+      dispatch({
+        type: 'move',
+        sourceIndex: src.index,
+        sourceZone: src.zone,
+        destinationIndex: destIndex,
+        destinationZone: destZone,
+      })
+    }
   }
 
   const onRowDrop = () => {
     if (!dragId || !dropTarget || !canDrop(dropTarget.id)) return resetDrag()
     const src = getSelectorForId(dragId)
-    const tgt = getSelectorForId(dropTarget.id)
-    if (!src || !tgt) return resetDrag()
+    if (!src) return resetDrag()
 
+    if (dropTarget.pos === 'inside') {
+      dropInside(dropTarget.id, src)
+      return resetDrag()
+    }
+
+    const tgt = getSelectorForId(dropTarget.id)
+    if (!tgt) return resetDrag()
     const destZone = tgt.zone
     let destIndex = dropTarget.pos === 'after' ? tgt.index + 1 : tgt.index
-
     if (src.zone === destZone) {
       // Removing the source first shifts everything after it down by one.
       if (src.index < destIndex) destIndex -= 1
@@ -215,6 +269,7 @@ export function LayersTree() {
           onSelect={select}
           onToggle={toggle}
           onRename={rename}
+          onDelete={remove}
           onToggleHidden={toggleHidden}
           onToggleLocked={toggleLocked}
           onDragStartRow={setDragId}
@@ -235,6 +290,7 @@ function TreeRow({
   onSelect,
   onToggle,
   onRename,
+  onDelete,
   onToggleHidden,
   onToggleLocked,
   onDragStartRow,
@@ -249,10 +305,11 @@ function TreeRow({
   onSelect: (id: string) => void
   onToggle: (id: string) => void
   onRename: (id: string, label: string) => void
+  onDelete: (id: string) => void
   onToggleHidden: (id: string) => void
   onToggleLocked: (id: string) => void
   onDragStartRow: (id: string) => void
-  onDragOverRow: (e: DragEvent<HTMLDivElement>, id: string) => void
+  onDragOverRow: (e: DragEvent<HTMLDivElement>, id: string, isContainer: boolean) => void
   onDropRow: () => void
 }) {
   const Icon: ComponentType<{ className?: string }> = ICONS[node.type] ?? Square
@@ -278,7 +335,7 @@ function TreeRow({
           e.dataTransfer.setData('text/plain', node.id)
           onDragStartRow(node.id)
         }}
-        onDragOver={(e) => onDragOverRow(e, node.id)}
+        onDragOver={(e) => onDragOverRow(e, node.id, node.isContainer)}
         onDrop={(e) => {
           e.preventDefault()
           onDropRow()
@@ -295,14 +352,16 @@ function TreeRow({
             : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
         )}
       >
-        {isDropTarget && (
+        {isDropTarget && dropTarget?.pos === 'inside' ? (
+          <span className="pointer-events-none absolute inset-0 rounded-md ring-2 ring-inset ring-primary" />
+        ) : isDropTarget ? (
           <span
             className={cn(
               'pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-primary',
               dropTarget?.pos === 'before' ? 'top-0' : 'bottom-0'
             )}
           />
-        )}
+        ) : null}
         {hasChildren ? (
           <button
             type="button"
@@ -333,9 +392,25 @@ function TreeRow({
           />
         ) : (
           <>
-            <span className={cn('min-w-0 flex-1 truncate select-none', node.hidden && 'opacity-50')}>
+            <span
+              title="Double-click to rename"
+              className={cn('min-w-0 flex-1 truncate select-none', node.hidden && 'opacity-50')}
+            >
               {node.label}
             </span>
+            {!node.locked && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(node.id)
+                }}
+                className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-destructive group-hover:opacity-100"
+                aria-label="Delete layer"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            )}
             <button
               type="button"
               onClick={(e) => {
@@ -379,6 +454,7 @@ function TreeRow({
             onSelect={onSelect}
             onToggle={onToggle}
             onRename={onRename}
+            onDelete={onDelete}
             onToggleHidden={onToggleHidden}
             onToggleLocked={onToggleLocked}
             onDragStartRow={onDragStartRow}

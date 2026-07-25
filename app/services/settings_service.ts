@@ -13,12 +13,69 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
     site_title: 'Driftless',
     site_description: 'A modern CMS',
     favicon_url: '/logo.svg',
+    // Site-wide custom <meta> tags (JSON array of SiteMetaTag), applied on every
+    // public page.
+    meta: '[]',
   },
   // App configuration toggles (managed from Settings → Application).
   app_config: {
     landing_enabled: '1', // '0' hides the public landing/posts (dashboard-only)
     hidden_nav: '', // comma-separated core sidebar nav titles to hide
   },
+  // Site-wide custom code (CSS/JS) injected on every published builder page.
+  // `snippets` is a JSON array of GlobalCodeSnippet.
+  page_code: {
+    snippets: '[]',
+  },
+}
+
+/** One site-wide custom-code snippet (mirrors the builder's `CodeSnippet`). */
+export interface GlobalCodeSnippet {
+  id: string
+  name: string
+  lang: 'css' | 'js'
+  code: string
+  enabled: boolean
+}
+
+/** One site-wide custom `<meta>` tag. Exactly one of name/property is set. */
+export interface SiteMetaTag {
+  name?: string
+  property?: string
+  content?: string
+}
+
+function parseMetaTags(raw: string | undefined): SiteMetaTag[] {
+  if (!raw) return []
+  try {
+    const v = JSON.parse(raw)
+    if (!Array.isArray(v)) return []
+    return v
+      .map((x) => {
+        const t = (x ?? {}) as Record<string, unknown>
+        const out: SiteMetaTag = { content: typeof t.content === 'string' ? t.content : '' }
+        if (typeof t.name === 'string' && t.name) out.name = t.name
+        else if (typeof t.property === 'string' && t.property) out.property = t.property
+        return out
+      })
+      .filter((t) => t.name || t.property)
+  } catch {
+    return []
+  }
+}
+
+function sanitizeSnippets(input: unknown): GlobalCodeSnippet[] {
+  if (!Array.isArray(input)) return []
+  return input.slice(0, 200).map((v) => {
+    const s = (v ?? {}) as Record<string, unknown>
+    return {
+      id: typeof s.id === 'string' && s.id ? s.id : newUlid(),
+      name: typeof s.name === 'string' ? s.name : '',
+      lang: s.lang === 'js' ? 'js' : 'css',
+      code: typeof s.code === 'string' ? s.code : '',
+      enabled: s.enabled !== false,
+    }
+  })
 }
 
 function encryptSecret(plain: string): string {
@@ -60,6 +117,8 @@ export interface PublicWebAppearance {
   siteTitle: string
   siteDescription: string
   faviconUrl: string
+  /** Site-wide custom <meta> tags, applied on every public page. */
+  metaTags: SiteMetaTag[]
 }
 
 export interface IntegrationSettingsAdmin {
@@ -143,7 +202,14 @@ export class WebSettingsService {
       siteTitle: meta['site_title']?.trim() || 'Driftless',
       siteDescription: meta['site_description']?.trim() || '',
       faviconUrl: meta['favicon_url']?.trim() || '/logo.svg',
+      metaTags: parseMetaTags(meta['meta']),
     }
+  }
+
+  /** Site-wide custom <meta> tags (used by the public render + appearance). */
+  async getSiteMetaTags(): Promise<SiteMetaTag[]> {
+    const sections = await this.getMergedSections()
+    return parseMetaTags(sections['site_meta']?.['meta'])
   }
 
   async applyPatches(
@@ -177,6 +243,26 @@ export class WebSettingsService {
       }
     }
     return this.getDto()
+  }
+
+  /** Site-wide custom CSS/JS snippets injected on every published page. */
+  async getGlobalCode(): Promise<GlobalCodeSnippet[]> {
+    const sections = await this.getMergedSections()
+    const raw = sections['page_code']?.['snippets'] ?? '[]'
+    try {
+      return sanitizeSnippets(JSON.parse(raw))
+    } catch {
+      return []
+    }
+  }
+
+  /** Replace the site-wide snippets (sanitized). Returns the stored result. */
+  async setGlobalCode(snippets: unknown): Promise<GlobalCodeSnippet[]> {
+    const clean = sanitizeSnippets(snippets)
+    await this.applyPatches([
+      { section: 'page_code', key: 'snippets', value: JSON.stringify(clean) },
+    ])
+    return clean
   }
 
   /** App-level toggles (landing on/off + hidden sidebar nav) for any admin. */

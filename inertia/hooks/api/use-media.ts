@@ -10,20 +10,83 @@ export interface PaginatedMedia {
   totalPages: number
 }
 
-const qk = {
-  list: (page: number) => ['media', 'list', page] as const,
+export type MediaListParams = {
+  page?: number
+  pageSize?: number
+  search?: string
+  dateFrom?: string
+  dateTo?: string
 }
 
-export function useMediaList(page = 1, pageSize = 40) {
+const qk = {
+  list: (params: Required<MediaListParams>) => ['media', 'list', params] as const,
+}
+
+export function useMediaList(params: MediaListParams = {}) {
+  const { page = 1, pageSize = 40, search = '', dateFrom = '', dateTo = '' } = params
   return useQuery({
-    queryKey: [...qk.list(page), pageSize] as const,
+    queryKey: qk.list({ page, pageSize, search, dateFrom, dateTo }),
     queryFn: async () => {
       const res = await api.get<PaginatedMedia>('/api/admin/media', {
-        params: { page, pageSize },
+        params: {
+          page,
+          pageSize,
+          ...(search ? { search } : {}),
+          ...(dateFrom ? { dateFrom } : {}),
+          ...(dateTo ? { dateTo } : {}),
+        },
       })
       return res.data
     },
     staleTime: 30_000,
+  })
+}
+
+export function useUpdateMediaMeta() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      id: string
+      title?: string | null
+      description?: string | null
+      alt?: string | null
+    }) => {
+      const { id, ...patch } = input
+      const res = await api.patch<MediaDto>(`/api/admin/media/${id}`, patch)
+      return res.data
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['media'] }),
+  })
+}
+
+export function useReplaceMediaFile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      id: string
+      blob: Blob
+      filename: string
+      width?: number
+      height?: number
+    }) => {
+      const form = new FormData()
+      form.append('file', input.blob, input.filename)
+      if (input.width !== undefined) form.append('width', String(Math.round(input.width)))
+      if (input.height !== undefined) form.append('height', String(Math.round(input.height)))
+      try {
+        const res = await api.post<MediaDto>(`/api/admin/media/${input.id}/file`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        return res.data
+      } catch (err: unknown) {
+        const ax = err as { response?: { status?: number; data?: { message?: string | string[] } } }
+        const status = ax.response?.status ?? 500
+        const raw = ax.response?.data?.message
+        const msg = Array.isArray(raw) ? raw.join(', ') : raw
+        throw new ApiError(status, msg ?? 'Replace failed', ax.response?.data)
+      }
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['media'] }),
   })
 }
 
@@ -97,6 +160,17 @@ export function useForceDeleteMedia() {
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['media'] }),
   })
+}
+
+/**
+ * Append a cache-busting `?v=` derived from `updatedAt` so an image edited in
+ * place (same URL) is re-fetched by the browser instead of served stale.
+ */
+export function mediaSrc(url: string, updatedAt?: string | null): string {
+  if (!updatedAt) return url
+  const v = Date.parse(updatedAt)
+  if (Number.isNaN(v)) return url
+  return `${url}${url.includes('?') ? '&' : '?'}v=${v}`
 }
 
 function formatBytes(bytes: number): string {

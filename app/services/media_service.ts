@@ -1,5 +1,6 @@
-import { MultipartFile } from '@adonisjs/core/bodyparser'
+import type { MultipartFile } from '@adonisjs/core/bodyparser'
 import app from '@adonisjs/core/services/app'
+import { DateTime } from 'luxon'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import Media from '#models/media'
@@ -11,10 +12,21 @@ export interface MediaDto {
   mimeType: string
   size: number
   url: string
+  title: string | null
+  description: string | null
+  alt: string | null
   width: number | null
   height: number | null
   authorId: number | null
   createdAt: string
+  updatedAt: string | null
+}
+
+/** Trim and collapse empty strings to null so metadata stays clean. */
+function normalizeText(v: string | null | undefined): string | null {
+  if (v === null || v === undefined) return null
+  const t = v.trim()
+  return t.length ? t : null
 }
 
 export interface PaginatedMedia {
@@ -30,14 +42,38 @@ export default class MediaService {
     return app.publicPath('uploads')
   }
 
-  async list(params: { page?: number; pageSize?: number }): Promise<PaginatedMedia> {
+  async list(params: {
+    page?: number
+    pageSize?: number
+    search?: string
+    dateFrom?: string
+    dateTo?: string
+  }): Promise<PaginatedMedia> {
     const page = Math.max(1, params.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20))
 
-    const paginated = await Media.query()
-      .whereNull('deleted_at')
-      .orderBy('created_at', 'desc')
-      .paginate(page, pageSize)
+    const query = Media.query().whereNull('deleted_at')
+
+    const search = params.search?.trim()
+    if (search) {
+      query.where((b) => {
+        b.whereILike('filename', `%${search}%`)
+          .orWhereILike('title', `%${search}%`)
+          .orWhereILike('alt', `%${search}%`)
+      })
+    }
+
+    // Date filtering is date-only (no timezone math): `>= from` and `< to + 1 day`.
+    if (params.dateFrom) {
+      const from = DateTime.fromISO(params.dateFrom)
+      if (from.isValid) query.where('created_at', '>=', from.toSQLDate()!)
+    }
+    if (params.dateTo) {
+      const to = DateTime.fromISO(params.dateTo)
+      if (to.isValid) query.where('created_at', '<', to.plus({ days: 1 }).toSQLDate()!)
+    }
+
+    const paginated = await query.orderBy('created_at', 'desc').paginate(page, pageSize)
 
     return {
       items: paginated.all().map((m) => this.toDto(m)),
@@ -78,6 +114,48 @@ export default class MediaService {
     return this.toDto(media)
   }
 
+  /** Update editable metadata (title, description, alt text). */
+  async updateMeta(
+    id: string,
+    patch: { title?: string | null; description?: string | null; alt?: string | null }
+  ): Promise<MediaDto> {
+    const media = await Media.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    if (patch.title !== undefined) media.title = normalizeText(patch.title)
+    if (patch.description !== undefined) media.description = normalizeText(patch.description)
+    if (patch.alt !== undefined) media.alt = normalizeText(patch.alt)
+    await media.save()
+    return this.toDto(media)
+  }
+
+  /**
+   * Overwrite an existing image's bytes in place (crop/resize result). The file
+   * keeps its original name + extension so the public URL stays stable; callers
+   * cache-bust on the client with the new `updatedAt`. New dimensions/size come
+   * from the client, which produced the edited blob.
+   */
+  async replaceFile(
+    id: string,
+    file: MultipartFile,
+    dims: { width?: number | null; height?: number | null }
+  ): Promise<MediaDto> {
+    const media = await Media.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    if (!existsSync(this.uploadDir)) {
+      mkdirSync(this.uploadDir, { recursive: true })
+    }
+
+    await file.move(this.uploadDir, { name: media.filename, overwrite: true })
+
+    media.size = file.size ?? media.size
+    if (typeof dims.width === 'number' && Number.isFinite(dims.width)) {
+      media.width = Math.round(dims.width)
+    }
+    if (typeof dims.height === 'number' && Number.isFinite(dims.height)) {
+      media.height = Math.round(dims.height)
+    }
+    await media.save()
+    return this.toDto(media)
+  }
+
   async remove(id: string): Promise<void> {
     const media = await Media.query().where('id', id).whereNull('deleted_at').firstOrFail()
     media.deletedAt = new Date() as any
@@ -114,10 +192,14 @@ export default class MediaService {
       mimeType: media.mimeType,
       size: media.size,
       url: media.url,
+      title: media.title,
+      description: media.description,
+      alt: media.alt,
       width: media.width,
       height: media.height,
       authorId: media.authorId,
       createdAt: media.createdAt.toISO()!,
+      updatedAt: media.updatedAt?.toISO() ?? null,
     }
   }
 }

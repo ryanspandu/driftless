@@ -31,6 +31,8 @@ export interface RichTextEditorProps {
   value: unknown;
   onChange: (value: unknown) => void;
   disabled?: boolean;
+  /** Display-only: not editable, no toolbar, no border chrome. */
+  readOnly?: boolean;
   placeholder?: string;
   className?: string;
 }
@@ -55,11 +57,12 @@ export function RichTextEditor({
   value,
   onChange,
   disabled,
+  readOnly,
   placeholder,
   className,
 }: RichTextEditorProps) {
   const editor = useEditor({
-    editable: !disabled,
+    editable: !disabled && !readOnly,
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({
@@ -86,10 +89,9 @@ export function RichTextEditor({
 
   useEffect(() => {
     if (!editor) return;
-    if (editor.isEditable === disabled) {
-      editor.setEditable(!disabled);
-    }
-  }, [editor, disabled]);
+    const shouldEdit = !disabled && !readOnly;
+    if (editor.isEditable !== shouldEdit) editor.setEditable(shouldEdit);
+  }, [editor, disabled, readOnly]);
 
   useEffect(() => {
     return () => {
@@ -106,6 +108,14 @@ export function RichTextEditor({
         )}
       >
         Loading editor…
+      </div>
+    );
+  }
+
+  if (readOnly) {
+    return (
+      <div className={className}>
+        <EditorContent editor={editor} />
       </div>
     );
   }

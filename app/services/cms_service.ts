@@ -1,7 +1,9 @@
 import db from '@adonisjs/lucid/services/db'
+import hash from '@adonisjs/core/services/hash'
 import dbConfig from '#config/database'
 import CmsCollection from '#models/cms_collection'
 import CmsField from '#models/cms_field'
+import CmsComponent, { type CmsComponentField } from '#models/cms_component'
 import CmsRevision from '#models/cms_revision'
 import { newUlid } from '#services/ulid_service'
 import CmsPermissionsService from '#services/cms_permissions_service'
@@ -14,15 +16,24 @@ export type CmsFieldType =
   | 'TEXT'
   | 'TEXTAREA'
   | 'NUMBER'
+  | 'INTEGER'
+  | 'DECIMAL'
   | 'BOOL'
   | 'DATE'
   | 'DATETIME'
   | 'SELECT'
+  | 'EMAIL'
+  | 'PASSWORD'
   | 'RICHTEXT'
   | 'MEDIA'
   | 'SLUG'
   | 'JSON'
   | 'REPEATABLE'
+  | 'RELATION'
+  | 'COMPONENT'
+
+/** Relation cardinalities supported by the CMS. */
+export type CmsRelationType = 'manyToOne' | 'oneToOne' | 'manyToMany' | 'oneToMany'
 
 interface FieldDescriptor {
   sqlType: string
@@ -51,15 +62,24 @@ function pgFieldRegistry(): Record<CmsFieldType, FieldDescriptor> {
     TEXT: { sqlType: 'TEXT', allowsUnique: true, allowsIndex: true },
     TEXTAREA: { sqlType: 'TEXT', allowsUnique: false, allowsIndex: false },
     NUMBER: { sqlType: pg ? 'DOUBLE PRECISION' : 'REAL', allowsUnique: true, allowsIndex: true },
+    INTEGER: { sqlType: pg ? 'BIGINT' : 'INTEGER', allowsUnique: true, allowsIndex: true },
+    DECIMAL: { sqlType: pg ? 'DOUBLE PRECISION' : 'REAL', allowsUnique: true, allowsIndex: true },
     BOOL: { sqlType: pg ? 'BOOLEAN' : 'INTEGER', allowsUnique: false, allowsIndex: false },
     DATE: { sqlType: pg ? 'DATE' : 'TEXT', allowsUnique: false, allowsIndex: true },
     DATETIME: { sqlType: pg ? 'TIMESTAMPTZ' : 'TEXT', allowsUnique: false, allowsIndex: true },
     SELECT: { sqlType: 'TEXT', allowsUnique: false, allowsIndex: true },
+    EMAIL: { sqlType: 'TEXT', allowsUnique: true, allowsIndex: true },
+    PASSWORD: { sqlType: 'TEXT', allowsUnique: false, allowsIndex: false },
     RICHTEXT: { sqlType: 'TEXT', allowsUnique: false, allowsIndex: false },
     MEDIA: { sqlType: 'TEXT', allowsUnique: false, allowsIndex: true },
     SLUG: { sqlType: 'TEXT', allowsUnique: true, allowsIndex: true },
     JSON: { sqlType: pg ? 'JSONB' : 'TEXT', allowsUnique: false, allowsIndex: false },
     REPEATABLE: { sqlType: pg ? 'JSONB' : 'TEXT', allowsUnique: false, allowsIndex: false },
+    // RELATION columns are created with a custom FK clause in addRelationField,
+    // not via the generic sqlType path — this descriptor is a placeholder.
+    RELATION: { sqlType: 'TEXT', allowsUnique: false, allowsIndex: true },
+    // COMPONENT stores its structured value (object or array) as JSON.
+    COMPONENT: { sqlType: pg ? 'JSONB' : 'TEXT', allowsUnique: false, allowsIndex: false },
   }
 }
 
@@ -86,6 +106,11 @@ function dynamicTableName(key: string): string {
   return `cms_${key}`
 }
 
+/** Join table backing a many-to-many relation field. */
+function relationJoinTableName(srcKey: string, fieldKey: string): string {
+  return `cms_${srcKey}_${fieldKey}`
+}
+
 export interface CmsCollectionDto {
   id: string
   key: string
@@ -98,6 +123,7 @@ export interface CmsCollectionDto {
   listConfig?: Record<string, unknown>
   revisionsOn: boolean
   draftsOn: boolean
+  kind: 'collection' | 'single'
   fields: CmsFieldDto[]
   createdAt: string
   updatedAt: string
@@ -124,8 +150,116 @@ export interface CmsRecordDto {
   updatedAt: string
 }
 
+export interface CmsComponentDto {
+  id: string
+  key: string
+  label: string
+  icon: string | null
+  fields: CmsComponentField[]
+  createdAt: string
+  updatedAt: string
+}
+
 export default class CmsService {
   private permissions = new CmsPermissionsService()
+
+  // ── Components (reusable field groups) ────────────────────────────────────
+
+  async listComponents(): Promise<CmsComponentDto[]> {
+    const rows = await CmsComponent.query().whereNull('deleted_at').orderBy('label')
+    return rows.map((c) => this.componentToDto(c))
+  }
+
+  async findComponent(key: string): Promise<CmsComponentDto> {
+    const c = await CmsComponent.query().where('key', key).whereNull('deleted_at').firstOrFail()
+    return this.componentToDto(c)
+  }
+
+  async createComponent(dto: {
+    key: string
+    label: string
+    icon?: string | null
+    fields?: CmsComponentField[]
+  }): Promise<CmsComponentDto> {
+    assertValidKey(dto.key, 'component')
+    const existing = await CmsComponent.query()
+      .where('key', dto.key)
+      .whereNull('deleted_at')
+      .first()
+    if (existing) throw new Error(`Component "${dto.key}" already exists`)
+    const c = await CmsComponent.create({
+      id: newUlid(),
+      key: dto.key,
+      label: dto.label,
+      icon: dto.icon ?? null,
+      fields: this.normalizeComponentFields(dto.fields),
+    })
+    return this.componentToDto(c)
+  }
+
+  async updateComponent(
+    key: string,
+    dto: { label?: string; icon?: string | null; fields?: CmsComponentField[] }
+  ): Promise<CmsComponentDto> {
+    const c = await CmsComponent.query().where('key', key).whereNull('deleted_at').firstOrFail()
+    if (dto.label !== undefined) c.label = dto.label
+    if (dto.icon !== undefined) c.icon = dto.icon ?? null
+    if (dto.fields !== undefined) c.fields = this.normalizeComponentFields(dto.fields)
+    await c.save()
+    return this.componentToDto(c)
+  }
+
+  async deleteComponent(key: string): Promise<void> {
+    const c = await CmsComponent.query().where('key', key).whereNull('deleted_at').firstOrFail()
+    // Guard: a component still referenced by a collection field can't be deleted.
+    const componentFields = await CmsField.query().where('type', 'COMPONENT').whereNull('deleted_at')
+    const inUse = componentFields.some((f) => {
+      const cfg = (typeof f.config === 'string' ? JSON.parse(f.config) : f.config) as {
+        componentKey?: string
+      }
+      return cfg?.componentKey === key
+    })
+    if (inUse) {
+      throw new Error('This component is used by a collection field — remove those fields first')
+    }
+    c.deletedAt = new Date() as any
+    await c.save()
+  }
+
+  private normalizeComponentFields(fields: CmsComponentField[] | undefined): CmsComponentField[] {
+    if (!Array.isArray(fields) || fields.length === 0) {
+      throw new Error('A component needs at least one field')
+    }
+    const seen = new Set<string>()
+    const out: CmsComponentField[] = []
+    for (const f of fields) {
+      const key = typeof f?.key === 'string' ? f.key.trim() : ''
+      const label = typeof f?.label === 'string' ? f.label.trim() : ''
+      const type = typeof f?.type === 'string' ? f.type : ''
+      assertValidKey(key, 'component field')
+      if (!label) throw new Error(`Component field "${key}" needs a label`)
+      if (!(type in FIELD_REGISTRY)) throw new Error(`Unknown field type "${type}"`)
+      if (type === 'RELATION' || type === 'COMPONENT' || type === 'PASSWORD') {
+        throw new Error(`Field type "${type}" is not allowed inside a component`)
+      }
+      if (seen.has(key)) throw new Error(`Duplicate component field key "${key}"`)
+      seen.add(key)
+      out.push({ key, label, type })
+    }
+    return out
+  }
+
+  private componentToDto(c: CmsComponent): CmsComponentDto {
+    return {
+      id: c.id,
+      key: c.key,
+      label: c.label,
+      icon: c.icon,
+      fields: Array.isArray(c.fields) ? c.fields : [],
+      createdAt: c.createdAt.toISO()!,
+      updatedAt: c.updatedAt.toISO()!,
+    }
+  }
 
   // ── Collections ──────────────────────────────────────────────────────────
 
@@ -153,6 +287,7 @@ export default class CmsService {
     group?: string
     revisionsOn?: boolean
     draftsOn?: boolean
+    kind?: 'collection' | 'single'
     fields?: Array<{ key: string; label: string; type: CmsFieldType; required?: boolean; unique?: boolean; config?: Record<string, unknown> }>
   }): Promise<CmsCollectionDto> {
     assertValidKey(dto.key, 'collection')
@@ -171,6 +306,7 @@ export default class CmsService {
       listConfig: {},
       revisionsOn: dto.revisionsOn ?? true,
       draftsOn: dto.draftsOn ?? true,
+      kind: dto.kind === 'single' ? 'single' : 'collection',
     })
 
     const fields: CmsField[] = []
@@ -203,7 +339,14 @@ export default class CmsService {
 
   async updateCollection(
     key: string,
-    dto: { label?: string; icon?: string; group?: string; revisionsOn?: boolean; draftsOn?: boolean }
+    dto: {
+      label?: string
+      icon?: string
+      group?: string
+      revisionsOn?: boolean
+      draftsOn?: boolean
+      kind?: 'collection' | 'single'
+    }
   ): Promise<CmsCollectionDto> {
     const collection = await CmsCollection.query()
       .where('key', key)
@@ -218,6 +361,9 @@ export default class CmsService {
     if (dto.group !== undefined) collection.group = dto.group ?? null
     if (dto.revisionsOn !== undefined) collection.revisionsOn = dto.revisionsOn
     if (dto.draftsOn !== undefined) collection.draftsOn = dto.draftsOn
+    if (dto.kind !== undefined) {
+      collection.kind = dto.kind === 'single' ? 'single' : 'collection'
+    }
     await collection.save()
 
     return this.collectionToDto(collection)
@@ -348,6 +494,11 @@ export default class CmsService {
     if (!desc) throw new Error(`Unknown field type "${dto.type}"`)
 
     const order = collection.fields.length
+
+    if (dto.type === 'RELATION') {
+      return this.addRelationField(collection, dto, order)
+    }
+
     const field = await CmsField.create({
       id: newUlid(),
       collectionId: collection.id,
@@ -367,6 +518,205 @@ export default class CmsService {
     return this.fieldToDto(field)
   }
 
+  private parseRelationConfig(config: Record<string, unknown> | undefined): {
+    targetKey: string
+    relationType: CmsRelationType
+  } {
+    const targetKey = typeof config?.targetKey === 'string' ? config.targetKey.trim() : ''
+    if (!targetKey) throw new Error('Relation requires a target collection')
+    const rt = config?.relationType
+    const relationType: CmsRelationType =
+      rt === 'oneToOne' || rt === 'manyToMany' || rt === 'oneToMany' ? rt : 'manyToOne'
+    return { targetKey, relationType }
+  }
+
+  /**
+   * Add a relation field. Each cardinality maps to its own storage:
+   * - manyToOne / oneToOne → a single FK column on the source row,
+   * - manyToMany → a `cms_<src>_<key>` join table,
+   * - oneToMany → an inverse FK column on the target table.
+   * The CmsField row + the DDL commit together in a transaction.
+   */
+  private async addRelationField(
+    collection: CmsCollection,
+    dto: { key: string; label: string; config?: Record<string, unknown> },
+    order: number
+  ): Promise<CmsFieldDto> {
+    const rel = this.parseRelationConfig(dto.config)
+
+    const target = await CmsCollection.query()
+      .where('key', rel.targetKey)
+      .whereNull('deleted_at')
+      .first()
+    if (!target) throw new Error(`Relation target "${rel.targetKey}" does not exist`)
+    if (target.source !== 'DYNAMIC') {
+      throw new Error('Relations can only target dynamic collections')
+    }
+
+    const srcTable = dynamicTableName(collection.key)
+    const targetTable = dynamicTableName(target.key)
+
+    const config: Record<string, unknown> = {
+      targetKey: rel.targetKey,
+      relationType: rel.relationType,
+    }
+    let ddl: string
+
+    if (rel.relationType === 'manyToMany') {
+      const joinTable = relationJoinTableName(collection.key, dto.key)
+      config.joinTable = joinTable
+      ddl =
+        `CREATE TABLE IF NOT EXISTS "${joinTable}" (` +
+        `"source_id" TEXT NOT NULL REFERENCES "${srcTable}" ("id") ON DELETE CASCADE, ` +
+        `"target_id" TEXT NOT NULL REFERENCES "${targetTable}" ("id") ON DELETE CASCADE, ` +
+        `PRIMARY KEY ("source_id", "target_id"))`
+    } else if (rel.relationType === 'oneToMany') {
+      // The "many" side (target) holds the FK back to this record.
+      const inverseColumn = `${collection.key}_${dto.key}`
+      if (inverseColumn.length > 63) {
+        throw new Error('Relation key is too long for a one-to-many column')
+      }
+      config.inverseColumn = inverseColumn
+      ddl =
+        `ALTER TABLE "${targetTable}" ADD COLUMN "${inverseColumn}" TEXT NULL ` +
+        `REFERENCES "${srcTable}" ("id") ON DELETE SET NULL`
+    } else {
+      // manyToOne / oneToOne: a single FK column on the source row.
+      const uniqueClause = rel.relationType === 'oneToOne' ? ' UNIQUE' : ''
+      ddl =
+        `ALTER TABLE "${srcTable}" ADD COLUMN "${dto.key}" TEXT NULL${uniqueClause} ` +
+        `REFERENCES "${targetTable}" ("id") ON DELETE SET NULL`
+    }
+
+    const trx = await db.transaction()
+    try {
+      const field = await CmsField.create(
+        {
+          id: newUlid(),
+          collectionId: collection.id,
+          key: dto.key,
+          label: dto.label,
+          type: 'RELATION',
+          required: false,
+          unique: rel.relationType === 'oneToOne',
+          order,
+          config,
+        },
+        { client: trx }
+      )
+      await trx.rawQuery(ddl)
+      await trx.commit()
+      return this.fieldToDto(field)
+    } catch (e) {
+      await trx.rollback()
+      throw e
+    }
+  }
+
+  /** A relation whose value is a list, stored outside the record row. */
+  private isMultiRelation(field: CmsField): boolean {
+    if (field.type !== 'RELATION') return false
+    const rt = (field.config as { relationType?: string })?.relationType
+    return rt === 'manyToMany' || rt === 'oneToMany'
+  }
+
+  /**
+   * Fill `data[fieldKey]` with related ids (raw id arrays) for every
+   * many-to-many / one-to-many field on the given record DTOs.
+   */
+  private async resolveMultiRelations(
+    collection: CmsCollection,
+    dtos: CmsRecordDto[]
+  ): Promise<void> {
+    if (!dtos.length) return
+    const relFields = collection.fields.filter((f) => this.isMultiRelation(f))
+    if (!relFields.length) return
+
+    const ids = dtos.map((d) => d.id)
+    for (const field of relFields) {
+      const cfg = field.config as {
+        relationType?: string
+        joinTable?: string
+        inverseColumn?: string
+        targetKey?: string
+      }
+      const map = new Map<string, string[]>()
+
+      if (cfg.relationType === 'manyToMany') {
+        const joinTable = cfg.joinTable ?? relationJoinTableName(collection.key, field.key)
+        const rows = await db
+          .from(joinTable)
+          .whereIn('source_id', ids)
+          .select('source_id', 'target_id')
+        for (const r of rows) {
+          const src = String(r.source_id)
+          const arr = map.get(src) ?? []
+          arr.push(String(r.target_id))
+          map.set(src, arr)
+        }
+      } else {
+        const targetTable = dynamicTableName(cfg.targetKey ?? '')
+        const col = cfg.inverseColumn ?? `${collection.key}_${field.key}`
+        const rows = await db
+          .from(targetTable)
+          .whereIn(col, ids)
+          .whereNull('deleted_at')
+          .select('id', col)
+        for (const r of rows) {
+          const src = String(r[col])
+          const arr = map.get(src) ?? []
+          arr.push(String(r.id))
+          map.set(src, arr)
+        }
+      }
+
+      for (const d of dtos) d.data[field.key] = map.get(d.id) ?? []
+    }
+  }
+
+  /**
+   * Persist many-to-many / one-to-many selections for a record. Only fields
+   * present in `data` are touched, so partial updates leave others intact.
+   */
+  private async syncMultiRelations(
+    collection: CmsCollection,
+    recordId: string,
+    data: Record<string, unknown>
+  ): Promise<void> {
+    const relFields = collection.fields.filter((f) => this.isMultiRelation(f))
+    for (const field of relFields) {
+      if (!(field.key in data)) continue
+      const raw = data[field.key]
+      const targetIds = Array.isArray(raw)
+        ? raw.filter((x): x is string => typeof x === 'string' && x.length > 0)
+        : []
+      const cfg = field.config as {
+        relationType?: string
+        joinTable?: string
+        inverseColumn?: string
+        targetKey?: string
+      }
+
+      if (cfg.relationType === 'manyToMany') {
+        const joinTable = cfg.joinTable ?? relationJoinTableName(collection.key, field.key)
+        await db.from(joinTable).where('source_id', recordId).delete()
+        if (targetIds.length) {
+          await db
+            .table(joinTable)
+            .multiInsert(targetIds.map((t) => ({ source_id: recordId, target_id: t })))
+        }
+      } else {
+        // oneToMany: repoint the target rows' inverse FK to this record.
+        const targetTable = dynamicTableName(cfg.targetKey ?? '')
+        const col = cfg.inverseColumn ?? `${collection.key}_${field.key}`
+        await db.from(targetTable).where(col, recordId).update({ [col]: null })
+        if (targetIds.length) {
+          await db.from(targetTable).whereIn('id', targetIds).update({ [col]: recordId })
+        }
+      }
+    }
+  }
+
   async deleteField(collectionKey: string, fieldKey: string): Promise<void> {
     const collection = await CmsCollection.query()
       .where('key', collectionKey)
@@ -380,6 +730,41 @@ export default class CmsService {
       .where('key', fieldKey)
       .whereNull('deleted_at')
       .firstOrFail()
+
+    if (field.type === 'RELATION') {
+      // Relations own real schema (FK column, join table, or inverse FK) — drop
+      // it for real so a dangling constraint can't block future changes.
+      const cfg = (field.config ?? {}) as {
+        relationType?: string
+        joinTable?: string
+        inverseColumn?: string
+        targetKey?: string
+      }
+      let ddl: string
+      if (cfg.relationType === 'manyToMany') {
+        const joinTable = cfg.joinTable ?? relationJoinTableName(collectionKey, fieldKey)
+        ddl = `DROP TABLE IF EXISTS "${joinTable}"`
+      } else if (cfg.relationType === 'oneToMany') {
+        const targetTable = dynamicTableName(cfg.targetKey ?? '')
+        const inverseColumn = cfg.inverseColumn ?? `${collectionKey}_${fieldKey}`
+        ddl = `ALTER TABLE "${targetTable}" DROP COLUMN IF EXISTS "${inverseColumn}"`
+      } else {
+        ddl = `ALTER TABLE "${dynamicTableName(collectionKey)}" DROP COLUMN IF EXISTS "${fieldKey}"`
+      }
+
+      const trx = await db.transaction()
+      try {
+        field.deletedAt = new Date() as any
+        field.useTransaction(trx)
+        await field.save()
+        await trx.rawQuery(ddl)
+        await trx.commit()
+      } catch (e) {
+        await trx.rollback()
+        throw e
+      }
+      return
+    }
 
     field.deletedAt = new Date() as any
     await field.save()
@@ -408,8 +793,10 @@ export default class CmsService {
       .limit(pageSize)
       .offset(offset)
 
+    const items = rows.map((r: any) => this.rowToRecordDto(r, collection))
+    await this.resolveMultiRelations(collection, items)
     return {
-      items: rows.map((r: any) => this.rowToRecordDto(r, collection)),
+      items,
       page,
       pageSize,
       total,
@@ -421,7 +808,24 @@ export default class CmsService {
     const { table, collection } = await this.resolveRecordContext(collectionKey)
     const row = await db.from(table).where('id', id).whereNull('deleted_at').first()
     if (!row) throw new Error('Record not found')
-    return this.rowToRecordDto(row, collection)
+    const dto = this.rowToRecordDto(row, collection)
+    await this.resolveMultiRelations(collection, [dto])
+    return dto
+  }
+
+  /**
+   * The id of a collection's single existing record (most-recent first), or
+   * null if it has none yet. Used to route single types straight to their entry.
+   */
+  async findSoleRecordId(collectionKey: string): Promise<string | null> {
+    const { table } = await this.resolveRecordContext(collectionKey)
+    const row = await db
+      .from(table)
+      .whereNull('deleted_at')
+      .orderBy(this.orderColumnForTable(table), 'desc')
+      .select('id')
+      .first()
+    return row?.id != null ? String(row.id) : null
   }
 
   async createRecord(
@@ -440,6 +844,13 @@ export default class CmsService {
     }
 
     const table = this.tableForCollection(collection)
+
+    if (collection.kind === 'single') {
+      const counted = await db.from(table).whereNull('deleted_at').count('* as total')
+      const total = Number((counted[0] as any)?.total ?? 0)
+      if (total > 0) throw new Error('This is a single type — it can only have one entry')
+    }
+
     const id = collectionKey === 'user' ? undefined : newUlid()
     const data = this.prepareRecordData(collection, dto.data)
     const status =
@@ -473,6 +884,13 @@ export default class CmsService {
       if (col === 'status') continue
       this.ensureSlugValue(field, data)
       const val = data[field.key]
+      if (field.type === 'PASSWORD') {
+        payload[col] =
+          val === undefined || val === null || val === '' ? null : await hash.make(String(val))
+        continue
+      }
+      // many-to-many / one-to-many live outside the row — synced after insert.
+      if (this.isMultiRelation(field)) continue
       payload[col] = this.serializeFieldValue(field.type, val)
     }
 
@@ -485,19 +903,23 @@ export default class CmsService {
     const insertedId = id ?? (await db.from(table).orderBy('id', 'desc').select('id').first())?.id
     if (!insertedId) throw new Error('Failed to create record')
 
+    await this.syncMultiRelations(collection, String(insertedId), data)
+
     if (collection.revisionsOn) {
       await CmsRevision.create({
         id: newUlid(),
         collectionKey,
         recordId: String(insertedId),
-        data,
+        data: this.redactWriteOnly(collection, data),
         status: status as 'DRAFT' | 'PUBLISHED',
         authorId,
       })
     }
 
     const row = await db.from(table).where('id', insertedId).first()
-    return this.rowToRecordDto(row, collection)
+    const result = this.rowToRecordDto(row, collection)
+    await this.resolveMultiRelations(collection, [result])
+    return result
   }
 
   async updateRecord(
@@ -523,8 +945,10 @@ export default class CmsService {
     const payload: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (dto.status !== undefined) payload['status'] = dto.status
 
+    let preparedData: Record<string, unknown> | null = null
     if (dto.data) {
       const data = this.prepareRecordData(collection, dto.data, { partial: true })
+      preparedData = data
       if (collectionKey === 'content' && data.slug !== undefined) {
         await this.assertContentSlugAvailable(String(data.slug), id)
       }
@@ -533,6 +957,15 @@ export default class CmsService {
         const col = this.fieldToColumn(collection, field.key)
         if (col === 'status') continue
         this.ensureSlugValue(field, data)
+        if (field.type === 'PASSWORD') {
+          const pv = data[field.key]
+          // Leave-blank-to-keep: an empty submission never overwrites the hash.
+          if (pv === undefined || pv === null || pv === '') continue
+          payload[col] = await hash.make(String(pv))
+          continue
+        }
+        // many-to-many / one-to-many live outside the row — synced below.
+        if (this.isMultiRelation(field)) continue
         payload[col] = this.serializeFieldValue(field.type, data[field.key])
       }
     }
@@ -541,6 +974,10 @@ export default class CmsService {
       await db.from(table).where('id', id).update(payload)
     } catch (e) {
       throw this.rethrowDbError(e)
+    }
+
+    if (preparedData) {
+      await this.syncMultiRelations(collection, id, preparedData)
     }
 
     if (collection.revisionsOn) {
@@ -554,14 +991,16 @@ export default class CmsService {
         id: newUlid(),
         collectionKey,
         recordId: id,
-        data: fieldData,
+        data: this.redactWriteOnly(collection, fieldData),
         status: (updated?.status ?? 'DRAFT') as 'DRAFT' | 'PUBLISHED',
         authorId,
       })
     }
 
     const row = await db.from(table).where('id', id).first()
-    return this.rowToRecordDto(row, collection)
+    const result = this.rowToRecordDto(row, collection)
+    await this.resolveMultiRelations(collection, [result])
+    return result
   }
 
   async deleteRecord(collectionKey: string, id: string): Promise<void> {
@@ -724,6 +1163,12 @@ export default class CmsService {
         this.ensureSlugValue(field, out)
       }
 
+      // Coerce + validate typed scalars whenever a value is supplied
+      // (applies to both create and partial update).
+      if (field.key in out) {
+        out[field.key] = this.coerceFieldValue(field, out[field.key])
+      }
+
       if (opts?.partial) continue
 
       if (!field.required) continue
@@ -737,6 +1182,40 @@ export default class CmsService {
     }
 
     return out
+  }
+
+  /**
+   * Coerce + validate a supplied scalar value by field type. Throws a
+   * user-facing error for malformed input. Empty/nullish values pass through —
+   * required-ness is enforced separately in {@link prepareRecordData}.
+   */
+  private coerceFieldValue(field: CmsField, val: unknown): unknown {
+    if (val === undefined || val === null || val === '') return val
+    switch (field.type) {
+      case 'EMAIL': {
+        const s = String(val).trim()
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) {
+          throw new Error(`${field.label} must be a valid email address`)
+        }
+        return s
+      }
+      case 'INTEGER': {
+        const n = Number(val)
+        if (!Number.isFinite(n) || !Number.isInteger(n)) {
+          throw new Error(`${field.label} must be a whole number`)
+        }
+        return n
+      }
+      case 'DECIMAL': {
+        const n = Number(val)
+        if (!Number.isFinite(n)) {
+          throw new Error(`${field.label} must be a number`)
+        }
+        return n
+      }
+      default:
+        return val
+    }
   }
 
   private rethrowDbError(e: unknown): Error {
@@ -760,7 +1239,12 @@ export default class CmsService {
 
   private serializeFieldValue(type: string, val: unknown): unknown {
     if (val === undefined || val === null) return null
-    if (type === 'JSON' || type === 'RICHTEXT' || type === 'REPEATABLE') {
+    if (
+      type === 'JSON' ||
+      type === 'RICHTEXT' ||
+      type === 'REPEATABLE' ||
+      type === 'COMPONENT'
+    ) {
       return typeof val === 'string' ? val : JSON.stringify(val)
     }
     if (type === 'BOOL') {
@@ -770,12 +1254,29 @@ export default class CmsService {
     return val
   }
 
+  /** Null out write-only fields (PASSWORD) so secrets never leave the server. */
+  private redactWriteOnly(
+    collection: CmsCollection,
+    data: Record<string, unknown>
+  ): Record<string, unknown> {
+    const out = { ...data }
+    for (const field of collection.fields) {
+      if (field.type === 'PASSWORD') out[field.key] = null
+    }
+    return out
+  }
+
   private rowToRecordDto(row: any, collection?: CmsCollection): CmsRecordDto {
     const { id, status, author_id, created_at, updated_at, deleted_at, ...rest } = row
     const data: Record<string, unknown> = {}
 
     if (collection?.fields?.length) {
       for (const field of collection.fields) {
+        // Write-only fields never leave the server (e.g. password hashes).
+        if (field.type === 'PASSWORD') {
+          data[field.key] = null
+          continue
+        }
         const col = this.fieldToColumn(collection, field.key)
         data[field.key] = rest[col] ?? rest[field.key] ?? null
       }
@@ -808,6 +1309,7 @@ export default class CmsService {
       listConfig: col.listConfig ?? {},
       revisionsOn: col.revisionsOn,
       draftsOn: col.draftsOn,
+      kind: col.kind ?? 'collection',
       fields: col.fields?.map((f) => this.fieldToDto(f)) ?? [],
       createdAt: col.createdAt.toISO()!,
       updatedAt: col.updatedAt.toISO()!,

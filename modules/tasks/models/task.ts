@@ -1,5 +1,7 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import User from '#models/user'
 
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE'
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH'
@@ -27,7 +29,13 @@ export default class Task extends BaseModel {
   declare dueDate: DateTime | null
 
   @column()
+  declare position: number
+
+  @column()
   declare assignedUserId: number | null
+
+  @belongsTo(() => User, { foreignKey: 'assignedUserId' })
+  declare assignedUser: BelongsTo<typeof User>
 
   @column()
   declare createdByUserId: number | null

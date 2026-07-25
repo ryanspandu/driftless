@@ -109,7 +109,12 @@ runtime from `/admin/plugins`. Full reference: [docs/ai/plugins.md](docs/ai/plug
 | [docs/ai/backend.md](docs/ai/backend.md) | Controllers, services |
 | [docs/ai/frontend.md](docs/ai/frontend.md) | Inertia, React, UI |
 | [docs/ai/cms.md](docs/ai/cms.md) | Collections, records |
+| [docs/ai/pages-builder.md](docs/ai/pages-builder.md) | Visual page builder (Puck): blocks, render modes, collections |
+| [docs/ai/builder-layers.md](docs/ai/builder-layers.md) | Builder custom layout: Layers + Detail style panel + navbar |
+| [docs/ai/templates.md](docs/ai/templates.md) | Reusable templates (header/footer/layout/component) |
+| [docs/ai/page-settings.md](docs/ai/page-settings.md) | Page Settings + Website settings (custom code, SEO, meta) |
 | [docs/ai/plugins.md](docs/ai/plugins.md) | Plugin system, two FEs, enable/disable |
+| [docs/ai/modules.md](docs/ai/modules.md) | Module system (first-party app areas, DB-toggled) |
 | [docs/ai/api-docs.md](docs/ai/api-docs.md) | OpenAPI docs (adonis-autoswagger + Scalar at `/api/docs`, dev-only) |
 | [docs/ai/api-v1.md](docs/ai/api-v1.md) | External token API (`/api/v1`, PAT, RBAC ∩ ability, Redis rate-limit) |
 | [docs/ai/auth-and-permissions.md](docs/ai/auth-and-permissions.md) | Auth, RBAC |

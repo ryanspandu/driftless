@@ -163,10 +163,13 @@ router
 
     // Content
     router.get('/admin/content', [() => import('#controllers/admin/content_controller'), 'page'])
+    router.get('/admin/content/new', [() => import('#controllers/admin/content_controller'), 'newPage'])
+    router.get('/admin/content/:id/edit', [() => import('#controllers/admin/content_controller'), 'editPage'])
     router
       .group(() => {
         router.get('/api/admin/content', [() => import('#controllers/admin/content_controller'), 'index'])
         router.get('/api/admin/content/trash', [() => import('#controllers/admin/content_controller'), 'trash'])
+        router.get('/api/admin/content/check-slug', [() => import('#controllers/admin/content_controller'), 'checkSlug'])
         router.post('/api/admin/content', [() => import('#controllers/admin/content_controller'), 'store'])
         router.post('/api/admin/content/:id/restore', [() => import('#controllers/admin/content_controller'), 'restore'])
         router.delete('/api/admin/content/:id/force', [() => import('#controllers/admin/content_controller'), 'forceDestroy'])
@@ -178,6 +181,8 @@ router
     // Pages (visual builder)
     router.get('/admin/pages', [() => import('#controllers/admin/pages_controller'), 'page'])
     router.get('/admin/pages/:id/edit', [() => import('#controllers/admin/pages_controller'), 'edit'])
+    // Admin-only preview — renders a page at ANY status (Draft included), uncached.
+    router.get('/admin/pages/:id/preview', [() => import('#controllers/pages_public_controller'), 'preview'])
     router
       .group(() => {
         router.get('/api/admin/pages', [() => import('#controllers/admin/pages_controller'), 'index'])
@@ -233,6 +238,18 @@ router
       })
       .use(middleware.permission({ permission: 'cms:manage' }))
 
+    // CMS Components (reusable field groups) — registered before the :key record
+    // routes so /admin/cms/components isn't captured as a collection key.
+    router.get('/admin/cms/components', [() => import('#controllers/admin/cms_controller'), 'componentsPage'])
+    router
+      .group(() => {
+        router.get('/api/admin/cms/components', [() => import('#controllers/admin/cms_controller'), 'componentsIndex'])
+        router.post('/api/admin/cms/components', [() => import('#controllers/admin/cms_controller'), 'componentsStore'])
+        router.put('/api/admin/cms/components/:key', [() => import('#controllers/admin/cms_controller'), 'componentsUpdate'])
+        router.delete('/api/admin/cms/components/:key', [() => import('#controllers/admin/cms_controller'), 'componentsDestroy'])
+      })
+      .use(middleware.permission({ permission: 'cms:manage' }))
+
     // CMS Records
     router.get('/admin/cms/:key', [() => import('#controllers/admin/cms_controller'), 'recordsPage'])
     router.get('/admin/cms/:key/new', [() => import('#controllers/admin/cms_controller'), 'newRecordPage'])
@@ -262,6 +279,8 @@ router
         router.get('/api/admin/media', [() => import('#controllers/admin/media_controller'), 'index'])
         router.get('/api/admin/media/trash', [() => import('#controllers/admin/media_controller'), 'trash'])
         router.post('/api/admin/media', [() => import('#controllers/admin/media_controller'), 'store'])
+        router.post('/api/admin/media/:id/file', [() => import('#controllers/admin/media_controller'), 'replace'])
+        router.patch('/api/admin/media/:id', [() => import('#controllers/admin/media_controller'), 'update'])
         router.post('/api/admin/media/:id/restore', [() => import('#controllers/admin/media_controller'), 'restore'])
         router.delete('/api/admin/media/:id/force', [() => import('#controllers/admin/media_controller'), 'forceDestroy'])
         router.delete('/api/admin/media/:id', [() => import('#controllers/admin/media_controller'), 'destroy'])
@@ -270,6 +289,7 @@ router
 
     // Settings
     router.get('/admin/settings', [() => import('#controllers/admin/settings_controller'), 'settingsPage'])
+    router.get('/admin/website-settings', [() => import('#controllers/admin/settings_controller'), 'websiteSettingsPage'])
     router.get('/admin/settings/application', [() => import('#controllers/admin/settings_controller'), 'applicationSettingsPage'])
     router.get('/admin/integrations', [() => import('#controllers/admin/settings_controller'), 'integrationsPage'])
     router.get('/admin/integrations/google', [() => import('#controllers/admin/settings_controller'), 'integrationsGooglePage'])
@@ -283,6 +303,11 @@ router
     router.get('/api/admin/settings/integrations', [() => import('#controllers/admin/settings_controller'), 'getIntegrationSettings'])
       .use(middleware.permission({ permission: 'settings:manage' }))
     router.put('/api/admin/settings/integrations', [() => import('#controllers/admin/settings_controller'), 'updateIntegrationSettings'])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+
+    // Global (site-wide) custom code — read open to admins; write gated.
+    router.get('/api/admin/settings/page-code', [() => import('#controllers/admin/settings_controller'), 'getPageCode'])
+    router.put('/api/admin/settings/page-code', [() => import('#controllers/admin/settings_controller'), 'updatePageCode'])
       .use(middleware.permission({ permission: 'settings:manage' }))
 
     // API Tokens (Personal Access Tokens for the external /api/v1 API).

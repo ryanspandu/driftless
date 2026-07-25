@@ -43,8 +43,7 @@ export function useUpdateContent(id: string) {
 export function useDeleteContent() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) =>
-      apiFetch<void>(`/api/admin/content/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiFetch<void>(`/api/admin/content/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.list }),
   })
 }
@@ -77,5 +76,20 @@ export function useForceDeleteContent() {
     mutationFn: (id: string) =>
       apiFetch<void>(`/api/admin/content/${id}/force`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.trash }),
+  })
+}
+
+/** Live slug availability check against the DB (excludes `excludeId` when editing). */
+export function useContentSlugCheck(slug: string, excludeId?: string) {
+  const trimmed = slug.trim()
+  return useQuery({
+    queryKey: ['content', 'slug-check', trimmed, excludeId ?? null] as const,
+    queryFn: () => {
+      const params = new URLSearchParams({ slug: trimmed })
+      if (excludeId) params.set('excludeId', excludeId)
+      return apiFetch<{ available: boolean }>(`/api/admin/content/check-slug?${params.toString()}`)
+    },
+    enabled: trimmed.length > 0,
+    staleTime: 10_000,
   })
 }

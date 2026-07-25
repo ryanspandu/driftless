@@ -17,6 +17,8 @@ type Props = {
   value: string;
   onChange: (next: string) => void;
   disabled?: boolean;
+  /** Hide the field label + intro line (e.g. when embedded in a popover). */
+  showHeader?: boolean;
 };
 
 /**
@@ -28,6 +30,7 @@ export function CollectionIconField({
   value,
   onChange,
   disabled,
+  showHeader = true,
 }: Props) {
   const autoId = useId();
   const fieldId = id ?? `coll-icon-${autoId}`;
@@ -72,10 +75,14 @@ export function CollectionIconField({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={fieldId}>{label}</Label>
-      <p className="text-xs text-muted-foreground">
-        Pick a preset or upload a square image (shown in the sidebar).
-      </p>
+      {showHeader ? (
+        <>
+          <Label htmlFor={fieldId}>{label}</Label>
+          <p className="text-xs text-muted-foreground">
+            Pick a preset or upload a square image (shown in the sidebar).
+          </p>
+        </>
+      ) : null}
       <div className="relative">
         <Search
           className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"

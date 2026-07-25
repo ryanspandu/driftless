@@ -144,6 +144,8 @@ export interface PublicWebAppearance {
   siteTitle: string
   siteDescription: string
   faviconUrl: string
+  /** Site-wide custom <meta> tags, applied on every public page. */
+  metaTags: { name?: string; property?: string; content?: string }[]
 }
 
 export interface AuthPublicConfig {
@@ -383,15 +385,23 @@ export type CmsFieldType =
   | 'TEXT'
   | 'TEXTAREA'
   | 'NUMBER'
+  | 'INTEGER'
+  | 'DECIMAL'
   | 'BOOL'
   | 'DATE'
   | 'DATETIME'
   | 'SELECT'
+  | 'EMAIL'
+  | 'PASSWORD'
   | 'RICHTEXT'
   | 'MEDIA'
   | 'SLUG'
   | 'JSON'
   | 'REPEATABLE'
+  | 'RELATION'
+  | 'COMPONENT'
+
+export type CmsRelationType = 'manyToOne' | 'oneToOne' | 'manyToMany' | 'oneToMany'
 
 export interface CmsFieldDto {
   id: string
@@ -416,6 +426,7 @@ export interface CmsCollectionDto {
   listConfig: Record<string, unknown>
   revisionsOn: boolean
   draftsOn: boolean
+  kind: 'collection' | 'single'
   fields: CmsFieldDto[]
   createdAt: string
   updatedAt: string
@@ -437,6 +448,7 @@ export interface CreateCmsCollectionRequest {
   group?: string
   revisionsOn?: boolean
   draftsOn?: boolean
+  kind?: 'collection' | 'single'
   fields: CreateCmsCollectionFieldRequest[]
 }
 
@@ -446,6 +458,7 @@ export interface UpdateCmsCollectionRequest {
   group?: string | null
   revisionsOn?: boolean
   draftsOn?: boolean
+  kind?: 'collection' | 'single'
 }
 
 export interface AddCmsFieldRequest {
@@ -465,6 +478,35 @@ export interface UpdateCmsFieldRequest {
 
 export interface ReorderCmsFieldsRequest {
   fieldKeys: string[]
+}
+
+export interface CmsComponentField {
+  key: string
+  label: string
+  type: CmsFieldType
+}
+
+export interface CmsComponentDto {
+  id: string
+  key: string
+  label: string
+  icon: string | null
+  fields: CmsComponentField[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCmsComponentRequest {
+  key: string
+  label: string
+  icon?: string | null
+  fields: CmsComponentField[]
+}
+
+export interface UpdateCmsComponentRequest {
+  label?: string
+  icon?: string | null
+  fields?: CmsComponentField[]
 }
 
 export interface CmsRecordDto {
@@ -511,8 +553,14 @@ export interface MediaDto {
   mimeType: string
   size: number
   url: string
+  title: string | null
+  description: string | null
+  alt: string | null
+  width: number | null
+  height: number | null
+  authorId: number | null
   createdAt: string
-  updatedAt: string
+  updatedAt: string | null
 }
 
 // ── Personal Access Tokens (external API /api/v1) ──────────────────────────────

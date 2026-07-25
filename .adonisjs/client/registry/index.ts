@@ -348,6 +348,18 @@ const routes = {
     tokens: [{"old":"/admin/content","type":0,"val":"admin","end":""},{"old":"/admin/content","type":0,"val":"content","end":""}],
     types: placeholder as Registry['content.page']['types'],
   },
+  'content.new_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/content/new',
+    tokens: [{"old":"/admin/content/new","type":0,"val":"admin","end":""},{"old":"/admin/content/new","type":0,"val":"content","end":""},{"old":"/admin/content/new","type":0,"val":"new","end":""}],
+    types: placeholder as Registry['content.new_page']['types'],
+  },
+  'content.edit_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/content/:id/edit',
+    tokens: [{"old":"/admin/content/:id/edit","type":0,"val":"admin","end":""},{"old":"/admin/content/:id/edit","type":0,"val":"content","end":""},{"old":"/admin/content/:id/edit","type":1,"val":"id","end":""},{"old":"/admin/content/:id/edit","type":0,"val":"edit","end":""}],
+    types: placeholder as Registry['content.edit_page']['types'],
+  },
   'content.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/content',
@@ -359,6 +371,12 @@ const routes = {
     pattern: '/api/admin/content/trash',
     tokens: [{"old":"/api/admin/content/trash","type":0,"val":"api","end":""},{"old":"/api/admin/content/trash","type":0,"val":"admin","end":""},{"old":"/api/admin/content/trash","type":0,"val":"content","end":""},{"old":"/api/admin/content/trash","type":0,"val":"trash","end":""}],
     types: placeholder as Registry['content.trash']['types'],
+  },
+  'content.check_slug': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/content/check-slug',
+    tokens: [{"old":"/api/admin/content/check-slug","type":0,"val":"api","end":""},{"old":"/api/admin/content/check-slug","type":0,"val":"admin","end":""},{"old":"/api/admin/content/check-slug","type":0,"val":"content","end":""},{"old":"/api/admin/content/check-slug","type":0,"val":"check-slug","end":""}],
+    types: placeholder as Registry['content.check_slug']['types'],
   },
   'content.store': {
     methods: ["POST"],
@@ -401,6 +419,12 @@ const routes = {
     pattern: '/admin/pages/:id/edit',
     tokens: [{"old":"/admin/pages/:id/edit","type":0,"val":"admin","end":""},{"old":"/admin/pages/:id/edit","type":0,"val":"pages","end":""},{"old":"/admin/pages/:id/edit","type":1,"val":"id","end":""},{"old":"/admin/pages/:id/edit","type":0,"val":"edit","end":""}],
     types: placeholder as Registry['pages.edit']['types'],
+  },
+  'pages_public.preview': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/pages/:id/preview',
+    tokens: [{"old":"/admin/pages/:id/preview","type":0,"val":"admin","end":""},{"old":"/admin/pages/:id/preview","type":0,"val":"pages","end":""},{"old":"/admin/pages/:id/preview","type":1,"val":"id","end":""},{"old":"/admin/pages/:id/preview","type":0,"val":"preview","end":""}],
+    types: placeholder as Registry['pages_public.preview']['types'],
   },
   'pages.index': {
     methods: ["GET","HEAD"],
@@ -612,6 +636,36 @@ const routes = {
     tokens: [{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"api","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"collections","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":1,"val":"key","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":0,"val":"fields","end":""},{"old":"/api/admin/cms/collections/:key/fields/:fieldKey","type":1,"val":"fieldKey","end":""}],
     types: placeholder as Registry['cms.fields_destroy']['types'],
   },
+  'cms.components_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/cms/components',
+    tokens: [{"old":"/admin/cms/components","type":0,"val":"admin","end":""},{"old":"/admin/cms/components","type":0,"val":"cms","end":""},{"old":"/admin/cms/components","type":0,"val":"components","end":""}],
+    types: placeholder as Registry['cms.components_page']['types'],
+  },
+  'cms.components_index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/cms/components',
+    tokens: [{"old":"/api/admin/cms/components","type":0,"val":"api","end":""},{"old":"/api/admin/cms/components","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/components","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/components","type":0,"val":"components","end":""}],
+    types: placeholder as Registry['cms.components_index']['types'],
+  },
+  'cms.components_store': {
+    methods: ["POST"],
+    pattern: '/api/admin/cms/components',
+    tokens: [{"old":"/api/admin/cms/components","type":0,"val":"api","end":""},{"old":"/api/admin/cms/components","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/components","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/components","type":0,"val":"components","end":""}],
+    types: placeholder as Registry['cms.components_store']['types'],
+  },
+  'cms.components_update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/cms/components/:key',
+    tokens: [{"old":"/api/admin/cms/components/:key","type":0,"val":"api","end":""},{"old":"/api/admin/cms/components/:key","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/components/:key","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/components/:key","type":0,"val":"components","end":""},{"old":"/api/admin/cms/components/:key","type":1,"val":"key","end":""}],
+    types: placeholder as Registry['cms.components_update']['types'],
+  },
+  'cms.components_destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/cms/components/:key',
+    tokens: [{"old":"/api/admin/cms/components/:key","type":0,"val":"api","end":""},{"old":"/api/admin/cms/components/:key","type":0,"val":"admin","end":""},{"old":"/api/admin/cms/components/:key","type":0,"val":"cms","end":""},{"old":"/api/admin/cms/components/:key","type":0,"val":"components","end":""},{"old":"/api/admin/cms/components/:key","type":1,"val":"key","end":""}],
+    types: placeholder as Registry['cms.components_destroy']['types'],
+  },
   'cms.records_page': {
     methods: ["GET","HEAD"],
     pattern: '/admin/cms/:key',
@@ -714,6 +768,18 @@ const routes = {
     tokens: [{"old":"/api/admin/media","type":0,"val":"api","end":""},{"old":"/api/admin/media","type":0,"val":"admin","end":""},{"old":"/api/admin/media","type":0,"val":"media","end":""}],
     types: placeholder as Registry['media.store']['types'],
   },
+  'media.replace': {
+    methods: ["POST"],
+    pattern: '/api/admin/media/:id/file',
+    tokens: [{"old":"/api/admin/media/:id/file","type":0,"val":"api","end":""},{"old":"/api/admin/media/:id/file","type":0,"val":"admin","end":""},{"old":"/api/admin/media/:id/file","type":0,"val":"media","end":""},{"old":"/api/admin/media/:id/file","type":1,"val":"id","end":""},{"old":"/api/admin/media/:id/file","type":0,"val":"file","end":""}],
+    types: placeholder as Registry['media.replace']['types'],
+  },
+  'media.update': {
+    methods: ["PATCH"],
+    pattern: '/api/admin/media/:id',
+    tokens: [{"old":"/api/admin/media/:id","type":0,"val":"api","end":""},{"old":"/api/admin/media/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/media/:id","type":0,"val":"media","end":""},{"old":"/api/admin/media/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['media.update']['types'],
+  },
   'media.restore': {
     methods: ["POST"],
     pattern: '/api/admin/media/:id/restore',
@@ -737,6 +803,12 @@ const routes = {
     pattern: '/admin/settings',
     tokens: [{"old":"/admin/settings","type":0,"val":"admin","end":""},{"old":"/admin/settings","type":0,"val":"settings","end":""}],
     types: placeholder as Registry['settings.settings_page']['types'],
+  },
+  'settings.website_settings_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/website-settings',
+    tokens: [{"old":"/admin/website-settings","type":0,"val":"admin","end":""},{"old":"/admin/website-settings","type":0,"val":"website-settings","end":""}],
+    types: placeholder as Registry['settings.website_settings_page']['types'],
   },
   'settings.application_settings_page': {
     methods: ["GET","HEAD"],
@@ -797,6 +869,18 @@ const routes = {
     pattern: '/api/admin/settings/integrations',
     tokens: [{"old":"/api/admin/settings/integrations","type":0,"val":"api","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/integrations","type":0,"val":"integrations","end":""}],
     types: placeholder as Registry['settings.update_integration_settings']['types'],
+  },
+  'settings.get_page_code': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/settings/page-code',
+    tokens: [{"old":"/api/admin/settings/page-code","type":0,"val":"api","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"page-code","end":""}],
+    types: placeholder as Registry['settings.get_page_code']['types'],
+  },
+  'settings.update_page_code': {
+    methods: ["PUT"],
+    pattern: '/api/admin/settings/page-code',
+    tokens: [{"old":"/api/admin/settings/page-code","type":0,"val":"api","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"page-code","end":""}],
+    types: placeholder as Registry['settings.update_page_code']['types'],
   },
   'settings.integrations_api_tokens_page': {
     methods: ["GET","HEAD"],
@@ -978,11 +1062,23 @@ const routes = {
     tokens: [{"old":"/api/admin/tasks","type":0,"val":"api","end":""},{"old":"/api/admin/tasks","type":0,"val":"admin","end":""},{"old":"/api/admin/tasks","type":0,"val":"tasks","end":""}],
     types: placeholder as Registry['ctrl.index']['types'],
   },
+  'ctrl.assignees': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/tasks/assignees',
+    tokens: [{"old":"/api/admin/tasks/assignees","type":0,"val":"api","end":""},{"old":"/api/admin/tasks/assignees","type":0,"val":"admin","end":""},{"old":"/api/admin/tasks/assignees","type":0,"val":"tasks","end":""},{"old":"/api/admin/tasks/assignees","type":0,"val":"assignees","end":""}],
+    types: placeholder as Registry['ctrl.assignees']['types'],
+  },
   'ctrl.store': {
     methods: ["POST"],
     pattern: '/api/admin/tasks',
     tokens: [{"old":"/api/admin/tasks","type":0,"val":"api","end":""},{"old":"/api/admin/tasks","type":0,"val":"admin","end":""},{"old":"/api/admin/tasks","type":0,"val":"tasks","end":""}],
     types: placeholder as Registry['ctrl.store']['types'],
+  },
+  'ctrl.move': {
+    methods: ["PATCH"],
+    pattern: '/api/admin/tasks/:id/move',
+    tokens: [{"old":"/api/admin/tasks/:id/move","type":0,"val":"api","end":""},{"old":"/api/admin/tasks/:id/move","type":0,"val":"admin","end":""},{"old":"/api/admin/tasks/:id/move","type":0,"val":"tasks","end":""},{"old":"/api/admin/tasks/:id/move","type":1,"val":"id","end":""},{"old":"/api/admin/tasks/:id/move","type":0,"val":"move","end":""}],
+    types: placeholder as Registry['ctrl.move']['types'],
   },
   'ctrl.update': {
     methods: ["PUT"],

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { router } from '@inertiajs/react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { MoreHorizontal, Pencil, Plus, SquarePen, Trash2 } from 'lucide-react'
+import { ExternalLink, MoreHorizontal, Pencil, Plus, SquarePen, Trash2 } from 'lucide-react'
 import type { PageSummaryDto } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -117,6 +117,31 @@ export default function PagesPage() {
             {formatAdminTableDateTime(row.original.updatedAt)}
           </div>
         ),
+      },
+      {
+        id: 'view',
+        enableSorting: false,
+        header: () => <span className="sr-only">View</span>,
+        // Open the page on the frontend: live URL when published, else the
+        // admin-only preview (drafts aren't reachable on the public route).
+        cell: ({ row }) => {
+          const r = row.original
+          const published = r.status === 'PUBLISHED'
+          const href = published ? `/${r.path}` : `/admin/pages/${r.id}/preview`
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+              title={published ? 'Open the live page' : 'Preview this draft'}
+            >
+              <ExternalLink className="size-3.5" />
+              {published ? 'View' : 'Preview'}
+            </a>
+          )
+        },
       },
       {
         id: 'actions',

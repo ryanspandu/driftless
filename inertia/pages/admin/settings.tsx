@@ -1,153 +1,276 @@
-
-import { Link } from "@inertiajs/react";
-import { FormEvent, useEffect, useState } from "react";
-import { Plug2, SlidersHorizontal } from "lucide-react";
-import { WEBSITE_SETTING_SECTIONS } from "~/types/api";
-import { ImageSettingControl } from "~/components/admin/image-setting-control";
-import { WebsiteLogoDropzone } from "~/components/admin/website-logo-dropzone";
-import { Button } from "~/components/ui/button";
+import { Link } from '@inertiajs/react'
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { Textarea } from "~/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { Can, useAbility } from "~/components/providers/ability-provider";
-import {
-  useUpdateWebsiteSettings,
-  useWebsiteSettings,
-} from "~/hooks/api/use-website-settings";
+  BookOpen,
+  ChevronRight,
+  ExternalLink,
+  FileJson,
+  Globe,
+  KeyRound,
+  Plug2,
+  SlidersHorizontal,
+  type LucideIcon,
+} from 'lucide-react'
+import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
+import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
+import { WEBSITE_SETTING_SECTIONS } from '~/types/api'
+import { ImageSettingControl } from '~/components/admin/image-setting-control'
+import { WebsiteLogoDropzone } from '~/components/admin/website-logo-dropzone'
+import { PageHeader } from '~/components/admin/page-header'
+import { Badge } from '~/components/ui/badge'
+import { Button } from '~/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
+import { Input } from '~/components/ui/input'
+import { Label } from '~/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
+import { Can, useAbility } from '~/components/providers/ability-provider'
+import { useUpdateWebsiteSettings, useWebsiteSettings } from '~/hooks/api/use-website-settings'
 
-const AUTH_DEFAULT_BG = "/bg-login.webp";
-const AUTH_DEFAULT_LOGO = "/logo-text.svg";
-const SITE_DEFAULT_FAVICON = "/logo.svg";
+const AUTH_DEFAULT_BG = '/bg-login.webp'
+const AUTH_DEFAULT_LOGO = '/logo-text.svg'
 
 export default function SettingsPage() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  // Active tab lives in `?tab=` so each section is linkable. `admin-sidebar` is
+  // the default and is omitted from the URL.
+  const tab = useMemo(() => {
+    const t = searchParams.get('tab')
+    return t === 'auth-pages' ? t : 'admin-sidebar'
+  }, [searchParams])
+  const onTabChange = (value: string) => {
+    const merged = mergeSearchParamsLive(searchParams, {
+      tab: value === 'admin-sidebar' ? undefined : value,
+    })
+    replaceUrlIfChanged(pathname, router, merged, { scroll: false })
+  }
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Website settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Website appearance and integrations.{" "}
-          <Link
-            href="/admin/profile"
-            className="font-medium text-ring underline-offset-4 hover:underline"
-          >
-            Account profile
-          </Link>{" "}
-          is on a separate page.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Settings"
+        subtitle="Admin appearance, login pages, integrations, and developer access."
+      />
 
       <Can permission="settings:manage">
-        <Tabs defaultValue="admin-sidebar" className="">
-          <TabsList className="grid h-auto grid-cols-1 gap-1 sm:grid-cols-3">
-            <TabsTrigger value="admin-sidebar">Admin sidebar</TabsTrigger>
-            <TabsTrigger value="auth-pages">Login &amp; register</TabsTrigger>
-            <TabsTrigger value="site-meta">Site &amp; SEO</TabsTrigger>
-          </TabsList>
+        <div className="space-y-8">
+          <SettingsSection
+            title="Appearance"
+            description="How the admin shell and the sign-in pages look."
+          >
+            <Tabs value={tab} onValueChange={(value) => onTabChange(value as string)}>
+              <TabsList className="grid h-auto grid-cols-1 gap-1 sm:grid-cols-2">
+                <TabsTrigger value="admin-sidebar">Admin sidebar</TabsTrigger>
+                <TabsTrigger value="auth-pages">Login &amp; register</TabsTrigger>
+              </TabsList>
 
-          <TabsContent value="admin-sidebar" className="mt-4">
-            <AdminSidebarSection />
-          </TabsContent>
-          <TabsContent value="auth-pages" className="mt-4">
-            <AuthPagesSection />
-          </TabsContent>
-          <TabsContent value="site-meta" className="mt-4">
-            <SiteMetaSection />
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="admin-sidebar" className="mt-4">
+                <AdminSidebarSection />
+              </TabsContent>
+              <TabsContent value="auth-pages" className="mt-4">
+                <AuthPagesSection />
+              </TabsContent>
+            </Tabs>
+          </SettingsSection>
 
-        <Card className="mt-6">
-          <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-            <Plug2 className="mt-0.5 size-5 text-muted-foreground" aria-hidden />
-            <div className="space-y-1">
-              <CardTitle className="text-base">Integrations</CardTitle>
-              <CardDescription>
-                Google OAuth, CAPTCHA, GA4, and Microsoft Clarity.
-              </CardDescription>
+          <SettingsSection
+            title="Site & content"
+            description="Public-facing configuration, managed on dedicated pages."
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SettingsLinkCard
+                icon={Globe}
+                title="Website settings"
+                description="Public site title, favicon, site-wide SEO meta, and global custom CSS/JS."
+                href="/admin/website-settings"
+              />
+              <SettingsLinkCard
+                icon={SlidersHorizontal}
+                title="Application"
+                description="Public site on/off, hide sidebar menus, and enable/disable modules."
+                href="/admin/settings/application"
+              />
             </div>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" render={<Link href="/admin/integrations" />}>
-              Open integrations
-            </Button>
-          </CardContent>
-        </Card>
+          </SettingsSection>
 
-        <Card className="mt-6">
-          <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-            <SlidersHorizontal className="mt-0.5 size-5 text-muted-foreground" aria-hidden />
-            <div className="space-y-1">
-              <CardTitle className="text-base">Application</CardTitle>
-              <CardDescription>
-                Public site on/off, hide sidebar menus, and enable/disable modules.
-              </CardDescription>
+          <SettingsSection
+            title="Integrations"
+            description="Connect external services."
+          >
+            <SettingsLinkCard
+              icon={Plug2}
+              title="Integrations"
+              description="Google OAuth, CAPTCHA, Google Analytics 4, and Microsoft Clarity."
+              href="/admin/integrations"
+            />
+          </SettingsSection>
+
+          <SettingsSection
+            title="Developer & API"
+            description="Programmatic access to your content via the external API."
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SettingsLinkCard
+                icon={KeyRound}
+                title="API tokens"
+                description="Personal access tokens for the /api/v1 API — scoped abilities, expiry, one-time reveal."
+                href="/admin/integrations/api-tokens"
+              />
+              {import.meta.env.DEV ? (
+                <>
+                  <SettingsLinkCard
+                    external
+                    badge="Dev only"
+                    icon={BookOpen}
+                    title="Interactive API docs"
+                    description="Scalar UI for the JSON API (/api/docs). Not available in production."
+                    href="/api/docs"
+                  />
+                  <SettingsLinkCard
+                    external
+                    badge="Dev only"
+                    icon={FileJson}
+                    title="OpenAPI spec"
+                    description="Raw OpenAPI 3.0 JSON (/api/openapi). Not available in production."
+                    href="/api/openapi"
+                  />
+                </>
+              ) : null}
             </div>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" render={<Link href="/admin/settings/application" />}>
-              Open application settings
-            </Button>
-          </CardContent>
-        </Card>
+          </SettingsSection>
+        </div>
       </Can>
 
       <SettingsDeniedCard />
     </div>
-  );
+  )
+}
+
+function SettingsSection({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description?: string
+  children: ReactNode
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="space-y-0.5">
+        <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/**
+ * A jump-off card linking to another settings surface. Internal targets use the
+ * Inertia Link; `external` targets (e.g. the dev-only API docs) use a plain
+ * anchor that opens in a new tab.
+ */
+function SettingsLinkCard({
+  icon: Icon,
+  title,
+  description,
+  href,
+  external = false,
+  badge,
+}: {
+  icon: LucideIcon
+  title: string
+  description: string
+  href: string
+  external?: boolean
+  badge?: string
+}) {
+  const inner = (
+    <Card className="h-full transition-colors hover:bg-accent/40">
+      <CardContent className="flex items-center gap-3 p-4">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+          <Icon className="size-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{title}</span>
+            {badge ? (
+              <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                {badge}
+              </Badge>
+            ) : null}
+          </div>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+        {external ? (
+          <ExternalLink className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        ) : (
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        )}
+      </CardContent>
+    </Card>
+  )
+
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className="block">
+        {inner}
+      </a>
+    )
+  }
+  return (
+    <Link href={href} className="block">
+      {inner}
+    </Link>
+  )
 }
 
 function AdminSidebarSection() {
-  
-  const { data, isPending } = useWebsiteSettings( );
-  const update = useUpdateWebsiteSettings( );
-  const ab = data?.sections?.[WEBSITE_SETTING_SECTIONS.ADMIN_BRANDING];
-  const [projectName, setProjectName] = useState("Driftless");
-  const [projectTagline, setProjectTagline] = useState("CMS Admin");
-  const [logoUrl, setLogoUrl] = useState("/logo.svg");
-  const [saved, setSaved] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const { data, isPending } = useWebsiteSettings()
+  const update = useUpdateWebsiteSettings()
+  const ab = data?.sections?.[WEBSITE_SETTING_SECTIONS.ADMIN_BRANDING]
+  const [projectName, setProjectName] = useState('Driftless')
+  const [projectTagline, setProjectTagline] = useState('CMS Admin')
+  const [logoUrl, setLogoUrl] = useState('/logo.svg')
+  const [saved, setSaved] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!ab) return;
-    setProjectName(ab.project_name ?? "Driftless");
-    setProjectTagline(ab.project_tagline ?? "CMS Admin");
-    setLogoUrl(ab.logo_url ?? "/logo.svg");
-  }, [ab]);
+    if (!ab) return
+    setProjectName(ab.project_name ?? 'Driftless')
+    setProjectTagline(ab.project_tagline ?? 'CMS Admin')
+    setLogoUrl(ab.logo_url ?? '/logo.svg')
+  }, [ab])
 
   async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setFormError(null);
+    e.preventDefault()
+    setFormError(null)
     try {
       await update.mutateAsync({
         patches: [
           {
             section: WEBSITE_SETTING_SECTIONS.ADMIN_BRANDING,
-            key: "project_name",
-            value: projectName.trim() || "Driftless",
+            key: 'project_name',
+            value: projectName.trim() || 'Driftless',
           },
           {
             section: WEBSITE_SETTING_SECTIONS.ADMIN_BRANDING,
-            key: "project_tagline",
+            key: 'project_tagline',
             value: projectTagline.trim(),
           },
           {
             section: WEBSITE_SETTING_SECTIONS.ADMIN_BRANDING,
-            key: "logo_url",
-            value: logoUrl.trim() || "/logo.svg",
+            key: 'logo_url',
+            value: logoUrl.trim() || '/logo.svg',
           },
         ],
-      });
-      setSaved(true);
-      window.setTimeout(() => setSaved(false), 2500);
+      })
+      setSaved(true)
+      window.setTimeout(() => setSaved(false), 2500)
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Could not save.");
+      setFormError(err instanceof Error ? err.message : 'Could not save.')
     }
   }
 
@@ -156,16 +279,11 @@ function AdminSidebarSection() {
       <Card>
         <CardHeader>
           <CardDescription>
-            Name, tagline, and logo in the admin shell (stored as key–value rows in the
-            database).
+            Name, tagline, and logo in the admin shell (stored as key–value rows in the database).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <WebsiteLogoDropzone
-            value={logoUrl}
-            onChange={setLogoUrl}
-            disabled={isPending}
-          />
+          <WebsiteLogoDropzone value={logoUrl} onChange={setLogoUrl} disabled={isPending} />
           <div className="space-y-2">
             <Label htmlFor="projectName">Website name</Label>
             <Input
@@ -209,47 +327,46 @@ function AdminSidebarSection() {
         </CardContent>
       </Card>
     </form>
-  );
+  )
 }
 
 function AuthPagesSection() {
-  
-  const { data, isPending } = useWebsiteSettings( );
-  const update = useUpdateWebsiteSettings( );
-  const ap = data?.sections?.[WEBSITE_SETTING_SECTIONS.AUTH_PAGES];
-  const [backgroundUrl, setBackgroundUrl] = useState(AUTH_DEFAULT_BG);
-  const [logoUrl, setLogoUrl] = useState(AUTH_DEFAULT_LOGO);
-  const [saved, setSaved] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const { data, isPending } = useWebsiteSettings()
+  const update = useUpdateWebsiteSettings()
+  const ap = data?.sections?.[WEBSITE_SETTING_SECTIONS.AUTH_PAGES]
+  const [backgroundUrl, setBackgroundUrl] = useState(AUTH_DEFAULT_BG)
+  const [logoUrl, setLogoUrl] = useState(AUTH_DEFAULT_LOGO)
+  const [saved, setSaved] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!ap) return;
-    setBackgroundUrl(ap.background_url ?? AUTH_DEFAULT_BG);
-    setLogoUrl(ap.logo_url ?? AUTH_DEFAULT_LOGO);
-  }, [ap]);
+    if (!ap) return
+    setBackgroundUrl(ap.background_url ?? AUTH_DEFAULT_BG)
+    setLogoUrl(ap.logo_url ?? AUTH_DEFAULT_LOGO)
+  }, [ap])
 
   async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setFormError(null);
+    e.preventDefault()
+    setFormError(null)
     try {
       await update.mutateAsync({
         patches: [
           {
             section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
-            key: "background_url",
+            key: 'background_url',
             value: backgroundUrl.trim() || AUTH_DEFAULT_BG,
           },
           {
             section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
-            key: "logo_url",
+            key: 'logo_url',
             value: logoUrl.trim() || AUTH_DEFAULT_LOGO,
           },
         ],
-      });
-      setSaved(true);
-      window.setTimeout(() => setSaved(false), 2500);
+      })
+      setSaved(true)
+      window.setTimeout(() => setSaved(false), 2500)
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Could not save.");
+      setFormError(err instanceof Error ? err.message : 'Could not save.')
     }
   }
 
@@ -258,8 +375,8 @@ function AuthPagesSection() {
       <Card>
         <CardHeader>
           <CardDescription>
-            Left panel on sign-in and sign-up: background image and logo. Uses the same
-            layout for both pages.
+            Left panel on sign-in and sign-up: background image and logo. Uses the same layout for
+            both pages.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -299,137 +416,21 @@ function AuthPagesSection() {
         </CardContent>
       </Card>
     </form>
-  );
-}
-
-function SiteMetaSection() {
-  
-  const { data, isPending } = useWebsiteSettings( );
-  const update = useUpdateWebsiteSettings( );
-  const sm = data?.sections?.[WEBSITE_SETTING_SECTIONS.SITE_META];
-  const [siteTitle, setSiteTitle] = useState("Driftless");
-  const [siteDescription, setSiteDescription] = useState(
-    "Driftless — a fast, modern content hub. Discover published articles and updates.",
-  );
-  const [faviconUrl, setFaviconUrl] = useState(SITE_DEFAULT_FAVICON);
-  const [saved, setSaved] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!sm) return;
-    setSiteTitle(sm.site_title ?? "Driftless");
-    setSiteDescription(
-      sm.site_description ??
-        "Driftless — a fast, modern content hub. Discover published articles and updates.",
-    );
-    setFaviconUrl(sm.favicon_url ?? SITE_DEFAULT_FAVICON);
-  }, [sm]);
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setFormError(null);
-    try {
-      await update.mutateAsync({
-        patches: [
-          {
-            section: WEBSITE_SETTING_SECTIONS.SITE_META,
-            key: "site_title",
-            value: siteTitle.trim() || "Driftless",
-          },
-          {
-            section: WEBSITE_SETTING_SECTIONS.SITE_META,
-            key: "site_description",
-            value: siteDescription.trim(),
-          },
-          {
-            section: WEBSITE_SETTING_SECTIONS.SITE_META,
-            key: "favicon_url",
-            value: faviconUrl.trim() || SITE_DEFAULT_FAVICON,
-          },
-        ],
-      });
-      setSaved(true);
-      window.setTimeout(() => setSaved(false), 2500);
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Could not save.");
-    }
-  }
-
-  return (
-    <form onSubmit={onSubmit}>
-      <Card>
-        <CardHeader>
-          <CardDescription>
-            Default browser title, description, and favicon. The title and favicon apply
-            after load (see also static metadata in the app layout).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="siteTitle">Site title</Label>
-            <Input
-              id="siteTitle"
-              value={siteTitle}
-              onChange={(e) => setSiteTitle(e.target.value)}
-              placeholder="Driftless"
-              autoComplete="off"
-              disabled={isPending}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="siteDescription">Meta description</Label>
-            <Textarea
-              id="siteDescription"
-              value={siteDescription}
-              onChange={(e) => setSiteDescription(e.target.value)}
-              placeholder="Short description for search and sharing."
-              rows={3}
-              disabled={isPending}
-            />
-          </div>
-          <ImageSettingControl
-            label="Favicon"
-            value={faviconUrl}
-            onChange={setFaviconUrl}
-            defaultAsset={SITE_DEFAULT_FAVICON}
-            resetLabel="Use default favicon"
-            disabled={isPending}
-            preview="square"
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={isPending || update.isPending}>
-              Save site &amp; SEO
-            </Button>
-          </div>
-          {formError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {formError}
-            </p>
-          ) : null}
-          {saved ? (
-            <p className="text-sm text-green-600 dark:text-green-500" role="status">
-              Site settings saved.
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
-    </form>
-  );
+  )
 }
 
 function SettingsDeniedCard() {
-  const { permissions } = useAbility();
-  if (permissions.has("settings:manage")) return null;
+  const { permissions } = useAbility()
+  if (permissions.has('settings:manage')) return null
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Website settings</CardTitle>
+        <CardTitle className="text-base">Settings</CardTitle>
         <CardDescription>
-          You need the{" "}
-          <code className="rounded bg-muted px-1 text-xs">settings:manage</code>{" "}
+          You need the <code className="rounded bg-muted px-1 text-xs">settings:manage</code>{' '}
           permission to edit website name, logo, and integrations.
         </CardDescription>
       </CardHeader>
     </Card>
-  );
+  )
 }

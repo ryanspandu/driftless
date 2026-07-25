@@ -1,15 +1,18 @@
 import type {
   AddCmsFieldRequest,
   CmsCollectionDto,
+  CmsComponentDto,
   CmsFieldDto,
   CmsRecordDto,
   CmsRevisionDto,
   CreateCmsCollectionRequest,
+  CreateCmsComponentRequest,
   CreateCmsRecordRequest,
   ListCmsRecordsQuery,
   PaginatedList,
   ReorderCmsFieldsRequest,
   UpdateCmsCollectionRequest,
+  UpdateCmsComponentRequest,
   UpdateCmsFieldRequest,
   UpdateCmsRecordRequest,
 } from '~/types/api'
@@ -49,9 +52,18 @@ export const cmsCollections = {
   updateField: (key: string, fieldKey: string, body: UpdateCmsFieldRequest) =>
     apiPut<CmsFieldDto>(`/api/admin/cms/collections/${enc(key)}/fields/${enc(fieldKey)}`, body),
   reorderFields: (key: string, body: ReorderCmsFieldsRequest) =>
-    apiPatch<CmsCollectionDto>(`/api/admin/cms/collections/${enc(key)}/fields/reorder`, body),
+    apiPatch<CmsFieldDto[]>(`/api/admin/cms/collections/${enc(key)}/fields/reorder`, body),
   removeField: (key: string, fieldKey: string) =>
     apiDelete<void>(`/api/admin/cms/collections/${enc(key)}/fields/${enc(fieldKey)}`),
+}
+
+export const cmsComponents = {
+  list: () => apiGet<CmsComponentDto[]>('/api/admin/cms/components'),
+  create: (body: CreateCmsComponentRequest) =>
+    apiPost<CmsComponentDto>('/api/admin/cms/components', body),
+  update: (key: string, body: UpdateCmsComponentRequest) =>
+    apiPut<CmsComponentDto>(`/api/admin/cms/components/${enc(key)}`, body),
+  remove: (key: string) => apiDelete<void>(`/api/admin/cms/components/${enc(key)}`),
 }
 
 export function cmsRecordListPath(key: string, query?: ListCmsRecordsQuery): string {

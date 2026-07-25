@@ -29,7 +29,9 @@ export type ScannedRoutes = {
     'public.page': { paramsTuple?: []; params?: {} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
     'ctrl.index': { paramsTuple?: []; params?: {} }
+    'ctrl.assignees': { paramsTuple?: []; params?: {} }
     'ctrl.store': { paramsTuple?: []; params?: {} }
+    'ctrl.move': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ctrl.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ctrl.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
@@ -46,6 +48,7 @@ export type ScannedRoutes = {
     'public.page': { paramsTuple?: []; params?: {} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
     'ctrl.index': { paramsTuple?: []; params?: {} }
+    'ctrl.assignees': { paramsTuple?: []; params?: {} }
   }
   HEAD: {
     'home': { paramsTuple?: []; params?: {} }
@@ -60,6 +63,7 @@ export type ScannedRoutes = {
     'public.page': { paramsTuple?: []; params?: {} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
     'ctrl.index': { paramsTuple?: []; params?: {} }
+    'ctrl.assignees': { paramsTuple?: []; params?: {} }
   }
   POST: {
     'new_account.store': { paramsTuple?: []; params?: {} }
@@ -84,6 +88,7 @@ export type ScannedRoutes = {
     'ctrl.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PATCH: {
+    'ctrl.move': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
 }
 declare module '@adonisjs/core/types/http' {

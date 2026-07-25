@@ -21,6 +21,15 @@ export default class Media extends BaseModel {
   declare url: string
 
   @column()
+  declare title: string | null
+
+  @column()
+  declare description: string | null
+
+  @column()
+  declare alt: string | null
+
+  @column()
   declare width: number | null
 
   @column()
@@ -34,4 +43,7 @@ export default class Media extends BaseModel {
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
 }

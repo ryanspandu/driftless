@@ -133,18 +133,46 @@ Plus `page_revisions` (mirror `cms_revisions`).
 - **Model** `app/models/page.ts` (Lucid)
 - **Service** `app/services/pages_service.ts` — CRUD, publish, slug, revisions, `resolveData`
 - **Validators** (VineJS) — create / update / publish
-- **Controllers** — `admin/pages_controller.ts` (Inertia pages + API CRUD/publish/preview),
-  `pages_public_controller.ts` (catch-all renderer)
+- **Controllers** — `admin/pages_controller.ts` (Inertia pages + API CRUD/publish),
+  `pages_public_controller.ts` — `show` (catch-all, PUBLISHED-only by path) + `preview`
+  (admin `GET /admin/pages/:id/preview`, renders ANY status incl. Draft, uncached). Both
+  share the private `composeAndRender` (layout/header/footer + templates + collections +
+  global code/meta).
 - **Routes** — admin guarded with `middleware.permission(...)`; public catch-all `GET /*`
-  registered **last** (after `/`, `/posts/:slug`, `/admin/*`, `/api/*`, `/login`, `/offline`) + reserved-slug denylist
+  registered **last** (after `/`, `/posts/:slug`, `/admin/*`, `/api/*`, `/login`, `/offline`) + reserved-slug denylist.
+  The preview route lives in the authed `/admin/*` group (next to `/admin/pages/:id/edit`).
 - **Permissions** — mint `pages.view/create/update/delete/publish` in RBAC
 
 ## Frontend
 
-- `inertia/pages/admin/pages/index.tsx` — list using the shared `DataTable` (`~/components/data-table`)
-- `inertia/pages/admin/pages/builder.tsx` — `<Puck>` + publish + render-mode selector + SEO panel + preview
-- `inertia/puck/config.tsx` — block registry: Section, Container, Columns/Grid, Heading, Text,
-  RichText (reuse TipTap), Image (reuse Media), Button, Spacer, Embed, **CollectionList**
+- `inertia/pages/admin/pages/index.tsx` — list using the shared `DataTable` (`~/components/data-table`);
+  a **View** column opens the live page (`/{path}`) when published, else the **Preview** route (Draft)
+- The builder topbar has a **Preview** button → opens `/admin/pages/:id/preview` in a new tab (works at
+  any status, including Draft)
+- `inertia/pages/admin/pages/builder.tsx` — `<Puck>` + `BuilderShell` custom layout, Publish, page
+  preview; lifts page-level fields into `PageMeta` state saved on Publish
+- `inertia/puck/builder-shell.tsx` — custom Puck layout: toolbar (undo/redo/Publish), device-size
+  switcher, panel toggles, **Settings gear**, Layers tree. See [builder-layers.md](./builder-layers.md)
+- `inertia/puck/settings-dialog.tsx` — **Page Settings** dialog (General · SEO/Meta · Page code ·
+  Global code). Custom CSS/JS (CodeMirror), per-page SEO, site-wide code/meta. See
+  [page-settings.md](./page-settings.md)
+- `inertia/puck/config.tsx` — block registry, grouped into Webflow-style **categories**
+  (`Config.categories`): **Structure** (Section, Container, Quick Stack, V Flex, H Flex, Page Slot) ·
+  **Basic** (Div Block, List, List Item, Link Block, Button) · **Typography** (Heading, Paragraph,
+  Text Link, Text Block, Block Quote, Rich Text) · **CMS** (Collection List) · **Media** (Image,
+  Video, YouTube, Lottie, Spline, Rive) · **Forms** (Form Block, Label, Input, File Upload, Text
+  Area, Checkbox, Radio Button, Select, reCAPTCHA\*, Form Button) · **Advanced** (Search, Background
+  Video, Dropdown, Code Embed, Lightbox, Navbar, Slider, Tabs, Map, Facebook, X, Custom Element, Code
+  Block) · **Other** (Grid, Columns, Spacer, Divider, Template Reference). `Box` forwards extra DOM
+  attrs (e.g. `href`) so blocks render as real `<a>`/`<li>`/`<input>`/etc.
+  \*Forms are **render-only** (no submission backend yet); reCAPTCHA is a placeholder. Webflow's
+  "Locales List" is skipped (no i18n locales).
+- `inertia/puck/media-embeds.tsx` (+ `media-rive-inner.tsx`) — **lazy, client-only** players for
+  Lottie (`@lottiefiles/dotlottie-react`), Spline (`@splinetool/react-spline`), Rive
+  (`@rive-app/react-canvas`); mount-guarded so the heavy runtimes stay out of the main + SSR bundles
+- `inertia/puck/blocks-interactive.tsx` — interactive Advanced blocks (Dropdown, Lightbox, Navbar,
+  Slider, Tabs) as real hook components (render delegates `(props) => <View {...props} />`); render
+  their initial state on SSR, interactive after hydration
 - `inertia/puck/style-fields.ts` — shared style fields + `<Box>` wrapper (see below)
 - `inertia/pages/public/page.tsx` — public renderer (`<Render/>`), added to SSR allowlist
 - Reuse: Media picker, TipTap, collection API hooks, Tailwind tokens
@@ -203,6 +231,11 @@ Global design tokens (fonts/colors/spacing) live on the Puck `root`. Responsive 
   Serwist offline for CSR/PWA, SEO meta + sitemap.
 - **Fase 4 — Style depth**: per-breakpoint overrides, more properties, unified Style tab,
   reusable sections/templates, global header/footer, revisions/restore UI.
+- **Layers + Detail panel** (Webflow-style right sidebar, custom `BuilderShell` layout). DONE —
+  see [builder-layers.md](./builder-layers.md).
+- **Page Settings + Website settings** (custom CSS/JS via CodeMirror, per-page SEO/General,
+  site-wide code + meta tags at `/admin/website-settings`). DONE — see
+  [page-settings.md](./page-settings.md).
 
 ## Open items / risks
 

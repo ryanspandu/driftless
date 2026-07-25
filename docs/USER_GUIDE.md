@@ -66,9 +66,22 @@ command — see [docs/ai/modules.md](./ai/modules.md).
 
 - **Content** (UI → Content) manages posts/pages/media entries with status filters and search.
 - **Collections** lets you model any content type with custom fields (no migrations). Each
-  collection gets its own sidebar entry and records table.
-- **Pages / Templates** is the visual page builder (see the builder for layouts, headers,
-  footers, components).
+  collection gets its own sidebar entry and records table. Fields cover text, rich text, number /
+  integer / decimal, email, password, boolean, date/time, select, media, slug and JSON. A
+  collection can be a **Single type** (exactly one entry — e.g. a homepage or global settings)
+  instead of a list.
+- **Relations** link entries across collections — one-to-one, many-to-one, many-to-many, or
+  one-to-many — and you pick the related entries right in the record editor.
+- **Components** are reusable groups of fields (e.g. an "SEO" group): build one under
+  **Collections → Components**, then attach it to any collection as a single group or a repeatable
+  list. You can also define a group inline on a single field.
+- In a collection's **Fields** tab, drag to reorder and set each field's **width** (full / half /
+  third) to lay fields out side-by-side — the same layout is used when editing records.
+- **Pages / Templates** is the visual page builder (layouts, headers, footers, components). In the
+  builder, the **gear** opens *Page settings* — page SEO/meta tags and per-page custom CSS/JS that
+  runs only on that page.
+- **Website settings** (UI → Website settings) sets your site title, favicon, site-wide meta tags,
+  and global custom CSS/JS applied across your published pages.
 - Tables everywhere share the same toolbar (search + filters), tinted status badges, and
   pagination, so every list page feels identical.
 

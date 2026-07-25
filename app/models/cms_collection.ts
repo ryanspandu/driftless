@@ -43,6 +43,9 @@ export default class CmsCollection extends BaseModel {
   @column()
   declare draftsOn: boolean
 
+  @column()
+  declare kind: 'collection' | 'single'
+
   @column.dateTime()
   declare deletedAt: DateTime | null
 

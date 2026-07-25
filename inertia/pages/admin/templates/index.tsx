@@ -25,6 +25,8 @@ import {
 import { cn, formatAdminTableDateTime } from '~/lib/utils'
 import { apiErrorMessage } from '~/lib/api'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
+import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
+import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
 
 const TYPE_LABEL: Record<TemplateType, string> = {
   HEADER: 'Header',
@@ -43,9 +45,26 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: 'LAYOUT', label: 'Layouts' },
 ]
 
+// Read the active tab from `?tab=` so views are linkable. URLs stay lowercase
+// (`?tab=header`); `all` is the default and omitted from the query string.
+function parseTemplatesTab(sp: ReturnType<typeof useSearchParams>): TabValue {
+  const t = (sp.get('tab') ?? '').toUpperCase()
+  if (t === 'HEADER' || t === 'FOOTER' || t === 'COMPONENT' || t === 'LAYOUT') return t
+  return 'all'
+}
+
 export default function TemplatesPage() {
   const confirmDelete = useConfirmDelete()
-  const [tab, setTab] = useState<TabValue>('all')
+  const urlRouter = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const tab = useMemo(() => parseTemplatesTab(searchParams), [searchParams])
+  const onTabChange = (value: TabValue) => {
+    const merged = mergeSearchParamsLive(searchParams, {
+      tab: value === 'all' ? undefined : value.toLowerCase(),
+    })
+    replaceUrlIfChanged(pathname, urlRouter, merged, { scroll: false })
+  }
   const listQuery = useTemplatesList(tab === 'all' ? undefined : tab)
   const rows = useMemo(() => listQuery.data ?? [], [listQuery.data])
   const createMut = useCreateTemplate()
@@ -173,7 +192,7 @@ export default function TemplatesPage() {
           <button
             key={t.value}
             type="button"
-            onClick={() => setTab(t.value)}
+            onClick={() => onTabChange(t.value)}
             aria-pressed={active}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',

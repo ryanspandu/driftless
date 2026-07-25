@@ -1,40 +1,128 @@
 import { type ComponentType } from 'react'
 import type { Overrides } from '@measured/puck'
 import {
+  AppWindow,
+  Box,
+  ChevronDown,
+  CircleDot,
+  Code,
   Columns3,
+  Component,
+  Expand,
   FileText,
+  GalleryHorizontal,
   Heading,
   Image as ImageIcon,
   LayoutGrid,
+  LayoutList,
+  LayoutTemplate,
+  LetterText,
+  Link,
+  Link2,
+  List,
+  MapPin,
   Minus,
   MousePointerClick,
   MoveVertical,
+  PanelTop,
+  Pilcrow,
+  Play,
+  Quote,
   RectangleHorizontal,
+  Rows3,
+  Search,
+  ShieldCheck,
+  Sparkles,
   Square,
+  SquareCheck,
+  SquareChevronDown,
+  SquareDashed,
+  Tag,
+  TextCursorInput,
   Type,
+  Upload,
+  Video,
 } from 'lucide-react'
+import { FaFacebookF, FaXTwitter } from 'react-icons/fa6'
 import { cn } from '~/lib/utils'
+import { puckConfig } from '~/puck/config'
 
 /** Icon per block type (keyed by the Puck component name). Shared with the
- *  Layers tree (layers-tree.tsx) so tiles and tree rows use the same glyphs. */
+ *  Layers tree (layers-tree.tsx) so tiles and tree rows use the same glyphs.
+ *  Anything not listed falls back to `Square`. */
 export const ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  // Structure
   Section: RectangleHorizontal,
   Container: Square,
-  Columns: Columns3,
-  Heading: Heading,
-  Text: Type,
+  QuickStack: LayoutGrid,
+  VFlex: Rows3,
+  HFlex: Columns3,
+  PageOutlet: LayoutTemplate,
+  // Basic
+  DivBlock: SquareDashed,
+  List: List,
+  ListItem: List,
+  LinkBlock: Link2,
   Button: MousePointerClick,
-  Image: ImageIcon,
+  // Typography
+  Heading: Heading,
+  Paragraph: Pilcrow,
+  TextLink: Link,
+  Text: Type,
+  BlockQuote: Quote,
   RichText: FileText,
+  // CMS
   CollectionList: LayoutGrid,
+  // Media
+  Image: ImageIcon,
+  Video: Video,
+  YouTube: Video,
+  LottieAnimation: Sparkles,
+  SplineScene: Box,
+  Rive: Play,
+  // Forms
+  FormBlock: LayoutList,
+  Label: Tag,
+  Input: TextCursorInput,
+  FileUpload: Upload,
+  TextArea: LetterText,
+  Checkbox: SquareCheck,
+  RadioButton: CircleDot,
+  Select: SquareChevronDown,
+  Recaptcha: ShieldCheck,
+  FormButton: MousePointerClick,
+  // Advanced
+  Search: Search,
+  BackgroundVideo: Video,
+  Dropdown: ChevronDown,
+  CodeEmbed: Code,
+  Lightbox: Expand,
+  Navbar: PanelTop,
+  Slider: GalleryHorizontal,
+  Tabs: AppWindow,
+  Map: MapPin,
+  Facebook: FaFacebookF,
+  XTwitter: FaXTwitter,
+  CustomElement: Code,
+  CodeBlock: Code,
+  // Other
+  Grid: LayoutGrid,
+  Columns: Columns3,
   Spacer: MoveVertical,
   Divider: Minus,
+  TemplateRef: Component,
 }
 
-/** Friendlier labels for multi-word component names. */
+/** Legacy friendlier labels (the drawer + tree now prefer the config `label`). */
 export const LABELS: Record<string, string> = {
   RichText: 'Rich text',
   CollectionList: 'Collection',
+}
+
+/** Display label for a component tile/row — the config `label`, else the key. */
+function labelFor(name: string): string {
+  const fromConfig = (puckConfig.components?.[name] as { label?: string } | undefined)?.label
+  return fromConfig || LABELS[name] || name
 }
 
 /**
@@ -47,7 +135,7 @@ export const LABELS: Record<string, string> = {
 export const puckOverrides: Partial<Overrides> = {
   componentItem: ({ name }) => {
     const Icon = ICONS[name] ?? Square
-    const label = LABELS[name] ?? name
+    const label = labelFor(name)
     return (
       <div
         className={cn(

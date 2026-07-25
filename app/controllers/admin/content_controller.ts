@@ -14,6 +14,16 @@ export default class ContentController {
     return response.json(item)
   }
 
+  async checkSlug({ request, response }: HttpContext) {
+    const slug = String(request.input('slug', ''))
+    const excludeId = request.input('excludeId')
+    const available = await contentService.isSlugAvailable(
+      slug,
+      excludeId ? String(excludeId) : undefined
+    )
+    return response.json({ available })
+  }
+
   async store({ request, auth, response }: HttpContext) {
     const { title, slug, body, status } = request.all()
     try {
@@ -60,5 +70,13 @@ export default class ContentController {
 
   async page({ inertia }: HttpContext) {
     return inertia.render('admin/content', {})
+  }
+
+  async newPage({ inertia }: HttpContext) {
+    return inertia.render('admin/content/new', {})
+  }
+
+  async editPage({ params, inertia }: HttpContext) {
+    return inertia.render('admin/content/edit', { id: params.id })
   }
 }

@@ -2,6 +2,10 @@
 import { Link, router } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
 import { ArrowLeft, History, Trash2 } from "lucide-react";
+import {
+  isCustomCollectionIcon,
+  resolveCollectionLucideIcon,
+} from "~/components/cms/collection-icon-lucide";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -43,6 +47,10 @@ export default function CmsRecordEditPage({
   const isLoading =
     collectionQuery.isLoading || (!isNew && offline.isLoading && !record);
 
+  const iconValue = collection?.icon ?? 'LayoutList'
+  const isCustomImage = isCustomCollectionIcon(iconValue)
+  const CollectionLucideIcon = resolveCollectionLucideIcon(iconValue)
+
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-3">
@@ -55,6 +63,14 @@ export default function CmsRecordEditPage({
         >
           <ArrowLeft className="size-4" />
         </Button>
+        <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/50 text-foreground/80">
+          {isCustomImage ? (
+            // eslint-disable-next-line @next/next/no-img-element -- data URL / remote icon
+            <img src={iconValue} alt="" className="size-full object-cover" />
+          ) : (
+            <CollectionLucideIcon className="size-5" aria-hidden />
+          )}
+        </span>
         <div className="flex-1">
           <h1 className="text-2xl font-semibold tracking-tight">
             {isNew ? 'New' : 'Edit'} {collection?.label ?? key}

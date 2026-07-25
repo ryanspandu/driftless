@@ -691,6 +691,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['page']>>>
     }
   }
+  'content.new_page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/content/new'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['newPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['newPage']>>>
+    }
+  }
+  'content.edit_page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/content/:id/edit'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['editPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['editPage']>>>
+    }
+  }
   'content.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/content'
@@ -713,6 +737,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['trash']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['trash']>>>
+    }
+  }
+  'content.check_slug': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/content/check-slug'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['checkSlug']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/content_controller').default['checkSlug']>>>
     }
   }
   'content.store': {
@@ -797,6 +833,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['edit']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['edit']>>>
+    }
+  }
+  'pages_public.preview': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/pages/:id/preview'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/pages_public_controller').default['preview']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/pages_public_controller').default['preview']>>>
     }
   }
   'pages.index': {
@@ -1219,6 +1267,66 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['fieldsDestroy']>>>
     }
   }
+  'cms.components_page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/cms/components'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['componentsPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['componentsPage']>>>
+    }
+  }
+  'cms.components_index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/cms/components'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['componentsIndex']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['componentsIndex']>>>
+    }
+  }
+  'cms.components_store': {
+    methods: ["POST"]
+    pattern: '/api/admin/cms/components'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['componentsStore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['componentsStore']>>>
+    }
+  }
+  'cms.components_update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/cms/components/:key'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['componentsUpdate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['componentsUpdate']>>>
+    }
+  }
+  'cms.components_destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/cms/components/:key'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['componentsDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/cms_controller').default['componentsDestroy']>>>
+    }
+  }
   'cms.records_page': {
     methods: ["GET","HEAD"]
     pattern: '/admin/cms/:key'
@@ -1423,6 +1531,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['store']>>>
     }
   }
+  'media.replace': {
+    methods: ["POST"]
+    pattern: '/api/admin/media/:id/file'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['replace']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['replace']>>>
+    }
+  }
+  'media.update': {
+    methods: ["PATCH"]
+    pattern: '/api/admin/media/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['update']>>>
+    }
+  }
   'media.restore': {
     methods: ["POST"]
     pattern: '/api/admin/media/:id/restore'
@@ -1469,6 +1601,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['settingsPage']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['settingsPage']>>>
+    }
+  }
+  'settings.website_settings_page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/website-settings'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['websiteSettingsPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['websiteSettingsPage']>>>
     }
   }
   'settings.application_settings_page': {
@@ -1589,6 +1733,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updateIntegrationSettings']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updateIntegrationSettings']>>>
+    }
+  }
+  'settings.get_page_code': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/settings/page-code'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['getPageCode']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['getPageCode']>>>
+    }
+  }
+  'settings.update_page_code': {
+    methods: ["PUT"]
+    pattern: '/api/admin/settings/page-code'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updatePageCode']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updatePageCode']>>>
     }
   }
   'settings.integrations_api_tokens_page': {
@@ -1951,6 +2119,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['index']>>>
     }
   }
+  'ctrl.assignees': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/tasks/assignees'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['assignees']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['assignees']>>>
+    }
+  }
   'ctrl.store': {
     methods: ["POST"]
     pattern: '/api/admin/tasks'
@@ -1961,6 +2141,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['store']>>>
+    }
+  }
+  'ctrl.move': {
+    methods: ["PATCH"]
+    pattern: '/api/admin/tasks/:id/move'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['move']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/tasks/controllers/tasks_controller').default['move']>>>
     }
   }
   'ctrl.update': {

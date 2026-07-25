@@ -36,7 +36,7 @@ function MediaPickerDialog({
   value?: string
   onChange: (url: string) => void
 }) {
-  const listQuery = useMediaList(1, 60)
+  const listQuery = useMediaList({ page: 1, pageSize: 60 })
   const images = useMemo(
     () => (listQuery.data?.items ?? []).filter((m) => isImageMime(m.mimeType)),
     [listQuery.data]

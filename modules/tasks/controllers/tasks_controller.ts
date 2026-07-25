@@ -4,7 +4,14 @@ import { renderPage } from '#helpers/inertia_render'
 
 const service = new TasksService()
 
-const FIELDS = ['title', 'description', 'status', 'priority', 'dueDate']
+const FIELDS = ['title', 'description', 'status', 'priority', 'dueDate', 'assignedUserId']
+
+/** Coerce a submitted assignee id to `number | null` ('' / null / NaN → null). */
+function toUserId(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
 
 export default class TasksController {
   /** Admin page (FE: modules/tasks/ui/admin). */
@@ -14,6 +21,11 @@ export default class TasksController {
 
   async index({ response }: HttpContext) {
     return response.json(await service.findAll())
+  }
+
+  /** Active users for the assignee picker (tasks-scoped, numeric ids). */
+  async assignees({ response }: HttpContext) {
+    return response.json(await service.listAssignees())
   }
 
   async store({ request, auth, response }: HttpContext) {
@@ -28,6 +40,7 @@ export default class TasksController {
       status: typeof body.status === 'string' ? body.status : undefined,
       priority: typeof body.priority === 'string' ? body.priority : undefined,
       dueDate: typeof body.dueDate === 'string' && body.dueDate ? body.dueDate : null,
+      assignedUserId: toUserId(body.assignedUserId),
     })
     return response.status(201).json(row)
   }
@@ -42,8 +55,24 @@ export default class TasksController {
         priority: typeof body.priority === 'string' ? body.priority : undefined,
         dueDate:
           body.dueDate === undefined ? undefined : body.dueDate ? String(body.dueDate) : null,
+        assignedUserId: body.assignedUserId === undefined ? undefined : toUserId(body.assignedUserId),
       })
       return response.json(row)
+    } catch {
+      return response.status(404).json({ message: 'Task not found.' })
+    }
+  }
+
+  /** Drag-and-drop: reorder within a column and/or move across columns. */
+  async move({ params, request, response }: HttpContext) {
+    const { toStatus, beforeId, afterId } = request.only(['toStatus', 'beforeId', 'afterId'])
+    try {
+      const result = await service.move(params.id, {
+        toStatus: typeof toStatus === 'string' ? toStatus : 'TODO',
+        beforeId: beforeId ? String(beforeId) : null,
+        afterId: afterId ? String(afterId) : null,
+      })
+      return response.json(result)
     } catch {
       return response.status(404).json({ message: 'Task not found.' })
     }

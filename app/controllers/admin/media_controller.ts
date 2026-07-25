@@ -5,13 +5,43 @@ const mediaService = new MediaService()
 
 export default class MediaController {
   async index({ request, response }: HttpContext) {
-    const { page, pageSize } = request.qs()
-    const result = await mediaService.list({ page: Number(page) || 1, pageSize: Number(pageSize) || 20 })
+    const { page, pageSize, search, dateFrom, dateTo } = request.qs()
+    const result = await mediaService.list({
+      page: Number(page) || 1,
+      pageSize: Number(pageSize) || 20,
+      search: typeof search === 'string' ? search : undefined,
+      dateFrom: typeof dateFrom === 'string' ? dateFrom : undefined,
+      dateTo: typeof dateTo === 'string' ? dateTo : undefined,
+    })
     return response.json(result)
   }
 
   async show({ params, response }: HttpContext) {
     const media = await mediaService.findOne(params.id)
+    return response.json(media)
+  }
+
+  async update({ params, request, response }: HttpContext) {
+    const { title, description, alt } = request.only(['title', 'description', 'alt'])
+    const media = await mediaService.updateMeta(params.id, { title, description, alt })
+    return response.json(media)
+  }
+
+  async replace({ params, request, response }: HttpContext) {
+    const file = request.file('file', {
+      size: '10mb',
+      extnames: ['jpg', 'jpeg', 'png', 'webp'],
+    })
+
+    if (!file) {
+      return response.status(422).json({ message: 'No file uploaded' })
+    }
+
+    const { width, height } = request.only(['width', 'height'])
+    const media = await mediaService.replaceFile(params.id, file, {
+      width: typeof width === 'string' ? Number(width) : null,
+      height: typeof height === 'string' ? Number(height) : null,
+    })
     return response.json(media)
   }
 

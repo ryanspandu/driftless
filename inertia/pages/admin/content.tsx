@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { router as inertiaRouter } from '@inertiajs/react'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
 import type { ColumnDef } from '@tanstack/react-table'
 import { CloudUpload, FileText, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -15,7 +16,6 @@ import {
 import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { TrashModal } from '~/components/trash-modal'
-import { ContentFormDialog } from '~/components/admin/content-form-dialog'
 import { useOfflineContent, type OfflineContentRow } from '~/hooks/offline/use-offline-content'
 import {
   useTrashedContent,
@@ -26,8 +26,6 @@ import { syncStatusOf } from '~/lib/offline/sync-status'
 import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
 import { cn, formatAdminTableDateTime } from '~/lib/utils'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
-
-type DialogMode = { kind: 'create' } | { kind: 'edit'; row: ContentDto }
 
 function parseContentTab(sp: ReturnType<typeof useSearchParams>): string {
   const t = sp.get('tab')
@@ -48,7 +46,7 @@ function ContentPageInner() {
     })
     replaceUrlIfChanged(pathname, router, merged, { scroll: false })
   }
-  const { rows, isLoading, lastSyncedAt, refresh, create, update, remove, discardConflict, recreateFromConflict } =
+  const { rows, isLoading, lastSyncedAt, refresh, remove, discardConflict, recreateFromConflict } =
     useOfflineContent()
 
   const trashedQuery = useTrashedContent()
@@ -112,11 +110,6 @@ function ContentPageInner() {
     []
   )
 
-  const [dialog, setDialog] = useState<{ open: boolean; mode: DialogMode }>({
-    open: false,
-    mode: { kind: 'create' },
-  })
-
   const published = rows.filter((r) => r.data.status === 'PUBLISHED')
   const drafts = rows.filter((r) => r.data.status === 'DRAFT')
 
@@ -175,12 +168,7 @@ function ContentPageInner() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() =>
-                  setDialog({
-                    open: true,
-                    mode: { kind: 'edit', row: row.original.data },
-                  })
-                }
+                onClick={() => inertiaRouter.visit(`/admin/content/${row.original.data.id}/edit`)}
               >
                 <Pencil className="size-4" />
                 Edit
@@ -292,10 +280,7 @@ function ContentPageInner() {
         subtitle="Manage posts, pages, and media entries"
         count={isLoading ? undefined : rows.length}
         actions={
-          <Button
-            className="gap-2"
-            onClick={() => setDialog({ open: true, mode: { kind: 'create' } })}
-          >
+          <Button className="gap-2" onClick={() => inertiaRouter.visit('/admin/content/new')}>
             <Plus className="size-4" />
             New post
           </Button>
@@ -331,19 +316,6 @@ function ContentPageInner() {
         }}
         onForceDelete={(id) => forceDeleteMut.mutateAsync(id)}
         emptyMessage="No deleted content."
-      />
-
-      <ContentFormDialog
-        open={dialog.open}
-        onOpenChange={(open) => setDialog((prev) => ({ ...prev, open }))}
-        mode={dialog.mode}
-        onSubmit={async (values) => {
-          if (dialog.mode.kind === 'edit') {
-            await update(dialog.mode.row.id, values)
-          } else {
-            await create(values)
-          }
-        }}
       />
     </div>
   )

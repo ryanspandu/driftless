@@ -5,7 +5,8 @@
       "name": "driftless-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 3333
+      "port": 3333,
+      "autoPort": true
     }
   ]
 }

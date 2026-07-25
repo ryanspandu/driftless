@@ -50,7 +50,20 @@ export default class ContentService {
     return this.toDto(row)
   }
 
-  async create(authorId: number, dto: { title: string; slug: string; body: string; status: string }): Promise<ContentDto> {
+  /** True when `slug` is free (ignoring soft-deleted rows and, on edit, `excludeId`). */
+  async isSlugAvailable(slug: string, excludeId?: string): Promise<boolean> {
+    const trimmed = slug.trim()
+    if (!trimmed) return false
+    const query = Content.query().where('slug', trimmed).whereNull('deleted_at')
+    if (excludeId) query.whereNot('id', excludeId)
+    const existing = await query.first()
+    return !existing
+  }
+
+  async create(
+    authorId: number,
+    dto: { title: string; slug: string; body: string; status: string }
+  ): Promise<ContentDto> {
     const existing = await Content.query().where('slug', dto.slug).whereNull('deleted_at').first()
     if (existing) throw new Error('Slug already in use')
 

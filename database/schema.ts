@@ -54,7 +54,7 @@ export class AuthAccessTokenSchema extends BaseModel {
 }
 
 export class CmsCollectionSchema extends BaseModel {
-  static $columns = ['createdAt', 'deletedAt', 'draftsOn', 'group', 'icon', 'id', 'key', 'label', 'listConfig', 'modelName', 'revisionsOn', 'source', 'tableName', 'updatedAt'] as const
+  static $columns = ['createdAt', 'deletedAt', 'draftsOn', 'group', 'icon', 'id', 'key', 'kind', 'label', 'listConfig', 'modelName', 'revisionsOn', 'source', 'tableName', 'updatedAt'] as const
   $columns = CmsCollectionSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -71,6 +71,8 @@ export class CmsCollectionSchema extends BaseModel {
   @column()
   declare key: string
   @column()
+  declare kind: string
+  @column()
   declare label: string
   @column()
   declare listConfig: string
@@ -86,8 +88,29 @@ export class CmsCollectionSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class CmsComponentSchema extends BaseModel {
+  static $columns = ['createdAt', 'deletedAt', 'fields', 'icon', 'id', 'key', 'label', 'updatedAt'] as const
+  $columns = CmsComponentSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare fields: string
+  @column()
+  declare icon: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare key: string
+  @column()
+  declare label: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class CmsDemoPostSchema extends BaseModel {
-  static $columns = ['authorId', 'createdAt', 'deletedAt', 'excerpt', 'id', 'image', 'slug', 'status', 'title', 'updatedAt'] as const
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'dfdsf', 'excerpt', 'id', 'image', 'slug', 'status', 'title', 'updatedAt'] as const
   $columns = CmsDemoPostSchema.$columns
   @column()
   declare authorId: string | null
@@ -95,6 +118,8 @@ export class CmsDemoPostSchema extends BaseModel {
   declare createdAt: DateTime
   @column.dateTime()
   declare deletedAt: DateTime | null
+  @column()
+  declare dfdsf: boolean | null
   @column()
   declare excerpt: string | null
   @column({ isPrimary: true })
@@ -222,14 +247,18 @@ export class IntegrationSettingSchema extends BaseModel {
 }
 
 export class MediaSchema extends BaseModel {
-  static $columns = ['authorId', 'createdAt', 'deletedAt', 'filename', 'height', 'id', 'mimeType', 'size', 'url', 'width'] as const
+  static $columns = ['alt', 'authorId', 'createdAt', 'deletedAt', 'description', 'filename', 'height', 'id', 'mimeType', 'size', 'title', 'updatedAt', 'url', 'width'] as const
   $columns = MediaSchema.$columns
+  @column()
+  declare alt: string | null
   @column()
   declare authorId: number | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column.dateTime()
   declare deletedAt: DateTime | null
+  @column()
+  declare description: string | null
   @column()
   declare filename: string
   @column()
@@ -240,6 +269,10 @@ export class MediaSchema extends BaseModel {
   declare mimeType: string
   @column()
   declare size: number
+  @column()
+  declare title: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
   @column()
   declare url: string
   @column()
@@ -397,7 +430,7 @@ export class RoleSchema extends BaseModel {
 }
 
 export class TaskSchema extends BaseModel {
-  static $columns = ['assignedUserId', 'createdAt', 'createdByUserId', 'deletedAt', 'description', 'dueDate', 'id', 'priority', 'status', 'title', 'updatedAt'] as const
+  static $columns = ['assignedUserId', 'createdAt', 'createdByUserId', 'deletedAt', 'description', 'dueDate', 'id', 'position', 'priority', 'status', 'title', 'updatedAt'] as const
   $columns = TaskSchema.$columns
   @column()
   declare assignedUserId: number | null
@@ -413,6 +446,8 @@ export class TaskSchema extends BaseModel {
   declare dueDate: DateTime | null
   @column({ isPrimary: true })
   declare id: string
+  @column()
+  declare position: number
   @column()
   declare priority: string
   @column()

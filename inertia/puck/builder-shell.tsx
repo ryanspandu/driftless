@@ -8,6 +8,7 @@ import {
   PanelLeft,
   PanelRight,
   Redo2,
+  Settings,
   Smartphone,
   SlidersHorizontal,
   Tablet,
@@ -16,6 +17,8 @@ import {
 import { Button } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
 import { LayersTree } from './layers-tree'
+import { DetailPanel } from './detail-panel'
+import { SettingsDialog, type PageMeta } from './settings-dialog'
 
 /**
  * Custom Puck layout for the Pages/Templates builder.
@@ -50,27 +53,33 @@ export function BuilderShell({
   topbarStart,
   topbarEnd,
   onPublish,
+  pageMeta,
+  onPageMetaChange,
 }: {
   topbarStart?: ReactNode
   topbarEnd?: ReactNode
   onPublish: (data: Data) => void | Promise<void>
+  /** Page-level settings — omitted by the Templates builder. */
+  pageMeta?: PageMeta
+  onPageMetaChange?: (meta: PageMeta) => void
 }) {
   const { appState, history, selectedItem } = usePuck()
-  const [leftTab, setLeftTab] = useState<'components' | 'detail'>('components')
+  const [leftTab, setLeftTab] = useState<'components' | 'element'>('components')
   // null = Desktop / full width. A number = a fixed canvas width in px (preset
   // or a custom value typed into the width box).
   const [canvasWidth, setCanvasWidth] = useState<number | null>(null)
   const [leftOpen, setLeftOpen] = useState(true)
   const [rightOpen, setRightOpen] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
-  // When a component is selected, swing the LEFT panel to Detail so its settings
+  // When a component is selected, swing the LEFT panel to Element so its settings
   // are right there. The Layers panel (right) is untouched.
   const selId = (selectedItem?.props as { id?: string } | undefined)?.id ?? null
   const prevSel = useRef<string | null>(selId)
   useEffect(() => {
     if (selId === prevSel.current) return
     prevSel.current = selId
-    if (selId) setLeftTab('detail')
+    if (selId) setLeftTab('element')
   }, [selId])
 
   return (
@@ -143,6 +152,15 @@ export function BuilderShell({
             >
               <PanelRight className="size-4" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={() => setSettingsOpen(true)}
+              aria-label="Page settings"
+            >
+              <Settings className="size-4" />
+            </Button>
           </div>
           <div className="flex items-center">
             <Button
@@ -183,9 +201,9 @@ export function BuilderShell({
                 <Blocks className="size-4" />
                 Components
               </TabButton>
-              <TabButton active={leftTab === 'detail'} onClick={() => setLeftTab('detail')}>
+              <TabButton active={leftTab === 'element'} onClick={() => setLeftTab('element')}>
                 <SlidersHorizontal className="size-4" />
-                Detail
+                Element
               </TabButton>
             </div>
           </div>
@@ -195,7 +213,7 @@ export function BuilderShell({
                 <Puck.Components />
               </div>
             ) : (
-              <Puck.Fields />
+              <DetailPanel />
             )}
           </div>
         </aside>
@@ -222,6 +240,13 @@ export function BuilderShell({
         </aside>
         )}
       </div>
+
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        pageMeta={pageMeta}
+        onPageMetaChange={onPageMetaChange}
+      />
     </div>
   )
 }

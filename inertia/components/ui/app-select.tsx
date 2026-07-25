@@ -1,5 +1,5 @@
 
-import { useId, useMemo } from "react";
+import { useId, useMemo, type ReactNode } from "react";
 import ReactSelect, {
   type GroupBase,
   type Props as ReactSelectProps,
@@ -7,7 +7,12 @@ import ReactSelect, {
 } from "react-select";
 import { cn } from "~/lib/utils";
 
-export type AppSelectOption = { value: string; label: string };
+export type AppSelectOption = {
+  value: string;
+  label: string;
+  /** Optional leading node (e.g. an avatar / icon) shown in the menu + value. */
+  icon?: ReactNode;
+};
 
 export interface AppSelectProps {
   id?: string;
@@ -73,6 +78,17 @@ export function AppSelect({
     isDisabled: disabled,
     isSearchable,
     isClearable,
+    // Render an optional per-option icon (e.g. an avatar) in both the menu and
+    // the selected value; plain options fall back to the label string.
+    formatOptionLabel: (opt: AppSelectOption) =>
+      opt.icon != null ? (
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="flex shrink-0 items-center">{opt.icon}</span>
+          <span className="truncate">{opt.label}</span>
+        </span>
+      ) : (
+        opt.label
+      ),
     menuPosition: "fixed",
     menuPortalTarget:
       typeof document !== "undefined" ? document.body : undefined,

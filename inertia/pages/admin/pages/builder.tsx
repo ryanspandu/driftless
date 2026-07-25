@@ -2,13 +2,15 @@ import '@measured/puck/puck.css'
 import { Puck, type Data } from '@measured/puck'
 import { useState } from 'react'
 import { Link } from '@inertiajs/react'
-import { ArrowLeft, ExternalLink, History } from 'lucide-react'
+import { ArrowLeft, Eye, ExternalLink, History } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import { puckConfig } from '~/puck/config'
 import { builderViewports } from '~/puck/style-fields'
 import { puckOverrides } from '~/puck/overrides'
 import { BuilderShell } from '~/puck/builder-shell'
+import type { PageMeta } from '~/puck/settings-dialog'
 import { usePage as usePageRecord, useUpdatePage } from '~/hooks/api/use-pages'
+import type { PageDto } from '~/types/api'
 import { Button, buttonVariants } from '~/components/ui/button'
 import { PageRevisionsPanel } from '~/components/admin/page-revisions-panel'
 import { cn } from '~/lib/utils'
@@ -24,9 +26,7 @@ const PUCK_VIEWPORTS = [...builderViewports]
 
 export default function PageBuilder({ id }: { id: string }) {
   const pageQuery = usePageRecord(id)
-  const updateMut = useUpdatePage()
   const page = pageQuery.data
-  const [historyOpen, setHistoryOpen] = useState(false)
 
   if (pageQuery.isLoading || !page) {
     return (
@@ -36,6 +36,29 @@ export default function PageBuilder({ id }: { id: string }) {
     )
   }
 
+  return <BuilderInner id={id} page={page} />
+}
+
+/**
+ * Inner builder — rendered only once the page has loaded, so page-level settings
+ * (title/path/status/render mode/templates/SEO) can be seeded into local state
+ * and edited from the Settings dialog. Everything is persisted together on
+ * Publish (Puck `content` + `PageMeta`).
+ */
+function BuilderInner({ id, page }: { id: string; page: PageDto }) {
+  const updateMut = useUpdatePage()
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [meta, setMeta] = useState<PageMeta>(() => ({
+    title: page.title,
+    path: page.path,
+    status: page.status,
+    renderMode: page.renderMode,
+    layoutId: page.layoutId,
+    headerTemplateId: page.headerTemplateId,
+    footerTemplateId: page.footerTemplateId,
+    seo: (page.seo ?? {}) as Record<string, unknown>,
+  }))
+
   const initial =
     page.content && Object.keys(page.content).length
       ? (page.content as unknown as Data)
@@ -43,8 +66,19 @@ export default function PageBuilder({ id }: { id: string }) {
 
   const save = async (data: Data) => {
     try {
-      await updateMut.mutateAsync({ id, content: data as unknown as Record<string, unknown> })
-      toast.success('Page design saved')
+      await updateMut.mutateAsync({
+        id,
+        content: data as unknown as Record<string, unknown>,
+        title: meta.title,
+        path: meta.path,
+        status: meta.status,
+        renderMode: meta.renderMode,
+        layoutId: meta.layoutId,
+        headerTemplateId: meta.headerTemplateId,
+        footerTemplateId: meta.footerTemplateId,
+        seo: meta.seo,
+      })
+      toast.success('Page saved')
     } catch {
       toast.error('Failed to save')
     }
@@ -61,6 +95,8 @@ export default function PageBuilder({ id }: { id: string }) {
     >
       <BuilderShell
         onPublish={save}
+        pageMeta={meta}
+        onPageMetaChange={setMeta}
         topbarStart={
           <>
             <Link
@@ -70,8 +106,8 @@ export default function PageBuilder({ id }: { id: string }) {
               <ArrowLeft className="size-4" />
               Pages
             </Link>
-            <span className="truncate text-sm font-medium">{page.title}</span>
-            <span className="shrink-0 text-xs text-muted-foreground">/{page.path}</span>
+            <span className="truncate text-sm font-medium">{meta.title}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">/{meta.path}</span>
           </>
         }
         topbarEnd={
@@ -85,9 +121,18 @@ export default function PageBuilder({ id }: { id: string }) {
               <History className="size-4" />
               History
             </Button>
-            {page.status === 'PUBLISHED' ? (
+            <a
+              href={`/admin/pages/${id}/preview`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <Eye className="size-4" />
+              Preview
+            </a>
+            {meta.status === 'PUBLISHED' ? (
               <a
-                href={`/${page.path}`}
+                href={`/${meta.path}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"

@@ -1,6 +1,7 @@
 import { createElement, type CSSProperties, type ElementType, type ReactNode } from 'react'
 import type { Field } from '@measured/puck'
 import { cn } from '~/lib/utils'
+import { AlignControl, BoxModelControl, ColorControl, NumberUnitControl } from '~/puck/style-controls'
 
 /**
  * Shared style controls for the Pages builder ("enrich toward Webflow").
@@ -22,41 +23,45 @@ const boxShadowPresets: Record<string, string> = {
   lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
 }
 
-/** Shared style controls — defined once, spread into every block's `fields`. */
+/**
+ * Shared style controls — defined once, spread into every block's `fields`.
+ *
+ * Ordered into logical groups (spacing → size → typography → background →
+ * border) and using Webflow-style visual controls for the high-traffic ones
+ * (see style-controls.tsx). All values stay plain CSS strings, so this is
+ * additive & backward-compatible — no data migration.
+ */
 export const styleFields: Record<string, Field> = {
-  padding: { type: 'text', label: 'Padding (CSS)' },
-  margin: { type: 'text', label: 'Margin (CSS)' },
-  maxWidth: { type: 'text', label: 'Max width' },
-  align: {
-    type: 'select',
-    label: 'Text align',
-    options: [
-      { label: 'Left', value: 'left' },
-      { label: 'Center', value: 'center' },
-      { label: 'Right', value: 'right' },
-    ],
+  // Spacing
+  padding: {
+    type: 'custom',
+    label: 'Padding',
+    render: ({ value, onChange }) => <BoxModelControl value={value} onChange={onChange} />,
   },
-  bg: { type: 'text', label: 'Background' },
-  textColor: { type: 'text', label: 'Text color' },
-  font: { type: 'text', label: 'Font family' },
-  className: { type: 'text', label: 'Custom class' },
+  margin: {
+    type: 'custom',
+    label: 'Margin',
+    render: ({ value, onChange }) => <BoxModelControl value={value} onChange={onChange} />,
+  },
 
-  // --- Enriched, optional controls (additive, backward-compatible) ---
-  borderRadius: { type: 'text', label: 'Border radius' },
-  borderWidth: { type: 'text', label: 'Border width' },
-  borderColor: { type: 'text', label: 'Border color' },
-  boxShadow: {
-    type: 'select',
-    label: 'Box shadow',
-    options: [
-      { label: 'None', value: '' },
-      { label: 'Small', value: 'sm' },
-      { label: 'Medium', value: 'md' },
-      { label: 'Large', value: 'lg' },
-    ],
+  // Size
+  maxWidth: {
+    type: 'custom',
+    label: 'Max width',
+    render: ({ value, onChange }) => <NumberUnitControl value={value} onChange={onChange} />,
   },
-  width: { type: 'text', label: 'Width' },
-  minHeight: { type: 'text', label: 'Min height' },
+  width: {
+    type: 'custom',
+    label: 'Width',
+    render: ({ value, onChange }) => <NumberUnitControl value={value} onChange={onChange} />,
+  },
+  minHeight: {
+    type: 'custom',
+    label: 'Min height',
+    render: ({ value, onChange }) => <NumberUnitControl value={value} onChange={onChange} />,
+  },
+
+  // Typography
   textSize: { type: 'text', label: 'Font size' },
   fontWeight: {
     type: 'select',
@@ -69,6 +74,54 @@ export const styleFields: Record<string, Field> = {
     ],
   },
   lineHeight: { type: 'text', label: 'Line height' },
+  font: { type: 'text', label: 'Font family' },
+  textColor: {
+    type: 'custom',
+    label: 'Text color',
+    render: ({ value, onChange }) => <ColorControl value={value} onChange={onChange} />,
+  },
+  align: {
+    type: 'custom',
+    label: 'Text align',
+    render: ({ value, onChange }) => <AlignControl value={value} onChange={onChange} />,
+  },
+
+  // Background
+  bg: {
+    type: 'custom',
+    label: 'Background',
+    render: ({ value, onChange }) => <ColorControl value={value} onChange={onChange} />,
+  },
+
+  // Border & effects
+  borderWidth: {
+    type: 'custom',
+    label: 'Border width',
+    render: ({ value, onChange }) => <NumberUnitControl value={value} onChange={onChange} />,
+  },
+  borderColor: {
+    type: 'custom',
+    label: 'Border color',
+    render: ({ value, onChange }) => <ColorControl value={value} onChange={onChange} />,
+  },
+  borderRadius: {
+    type: 'custom',
+    label: 'Border radius',
+    render: ({ value, onChange }) => <NumberUnitControl value={value} onChange={onChange} />,
+  },
+  boxShadow: {
+    type: 'select',
+    label: 'Box shadow',
+    options: [
+      { label: 'None', value: '' },
+      { label: 'Small', value: 'sm' },
+      { label: 'Medium', value: 'md' },
+      { label: 'Large', value: 'lg' },
+    ],
+  },
+
+  // Advanced
+  className: { type: 'text', label: 'Custom class' },
 }
 
 /** Block props are loose JSON; read style keys defensively. */
@@ -87,12 +140,47 @@ function styleToCss(s: StyleBag): CSSProperties {
     color: str(s, 'textColor'),
     fontFamily: str(s, 'font'),
     textAlign: str(s, 'align') as CSSProperties['textAlign'],
+    textDecoration: str(s, 'textDecoration'),
     borderRadius: str(s, 'borderRadius'),
     width: str(s, 'width'),
+    height: str(s, 'height'),
+    minWidth: str(s, 'minWidth'),
     minHeight: str(s, 'minHeight'),
+    maxHeight: str(s, 'maxHeight'),
+    overflow: str(s, 'overflow') as CSSProperties['overflow'],
+    display: str(s, 'display'),
+    flexDirection: str(s, 'flexDirection') as CSSProperties['flexDirection'],
+    justifyContent: str(s, 'justifyContent'),
+    alignItems: str(s, 'alignItems'),
+    gap: str(s, 'gap'),
+    position: str(s, 'position') as CSSProperties['position'],
+    top: str(s, 'top'),
+    right: str(s, 'right'),
+    bottom: str(s, 'bottom'),
+    left: str(s, 'left'),
+    zIndex: str(s, 'zIndex') as CSSProperties['zIndex'],
     fontSize: str(s, 'textSize'),
     fontWeight: str(s, 'fontWeight') as CSSProperties['fontWeight'],
     lineHeight: str(s, 'lineHeight'),
+    letterSpacing: str(s, 'letterSpacing'),
+    textIndent: str(s, 'textIndent'),
+    textTransform: str(s, 'textTransform') as CSSProperties['textTransform'],
+    fontStyle: str(s, 'fontStyle') as CSSProperties['fontStyle'],
+    direction: str(s, 'direction') as CSSProperties['direction'],
+    whiteSpace: str(s, 'whiteSpace') as CSSProperties['whiteSpace'],
+    mixBlendMode: str(s, 'mixBlendMode') as CSSProperties['mixBlendMode'],
+    opacity: str(s, 'opacity') as CSSProperties['opacity'],
+    cursor: str(s, 'cursor'),
+    alignSelf: str(s, 'alignSelf') as CSSProperties['alignSelf'],
+    order: str(s, 'order') as CSSProperties['order'],
+    flexGrow: str(s, 'flexGrow') as CSSProperties['flexGrow'],
+    flexShrink: str(s, 'flexShrink') as CSSProperties['flexShrink'],
+    flexBasis: str(s, 'flexBasis'),
+    float: str(s, 'float') as CSSProperties['float'],
+    clear: str(s, 'clear') as CSSProperties['clear'],
+    transform: str(s, 'transform'),
+    transition: str(s, 'transition'),
+    filter: str(s, 'filter'),
   }
 
   if (str(s, 'maxWidth')) {
@@ -101,8 +189,9 @@ function styleToCss(s: StyleBag): CSSProperties {
   }
 
   const borderWidth = str(s, 'borderWidth')
-  if (borderWidth) {
-    css.border = `${borderWidth} solid ${str(s, 'borderColor') || 'currentColor'}`
+  const borderStyle = str(s, 'borderStyle')
+  if (borderWidth || borderStyle) {
+    css.border = `${borderWidth || '1px'} ${borderStyle || 'solid'} ${str(s, 'borderColor') || 'currentColor'}`
   }
 
   const shadow = str(s, 'boxShadow')
@@ -119,12 +208,15 @@ export function Box({
   className,
   style,
   children,
+  ...rest
 }: {
   s?: StyleBag
   as?: ElementType
   className?: string
   style?: CSSProperties
   children?: ReactNode
+  /** Extra DOM attributes forwarded to the element (e.g. `href`/`target` for links). */
+  [key: string]: unknown
 }) {
   // `_hidden` (toggled from the Layers panel) hides the block on the published
   // page / SSR (render nothing). In the editor (`puck.isEditing`) it stays
@@ -136,6 +228,7 @@ export function Box({
   return createElement(
     as,
     {
+      ...rest,
       className: cn(className, str(s, 'className')),
       style: { ...styleToCss(s), ...style, ...(hidden ? { opacity: 0.4 } : null) },
     },

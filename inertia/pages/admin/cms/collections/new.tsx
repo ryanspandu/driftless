@@ -67,6 +67,7 @@ export default function NewCmsCollectionPage() {
   const [group, setGroup] = useState('')
   const [revisionsOn, setRevisionsOn] = useState(true)
   const [draftsOn, setDraftsOn] = useState(true)
+  const [kind, setKind] = useState<'collection' | 'single'>('collection')
   const [fields, setFields] = useState<SchemaFieldDraft[]>(() => [
     { ...emptyFieldDraft(), key: 'title', label: 'Title', required: true },
     {
@@ -118,6 +119,7 @@ export default function NewCmsCollectionPage() {
         group: group.trim() || undefined,
         revisionsOn,
         draftsOn,
+        kind,
         fields: fields.map<CreateCmsCollectionFieldRequest>((f) => ({
           key: f.key,
           label: f.label,
@@ -222,6 +224,13 @@ export default function NewCmsCollectionPage() {
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={draftsOn} onCheckedChange={(v) => setDraftsOn(v === true)} />
               Enable draft / publish workflow
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={kind === 'single'}
+                onCheckedChange={(v) => setKind(v === true ? 'single' : 'collection')}
+              />
+              Single type (one entry only)
             </label>
           </div>
         </CardContent>

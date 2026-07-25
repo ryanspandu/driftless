@@ -8,8 +8,8 @@ import { registerRoutes } from '#modules/tasks/routes'
  */
 export default defineModule({
   name: 'tasks',
-  label: 'Tasks',
-  description: 'A lightweight task tracker — a seed for project management.',
+  label: 'To do list',
+  description: 'A Trello-style to-do list with a kanban board and assignees.',
   version: '1.0.0',
   autoEnable: true,
   permissions: [
@@ -17,8 +17,8 @@ export default defineModule({
     { name: 'tasks:manage', description: 'Create / update / delete tasks.' },
   ],
   nav: {
-    label: 'Tasks',
-    icon: 'ListChecks',
+    label: 'To do list',
+    icon: 'Kanban',
     order: 20,
     href: '/admin/tasks',
     permission: 'tasks:read',

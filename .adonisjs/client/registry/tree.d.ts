@@ -26,6 +26,7 @@ export interface ApiDefinition {
   settings: {
     getAuthConfig: typeof routes['settings.get_auth_config']
     settingsPage: typeof routes['settings.settings_page']
+    websiteSettingsPage: typeof routes['settings.website_settings_page']
     applicationSettingsPage: typeof routes['settings.application_settings_page']
     integrationsPage: typeof routes['settings.integrations_page']
     integrationsGooglePage: typeof routes['settings.integrations_google_page']
@@ -36,6 +37,8 @@ export interface ApiDefinition {
     updateWebSettings: typeof routes['settings.update_web_settings']
     getIntegrationSettings: typeof routes['settings.get_integration_settings']
     updateIntegrationSettings: typeof routes['settings.update_integration_settings']
+    getPageCode: typeof routes['settings.get_page_code']
+    updatePageCode: typeof routes['settings.update_page_code']
     integrationsApiTokensPage: typeof routes['settings.integrations_api_tokens_page']
     navConfig: typeof routes['settings.nav_config']
   }
@@ -104,8 +107,11 @@ export interface ApiDefinition {
   }
   content: {
     page: typeof routes['content.page']
+    newPage: typeof routes['content.new_page']
+    editPage: typeof routes['content.edit_page']
     index: typeof routes['content.index']
     trash: typeof routes['content.trash']
+    checkSlug: typeof routes['content.check_slug']
     store: typeof routes['content.store']
     restore: typeof routes['content.restore']
     forceDestroy: typeof routes['content.force_destroy']
@@ -126,6 +132,10 @@ export interface ApiDefinition {
     show: typeof routes['pages.show']
     update: typeof routes['pages.update']
     destroy: typeof routes['pages.destroy']
+  }
+  pagesPublic: {
+    preview: typeof routes['pages_public.preview']
+    show: typeof routes['pages_public.show']
   }
   templates: {
     page: typeof routes['templates.page']
@@ -154,6 +164,11 @@ export interface ApiDefinition {
     fieldsUpdate: typeof routes['cms.fields_update']
     fieldsReorder: typeof routes['cms.fields_reorder']
     fieldsDestroy: typeof routes['cms.fields_destroy']
+    componentsPage: typeof routes['cms.components_page']
+    componentsIndex: typeof routes['cms.components_index']
+    componentsStore: typeof routes['cms.components_store']
+    componentsUpdate: typeof routes['cms.components_update']
+    componentsDestroy: typeof routes['cms.components_destroy']
     recordsPage: typeof routes['cms.records_page']
     newRecordPage: typeof routes['cms.new_record_page']
     recordDetailPage: typeof routes['cms.record_detail_page']
@@ -173,6 +188,8 @@ export interface ApiDefinition {
     index: typeof routes['media.index']
     trash: typeof routes['media.trash']
     store: typeof routes['media.store']
+    replace: typeof routes['media.replace']
+    update: typeof routes['media.update']
     restore: typeof routes['media.restore']
     forceDestroy: typeof routes['media.force_destroy']
     destroy: typeof routes['media.destroy']
@@ -219,11 +236,10 @@ export interface ApiDefinition {
   ctrl: {
     page: typeof routes['ctrl.page']
     index: typeof routes['ctrl.index']
+    assignees: typeof routes['ctrl.assignees']
     store: typeof routes['ctrl.store']
+    move: typeof routes['ctrl.move']
     update: typeof routes['ctrl.update']
     destroy: typeof routes['ctrl.destroy']
-  }
-  pagesPublic: {
-    show: typeof routes['pages_public.show']
   }
 }

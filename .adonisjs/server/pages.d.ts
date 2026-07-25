@@ -16,9 +16,12 @@ declare module '@adonisjs/inertia/types' {
     'admin/cms/collection_detail': ExtractProps<(typeof import('../../inertia/pages/admin/cms/collection_detail.tsx'))['default']>
     'admin/cms/collections': ExtractProps<(typeof import('../../inertia/pages/admin/cms/collections.tsx'))['default']>
     'admin/cms/collections/new': ExtractProps<(typeof import('../../inertia/pages/admin/cms/collections/new.tsx'))['default']>
+    'admin/cms/components': ExtractProps<(typeof import('../../inertia/pages/admin/cms/components.tsx'))['default']>
     'admin/cms/record_detail': ExtractProps<(typeof import('../../inertia/pages/admin/cms/record_detail.tsx'))['default']>
     'admin/cms/records': ExtractProps<(typeof import('../../inertia/pages/admin/cms/records.tsx'))['default']>
     'admin/content': ExtractProps<(typeof import('../../inertia/pages/admin/content.tsx'))['default']>
+    'admin/content/edit': ExtractProps<(typeof import('../../inertia/pages/admin/content/edit.tsx'))['default']>
+    'admin/content/new': ExtractProps<(typeof import('../../inertia/pages/admin/content/new.tsx'))['default']>
     'admin/dashboard': ExtractProps<(typeof import('../../inertia/pages/admin/dashboard.tsx'))['default']>
     'admin/integrations': ExtractProps<(typeof import('../../inertia/pages/admin/integrations.tsx'))['default']>
     'admin/integrations/api-tokens': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/api-tokens.tsx'))['default']>
@@ -43,6 +46,7 @@ declare module '@adonisjs/inertia/types' {
     'admin/templates/builder': ExtractProps<(typeof import('../../inertia/pages/admin/templates/builder.tsx'))['default']>
     'admin/templates/index': ExtractProps<(typeof import('../../inertia/pages/admin/templates/index.tsx'))['default']>
     'admin/users': ExtractProps<(typeof import('../../inertia/pages/admin/users.tsx'))['default']>
+    'admin/website-settings': ExtractProps<(typeof import('../../inertia/pages/admin/website-settings.tsx'))['default']>
     'auth/login': ExtractProps<(typeof import('../../inertia/pages/auth/login.tsx'))['default']>
     'auth/signup': ExtractProps<(typeof import('../../inertia/pages/auth/signup.tsx'))['default']>
     'errors/not_found': ExtractProps<(typeof import('../../inertia/pages/errors/not_found.tsx'))['default']>
