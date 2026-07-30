@@ -12,8 +12,15 @@ const encryptionConfig = defineConfig({
       /**
        * Keys used for encryption/decryption.
        * First key encrypts, all keys are tried for decryption.
+       *
+       * `APP_KEY_PREVIOUS` is optional and exists purely for rotation: set it
+       * to the outgoing key so ciphertext written before the rotation (stored
+       * integration secrets and payment credentials) stays readable until it
+       * has been re-encrypted under the new key.
        */
-      keys: [env.get('APP_KEY')],
+      keys: [env.get('APP_KEY'), env.get('APP_KEY_PREVIOUS')].filter(
+        (key): key is NonNullable<typeof key> => Boolean(key)
+      ),
 
       /**
        * Stable identifier for this driver.

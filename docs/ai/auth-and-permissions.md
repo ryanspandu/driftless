@@ -31,7 +31,28 @@ From `app/services/permission_ability_service.ts`:
 
 `abilityAllowsCode(permissionNames, code)` checks if a user may perform an action.
 
-Builtin permission codes are seeded from `database/seeder_constants.ts`: `*`, `content:create|read|update|delete`, `user:read|manage`, `media:read|manage`, `cms:manage`, `page:*`, `template:*`, `role:manage`, `permission:manage`, `settings:manage`, `plugin:manage`. **There are no native CMS collections** — Content, Media and Users are standalone resources (dedicated pages + the permissions above), not CMS collections. `cms:{key}:*` codes only exist for dynamic collections.
+Builtin permission codes are seeded from `database/seeder_constants.ts`: `*`, `content:create|read|update|delete`, `user:read|manage`, `media:read|manage`, `cms:manage`, `page:*`, `template:*`, `role:manage`, `permission:manage`, `settings:manage`, `module:manage`, `module:install`, `module:uninstall`. **There are no native CMS collections** — Content, Media and Users are standalone resources (dedicated pages + the permissions above), not CMS collections. `cms:{key}:*` codes only exist for dynamic collections.
+
+#### Module permissions — read this before changing them
+
+| Code | Held by | Guards |
+|---|---|---|
+| `module:manage` | ADMIN | **Nothing.** See below |
+| `module:install` | ADMIN, SUPERADMIN | Install a module, apply migrations — runs a build on the server and restarts the process |
+| `module:uninstall` | SUPERADMIN only | Drops a module's tables. No undo |
+
+**`module:manage` is seeded, granted to ADMIN, and enforced on no route.** The module
+enable/disable endpoints use `settings:manage` instead (`start/routes.ts`). It is a
+"we thought this was protected" gap rather than a live vulnerability — `settings:manage` is
+held by the same role — but anyone reading the seeder would reasonably conclude the toggle is
+behind `module:manage`, and it is not. Fixing it means a migration plus a grant change, so it
+has been left alone deliberately rather than half-done.
+
+`module:install` was granted to ADMIN as a product decision, knowing that it makes a
+compromised admin account able to run a build on the box. The compensating controls are
+load-bearing, not decoration: a 3-per-hour per-user throttle (`moduleInstallThrottle`), an
+audit row written before any work begins, and a module name resolved through the on-disk
+allow-list before it can reach a subprocess.
 
 ### Route middleware
 
@@ -61,7 +82,12 @@ For any other code (e.g. `settings:manage`, `role:manage`) use the explicit
 
 ## Settings and integrations
 
-- Web settings and integration keys: `settings_controller`, encrypted fields via `SETTINGS_ENCRYPTION_KEY`.
+- Web settings and integration keys: `settings_controller`. Secrets live in `*_enc`
+  columns on `integration_settings`, encrypted with the app encrypter
+  (`config/encryption.ts`: AES-256-GCM keyed on `APP_KEY`) and masked on read.
+  `web_settings.value` is plaintext — never store a secret there.
+- Rotating `APP_KEY`: set the outgoing key as `APP_KEY_PREVIOUS` so stored
+  ciphertext stays readable, re-save each secret, then drop the old key.
 - Admin UI: `inertia/pages/admin/settings.tsx`, `integrations/*`.
 
 ## Related

@@ -28,8 +28,7 @@ npm run dev            # NOT plain `node ace serve`
 | `config/` | Adonis config |
 | `inertia/` | React pages, components, hooks |
 | `database/` | Migrations, seeders |
-| `plugins/` | Self-contained plugins (BE + FE in one folder), toggleable at `/admin/plugins` |
-| `modules/` | First-party app **modules** (BE + FE in one folder), DB-toggled at `/admin/settings/application`. Like plugins but core. See [docs/ai/modules.md](docs/ai/modules.md). |
+| `modules/` | Every installable package (BE + FE in one folder), DB-toggled at `/admin/settings/application`. Apps and plugins are both modules; `kind` on the manifest is the only difference. See [docs/ai/modules.md](docs/ai/modules.md). |
 | `commands/` | Ace commands (incl. `make:module` scaffolder) |
 | `tests/` | Japa suites (unit / functional / browser configured; only `functional/` populated) |
 | `docs/ai/` | Deep reference for agents |
@@ -88,16 +87,22 @@ Manual clear if ever needed: `node scripts/clean-vite-dev.mjs`.
 6. **Frontend** — `inertia/pages/...` and/or `inertia/hooks/api/...`. For tabular data, use the shared `DataTable`.
 7. **Permissions** — server middleware + client `permissions` / `~/lib/ability`.
 
-## Adding a plugin (checklist)
+## Adding a module (checklist)
 
-A plugin packages a feature (BE + FE) in one folder under `plugins/<name>/`, toggleable at
-runtime from `/admin/plugins`. Full reference: [docs/ai/plugins.md](docs/ai/plugins.md).
+A module packages a feature (BE + FE) in one folder under `modules/<name>/`, toggleable at
+runtime. There is no separate plugin system — set `kind: 'plugin'` on the manifest for the
+smaller third-party contract. Full reference: [docs/ai/modules.md](docs/ai/modules.md).
 
-1. **Scaffold** — copy the shape of [`plugins/announcements/`](plugins/announcements): `plugin.ts` (manifest), `routes.ts`, `models/`, `migrations/`, `services/`, `controllers/`, and `ui/admin/index.tsx` + `ui/public/index.tsx` (the two FEs).
-2. **Register** — add one import line to [`plugins/registry.ts`](plugins/registry.ts).
-3. **Guard routes** — every plugin route uses `middleware.pluginEnabled({ name })` (admin API also `middleware.permission(...)`).
-4. **Migrate** — `node ace migration:run` (plugin migrations auto-discovered).
-5. **Build once** — plugin FE is bundled at build time, so a *new* plugin folder needs one `npm run build`. Enable/disable afterward is runtime, no restart.
+1. **Scaffold** — `node ace make:module <name>`, or copy the shape of
+   [`modules/announcements/`](modules/announcements): `module.ts` (manifest), `routes.ts`,
+   `models/`, `migrations/`, `services/`, `controllers/`, `ui/`.
+2. **Nothing to register** — the folder is found because it holds a `module.ts` whose `name`
+   matches it. Core never names a module.
+3. **Guard routes** — every module route uses `middleware.moduleEnabled({ name })` (admin API
+   also `middleware.permission(...)`).
+4. **Migrate** — `node ace migration:run` (module migrations auto-discovered).
+5. **Build once** — module FE is bundled at build time, so a *new* folder needs one
+   `npm run build`. Enable/disable afterward is runtime, no restart.
 
 ## Documentation index
 
@@ -113,8 +118,9 @@ runtime from `/admin/plugins`. Full reference: [docs/ai/plugins.md](docs/ai/plug
 | [docs/ai/builder-layers.md](docs/ai/builder-layers.md) | Builder custom layout: Layers + Detail style panel + navbar |
 | [docs/ai/templates.md](docs/ai/templates.md) | Reusable templates (header/footer/layout/component) |
 | [docs/ai/page-settings.md](docs/ai/page-settings.md) | Page Settings + Website settings (custom code, SEO, meta) |
-| [docs/ai/plugins.md](docs/ai/plugins.md) | Plugin system, two FEs, enable/disable |
-| [docs/ai/modules.md](docs/ai/modules.md) | Module system (first-party app areas, DB-toggled) |
+| [docs/ai/modules.md](docs/ai/modules.md) | Module system (first-party app areas, DB-toggled, installable from the admin) |
+| [modules/ecommerce/README.md](modules/ecommerce/README.md) | E-commerce module (integer money, hosted Stripe/PayPal checkout) — docs live with the module |
+| [docs/ai/mail.md](docs/ai/mail.md) | Transactional email (SMTP from the admin or env, queued) |
 | [docs/ai/api-docs.md](docs/ai/api-docs.md) | OpenAPI docs (adonis-autoswagger + Scalar at `/api/docs`, dev-only) |
 | [docs/ai/api-v1.md](docs/ai/api-v1.md) | External token API (`/api/v1`, PAT, RBAC ∩ ability, Redis rate-limit) |
 | [docs/ai/auth-and-permissions.md](docs/ai/auth-and-permissions.md) | Auth, RBAC |

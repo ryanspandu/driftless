@@ -40,6 +40,9 @@ router.use([
   () => import('@adonisjs/shield/shield_middleware'),
   () => import('@adonisjs/auth/initialize_auth_middleware'),
   () => import('#middleware/silent_auth_middleware'),
+  // Must follow silent_auth: it inspects the user that silent_auth resolved and
+  // ends the session when the account has been deleted or deactivated.
+  () => import('#middleware/active_user_middleware'),
 ])
 
 /**
@@ -50,8 +53,9 @@ export const middleware = router.named({
   guest: () => import('#middleware/guest_middleware'),
   auth: () => import('#middleware/auth_middleware'),
   permission: () => import('#middleware/require_permission_middleware'),
+  /** Permission guard for page (HTML) routes — 404s instead of a JSON 403. */
+  pagePermission: () => import('#middleware/require_page_permission_middleware'),
   tokenAbility: () => import('#middleware/require_token_ability_middleware'),
-  pluginEnabled: () => import('#middleware/plugin_enabled_middleware'),
   moduleEnabled: () => import('#middleware/module_enabled_middleware'),
   navEnabled: () => import('#middleware/nav_enabled_middleware'),
 })

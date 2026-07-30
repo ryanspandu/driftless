@@ -149,6 +149,9 @@ export interface PublicWebAppearance {
 }
 
 export interface AuthPublicConfig {
+  /** Whether public self-service signup is open. When false, `/register` 404s,
+   *  so the login page must not offer a link to it. */
+  registrationEnabled: boolean
   google: { enabled: boolean; configured: boolean }
   captcha: {
     enabled: boolean
@@ -336,13 +339,6 @@ export interface UpdateTemplateRequest {
   isDefault?: boolean
 }
 
-export interface PluginMenuItem {
-  title: string
-  href: string
-  /** lucide-react icon name, resolved on the client. */
-  icon: string
-}
-
 export interface ModuleNavSubItem {
   label: string
   href: string
@@ -369,15 +365,10 @@ export interface ModuleDto {
   description: string
   version: string
   enabled: boolean
-}
-
-export interface PluginDto {
-  name: string
-  label: string
-  description: string
-  version: string
-  enabled: boolean
-  adminMenu: PluginMenuItem | null
+  /** False when the module's declared tables do not all exist yet. */
+  schemaReady: boolean
+  /** False when the manifest declares no tables, so uninstall is not possible. */
+  canUninstall: boolean
 }
 
 export type CmsCollectionSource = 'PRISMA' | 'DYNAMIC'

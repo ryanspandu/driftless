@@ -7,6 +7,7 @@ import {
   FileJson,
   Globe,
   KeyRound,
+  Mail,
   Plug2,
   SlidersHorizontal,
   type LucideIcon,
@@ -90,6 +91,12 @@ export default function SettingsPage() {
                 title="Application"
                 description="Public site on/off, hide sidebar menus, and enable/disable modules."
                 href="/admin/settings/application"
+              />
+              <SettingsLinkCard
+                icon={Mail}
+                title="Email"
+                description="SMTP credentials for transactional email — order receipts, resets. Send a test message."
+                href="/admin/settings/email"
               />
             </div>
           </SettingsSection>

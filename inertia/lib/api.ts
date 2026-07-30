@@ -60,6 +60,25 @@ export function toApiError(err: unknown): ApiError {
   return new ApiError(status, msg ?? ax.message ?? 'Request failed', data)
 }
 
+/**
+ * Whether a request failed because nothing answered, rather than because the
+ * server said no.
+ *
+ * `toApiError` collapses a rejection with no response — connection refused,
+ * DNS failure, a timeout — into `status: 500, body: undefined`. A genuine 500
+ * from this API always carries a `{ message, reason }` body, because every JSON
+ * endpoint goes through `PublicError.toResponse`. So an undefined body at 500 is
+ * exactly "we never reached the server".
+ *
+ * The install poller depends on this distinction and it is not cosmetic:
+ * the server is *expected* to disappear for a few seconds at the end of an
+ * install. Reading that as an error turns every successful install into a
+ * red failure message.
+ */
+export function isServerUnreachable(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 500 && err.body === undefined
+}
+
 /** Prefer server validation text over axios' generic status-line message. */
 export function apiErrorMessage(err: unknown, fallback = 'Request failed'): string {
   if (err instanceof ApiError) return err.message
@@ -85,7 +104,7 @@ async function requestApi<T>(
 
 export async function apiFetch<T>(
   path: string,
-  options: RequestInit & { method?: string; body?: BodyInit | null } = {}
+  options: RequestInit & { method?: string; body?: BodyInit | null; timeout?: number } = {}
 ): Promise<T> {
   const method = (options.method ?? 'GET').toUpperCase()
   const headers = options.headers as Record<string, string> | undefined
@@ -95,6 +114,18 @@ export async function apiFetch<T>(
       url: path,
       method,
       data: options.body ? JSON.parse(String(options.body)) : undefined,
+      /**
+       * No default timeout, as before — but callers can now set one, and the
+       * install poller must. Under systemd socket activation a request made
+       * while the app is restarting does not fail: the kernel queues the
+       * connection and it simply hangs until the app is back. Without a timeout
+       * the poller stalls exactly when it most needs to report progress.
+       *
+       * An axios timeout produces no response, so it lands in the same
+       * `isServerUnreachable` bucket as a refused connection — one
+       * discriminator covers both deployment shapes.
+       */
+      timeout: options.timeout,
       headers: {
         'Content-Type': 'application/json',
         ...headers,

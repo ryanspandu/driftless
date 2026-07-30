@@ -60,23 +60,45 @@
 > returns the HTML string on full loads; for SSG, `pages_public_controller` caches it into `pages.rendered_html`
 > (via `PagesService.cacheRenderedHtml`, no `updated_at` bump) and serves it raw on later full loads
 > (Inertia XHR visits always render live). The snapshot is invalidated on page edit/publish/restore
-> (`renderedHtml = null`) and cleared on production boot (`scripts/clear-page-cache.mjs` in `prestart`,
-> since snapshots embed hashed asset URLs). Public render uses the `renderPage` helper (`inertia.render`
+> (`renderedHtml = null`) and, because snapshots embed hashed asset URLs, is **stamped with the build
+> that rendered it** (`pages.rendered_build`, via `currentBuildId()` in `app/services/release.ts`) and
+> only served when that stamp matches the running build — a mismatch is a cache miss that re-renders
+> itself. Comparing on read rather than purging on boot is what makes it correct under a rolling
+> restart, where old workers would otherwise write old-hash snapshots straight back in.
+> Public render uses the `renderPage` helper (`inertia.render`
 > page-prop inference needs FC exports).
 
 CMS "Pages" feature: build landing / marketing / about pages with a drag & drop
 visual builder (Webflow-like, incremental), bound to existing CMS collections,
 with a per-page render mode (**SSR / SSG / CSR-PWA**).
 
+## Rendering a builder page from another route
+
+[`app/services/page_renderer.ts`](../../app/services/page_renderer.ts) owns the composition
+— layout, header/footer, referenced templates, bound collections, block data, site-wide code
+and meta. `PagesPublicController` delegates to it, and so can any route that wants to render
+a builder page.
+
+`RenderPageOptions` is what makes a page usable as a **template**:
+
+| Option         | Purpose                                                                                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `bindings`     | Route params, query and cookies forwarded to the block resolvers, so a block with no explicit target inherits what the URL named                                         |
+| `seoOverride`  | The record's own title/description/canonical wins over the template's, field by field — otherwise every record shares one `<title>`                                      |
+| `skipSnapshot` | Required for a template. The SSG cache is keyed on the page, so caching one record's output would serve it for every other record. Also forces `Cache-Control: no-store` |
+
+The e-commerce module's `/shop/p/:slug` is the worked example — see
+[ecommerce.md](./ecommerce.md#product-pages-one-template-every-product).
+
 ## Decisions (locked)
 
-| Aspect | Decision |
-|--------|----------|
-| Builder library | **Puck** (`@measured/puck`) — MIT, self-hosted, embedded React component |
-| Placement | **Core feature** (`app/` + `inertia/pages/admin/pages/`), not a plugin |
-| Render modes | Per-page: **SSR**, **SSG** (render-on-publish + cache), **CSR/PWA** |
-| Collection binding | Reuse existing CMS APIs (`external` field + a `CollectionList` block) |
-| Style approach | Free `className` + global design tokens from Fase 1; **style-ready** architecture from the start. A reusable named-class system (Webflow cascade/combo classes) is **out of scope** — evaluated later; Webstudio is the fallback if it ever becomes a hard requirement. |
+| Aspect             | Decision                                                                                                                                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Builder library    | **Puck** (`@measured/puck`) — MIT, self-hosted, embedded React component                                                                                                                                                                                                |
+| Placement          | **Core feature** (`app/` + `inertia/pages/admin/pages/`), not a plugin                                                                                                                                                                                                  |
+| Render modes       | Per-page: **SSR**, **SSG** (render-on-publish + cache), **CSR/PWA**                                                                                                                                                                                                     |
+| Collection binding | Reuse existing CMS APIs (`external` field + a `CollectionList` block)                                                                                                                                                                                                   |
+| Style approach     | Free `className` + global design tokens from Fase 1; **style-ready** architecture from the start. A reusable named-class system (Webflow cascade/combo classes) is **out of scope** — evaluated later; Webstudio is the fallback if it ever becomes a hard requirement. |
 
 ### Why Puck (fit with this codebase)
 
@@ -112,18 +134,18 @@ The three modes differ only in the render path, not in implementation.
 
 `pages` table (follows CMS conventions: ULID, soft-delete, revisions):
 
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | ULID | consistent with CMS records |
-| `title` | text | |
-| `path` | text, unique index | slug; supports nested (`/about/team`) |
-| `status` | enum | `DRAFT` / `PUBLISHED` |
-| `render_mode` | enum | `SSR` / `SSG` / `CSR` — per-page toggle |
-| `content` | jsonb | Puck block tree |
-| `rendered_html` | text, nullable | SSG cache |
-| `seo` | jsonb | title, description, ogImage, canonical, noindex |
-| `published_at` / timestamps / `deleted_at` | | soft delete |
-| `author_id` | FK users | |
+| Column                                     | Type               | Notes                                           |
+| ------------------------------------------ | ------------------ | ----------------------------------------------- |
+| `id`                                       | ULID               | consistent with CMS records                     |
+| `title`                                    | text               |                                                 |
+| `path`                                     | text, unique index | slug; supports nested (`/about/team`)           |
+| `status`                                   | enum               | `DRAFT` / `PUBLISHED`                           |
+| `render_mode`                              | enum               | `SSR` / `SSG` / `CSR` — per-page toggle         |
+| `content`                                  | jsonb              | Puck block tree                                 |
+| `rendered_html`                            | text, nullable     | SSG cache                                       |
+| `seo`                                      | jsonb              | title, description, ogImage, canonical, noindex |
+| `published_at` / timestamps / `deleted_at` |                    | soft delete                                     |
+| `author_id`                                | FK users           |                                                 |
 
 Plus `page_revisions` (mirror `cms_revisions`).
 
@@ -196,10 +218,10 @@ shared `styleFields`:
 ```tsx
 // inertia/puck/style-fields.ts — define ONCE, used by all blocks
 export const styleFields = {
-  padding:   { type: 'text',   label: 'Padding' },      // "16px" or "py-8"
-  margin:    { type: 'text',   label: 'Margin' },
-  font:      { type: 'select', options: themeFonts },   // global token
-  className: { type: 'text',   label: 'Custom class' }, // free Tailwind/CSS
+  padding: { type: 'text', label: 'Padding' }, // "16px" or "py-8"
+  margin: { type: 'text', label: 'Margin' },
+  font: { type: 'select', options: themeFonts }, // global token
+  className: { type: 'text', label: 'Custom class' }, // free Tailwind/CSS
 }
 
 const Box = ({ s, children }) => (
@@ -210,7 +232,11 @@ const Box = ({ s, children }) => (
 
 const Heading = {
   fields: { text: { type: 'text' }, ...styleFields }, // spread → all controls
-  render: ({ text, ...s }) => <Box s={s}><h2>{text}</h2></Box>,
+  render: ({ text, ...s }) => (
+    <Box s={s}>
+      <h2>{text}</h2>
+    </Box>
+  ),
 }
 ```
 

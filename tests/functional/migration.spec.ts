@@ -1,9 +1,14 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
 import testUtils from '@adonisjs/core/services/test_utils'
+import hash from '@adonisjs/core/services/hash'
 import User from '#models/user'
 import Role from '#models/role'
 import UserAuthService from '#services/user_auth_service'
+import UsersService from '#services/users_service'
+import { WebSettingsService } from '#services/settings_service'
+import { collectUserPermissions } from '#services/permission_ability_service'
+import { SELF_REGISTERED_ROLE } from '#database/seeder_constants'
 
 async function adminUser() {
   return User.query().where('email', 'admin@driftless.local').firstOrFail()
@@ -88,7 +93,10 @@ test.group('Auth', (group) => {
     a.match(res.header('location') ?? '', /\/admin/)
   })
 
-  test('logged-in user is redirected from guest routes to dashboard', async ({ client, assert: a }) => {
+  test('logged-in user is redirected from guest routes to dashboard', async ({
+    client,
+    assert: a,
+  }) => {
     const admin = await adminUser()
 
     for (const path of ['/login', '/register', '/auth/login', '/auth/signup', '/auth/register']) {
@@ -98,19 +106,68 @@ test.group('Auth', (group) => {
     }
   })
 
-  test('register creates user', async ({ client, assert: a }) => {
+  test('register is closed unless an operator opens it', async ({ client, assert: a }) => {
+    const email = `closed-${Date.now()}@example.com`
+    const res = await client
+      .post('/register')
+      .redirects(0)
+      .form({
+        email,
+        username: `user${Date.now()}`,
+        password: 'password123',
+      })
+
+    // 404, not 403: a disabled signup endpoint should not advertise itself.
+    res.assertStatus(404)
+    a.isNull(await User.query().where('email', email).first())
+  })
+
+  test('register creates a user with no permissions when open', async ({ client, assert: a }) => {
+    await new WebSettingsService().applyPatches([
+      { section: 'app_config', key: 'registration_enabled', value: '1' },
+    ])
+
     const email = `newuser-${Date.now()}@example.com`
-    const res = await client.post('/register').redirects(0).form({
-      email,
-      username: `user${Date.now()}`,
-      password: 'password123',
-      firstName: 'New',
-      lastName: 'User',
-    })
+    const res = await client
+      .post('/register')
+      .redirects(0)
+      .form({
+        email,
+        username: `user${Date.now()}`,
+        password: 'password123',
+        firstName: 'New',
+        lastName: 'User',
+      })
     a.oneOf(res.status(), [302, 303])
 
-    const user = await User.query().where('email', email).first()
+    const user = await User.query().where('email', email).preload('roles').first()
     a.isNotNull(user)
+
+    /**
+     * The point of this assertion: self-registration used to attach `USER`,
+     * which carries `content:create/read/update/delete`. Anyone who signed up
+     * could write and delete site content. A self-registered account must
+     * arrive with zero capability.
+     */
+    a.deepEqual(
+      user!.roles.map((r) => r.name),
+      [SELF_REGISTERED_ROLE]
+    )
+    const permissions = collectUserPermissions(user!)
+    a.deepEqual(permissions, [])
+  })
+
+  test('signed-in accounts survive a password change by an admin', async ({ assert: a }) => {
+    const admin = await adminUser()
+    await new UsersService().update(admin.id, { password: 'RotatedPassword#1' })
+
+    /**
+     * `withAuthFinder` re-hashes any dirty password column on save, so hashing
+     * in the service too stored a hash of a hash and the new password could
+     * never be used to log in.
+     */
+    const reloaded = await adminUser()
+    a.isTrue(await hash.verify(reloaded.password, 'RotatedPassword#1'))
   })
 })
 
@@ -156,12 +213,14 @@ test.group('RBAC', (group) => {
     const guestRole = await Role.query().where('name', 'GUEST').firstOrFail()
     await user.related('roles').sync([guestRole.id])
 
-    const res = await asUser(client, user).post('/api/admin/content').json({
-      title: 'Nope',
-      slug: `nope-${Date.now()}`,
-      body: 'x',
-      status: 'DRAFT',
-    })
+    const res = await asUser(client, user)
+      .post('/api/admin/content')
+      .json({
+        title: 'Nope',
+        slug: `nope-${Date.now()}`,
+        body: 'x',
+        status: 'DRAFT',
+      })
     res.assertStatus(403)
   })
 })
@@ -208,7 +267,6 @@ test.group('CMS', (group) => {
     const show = await api.get(`/api/admin/cms/${key}/records/${id}`)
     show.assertStatus(200)
     show.assertBodyContains({ data: { title: 'First article' } })
-
     ;(await api.delete(`/api/admin/cms/${key}/records/${id}`)).assertStatus(200)
   })
 

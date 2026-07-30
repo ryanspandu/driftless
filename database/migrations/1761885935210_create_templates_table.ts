@@ -37,8 +37,20 @@ export default class extends BaseSchema {
     // Non-destructive data migration: copy existing globals + page templates in.
     // (page_globals / page_templates tables are left in place and removed later.)
     this.defer(async (db) => {
-      const globals = await db.rawQuery("SELECT to_regclass('public.page_globals') AS t")
-      if (globals.rows?.[0]?.t) {
+      /**
+       * This backfill only applies to installs that predate the templates
+       * table, which are all PostgreSQL. The statements below are pg-specific
+       * (`gen_random_uuid()`, `now()`), and the existence probe used to be
+       * `to_regclass()` — also pg-only, which made every migration run under
+       * SQLite throw. The test suite runs on SQLite, so that took the whole
+       * functional suite down with it.
+       *
+       * A fresh database has no legacy tables to copy, so skipping is correct
+       * rather than merely convenient.
+       */
+      if (db.dialect.name !== 'postgres') return
+
+      if (await db.schema.hasTable('page_globals')) {
         await db.rawQuery(
           `INSERT INTO templates (id, name, type, content, is_default, created_at, updated_at)
            SELECT gen_random_uuid()::text, 'Site Header', 'HEADER', content, true, now(), now()
@@ -51,8 +63,7 @@ export default class extends BaseSchema {
         )
       }
 
-      const pageTemplates = await db.rawQuery("SELECT to_regclass('public.page_templates') AS t")
-      if (pageTemplates.rows?.[0]?.t) {
+      if (await db.schema.hasTable('page_templates')) {
         await db.rawQuery(
           `INSERT INTO templates (id, name, type, content, is_default, created_at, updated_at)
            SELECT id, name, 'COMPONENT', content, false, created_at, updated_at

@@ -39,6 +39,15 @@ export function useAbility(): AbilityContextValue {
   return useContext(AbilityContext)
 }
 
+/**
+ * The `<Can>` check as a value, for when the answer has to gate a *query*
+ * rather than a subtree — fetching an endpoint the user cannot reach puts a 403
+ * in their console on every page load.
+ */
+export function useCan(permission: string): boolean {
+  return useAbility().permissions.has(permission)
+}
+
 export function Can({
   permission,
   all,

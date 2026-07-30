@@ -1,9 +1,11 @@
+import { Exception } from '@adonisjs/core/exceptions'
 import User from '#models/user'
 import Role from '#models/role'
 import type { HttpContext } from '@adonisjs/core/http'
 import vine from '@vinejs/vine'
 import CaptchaService from '#services/captcha_service'
-import { IntegrationSettingsService } from '#services/settings_service'
+import { IntegrationSettingsService, WebSettingsService } from '#services/settings_service'
+import { SELF_REGISTERED_ROLE } from '#database/seeder_constants'
 
 const signupValidator = vine.compile(
   vine.object({
@@ -18,19 +20,42 @@ const signupValidator = vine.compile(
 
 const integrationService = new IntegrationSettingsService()
 const captchaService = new CaptchaService()
+const webSettingsService = new WebSettingsService()
 
-function signupFailure(response: HttpContext['response'], session: HttpContext['session'], message: string) {
+function signupFailure(
+  response: HttpContext['response'],
+  session: HttpContext['session'],
+  message: string
+) {
   session.flash('error', message)
   return response.redirect().back()
 }
 
+/**
+ * Refuse the request unless an operator has opted into public signup.
+ *
+ * 404 rather than 403: a disabled signup endpoint should look like it does not
+ * exist. Throwing (rather than returning) is required for the exception handler
+ * to render the status page — a middleware/controller that returns an inertia
+ * render from here would not be flushed.
+ */
+async function assertRegistrationOpen() {
+  const { registrationEnabled } = await webSettingsService.getAppConfig()
+  if (!registrationEnabled) {
+    throw new Exception('Page not found', { status: 404, code: 'E_REGISTRATION_CLOSED' })
+  }
+}
+
 export default class NewAccountController {
   async create({ inertia }: HttpContext) {
+    await assertRegistrationOpen()
     const authConfig = await integrationService.getAuthPublicConfig()
     return inertia.render('auth/signup', { authConfig })
   }
 
   async store({ request, response, auth, session }: HttpContext) {
+    await assertRegistrationOpen()
+
     let payload: Awaited<ReturnType<typeof signupValidator.validate>>
     try {
       payload = await request.validateUsing(signupValidator)
@@ -74,12 +99,25 @@ export default class NewAccountController {
       status: 'ACTIVE',
     })
 
-    const userRole = await Role.query().where('name', 'USER').whereNull('deleted_at').first()
-    if (userRole) {
-      await user.related('roles').attach([userRole.id])
+    /**
+     * Self-registered accounts get `MEMBER`, which holds no permissions at all.
+     * They used to get `USER`, which carries `content:create/read/update/delete`
+     * — so anyone who signed up could write and delete site content.
+     *
+     * A missing role (an install seeded before `MEMBER` existed) attaches
+     * nothing, which is the safe outcome.
+     */
+    const memberRole = await Role.query()
+      .where('name', SELF_REGISTERED_ROLE)
+      .whereNull('deleted_at')
+      .first()
+    if (memberRole) {
+      await user.related('roles').attach([memberRole.id])
     }
 
     await auth.use('web').login(user)
-    return response.redirect('/admin/dashboard')
+    // Not `/admin/dashboard`: a self-registered account has no admin
+    // capabilities, so landing it in the admin shell is misleading.
+    return response.redirect('/')
   }
 }

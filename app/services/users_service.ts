@@ -1,4 +1,3 @@
-import hash from '@adonisjs/core/services/hash'
 import User from '#models/user'
 import Role from '#models/role'
 
@@ -168,7 +167,10 @@ export default class UsersService {
     if (dto.fullName !== undefined) user.fullName = dto.fullName ?? null
     if (dto.status !== undefined) user.status = dto.status as 'ACTIVE' | 'INACTIVE'
     if (dto.password !== undefined) {
-      user.password = await hash.make(dto.password)
+      // Assign the plaintext: `withAuthFinder`'s `beforeSave` hook hashes any
+      // dirty password column on save. Hashing here as well stored a hash of a
+      // hash, so admin-set passwords could never be used to log in.
+      user.password = dto.password
     }
 
     await user.save()

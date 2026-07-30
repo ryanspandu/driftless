@@ -18,7 +18,6 @@ const PATH_NAV: { prefix: string; nav: string }[] = [
   { prefix: '/admin/templates', nav: 'UI' },
   { prefix: '/admin/media', nav: 'Media' },
   { prefix: '/admin/cms/collections', nav: 'Collections' },
-  { prefix: '/admin/plugins', nav: 'Plugins' },
   { prefix: '/admin/integrations', nav: 'Integrations' },
   { prefix: '/admin/users', nav: 'User Management' },
   { prefix: '/admin/roles', nav: 'User Management' },

@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import env from '#start/env'
+import encryption from '@adonisjs/core/services/encryption'
 import WebSetting from '#models/web_setting'
 import IntegrationSetting from '#models/integration_setting'
 import { newUlid } from '#services/ulid_service'
@@ -21,6 +22,10 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
   app_config: {
     landing_enabled: '1', // '0' hides the public landing/posts (dashboard-only)
     hidden_nav: '', // comma-separated core sidebar nav titles to hide
+    // Public self-service signup at POST /register. Off by default: an open
+    // registration endpoint that lands people in the admin area is a standing
+    // liability, so an operator has to turn it on deliberately.
+    registration_enabled: '0',
   },
   // Site-wide custom code (CSS/JS) injected on every published builder page.
   // `snippets` is a JSON array of GlobalCodeSnippet.
@@ -78,15 +83,34 @@ function sanitizeSnippets(input: unknown): GlobalCodeSnippet[] {
   })
 }
 
+/**
+ * Purpose tag bound into the ciphertext. A value encrypted for one purpose
+ * cannot be decrypted under another, so a ciphertext cannot be lifted from one
+ * column and replayed into a different one.
+ */
+const SECRET_PURPOSE = 'integration_settings'
+
+/**
+ * Encrypt a third-party credential for storage in a `*_enc` column.
+ *
+ * Uses the app's configured encrypter (`config/encryption.ts`: AES-256-GCM,
+ * keyed on `APP_KEY`, with a rotation-capable key list). The previous
+ * implementation here hand-rolled AES-256-CBC with a hardcoded `'salt'` and no
+ * MAC, which left ciphertext malleable and derived the same key on every
+ * install sharing an `APP_KEY`.
+ */
 function encryptSecret(plain: string): string {
-  const key = crypto.scryptSync(env.get('APP_KEY').release(), 'salt', 32)
-  const iv = crypto.randomBytes(16)
-  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv)
-  const encrypted = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()])
-  return `${iv.toString('hex')}:${encrypted.toString('hex')}`
+  return encryption.encrypt(plain, undefined, SECRET_PURPOSE)
 }
 
-export function decryptSecret(enc: string): string | null {
+/**
+ * Legacy reader for values written by the old AES-256-CBC helper.
+ *
+ * Kept so an existing install keeps working across the upgrade: values are
+ * re-encrypted with GCM the next time they are saved. Remove once no
+ * `*_enc` column can still hold the old `<ivHex>:<cipherHex>` format.
+ */
+function decryptLegacySecret(enc: string): string | null {
   try {
     const [ivHex, encHex] = enc.split(':')
     if (!ivHex || !encHex) return null
@@ -98,6 +122,12 @@ export function decryptSecret(enc: string): string | null {
   } catch {
     return null
   }
+}
+
+export function decryptSecret(enc: string): string | null {
+  const current = encryption.decrypt<string>(enc, SECRET_PURPOSE)
+  if (typeof current === 'string') return current
+  return decryptLegacySecret(enc)
 }
 
 function maskSecret(val: string | null): string | null {
@@ -146,6 +176,9 @@ export interface IntegrationSettingsAdmin {
 }
 
 export interface AuthPublicConfig {
+  /** Whether public self-service signup is open. Lets the login page hide its
+   * "create an account" affordance instead of linking to a 404. */
+  registrationEnabled: boolean
   google: { enabled: boolean; configured: boolean }
   captcha: {
     enabled: boolean
@@ -266,7 +299,11 @@ export class WebSettingsService {
   }
 
   /** App-level toggles (landing on/off + hidden sidebar nav) for any admin. */
-  async getAppConfig(): Promise<{ landingEnabled: boolean; hiddenNav: string[] }> {
+  async getAppConfig(): Promise<{
+    landingEnabled: boolean
+    hiddenNav: string[]
+    registrationEnabled: boolean
+  }> {
     const sections = await this.getMergedSections()
     const cfg = sections['app_config'] ?? {}
     return {
@@ -275,6 +312,8 @@ export class WebSettingsService {
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean),
+      // Defaults to off — see `WEB_DEFAULTS.app_config.registration_enabled`.
+      registrationEnabled: (cfg['registration_enabled'] ?? '0') === '1',
     }
   }
 }
@@ -322,8 +361,10 @@ export class IntegrationSettingsService {
 
     const webSvc = new WebSettingsService()
     const web = await webSvc.getPublicAppearance()
+    const appConfig = await webSvc.getAppConfig()
 
     return {
+      registrationEnabled: appConfig.registrationEnabled,
       google: { enabled: !!google, configured: !!google },
       captcha: {
         enabled: captchaOk,

@@ -1,0 +1,34 @@
+[Unit]
+Description=Driftless CMS
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+User=driftless
+WorkingDirectory=/opt/driftless
+ExecStart=/usr/bin/node current/bin/server.js
+Environment=NODE_ENV=production
+
+# The installer finishes a UI install by exiting so the supervisor restarts it.
+# Without Restart=always that exit is simply the site going down.
+Restart=always
+# Kept short: under socket activation this delay is latency a real visitor waits
+# out in the kernel's accept queue, not idle time.
+RestartSec=1
+
+# Graceful shutdown drains connections for up to DRIFTLESS_DRAIN_MS (10s) before
+# cutting them. systemd's default TimeoutStopSec would SIGKILL first on many
+# distros, which defeats the drain entirely.
+TimeoutStopSec=20
+KillMode=mixed
+
+# systemd sets INVOCATION_ID for every unit it starts; that is how
+# app/services/supervisor.ts knows a restart will actually happen.
+#
+# For restarts that refuse no connections, enable socket activation:
+#   sudo cp -r deploy/systemd/driftless.service.d /etc/systemd/system/
+#   sudo cp deploy/systemd/driftless.socket /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now driftless.socket
+
+[Install]
+WantedBy=multi-user.target

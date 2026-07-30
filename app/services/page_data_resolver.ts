@@ -19,8 +19,18 @@ function collectRefs(node: unknown, acc: CollectionRef[]): void {
     if (block.type === 'CollectionList' && source?.collectionKey) {
       acc.push({ key: source.collectionKey, limit: Number(block.props?.limit) || 12 })
     }
-    if (block.props) {
-      for (const value of Object.values(block.props)) collectRefs(value, acc)
+
+    /**
+     * Recurse into every value, not just `props`.
+     *
+     * Puck's `zones` is a plain object keyed by zone id (`{ 'root:main': [...] }`)
+     * with no `type` or `props` of its own. Descending only through `props`
+     * meant a CollectionList placed inside a zone was never found, so it
+     * silently lost its server-side data and fell back to a client fetch —
+     * defeating the point of resolving it for SSR at all.
+     */
+    for (const value of Object.values(node as Record<string, unknown>)) {
+      collectRefs(value, acc)
     }
   }
 }

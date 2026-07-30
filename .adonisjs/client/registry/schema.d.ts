@@ -127,6 +127,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/seo_controller').default['sitemap']>>>
     }
   }
+  'health.public': {
+    methods: ["GET","HEAD"]
+    pattern: '/health'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/health_controller').default['public']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/health_controller').default['public']>>>
+    }
+  }
   'settings.get_auth_config': {
     methods: ["GET","HEAD"]
     pattern: '/api/auth/config'
@@ -1687,6 +1699,54 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['integrationsClarityPage']>>>
     }
   }
+  'mail_settings.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/settings/email'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['page']>>>
+    }
+  }
+  'mail_settings.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/settings/mail'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['show']>>>
+    }
+  }
+  'mail_settings.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/settings/mail'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['update']>>>
+    }
+  }
+  'mail_settings.send_test': {
+    methods: ["POST"]
+    pattern: '/api/admin/settings/mail/test'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['sendTest']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['sendTest']>>>
+    }
+  }
   'settings.get_web_settings': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/settings/web'
@@ -1807,52 +1867,112 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/api_tokens_controller').default['destroy']>>>
     }
   }
-  'plugins.page': {
+  'health.admin': {
     methods: ["GET","HEAD"]
-    pattern: '/admin/plugins'
+    pattern: '/api/admin/health'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['page']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['page']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/health_controller').default['admin']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/health_controller').default['admin']>>>
     }
   }
-  'plugins.menu': {
+  'schema.pending': {
     methods: ["GET","HEAD"]
-    pattern: '/api/admin/plugins/menu'
+    pattern: '/api/admin/schema/pending'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['menu']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['menu']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/schema_controller').default['pending']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/schema_controller').default['pending']>>>
     }
   }
-  'plugins.index': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/admin/plugins'
+  'schema.install': {
+    methods: ["POST"]
+    pattern: '/api/admin/schema/install'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['index']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/schema_controller').default['install']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/schema_controller').default['install']>>>
     }
   }
-  'plugins.toggle': {
-    methods: ["PUT"]
-    pattern: '/api/admin/plugins/:name/toggle'
+  'schema.uninstall_module': {
+    methods: ["POST"]
+    pattern: '/api/admin/modules/:name/uninstall'
     types: {
       body: {}
       paramsTuple: [ParamValue]
       params: { name: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['toggle']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/plugins_controller').default['toggle']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/schema_controller').default['uninstallModule']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/schema_controller').default['uninstallModule']>>>
+    }
+  }
+  'module_install.deployment': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/deployment'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/module_install_controller').default['deployment']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/module_install_controller').default['deployment']>>>
+    }
+  }
+  'module_install.detected': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/modules/detected'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/module_install_controller').default['detected']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/module_install_controller').default['detected']>>>
+    }
+  }
+  'module_install.latest': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/module-install-jobs/latest'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/module_install_controller').default['latest']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/module_install_controller').default['latest']>>>
+    }
+  }
+  'module_install.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/module-install-jobs/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/module_install_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/module_install_controller').default['show']>>>
+    }
+  }
+  'module.install': {
+    methods: ["POST"]
+    pattern: '/api/admin/modules/:name/install'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { name: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/module_install_controller').default['install']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/module_install_controller').default['install']>>>
     }
   }
   'modules.menu': {
@@ -2031,8 +2151,8 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['page']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['page']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_controller').default['page']>>>
     }
   }
   'admin.index': {
@@ -2043,8 +2163,8 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['index']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_controller').default['index']>>>
     }
   }
   'admin.store': {
@@ -2055,8 +2175,8 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['store']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_controller').default['store']>>>
     }
   }
   'admin.update': {
@@ -2067,8 +2187,8 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { id: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['update']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['update']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_controller').default['update']>>>
     }
   }
   'admin.destroy': {
@@ -2079,8 +2199,8 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { id: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['destroy']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_controller').default['destroy']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_controller').default['destroy']>>>
     }
   }
   'public.page': {
@@ -2091,8 +2211,1268 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_public_controller').default['page']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#plugins/announcements/controllers/announcements_public_controller').default['page']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_public_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/announcements/controllers/announcements_public_controller').default['page']>>>
+    }
+  }
+  'ecommerce.webhooks.stripe': {
+    methods: ["POST"]
+    pattern: '/api/webhooks/stripe'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/webhooks_controller').default['stripe']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/webhooks_controller').default['stripe']>>>
+    }
+  }
+  'ecommerce.webhooks.paypal': {
+    methods: ["POST"]
+    pattern: '/api/webhooks/paypal'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/webhooks_controller').default['paypal']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/webhooks_controller').default['paypal']>>>
+    }
+  }
+  'shop.products.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/products'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['index']>>>
+    }
+  }
+  'shop.products.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/products/:slug'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { slug: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['show']>>>
+    }
+  }
+  'shop.categories': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/categories'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['categories']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['categories']>>>
+    }
+  }
+  'shop.geo.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/geo/cities'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/geo_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/geo_controller').default['index']>>>
+    }
+  }
+  'shop.geo.cities': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/geo/cities/:code'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { code: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/geo_controller').default['cities']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/geo_controller').default['cities']>>>
+    }
+  }
+  'shop.availability': {
+    methods: ["POST"]
+    pattern: '/api/shop/availability'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['availability']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['availability']>>>
+    }
+  }
+  'shop.cart.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/cart'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['show']>>>
+    }
+  }
+  'shop.me': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/me'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['me']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['me']>>>
+    }
+  }
+  'shop.order.status': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/order'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/checkout_controller').default['status']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/checkout_controller').default['status']>>>
+    }
+  }
+  'shop.cart.add': {
+    methods: ["POST"]
+    pattern: '/api/shop/cart/items'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['add']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['add']>>>
+    }
+  }
+  'shop.cart.update': {
+    methods: ["PUT"]
+    pattern: '/api/shop/cart/items'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['update']>>>
+    }
+  }
+  'shop.cart.remove': {
+    methods: ["DELETE"]
+    pattern: '/api/shop/cart/items/:variantId'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { variantId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['destroy']>>>
+    }
+  }
+  'shop.cart.clear': {
+    methods: ["DELETE"]
+    pattern: '/api/shop/cart'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['clear']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['clear']>>>
+    }
+  }
+  'shop.checkout': {
+    methods: ["POST"]
+    pattern: '/api/shop/checkout'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/checkout_controller').default['start']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/checkout_controller').default['start']>>>
+    }
+  }
+  'shop.account.register': {
+    methods: ["POST"]
+    pattern: '/api/shop/account/register'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['register']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['register']>>>
+    }
+  }
+  'shop.account.login': {
+    methods: ["POST"]
+    pattern: '/api/shop/account/login'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['login']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['login']>>>
+    }
+  }
+  'shop.account.logout': {
+    methods: ["POST"]
+    pattern: '/api/shop/account/logout'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['logout']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['logout']>>>
+    }
+  }
+  'shop.account.orders': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/account/orders'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['orders']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['orders']>>>
+    }
+  }
+  'shop.referral': {
+    methods: ["GET","HEAD"]
+    pattern: '/ref/:code'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { code: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/referral_controller').default['click']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/referral_controller').default['click']>>>
+    }
+  }
+  'shop.currencies': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/currencies'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['currencies']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['currencies']>>>
+    }
+  }
+  'shop.shipping.options': {
+    methods: ["POST"]
+    pattern: '/api/shop/shipping/options'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/checkout_controller').default['shippingOptions']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/checkout_controller').default['shippingOptions']>>>
+    }
+  }
+  'shop.currency.set': {
+    methods: ["POST"]
+    pattern: '/api/shop/currency'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['setCurrency']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/catalog_controller').default['setCurrency']>>>
+    }
+  }
+  'shop.discount.check': {
+    methods: ["POST"]
+    pattern: '/api/shop/discount/check'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/referral_controller').default['checkDiscount']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/referral_controller').default['checkDiscount']>>>
+    }
+  }
+  'shop.front': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['shopFront']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['shopFront']>>>
+    }
+  }
+  'shop.unsubscribe': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop/unsubscribe'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['unsubscribe']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['unsubscribe']>>>
+    }
+  }
+  'shop.account': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop/account'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['account']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['account']>>>
+    }
+  }
+  'shop.account.page.login': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop/account/login'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['accountLogin']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['accountLogin']>>>
+    }
+  }
+  'shop.account.page.register': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop/account/register'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['accountRegister']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['accountRegister']>>>
+    }
+  }
+  'shop.product': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop/p/:slug'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { slug: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['product']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['product']>>>
+    }
+  }
+  'shop.download': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop/download/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/download_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/download_controller').default['show']>>>
+    }
+  }
+  'shop.page.cart': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop/cart'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['cart']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['cart']>>>
+    }
+  }
+  'shop.page.checkout': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop/checkout'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['checkout']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['checkout']>>>
+    }
+  }
+  'shop.page.order': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop/order'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['order']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['order']>>>
+    }
+  }
+  'ecommerce.dashboard.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/ecommerce'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/dashboard_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/dashboard_controller').default['page']>>>
+    }
+  }
+  'ecommerce.products.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/ecommerce/products'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['page']>>>
+    }
+  }
+  'ecommerce.products.categories': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/ecommerce/products/categories'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['categoriesPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['categoriesPage']>>>
+    }
+  }
+  'ecommerce.products.new': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/ecommerce/products/new'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['newPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['newPage']>>>
+    }
+  }
+  'ecommerce.products.detail': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/ecommerce/products/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['detailPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['detailPage']>>>
+    }
+  }
+  'ecommerce.orders.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/ecommerce/orders'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['page']>>>
+    }
+  }
+  'ecommerce.orders.new': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/ecommerce/orders/new'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['newPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['newPage']>>>
+    }
+  }
+  'ecommerce.orders.detail': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/ecommerce/orders/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['detailPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['detailPage']>>>
+    }
+  }
+  'ecommerce.customers.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/ecommerce/customers'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['page']>>>
+    }
+  }
+  'ecommerce.settings.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/ecommerce/settings'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['page']>>>
+    }
+  }
+  'ecommerce.api.orders.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/orders'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['index']>>>
+    }
+  }
+  'ecommerce.api.orders.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/orders/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['show']>>>
+    }
+  }
+  'ecommerce.api.orders.status': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/orders/:id/status'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['updateStatus']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['updateStatus']>>>
+    }
+  }
+  'ecommerce.api.orders.cancel': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/orders/:id/cancel'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['cancel']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['cancel']>>>
+    }
+  }
+  'ecommerce.api.orders.ship': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/orders/:id/ship'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['markShipped']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['markShipped']>>>
+    }
+  }
+  'ecommerce.api.orders.note': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/orders/:id/note'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['updateNote']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['updateNote']>>>
+    }
+  }
+  'ecommerce.api.orders.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/orders'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['storeManual']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['storeManual']>>>
+    }
+  }
+  'ecommerce.api.sales': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/sales'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/dashboard_controller').default['sales']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/dashboard_controller').default['sales']>>>
+    }
+  }
+  'ecommerce.api.abandonedCarts': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/abandoned-carts'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/dashboard_controller').default['abandonedCarts']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/dashboard_controller').default['abandonedCarts']>>>
+    }
+  }
+  'ecommerce.api.currencies.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/currencies'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['currencies']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['currencies']>>>
+    }
+  }
+  'ecommerce.api.shipping.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/shipping'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['shipping']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['shipping']>>>
+    }
+  }
+  'ecommerce.api.storefront.seed': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/storefront/seed'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['seedStorefront']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['seedStorefront']>>>
+    }
+  }
+  'ecommerce.api.shipping.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/shipping'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['updateShipping']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['updateShipping']>>>
+    }
+  }
+  'ecommerce.api.currencies.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/currencies'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['updateCurrencies']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['updateCurrencies']>>>
+    }
+  }
+  'ecommerce.api.customers.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/customers'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['index']>>>
+    }
+  }
+  'ecommerce.api.customers.status': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/customers/:id/status'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['updateStatus']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['updateStatus']>>>
+    }
+  }
+  'ecommerce.api.exports.orders': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/exports/orders'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/exports_controller').default['orders']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/exports_controller').default['orders']>>>
+    }
+  }
+  'ecommerce.api.exports.orderItems': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/exports/order-items'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/exports_controller').default['orderItems']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/exports_controller').default['orderItems']>>>
+    }
+  }
+  'ecommerce.api.exports.customers': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/exports/customers'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/exports_controller').default['customers']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/exports_controller').default['customers']>>>
+    }
+  }
+  'ecommerce.api.exports.products': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/exports/products'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/exports_controller').default['products']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/exports_controller').default['products']>>>
+    }
+  }
+  'ecommerce.api.grants.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/orders/:orderId/grants'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { orderId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['grants']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['grants']>>>
+    }
+  }
+  'ecommerce.api.grants.revoke': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/grants/:id/revoke'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['revoke']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['revoke']>>>
+    }
+  }
+  'ecommerce.api.orders.refund': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/orders/:id/refund'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['refund']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['refund']>>>
+    }
+  }
+  'ecommerce.api.gateways.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/gateways'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/gateways_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/gateways_controller').default['index']>>>
+    }
+  }
+  'ecommerce.api.gateways.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/gateways/:gateway/:mode'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { gateway: ParamValue; mode: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/gateways_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/gateways_controller').default['update']>>>
+    }
+  }
+  'ecommerce.api.gateways.verify': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/gateways/:gateway/:mode/verify'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { gateway: ParamValue; mode: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/gateways_controller').default['verify']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/gateways_controller').default['verify']>>>
+    }
+  }
+  'ecommerce.api.products.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/products'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['index']>>>
+    }
+  }
+  'ecommerce.api.products.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/products/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['show']>>>
+    }
+  }
+  'ecommerce.api.products.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/products'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['store']>>>
+    }
+  }
+  'ecommerce.api.products.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/products/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['update']>>>
+    }
+  }
+  'ecommerce.api.products.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/ecommerce/products/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['destroy']>>>
+    }
+  }
+  'ecommerce.api.variants.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/products/:id/variants'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['storeVariant']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['storeVariant']>>>
+    }
+  }
+  'ecommerce.api.variants.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/variants/:variantId'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { variantId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['updateVariant']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['updateVariant']>>>
+    }
+  }
+  'ecommerce.api.variants.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/ecommerce/variants/:variantId'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { variantId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['destroyVariant']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['destroyVariant']>>>
+    }
+  }
+  'ecommerce.api.assets.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/products/:productId/assets'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { productId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['index']>>>
+    }
+  }
+  'ecommerce.api.assets.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/variants/:variantId/assets'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { variantId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['store']>>>
+    }
+  }
+  'ecommerce.api.assets.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/assets/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['update']>>>
+    }
+  }
+  'ecommerce.api.assets.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/ecommerce/assets/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/digital_controller').default['destroy']>>>
+    }
+  }
+  'ecommerce.api.variantPrices.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/variants/:variantId/prices'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { variantId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['variantPrices']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['variantPrices']>>>
+    }
+  }
+  'ecommerce.api.variantPrices.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/variants/:variantId/prices'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { variantId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['updateVariantPrices']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['updateVariantPrices']>>>
+    }
+  }
+  'ecommerce.api.categories.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/categories'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['index']>>>
+    }
+  }
+  'ecommerce.api.categories.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/categories'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['store']>>>
+    }
+  }
+  'ecommerce.api.categories.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/categories/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['update']>>>
+    }
+  }
+  'ecommerce.api.categories.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/ecommerce/categories/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['destroy']>>>
+    }
+  }
+  'ecommerce.api.settings.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/settings'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['show']>>>
+    }
+  }
+  'ecommerce.api.settings.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/settings'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/settings_controller').default['update']>>>
+    }
+  }
+  'ecommerce.discounts.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/marketing/discounts'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['discountsPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['discountsPage']>>>
+    }
+  }
+  'ecommerce.affiliates.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/marketing/affiliates'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['affiliatesPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['affiliatesPage']>>>
+    }
+  }
+  'ecommerce.commissions.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/marketing/commissions'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['commissionsPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['commissionsPage']>>>
+    }
+  }
+  'ecommerce.api.discounts.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/discounts'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listDiscounts']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listDiscounts']>>>
+    }
+  }
+  'ecommerce.api.discounts.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/discounts'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['createDiscount']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['createDiscount']>>>
+    }
+  }
+  'ecommerce.api.discounts.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/discounts/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['updateDiscount']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['updateDiscount']>>>
+    }
+  }
+  'ecommerce.api.discounts.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/ecommerce/discounts/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['destroyDiscount']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['destroyDiscount']>>>
+    }
+  }
+  'ecommerce.api.affiliates.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/affiliates'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listAffiliates']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listAffiliates']>>>
+    }
+  }
+  'ecommerce.api.affiliates.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/affiliates'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['createAffiliate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['createAffiliate']>>>
+    }
+  }
+  'ecommerce.api.affiliates.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/affiliates/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['updateAffiliate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['updateAffiliate']>>>
+    }
+  }
+  'ecommerce.api.commissions.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/commissions'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listCommissions']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listCommissions']>>>
+    }
+  }
+  'ecommerce.api.commissions.pay': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/commissions/pay'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['payCommissions']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['payCommissions']>>>
+    }
+  }
+  'ecommerce.api.commissions.export': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/commissions/export'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['exportPayouts']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['exportPayouts']>>>
+    }
+  }
+  'ecommerce.api.stats': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/stats'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/dashboard_controller').default['stats']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/dashboard_controller').default['stats']>>>
     }
   }
   'ctrl.page': {

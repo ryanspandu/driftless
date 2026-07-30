@@ -78,6 +78,29 @@ export function AppSelect({
     isDisabled: disabled,
     isSearchable,
     isClearable,
+    ...selectPresentation<false>({ size, invalid, className, controlClassName }),
+  };
+
+  return <ReactSelect<AppSelectOption, false> {...common} />;
+}
+
+/**
+ * The look of a select, split out so the multi-value variant is the *same*
+ * control rather than a lookalike that drifts from it the first time either is
+ * restyled.
+ */
+export function selectPresentation<IsMulti extends boolean>({
+  size = "default",
+  invalid,
+  className,
+  controlClassName,
+}: {
+  size?: "sm" | "default";
+  invalid?: boolean;
+  className?: string;
+  controlClassName?: string;
+}): Partial<ReactSelectProps<AppSelectOption, IsMulti, GroupBase<AppSelectOption>>> {
+  return {
     // Render an optional per-option icon (e.g. an avatar) in both the menu and
     // the selected value; plain options fall back to the label string.
     formatOptionLabel: (opt: AppSelectOption) =>
@@ -130,12 +153,15 @@ export function AppSelect({
           isSelected && "bg-accent/80 font-medium",
         ),
       noOptionsMessage: () => "px-2 py-1.5 text-sm text-muted-foreground",
+      multiValue: () =>
+        "flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-foreground",
+      multiValueLabel: () => (size === "sm" ? "text-xs" : "text-sm"),
+      multiValueRemove: () =>
+        "cursor-pointer rounded-sm text-muted-foreground hover:bg-destructive/15 hover:text-destructive",
     },
     className: cn("w-full", className),
     components: {
       IndicatorSeparator: () => null,
     },
   };
-
-  return <ReactSelect<AppSelectOption, false> {...common} />;
 }

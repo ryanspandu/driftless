@@ -36,13 +36,13 @@ declare module '@adonisjs/inertia/types' {
     'admin/permissions': ExtractProps<(typeof import('../../inertia/pages/admin/permissions.tsx'))['default']>
     'admin/permissions/new': ExtractProps<(typeof import('../../inertia/pages/admin/permissions/new.tsx'))['default']>
     'admin/permissions/show': ExtractProps<(typeof import('../../inertia/pages/admin/permissions/show.tsx'))['default']>
-    'admin/plugins': ExtractProps<(typeof import('../../inertia/pages/admin/plugins.tsx'))['default']>
     'admin/profile': ExtractProps<(typeof import('../../inertia/pages/admin/profile.tsx'))['default']>
     'admin/roles': ExtractProps<(typeof import('../../inertia/pages/admin/roles.tsx'))['default']>
     'admin/roles/new': ExtractProps<(typeof import('../../inertia/pages/admin/roles/new.tsx'))['default']>
     'admin/roles/show': ExtractProps<(typeof import('../../inertia/pages/admin/roles/show.tsx'))['default']>
     'admin/settings': ExtractProps<(typeof import('../../inertia/pages/admin/settings.tsx'))['default']>
     'admin/settings/application': ExtractProps<(typeof import('../../inertia/pages/admin/settings/application.tsx'))['default']>
+    'admin/settings/email': ExtractProps<(typeof import('../../inertia/pages/admin/settings/email.tsx'))['default']>
     'admin/templates/builder': ExtractProps<(typeof import('../../inertia/pages/admin/templates/builder.tsx'))['default']>
     'admin/templates/index': ExtractProps<(typeof import('../../inertia/pages/admin/templates/index.tsx'))['default']>
     'admin/users': ExtractProps<(typeof import('../../inertia/pages/admin/users.tsx'))['default']>

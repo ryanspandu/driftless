@@ -23,6 +23,10 @@ export interface ApiDefinition {
     robots: typeof routes['seo.robots']
     sitemap: typeof routes['seo.sitemap']
   }
+  health: {
+    public: typeof routes['health.public']
+    admin: typeof routes['health.admin']
+  }
   settings: {
     getAuthConfig: typeof routes['settings.get_auth_config']
     settingsPage: typeof routes['settings.settings_page']
@@ -194,16 +198,30 @@ export interface ApiDefinition {
     forceDestroy: typeof routes['media.force_destroy']
     destroy: typeof routes['media.destroy']
   }
+  mailSettings: {
+    page: typeof routes['mail_settings.page']
+    show: typeof routes['mail_settings.show']
+    update: typeof routes['mail_settings.update']
+    sendTest: typeof routes['mail_settings.send_test']
+  }
   apiTokens: {
     index: typeof routes['api_tokens.index']
     store: typeof routes['api_tokens.store']
     destroy: typeof routes['api_tokens.destroy']
   }
-  plugins: {
-    page: typeof routes['plugins.page']
-    menu: typeof routes['plugins.menu']
-    index: typeof routes['plugins.index']
-    toggle: typeof routes['plugins.toggle']
+  schema: {
+    pending: typeof routes['schema.pending']
+    install: typeof routes['schema.install']
+    uninstallModule: typeof routes['schema.uninstall_module']
+  }
+  moduleInstall: {
+    deployment: typeof routes['module_install.deployment']
+    detected: typeof routes['module_install.detected']
+    latest: typeof routes['module_install.latest']
+    show: typeof routes['module_install.show']
+  }
+  module: {
+    install: typeof routes['module.install']
   }
   modules: {
     menu: typeof routes['modules.menu']
@@ -232,6 +250,188 @@ export interface ApiDefinition {
     store: typeof routes['admin.store']
     update: typeof routes['admin.update']
     destroy: typeof routes['admin.destroy']
+  }
+  ecommerce: {
+    webhooks: {
+      stripe: typeof routes['ecommerce.webhooks.stripe']
+      paypal: typeof routes['ecommerce.webhooks.paypal']
+    }
+    dashboard: {
+      page: typeof routes['ecommerce.dashboard.page']
+    }
+    products: {
+      page: typeof routes['ecommerce.products.page']
+      categories: typeof routes['ecommerce.products.categories']
+      new: typeof routes['ecommerce.products.new']
+      detail: typeof routes['ecommerce.products.detail']
+    }
+    orders: {
+      page: typeof routes['ecommerce.orders.page']
+      new: typeof routes['ecommerce.orders.new']
+      detail: typeof routes['ecommerce.orders.detail']
+    }
+    customers: {
+      page: typeof routes['ecommerce.customers.page']
+    }
+    settings: {
+      page: typeof routes['ecommerce.settings.page']
+    }
+    api: {
+      orders: {
+        index: typeof routes['ecommerce.api.orders.index']
+        show: typeof routes['ecommerce.api.orders.show']
+        status: typeof routes['ecommerce.api.orders.status']
+        cancel: typeof routes['ecommerce.api.orders.cancel']
+        ship: typeof routes['ecommerce.api.orders.ship']
+        note: typeof routes['ecommerce.api.orders.note']
+        store: typeof routes['ecommerce.api.orders.store']
+        refund: typeof routes['ecommerce.api.orders.refund']
+      }
+      sales: typeof routes['ecommerce.api.sales']
+      abandonedCarts: typeof routes['ecommerce.api.abandonedCarts']
+      currencies: {
+        index: typeof routes['ecommerce.api.currencies.index']
+        update: typeof routes['ecommerce.api.currencies.update']
+      }
+      shipping: {
+        index: typeof routes['ecommerce.api.shipping.index']
+        update: typeof routes['ecommerce.api.shipping.update']
+      }
+      storefront: {
+        seed: typeof routes['ecommerce.api.storefront.seed']
+      }
+      customers: {
+        index: typeof routes['ecommerce.api.customers.index']
+        status: typeof routes['ecommerce.api.customers.status']
+      }
+      exports: {
+        orders: typeof routes['ecommerce.api.exports.orders']
+        orderItems: typeof routes['ecommerce.api.exports.orderItems']
+        customers: typeof routes['ecommerce.api.exports.customers']
+        products: typeof routes['ecommerce.api.exports.products']
+      }
+      grants: {
+        index: typeof routes['ecommerce.api.grants.index']
+        revoke: typeof routes['ecommerce.api.grants.revoke']
+      }
+      gateways: {
+        index: typeof routes['ecommerce.api.gateways.index']
+        update: typeof routes['ecommerce.api.gateways.update']
+        verify: typeof routes['ecommerce.api.gateways.verify']
+      }
+      products: {
+        index: typeof routes['ecommerce.api.products.index']
+        show: typeof routes['ecommerce.api.products.show']
+        store: typeof routes['ecommerce.api.products.store']
+        update: typeof routes['ecommerce.api.products.update']
+        destroy: typeof routes['ecommerce.api.products.destroy']
+      }
+      variants: {
+        store: typeof routes['ecommerce.api.variants.store']
+        update: typeof routes['ecommerce.api.variants.update']
+        destroy: typeof routes['ecommerce.api.variants.destroy']
+      }
+      assets: {
+        index: typeof routes['ecommerce.api.assets.index']
+        store: typeof routes['ecommerce.api.assets.store']
+        update: typeof routes['ecommerce.api.assets.update']
+        destroy: typeof routes['ecommerce.api.assets.destroy']
+      }
+      variantPrices: {
+        index: typeof routes['ecommerce.api.variantPrices.index']
+        update: typeof routes['ecommerce.api.variantPrices.update']
+      }
+      categories: {
+        index: typeof routes['ecommerce.api.categories.index']
+        store: typeof routes['ecommerce.api.categories.store']
+        update: typeof routes['ecommerce.api.categories.update']
+        destroy: typeof routes['ecommerce.api.categories.destroy']
+      }
+      settings: {
+        show: typeof routes['ecommerce.api.settings.show']
+        update: typeof routes['ecommerce.api.settings.update']
+      }
+      discounts: {
+        index: typeof routes['ecommerce.api.discounts.index']
+        store: typeof routes['ecommerce.api.discounts.store']
+        update: typeof routes['ecommerce.api.discounts.update']
+        destroy: typeof routes['ecommerce.api.discounts.destroy']
+      }
+      affiliates: {
+        index: typeof routes['ecommerce.api.affiliates.index']
+        store: typeof routes['ecommerce.api.affiliates.store']
+        update: typeof routes['ecommerce.api.affiliates.update']
+      }
+      commissions: {
+        index: typeof routes['ecommerce.api.commissions.index']
+        pay: typeof routes['ecommerce.api.commissions.pay']
+        export: typeof routes['ecommerce.api.commissions.export']
+      }
+      stats: typeof routes['ecommerce.api.stats']
+    }
+    discounts: {
+      page: typeof routes['ecommerce.discounts.page']
+    }
+    affiliates: {
+      page: typeof routes['ecommerce.affiliates.page']
+    }
+    commissions: {
+      page: typeof routes['ecommerce.commissions.page']
+    }
+  }
+  shop: {
+    products: {
+      index: typeof routes['shop.products.index']
+      show: typeof routes['shop.products.show']
+    }
+    categories: typeof routes['shop.categories']
+    geo: {
+      index: typeof routes['shop.geo.index']
+      cities: typeof routes['shop.geo.cities']
+    }
+    availability: typeof routes['shop.availability']
+    cart: {
+      show: typeof routes['shop.cart.show']
+      add: typeof routes['shop.cart.add']
+      update: typeof routes['shop.cart.update']
+      remove: typeof routes['shop.cart.remove']
+      clear: typeof routes['shop.cart.clear']
+    }
+    me: typeof routes['shop.me']
+    order: {
+      status: typeof routes['shop.order.status']
+    }
+    checkout: typeof routes['shop.checkout']
+    account: typeof routes['shop.account'] & {
+      register: typeof routes['shop.account.register']
+      login: typeof routes['shop.account.login']
+      logout: typeof routes['shop.account.logout']
+      orders: typeof routes['shop.account.orders']
+      page: {
+        login: typeof routes['shop.account.page.login']
+        register: typeof routes['shop.account.page.register']
+      }
+    }
+    referral: typeof routes['shop.referral']
+    currencies: typeof routes['shop.currencies']
+    shipping: {
+      options: typeof routes['shop.shipping.options']
+    }
+    currency: {
+      set: typeof routes['shop.currency.set']
+    }
+    discount: {
+      check: typeof routes['shop.discount.check']
+    }
+    front: typeof routes['shop.front']
+    unsubscribe: typeof routes['shop.unsubscribe']
+    product: typeof routes['shop.product']
+    download: typeof routes['shop.download']
+    page: {
+      cart: typeof routes['shop.page.cart']
+      checkout: typeof routes['shop.page.checkout']
+      order: typeof routes['shop.page.order']
+    }
   }
   ctrl: {
     page: typeof routes['ctrl.page']

@@ -36,6 +36,17 @@ export default class Page extends BaseModel {
   @column()
   declare renderedHtml: string | null
 
+  /**
+   * The build that produced `renderedHtml`.
+   *
+   * The snapshot has hashed asset URLs baked into it, so it is only servable
+   * while those chunks are still on disk. Anything other than the running
+   * build's id — including null, which every pre-existing snapshot has — means
+   * re-render.
+   */
+  @column()
+  declare renderedBuild: string | null
+
   @column(jsonColumn)
   declare seo: Record<string, unknown>
 

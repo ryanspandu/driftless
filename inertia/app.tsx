@@ -15,21 +15,7 @@ const appName = import.meta.env.VITE_APP_NAME || 'Driftless'
 createInertiaApp({
   title: (title) => (title ? `${title} - ${appName}` : appName),
   resolve: async (name) => {
-    // Plugin pages use the "plugins/<name>/<area>/<page>" namespace and live in
-    // plugins/<name>/ui/<area>/<page>.tsx (co-located with the plugin back-end).
-    if (name.startsWith('plugins/')) {
-      const rel = name.slice('plugins/'.length)
-      const slash = rel.indexOf('/')
-      const plugin = rel.slice(0, slash)
-      const rest = rel.slice(slash + 1)
-      const pluginModule = await resolvePageComponent(
-        `../plugins/${plugin}/ui/${rest}.tsx`,
-        import.meta.glob<{ default: ComponentType }>('../plugins/*/ui/**/*.tsx')
-      )
-      return pluginModule.default
-    }
-
-    // Module pages mirror plugins: "modules/<name>/<area>/<page>" lives at
+    // Module pages: "modules/<name>/<area>/<page>" lives at
     // modules/<name>/ui/<area>/<page>.tsx (co-located with the module back-end).
     if (name.startsWith('modules/')) {
       const rel = name.slice('modules/'.length)

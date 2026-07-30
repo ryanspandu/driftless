@@ -4,27 +4,23 @@ import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/lucid'
 
 /**
- * Each plugin owns its schema under `plugins/<name>/migrations`. Discover those
- * folders at config-load time so plugin migrations run alongside the core ones.
+ * Each module owns its schema under `modules/<name>/migrations`. Discover those
+ * folders at config-load time so module migrations run alongside the core ones.
  */
-function pluginMigrationPaths(): string[] {
-  if (!existsSync('plugins')) return []
-  return readdirSync('plugins', { withFileTypes: true })
-    .filter((d) => d.isDirectory() && existsSync(`plugins/${d.name}/migrations`))
-    .map((d) => `plugins/${d.name}/migrations`)
-}
-
 /** Each module owns its schema under `modules/<name>/migrations` (same pattern). */
 function moduleMigrationPaths(): string[] {
-  if (!existsSync('modules')) return []
-  return readdirSync('modules', { withFileTypes: true })
-    .filter((d) => d.isDirectory() && existsSync(`modules/${d.name}/migrations`))
-    .map((d) => `modules/${d.name}/migrations`)
+  // Matches the override in `modules/registry.ts`, so a test that points
+  // discovery at a fixture directory gets its migrations too.
+  const dir = env.get('DRIFTLESS_MODULES_DIR') ?? 'modules'
+
+  if (!existsSync(dir)) return []
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && existsSync(`${dir}/${d.name}/migrations`))
+    .map((d) => `${dir}/${d.name}/migrations`)
 }
 
 const migrationPaths = [
   'database/migrations',
-  ...pluginMigrationPaths(),
   ...moduleMigrationPaths(),
 ]
 

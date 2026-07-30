@@ -5,6 +5,7 @@ import CmsField from '#models/cms_field'
 import { newUlid } from '#services/ulid_service'
 import CmsPermissionsService from '#services/cms_permissions_service'
 import { NATIVE_COLLECTIONS, nativeTableName } from '#cms/native_registry'
+import { LOCK_KEYS, withAdvisoryLock } from '#services/advisory_lock'
 
 export default class CmsProvider {
   constructor(protected app: ApplicationService) {}
@@ -24,10 +25,29 @@ export default class CmsProvider {
     }
 
     try {
-      await this.reconcileNatives()
+      /**
+       * Same key as the modules reconcile, not a second one.
+       *
+       * Both are find-or-create against unique indexes, both run in the same
+       * first-boot window, and both would deadlock-by-ordering if they took
+       * separate locks in different orders. Serialising the whole boot-time
+       * reconcile behind one key is simpler than reasoning about two, and the
+       * work is short.
+       */
+      await withAdvisoryLock(LOCK_KEYS.bootReconcile, () => this.reconcileNatives(), {
+        onBusy: 'wait',
+      })
     } catch (error) {
       // Test DB is migrated per-suite; tables may not exist at app boot yet.
       if (environment === 'test') return
+
+      // See the note in `providers/modules_provider.ts`: a lost race wrote the
+      // row we wanted, and crashing over it costs a supervisor restart loop.
+      if ((error as { code?: string }).code === '23505') {
+        console.warn('[cms] native reconcile lost a race; another process already wrote the row')
+        return
+      }
+
       throw error
     }
   }

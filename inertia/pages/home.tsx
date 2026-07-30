@@ -50,8 +50,8 @@ const FEATURES = [
   },
   {
     icon: Blocks,
-    title: 'Extensible plugins',
-    body: 'Drop a folder, flip a switch. Add features with self-contained plugins you can enable or disable at runtime.',
+    title: 'Extensible apps',
+    body: 'Drop a folder, flip a switch. Add features with self-contained apps you can enable or disable at runtime.',
   },
 ]
 

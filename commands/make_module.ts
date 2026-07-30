@@ -77,10 +77,11 @@ export default class MakeModule extends BaseCommand {
 
     this.logger.info('')
     this.logger.info('Next steps:')
-    this.logger.info(`  1. Register it in modules/registry.ts:`)
-    this.logger.info(`       import ${name.replace(/-/g, '_')} from '#modules/${name}/module'`)
-    this.logger.info(`       export const MODULES = [..., ${name.replace(/-/g, '_')}]`)
-    this.logger.info(`  2. Add models / migrations / services under modules/${name}/ as needed.`)
+    // No registry edit: `modules/registry.ts` discovers any folder holding a
+    // `module.ts` whose declared name matches the folder.
+    this.logger.info(`  1. Add models / migrations / services under modules/${name}/ as needed.`)
+    this.logger.info(`  2. Optional: ui/labels.ts for breadcrumbs, ui/puck/blocks.tsx for builder`)
+    this.logger.info(`     blocks, tests/ for its own specs — all discovered by convention.`)
     this.logger.info(`  3. Restart dev (a fresh module folder needs a build to bundle its UI).`)
   }
 }
@@ -95,7 +96,17 @@ export default defineModule({
   label: '${label}',
   description: '${label} module.',
   version: '1.0.0',
-  autoEnable: true,
+  /**
+   * Which Driftless versions this works with. Discovery refuses a package
+   * outside the range rather than letting it fail later.
+   */
+  engines: { driftless: '>=1.0.0 <2.0.0' },
+  /**
+   * Off until "node ace modules:install ${name}" has run its migrations and
+   * rebuilt the front-end. A module that switches itself on at the next boot
+   * would be live before any of that happened.
+   */
+  autoEnable: false,
   permissions: [
     { name: '${perm}:read', description: 'View ${label}.' },
     { name: '${perm}:manage', description: 'Manage ${label}.' },
@@ -115,20 +126,31 @@ export default defineModule({
 function routesTemplate(name: string): string {
   const perm = name.replace(/-/g, '_')
   const file = `${name.replace(/-/g, '_')}_controller`
+  /**
+   * The controller const is named after the module, and every route gets an
+   * explicit `.as()`.
+   *
+   * Adonis derives a route's name from the lazy-controller *variable* name, so
+   * a template that always emitted `const Ctrl` gave every module the same
+   * `ctrl.page` name — and the router rejects duplicates at boot. That made the
+   * second module anyone ever scaffolded crash the application on startup.
+   */
+  const ctrl = `${toPascal(name)}Ctrl`
   return `import type { HttpRouterService } from '@adonisjs/core/types'
 import type { NamedMiddleware } from '#modules/types'
 
-const Ctrl = () => import('#modules/${name}/controllers/${file}')
+const ${ctrl} = () => import('#modules/${name}/controllers/${file}')
 
 export function registerRoutes(router: HttpRouterService, middleware: NamedMiddleware) {
   router
-    .get('/admin/${name}', [Ctrl, 'page'])
+    .get('/admin/${name}', [${ctrl}, 'page'])
+    .as('${perm}.page')
     .use(middleware.auth())
     .use(middleware.moduleEnabled({ name: '${name}' }))
 
   router
     .group(() => {
-      router.get('/api/admin/${name}', [Ctrl, 'index'])
+      router.get('/api/admin/${name}', [${ctrl}, 'index']).as('${perm}.index')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: '${perm}:read' }))

@@ -1,0 +1,60 @@
+@layout('emails/layout')
+
+@section('content')
+  <h1 style="margin:0 0 8px 0; font-size:20px; font-weight:600;">Your order is on its way</h1>
+  <p style="margin:0 0 24px 0; color:#52525b;">
+    Order <strong style="color:#18181b;">{{ number }}</strong> has shipped.
+  </p>
+
+  @if(carrier || trackingNumber)
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      @if(carrier)
+        <tr>
+          <td style="padding:6px 0; font-size:14px; color:#52525b;">Carrier</td>
+          <td style="padding:6px 0; font-size:14px; text-align:right;">{{ carrier }}</td>
+        </tr>
+      @end
+      @if(trackingNumber)
+        <tr>
+          <td style="padding:6px 0; font-size:14px; color:#52525b;">Tracking number</td>
+          <td style="padding:6px 0; font-size:14px; text-align:right; font-family:monospace;">{{ trackingNumber }}</td>
+        </tr>
+      @end
+    </table>
+  @end
+
+  @if(trackingUrl)
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0 0;">
+      <tr>
+        <td style="background-color:#18181b; border-radius:8px;">
+          <a href="{{ trackingUrl }}" style="display:inline-block; padding:12px 20px; font-size:14px; font-weight:500; color:#ffffff; text-decoration:none;">
+            Track your parcel
+          </a>
+        </td>
+      </tr>
+    </table>
+  @end
+
+  @if(items && items.length)
+    <h2 style="margin:32px 0 8px 0; font-size:15px; font-weight:600;">What's in it</h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      @each(item in items)
+        <tr>
+          <td style="padding:6px 0; border-bottom:1px solid #f4f4f5; font-size:14px;">
+            {{ item.title }}
+            @if(item.variantTitle)
+              <span style="color:#71717a;">· {{ item.variantTitle }}</span>
+            @end
+            <span style="color:#71717a;">× {{ item.quantity }}</span>
+          </td>
+        </tr>
+      @end
+    </table>
+  @end
+
+  @if(orderUrl)
+    <p style="margin:24px 0 0 0; font-size:13px; color:#71717a;">
+      <a href="{{ orderUrl }}" style="color:#2563eb;">View your order</a>
+    </p>
+  @end
+@end

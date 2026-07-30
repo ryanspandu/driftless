@@ -31,7 +31,7 @@ import {
 } from '@phosphor-icons/react'
 
 /**
- * Curated phosphor icons selectable by name from a module/plugin manifest's
+ * Curated phosphor icons selectable by name from a module manifest's
  * `nav.icon`. Kept as an explicit map (not a barrel lookup) so the bundle only
  * ships the icons we actually expose. Unknown names fall back to `Cube`.
  */

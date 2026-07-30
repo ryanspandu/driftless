@@ -9,7 +9,6 @@ import {
   House,
   Image as ImageIcon,
   Key,
-  Plug,
   PuzzlePiece,
   Shapes,
   ShieldCheck,
@@ -21,30 +20,17 @@ import {
   Users,
   type Icon,
 } from '@phosphor-icons/react'
-// Dynamic collection/plugin icons are still referenced by Lucide name in stored
-// data, so those code paths keep using Lucide (see CollectionMenuIcon, pluginIcon).
-import { Boxes, FileText as LucideFileText, Megaphone, Plug2 } from 'lucide-react'
+// Collection icons are still referenced by Lucide name in stored data, so that
+// code path keeps using Lucide (see CollectionMenuIcon).
+import { Boxes } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
-import { useEnabledPluginsMenu } from '~/hooks/api/use-plugins'
 import { useModulesMenu } from '~/hooks/api/use-modules'
 import { useNavConfig } from '~/hooks/api/use-nav-config'
 import { useAbility } from '~/components/providers/ability-provider'
 import { CollectionMenuIcon } from '~/components/cms/collection-menu-icon'
 import { phosphorIconByName } from '~/lib/phosphor-icon'
 import { Avatar, AvatarFallback } from '~/components/ui/avatar'
-
-/** lucide icon names a plugin manifest may reference for its sidebar entry. */
-const PLUGIN_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  Megaphone,
-  Plug2,
-  FileText: LucideFileText,
-  Boxes,
-}
-
-function pluginIcon(name: string): React.ComponentType<{ className?: string }> {
-  return PLUGIN_ICONS[name] ?? Plug2
-}
 
 interface MenuItem {
   title: string
@@ -84,7 +70,6 @@ const navEntries: NavEntry[] = [
   { title: 'Media', href: '/admin/media', icon: ImageIcon },
   { title: 'Collections', href: '/admin/cms/collections', icon: Stack, activeMatch: 'prefix' },
   { title: 'Components', href: '/admin/cms/components', icon: Boxes, activeMatch: 'prefix' },
-  { title: 'Plugins', href: '/admin/plugins', icon: Plug, activeMatch: 'prefix' },
   { title: 'Integrations', href: '/admin/integrations', icon: PuzzlePiece, activeMatch: 'prefix' },
   {
     title: 'User Management',
@@ -106,6 +91,26 @@ function isActive(pathname: string, item: ActiveTarget): boolean {
     return pathname === item.href || pathname.startsWith(item.href + '/')
   }
   return pathname === item.href
+}
+
+/**
+ * Of several nav hrefs that all match, the most specific one.
+ *
+ * Prefix matching is genuinely wanted — `/admin/ecommerce/products/123` should
+ * keep "Products" lit — but on its own it lights up every ancestor too, so a
+ * module whose dashboard sits at `/admin/ecommerce` showed both "Dashboard" and
+ * "Products" as active at once. Longest match wins, which is the same rule a
+ * router uses and needs no per-item configuration to stay correct as nav grows.
+ *
+ * Returns null when nothing matches.
+ */
+function mostSpecificMatch(pathname: string, hrefs: string[]): string | null {
+  let best: string | null = null
+  for (const href of hrefs) {
+    const matches = pathname === href || pathname.startsWith(href + '/')
+    if (matches && (best === null || href.length > best.length)) best = href
+  }
+  return best
 }
 
 /** Shared classes for a nav row in its active vs. resting state. */
@@ -131,8 +136,6 @@ function ActiveBar() {
 export function AppSidebar({ pathname }: { pathname: string }) {
   const collectionsQuery = useCmsCollectionsList()
   const collections = collectionsQuery.data ?? []
-  const pluginsMenuQuery = useEnabledPluginsMenu()
-  const pluginMenu = pluginsMenuQuery.data ?? []
   const modulesMenuQuery = useModulesMenu()
   const moduleMenu = modulesMenuQuery.data ?? []
   const navConfigQuery = useNavConfig()
@@ -251,7 +254,9 @@ export function AppSidebar({ pathname }: { pathname: string }) {
 
   /** A single module nav link (flat module, or a group's sub-item). */
   const renderModuleLink = (label: string, href: string, iconName?: string) => {
-    const active = isActive(pathname, { href, activeMatch: 'prefix' })
+    // Not `isActive` with a prefix: an ancestor href would match too. Only the
+    // most specific of the module's hrefs is lit — see `mostSpecificMatch`.
+    const active = href === activeModuleHref
     const Icon = phosphorIconByName(iconName)
     return (
       <Link
@@ -279,6 +284,19 @@ export function AppSidebar({ pathname }: { pathname: string }) {
     .filter((g) => canSeeModule(g.permission))
     .map((g) => ({ ...g, items: g.items?.filter((i) => canSeeModule(i.permission)) }))
     .filter((g) => (g.items ? g.items.length > 0 : !!g.href))
+
+  /**
+   * Computed across *all* module hrefs at once, not per group, because a flat
+   * module link and another module's child could nest just as easily as two
+   * siblings do.
+   */
+  const activeModuleHref = mostSpecificMatch(
+    pathname,
+    visibleModules.flatMap((g) => [
+      ...(g.href ? [g.href] : []),
+      ...(g.items ?? []).map((i) => i.href),
+    ])
+  )
 
   return (
     <aside
@@ -388,14 +406,14 @@ export function AppSidebar({ pathname }: { pathname: string }) {
                   if (!g.items?.length) {
                     return g.href ? renderModuleLink(g.label, g.href, g.icon) : null
                   }
-                  const key = `module:${g.name}`
+                  // A module may declare several top-level groups, so the key
+                  // has to include the group label — `g.name` alone collides.
+                  const key = `module:${g.name}:${g.label}`
                   const open = !!openParents[key]
-                  const childActive = g.items.some((i) =>
-                    isActive(pathname, { href: i.href, activeMatch: 'prefix' })
-                  )
+                  const childActive = g.items.some((i) => i.href === activeModuleHref)
                   const GroupIcon = phosphorIconByName(g.icon)
                   return (
-                    <div key={g.name}>
+                    <div key={key}>
                       <button
                         type="button"
                         onClick={() => toggleParent(key)}
@@ -464,28 +482,6 @@ export function AppSidebar({ pathname }: { pathname: string }) {
           </Fragment>
         ))}
 
-        {/* Enabled plugins' menu entries */}
-        {pluginMenu.length > 0 && (
-          <Fragment>
-            {sectionHeader('Plugins')}
-            {pluginMenu.map((item) => {
-              const active = isActive(pathname, { href: item.href, activeMatch: 'prefix' })
-              const Icon = pluginIcon(item.icon)
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={rowClasses(active)}
-                  title={collapsed ? item.title : undefined}
-                >
-                  {active && <ActiveBar />}
-                  <Icon className="size-[18px] shrink-0" />
-                  {!collapsed && <span className="truncate">{item.title}</span>}
-                </Link>
-              )
-            })}
-          </Fragment>
-        )}
       </nav>
 
       {/* Footer — account chip + sign out */}

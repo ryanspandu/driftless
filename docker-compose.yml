@@ -10,5 +10,20 @@ services:
     volumes:
       - driftless_pg_data:/var/lib/postgresql/data
 
+  # Backs the rate limiter and the BullMQ job queue.
+  #
+  # `appendonly` matters: queued jobs (order emails, webhook processing) live
+  # only in Redis, so a restart without persistence loses them. Losing a job is
+  # recoverable — the reconcile sweep and the gateways' own webhook retries pick
+  # the work back up — but there is no reason to make that the normal case.
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - driftless_redis_data:/data
+
 volumes:
   driftless_pg_data:
+  driftless_redis_data:

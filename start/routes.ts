@@ -1,8 +1,13 @@
 import app from '@adonisjs/core/services/app'
 import { middleware } from '#start/kernel'
 import router from '@adonisjs/core/services/router'
-import { apiV1Throttle } from '#start/limiter'
-import { registerAllPluginRoutes } from '#plugins/registry'
+import {
+  apiV1Throttle,
+  authIpThrottle,
+  loginAccountThrottle,
+  moduleInstallThrottle,
+  registerThrottle,
+} from '#start/limiter'
 import { registerAllModuleRoutes } from '#modules/registry'
 
 /**
@@ -35,7 +40,12 @@ router.get('/api/public/templates/:id', [() => import('#controllers/public_templ
 
 router.get('/robots.txt', [() => import('#controllers/seo_controller'), 'robots'])
 router.get('/sitemap.xml', [() => import('#controllers/seo_controller'), 'sitemap'])
-router.get('/health', ({ response }) => response.json({ ok: true }))
+/**
+ * Public probe: a status code and a version, nothing else. 503 when the
+ * database is unreachable or the built assets do not match their manifest —
+ * the state that used to report healthy while serving blank pages.
+ */
+router.get('/health', [() => import('#controllers/admin/health_controller'), 'public'])
 
 // ── API docs (dev-only): OpenAPI spec + Scalar UI via adonis-autoswagger ────────
 // Not registered in production, so /api/docs and /api/openapi do not exist there.
@@ -70,22 +80,36 @@ router.get('/api/auth/config', [() => import('#controllers/admin/settings_contro
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 
 router.get('/auth/google/status', [() => import('#controllers/google_auth_controller'), 'status'])
-router.get('/auth/google', [() => import('#controllers/google_auth_controller'), 'start'])
-router.get('/auth/google/callback', [() => import('#controllers/google_auth_controller'), 'callback'])
+router.get('/auth/google', [() => import('#controllers/google_auth_controller'), 'start']).use(authIpThrottle)
+router
+  .get('/auth/google/callback', [() => import('#controllers/google_auth_controller'), 'callback'])
+  .use(authIpThrottle)
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 router
   .group(() => {
     router.get('/register', [() => import('#controllers/new_account_controller'), 'create']).as('new_account.create')
-    router.post('/register', [() => import('#controllers/new_account_controller'), 'store']).as('new_account.store')
+    // Credential endpoints are throttled per-IP and, for login, per-account.
+    // GET routes are left unthrottled: they render a form and cost nothing.
+    router
+      .post('/register', [() => import('#controllers/new_account_controller'), 'store'])
+      .as('new_account.store')
+      .use(authIpThrottle)
+      .use(registerThrottle)
     router.get('/login', [() => import('#controllers/session_controller'), 'create']).as('session.create')
-    router.post('/login', [() => import('#controllers/session_controller'), 'store']).as('session.store')
+    router
+      .post('/login', [() => import('#controllers/session_controller'), 'store'])
+      .as('session.store')
+      .use(authIpThrottle)
+      .use(loginAccountThrottle)
 
     // Legacy aliases (explicit names — same controller action must not reuse new_account.store)
     router.get('/signup', ({ response }) => response.redirect('/register'))
     router.post('/signup', [() => import('#controllers/new_account_controller'), 'store'])
       .as('legacy.signup.store')
+      .use(authIpThrottle)
+      .use(registerThrottle)
 
     // Inertia page paths use auth/*; keep canonical URLs at /login and /register.
     router.get('/auth/login', ({ response }) => response.redirect('/login'))
@@ -112,7 +136,12 @@ router
     router.get('/admin/profile', [() => import('#controllers/admin/dashboard_controller'), 'profilePage'])
 
     // Users
+    // Privileged admin *pages* carry `pagePermission` as well as their APIs.
+    // Without it any signed-in account can load the React shell for these
+    // screens; the APIs behind them still 403, so it is a structural leak
+    // rather than data access, but these are the screens where that matters.
     router.get('/admin/users', [() => import('#controllers/admin/users_controller'), 'page'])
+      .use(middleware.pagePermission({ permission: 'user:read' }))
     router.get('/api/admin/users/generate-password', [() => import('#controllers/admin/users_controller'), 'generatePassword'])
       .use(middleware.permission({ permission: 'user:manage' }))
     router
@@ -129,8 +158,11 @@ router
 
     // Roles
     router.get('/admin/roles', [() => import('#controllers/admin/roles_controller'), 'page'])
+      .use(middleware.pagePermission({ permission: 'role:manage' }))
     router.get('/admin/roles/new', [() => import('#controllers/admin/roles_controller'), 'newPage'])
+      .use(middleware.pagePermission({ permission: 'role:manage' }))
     router.get('/admin/roles/:id', [() => import('#controllers/admin/roles_controller'), 'detailPage'])
+      .use(middleware.pagePermission({ permission: 'role:manage' }))
     router
       .group(() => {
         router.get('/api/admin/roles', [() => import('#controllers/admin/roles_controller'), 'index'])
@@ -146,8 +178,11 @@ router
 
     // Permissions
     router.get('/admin/permissions', [() => import('#controllers/admin/permissions_controller'), 'page'])
+      .use(middleware.pagePermission({ permission: 'permission:manage' }))
     router.get('/admin/permissions/new', [() => import('#controllers/admin/permissions_controller'), 'newPage'])
+      .use(middleware.pagePermission({ permission: 'permission:manage' }))
     router.get('/admin/permissions/:id', [() => import('#controllers/admin/permissions_controller'), 'detailPage'])
+      .use(middleware.pagePermission({ permission: 'permission:manage' }))
     router
       .group(() => {
         router.get('/api/admin/permissions', [() => import('#controllers/admin/permissions_controller'), 'index'])
@@ -287,15 +322,31 @@ router
       })
       .use(middleware.permission({ resource: 'media' }))
 
-    // Settings
-    router.get('/admin/settings', [() => import('#controllers/admin/settings_controller'), 'settingsPage'])
-    router.get('/admin/website-settings', [() => import('#controllers/admin/settings_controller'), 'websiteSettingsPage'])
-    router.get('/admin/settings/application', [() => import('#controllers/admin/settings_controller'), 'applicationSettingsPage'])
-    router.get('/admin/integrations', [() => import('#controllers/admin/settings_controller'), 'integrationsPage'])
-    router.get('/admin/integrations/google', [() => import('#controllers/admin/settings_controller'), 'integrationsGooglePage'])
-    router.get('/admin/integrations/captcha', [() => import('#controllers/admin/settings_controller'), 'integrationsCaptchaPage'])
-    router.get('/admin/integrations/google-analytics', [() => import('#controllers/admin/settings_controller'), 'integrationsGaPage'])
-    router.get('/admin/integrations/clarity', [() => import('#controllers/admin/settings_controller'), 'integrationsClarityPage'])
+    // Settings. These pages expose integration configuration (including masked
+    // credentials) and the module install surface, so the page routes are gated
+    // as well as their APIs.
+    router
+      .group(() => {
+        router.get('/admin/settings', [() => import('#controllers/admin/settings_controller'), 'settingsPage'])
+        router.get('/admin/website-settings', [() => import('#controllers/admin/settings_controller'), 'websiteSettingsPage'])
+        router.get('/admin/settings/application', [() => import('#controllers/admin/settings_controller'), 'applicationSettingsPage'])
+        router.get('/admin/integrations', [() => import('#controllers/admin/settings_controller'), 'integrationsPage'])
+        router.get('/admin/integrations/google', [() => import('#controllers/admin/settings_controller'), 'integrationsGooglePage'])
+        router.get('/admin/integrations/captcha', [() => import('#controllers/admin/settings_controller'), 'integrationsCaptchaPage'])
+        router.get('/admin/integrations/google-analytics', [() => import('#controllers/admin/settings_controller'), 'integrationsGaPage'])
+        router.get('/admin/integrations/clarity', [() => import('#controllers/admin/settings_controller'), 'integrationsClarityPage'])
+        router.get('/admin/settings/email', [() => import('#controllers/admin/mail_settings_controller'), 'page'])
+      })
+      .use(middleware.pagePermission({ permission: 'settings:manage' }))
+
+    // Outgoing mail (SMTP). Credentials live here, so every route is gated.
+    router
+      .group(() => {
+        router.get('/api/admin/settings/mail', [() => import('#controllers/admin/mail_settings_controller'), 'show'])
+        router.put('/api/admin/settings/mail', [() => import('#controllers/admin/mail_settings_controller'), 'update'])
+        router.post('/api/admin/settings/mail/test', [() => import('#controllers/admin/mail_settings_controller'), 'sendTest'])
+      })
+      .use(middleware.permission({ permission: 'settings:manage' }))
 
     router.get('/api/admin/settings/web', [() => import('#controllers/admin/settings_controller'), 'getWebSettings'])
     router.put('/api/admin/settings/web', [() => import('#controllers/admin/settings_controller'), 'updateWebSettings'])
@@ -318,16 +369,48 @@ router
     router.post('/api/admin/api-tokens', [() => import('#controllers/admin/api_tokens_controller'), 'store'])
     router.delete('/api/admin/api-tokens/:id', [() => import('#controllers/admin/api_tokens_controller'), 'destroy'])
 
-    // Plugins (manage installed plugins + active toggle)
-    router.get('/admin/plugins', [() => import('#controllers/admin/plugins_controller'), 'page'])
-    // Sidebar menu for enabled plugins — available to any admin (no plugin:manage).
-    router.get('/api/admin/plugins/menu', [() => import('#controllers/admin/plugins_controller'), 'menu'])
+    // Database schema installation.
+    //
+    // `module:install` and `module:uninstall` are separate from `settings:manage`
+    // on purpose: every seeded ADMIN holds `settings:manage`, and these routes
+    // run DDL, run a build on the server, and restart the process.
+    // `module:install` is granted to ADMIN as well as SUPERADMIN — which is why
+    // the throttle below is not optional.
+    // Operator-facing health: module boot failures, safe mode, asset state.
+    router.get('/api/admin/health', [() => import('#controllers/admin/health_controller'), 'admin'])
+
+    router.get('/api/admin/schema/pending', [() => import('#controllers/admin/schema_controller'), 'pending'])
+      .use(middleware.permission({ permission: 'module:install' }))
+    router.post('/api/admin/schema/install', [() => import('#controllers/admin/schema_controller'), 'install'])
+      .use(middleware.permission({ permission: 'module:install' }))
+      // Same class of operation as a module install, and previously unthrottled —
+      // a trivial self-DoS. One line, and it removes an asymmetry.
+      .use(moduleInstallThrottle)
+    router.post('/api/admin/modules/:name/uninstall', [() => import('#controllers/admin/schema_controller'), 'uninstallModule'])
+      .use(middleware.permission({ permission: 'module:uninstall' }))
+
+    // Module install from the admin UI: spawns a detached installer, then the
+    // process restarts itself. The GETs are polled every couple of seconds
+    // while one runs, so they are deliberately left unthrottled.
     router
       .group(() => {
-        router.get('/api/admin/plugins', [() => import('#controllers/admin/plugins_controller'), 'index'])
-        router.put('/api/admin/plugins/:name/toggle', [() => import('#controllers/admin/plugins_controller'), 'toggle'])
+        router.get('/api/admin/deployment', [() => import('#controllers/admin/module_install_controller'), 'deployment'])
+        router.get('/api/admin/modules/detected', [() => import('#controllers/admin/module_install_controller'), 'detected'])
+        router.get('/api/admin/module-install-jobs/latest', [() => import('#controllers/admin/module_install_controller'), 'latest'])
+        router.get('/api/admin/module-install-jobs/:id', [() => import('#controllers/admin/module_install_controller'), 'show'])
       })
-      .use(middleware.permission({ permission: 'plugin:manage' }))
+      .use(middleware.permission({ permission: 'module:install' }))
+
+    router.post('/api/admin/modules/:name/install', [() => import('#controllers/admin/module_install_controller'), 'install'])
+      .use(middleware.permission({ permission: 'module:install' }))
+      .use(moduleInstallThrottle)
+
+    /**
+     * `/admin/plugins` was the plugin manager before plugins became modules.
+     * Kept as a redirect rather than deleted: it is a page operators bookmark,
+     * and a 404 on an upgrade reads as data loss rather than a move.
+     */
+    router.get('/admin/plugins', ({ response }) => response.redirect('/admin/settings'))
 
     // Modules (first-party app areas; enable/disable from Settings)
     // Sidebar nav for enabled modules — available to any admin.
@@ -395,9 +478,7 @@ router
   .use(middleware.auth({ guards: ['api'] }))
   .use(apiV1Throttle)
 
-// ── Plugins (routes registered by each plugin; guarded per-request) ─────────────
 
-registerAllPluginRoutes(router, middleware)
 
 // ── Modules (first-party app areas; routes guarded per-request) ─────────────────
 

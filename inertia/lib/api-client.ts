@@ -1,1 +1,7 @@
-export { ApiError, apiErrorMessage, apiFetch, toApiError } from '~/lib/api'
+export {
+  ApiError,
+  apiErrorMessage,
+  apiFetch,
+  isServerUnreachable,
+  toApiError,
+} from '~/lib/api'

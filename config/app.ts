@@ -20,6 +20,18 @@ export const http = defineConfig({
   generateRequestId: true,
 
   /**
+   * Which upstream addresses are allowed to set `X-Forwarded-For`, and thus
+   * what `request.ip()` resolves to. Defaults to `loopback`, meaning only a
+   * proxy on the same host is believed.
+   *
+   * Set `TRUST_PROXY` to match the real deployment topology before relying on
+   * any IP-keyed rate limit (login, checkout, webhooks): behind an untrusted
+   * load balancer every request appears to come from the balancer, so a single
+   * bucket is shared by every client.
+   */
+  trustProxy: env.get('TRUST_PROXY', 'loopback'),
+
+  /**
    * Allow HTTP method spoofing via the "_method" form/query parameter.
    * This lets HTML forms target PUT/PATCH/DELETE routes while still
    * submitting with POST.

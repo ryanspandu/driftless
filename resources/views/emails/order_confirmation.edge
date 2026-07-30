@@ -1,0 +1,90 @@
+@layout('emails/layout')
+
+@section('content')
+  <h1 style="margin:0 0 8px 0; font-size:20px; font-weight:600;">Thank you for your order</h1>
+  <p style="margin:0 0 24px 0; color:#52525b;">
+    Order <strong style="color:#18181b;">{{ number }}</strong> is confirmed and paid.
+  </p>
+
+  {{--
+    The line items, as a plain table. Amounts arrive pre-formatted from the
+    server — nothing in an email template should be doing money arithmetic.
+  --}}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+    @each(item in items)
+      <tr>
+        <td style="padding:8px 0; border-bottom:1px solid #f4f4f5; font-size:14px;">
+          {{ item.title }}
+          @if(item.variantTitle)
+            <span style="color:#71717a;">· {{ item.variantTitle }}</span>
+          @end
+          <span style="color:#71717a;">× {{ item.quantity }}</span>
+        </td>
+        <td style="padding:8px 0; border-bottom:1px solid #f4f4f5; font-size:14px; text-align:right; white-space:nowrap;">
+          {{ item.total }}
+        </td>
+      </tr>
+    @end
+
+    <tr>
+      <td style="padding:12px 0 0 0; font-size:14px; color:#52525b;">Subtotal</td>
+      <td style="padding:12px 0 0 0; font-size:14px; text-align:right;">{{ subtotal }}</td>
+    </tr>
+    @if(discount)
+      <tr>
+        <td style="padding:4px 0; font-size:14px; color:#52525b;">Discount</td>
+        <td style="padding:4px 0; font-size:14px; text-align:right;">−{{ discount }}</td>
+      </tr>
+    @end
+    @if(shipping)
+      <tr>
+        <td style="padding:4px 0; font-size:14px; color:#52525b;">Shipping</td>
+        <td style="padding:4px 0; font-size:14px; text-align:right;">{{ shipping }}</td>
+      </tr>
+    @end
+    @if(tax)
+      <tr>
+        <td style="padding:4px 0; font-size:14px; color:#52525b;">{{ taxLabel }}</td>
+        <td style="padding:4px 0; font-size:14px; text-align:right;">{{ tax }}</td>
+      </tr>
+    @end
+    <tr>
+      <td style="padding:8px 0 0 0; font-size:15px; font-weight:600;">Total</td>
+      <td style="padding:8px 0 0 0; font-size:15px; font-weight:600; text-align:right;">{{ total }}</td>
+    </tr>
+  </table>
+
+  @if(downloads && downloads.length)
+    <h2 style="margin:32px 0 8px 0; font-size:15px; font-weight:600;">Your downloads</h2>
+    <p style="margin:0 0 12px 0; font-size:13px; color:#71717a;">
+      These links are yours alone — anyone with them can download your files.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      @each(file in downloads)
+        <tr>
+          <td style="padding:6px 0; font-size:14px;">
+            <a href="{{ file.url }}" style="color:#2563eb; text-decoration:underline;">{{ file.filename }}</a>
+            @if(file.expiresNote)
+              <span style="color:#71717a; font-size:12px;">· {{ file.expiresNote }}</span>
+            @end
+          </td>
+        </tr>
+      @end
+    </table>
+  @end
+
+  @if(orderUrl)
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0 0;">
+      <tr>
+        <td style="background-color:#18181b; border-radius:8px;">
+          <a href="{{ orderUrl }}" style="display:inline-block; padding:12px 20px; font-size:14px; font-weight:500; color:#ffffff; text-decoration:none;">
+            View your order
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:16px 0 0 0; font-size:13px; color:#71717a;">
+      Keep this email — that link is how you reach your order without an account.
+    </p>
+  @end
+@end

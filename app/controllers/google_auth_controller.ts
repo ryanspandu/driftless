@@ -1,6 +1,5 @@
 import User from '#models/user'
 import Role from '#models/role'
-import hash from '@adonisjs/core/services/hash'
 import { randomBytes } from 'node:crypto'
 import type { HttpContext } from '@adonisjs/core/http'
 import { IntegrationSettingsService } from '#services/settings_service'
@@ -156,7 +155,11 @@ export default class GoogleAuthController {
       firstName: profile.firstName,
       lastName: profile.lastName,
       fullName: `${profile.firstName} ${profile.lastName ?? ''}`.trim(),
-      password: await hash.make(randomBytes(32).toString('hex')),
+      // Plaintext random filler: `withAuthFinder`'s `beforeSave` hook hashes the
+      // password column on save. Hashing it here too would store a hash of a
+      // hash — harmless for an OAuth-only account, but the same bug that made
+      // admin-set passwords unusable, so keep the one convention everywhere.
+      password: randomBytes(32).toString('hex'),
       googleSub: profile.googleSub,
       status: 'ACTIVE',
       emailVerifiedAt: profile.emailVerified ? (new Date() as any) : null,

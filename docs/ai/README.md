@@ -13,8 +13,10 @@ Reference docs for AI coding assistants (Cursor, Claude Code, GitHub Copilot, Co
 | [frontend.md](./frontend.md) | Inertia pages, hooks, UI components |
 | [cms.md](./cms.md) | Dynamic collections, fields, revisions, sidebar grouping |
 | [cms-content-modeling.md](./cms-content-modeling.md) | Field-type catalog, single types, relations (4 cardinalities), components (inline + registry), per-field width |
-| [plugins.md](./plugins.md) | Plugin system: co-located BE+FE, two front-ends, runtime enable/disable |
-| [modules.md](./modules.md) | Module system: first-party app areas (DB-toggled), `make:module`, Settings → Application |
+| [modules.md](./modules.md) | The one package system. Apps and plugins are both modules — `kind` on the manifest is the only difference |
+| [modules.md](./modules.md) | Module system: first-party app areas (DB-toggled), `make:module`, install from the admin, Settings → Application |
+| [modules.md](./modules.md) → module READMEs | A module documents itself: see `modules/<name>/README.md`. E-commerce: [modules/ecommerce/README.md](../../modules/ecommerce/README.md) |
+| [mail.md](./mail.md) | Transactional email: SMTP from the admin (encrypted) or env, queued sending, Edge templates |
 | [auth-and-permissions.md](./auth-and-permissions.md) | Session auth, OAuth, permission grammar |
 | [offline-and-pwa.md](./offline-and-pwa.md) | Dexie, sync engine, Serwist |
 | [api-docs.md](./api-docs.md) | Auto OpenAPI docs (adonis-autoswagger + Scalar at `/api/docs`, **dev-only**); implemented |
@@ -45,3 +47,5 @@ Reference docs for AI coding assistants (Cursor, Claude Code, GitHub Copilot, Co
 | GitHub Copilot | [.github/copilot-instructions.md](../../.github/copilot-instructions.md) |
 | Cursor rules | [.cursor/rules/](../../.cursor/rules/) |
 | Cursor skill (optional) | [.cursor/skills/driftless-dev/SKILL.md](../../.cursor/skills/driftless-dev/SKILL.md) |
+
+Operator-facing docs live one level up: [DEPLOYMENT.md](../DEPLOYMENT.md) (release layout, supervisor, health) and [RECOVERY.md](../RECOVERY.md) (safe mode, rollback, the recovery CLI).

@@ -123,12 +123,15 @@ export default function LoginPage() {
         </div>
       ) : null}
 
-      <p className="text-center text-sm text-muted-foreground">
-        No account?{' '}
-        <Link href="/register" className="font-medium text-primary hover:underline">
-          Sign up
-        </Link>
-      </p>
+      {/* `/register` 404s when public sign-up is off, so only offer it when open. */}
+      {authCfg.data?.registrationEnabled ? (
+        <p className="text-center text-sm text-muted-foreground">
+          No account?{' '}
+          <Link href="/register" className="font-medium text-primary hover:underline">
+            Sign up
+          </Link>
+        </p>
+      ) : null}
     </div>
   )
 }

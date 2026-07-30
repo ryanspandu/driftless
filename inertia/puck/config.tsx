@@ -2,6 +2,7 @@ import { lazy, Suspense, type ElementType, type FormEvent, type ReactNode } from
 import type { Config } from '@measured/puck'
 import { cn } from '~/lib/utils'
 import { CollectionSourceField, CollectionList } from '~/puck/collection-list'
+import { withModuleBlocks } from '~/puck/module-blocks'
 import { RichTextView } from '~/puck/rich-text-view'
 import { styleFields, Box } from '~/puck/style-fields'
 import { MediaField } from '~/puck/media-field'
@@ -43,7 +44,7 @@ function parseYouTubeId(input: string): string | null {
  * the `<Box>` renderer live in `~/puck/style-fields`.
  */
 
-export const puckConfig: Config = {
+const baseConfig: Config = {
   root: {
     // Keep the rendered page in the light theme: the canvas previews the public
     // page (always light) even while the editor chrome follows the admin's dark
@@ -203,7 +204,8 @@ export const puckConfig: Config = {
           s={s}
           style={{
             gridTemplateColumns: `repeat(${Number(columns) || 2}, minmax(0, 1fr))`,
-            gridTemplateRows: Number(rows) > 1 ? `repeat(${Number(rows)}, minmax(0, 1fr))` : undefined,
+            gridTemplateRows:
+              Number(rows) > 1 ? `repeat(${Number(rows)}, minmax(0, 1fr))` : undefined,
             gap: gap || '16px',
           }}
         >
@@ -227,7 +229,10 @@ export const puckConfig: Config = {
       },
       defaultProps: { columns: '2', display: 'grid', gap: '16px', content: [] },
       render: ({ content: Content, columns, ...s }) => (
-        <Box s={s} style={{ gridTemplateColumns: `repeat(${Number(columns) || 2}, minmax(0, 1fr))` }}>
+        <Box
+          s={s}
+          style={{ gridTemplateColumns: `repeat(${Number(columns) || 2}, minmax(0, 1fr))` }}
+        >
           <Content />
         </Box>
       ),
@@ -565,7 +570,13 @@ export const puckConfig: Config = {
                   loading="lazy"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    border: 0,
+                  }}
                 />
               </div>
             ) : (
@@ -640,7 +651,9 @@ export const puckConfig: Config = {
           type: 'custom',
           label: 'Content',
           render: ({ value, onChange }) => (
-            <Suspense fallback={<div className="text-sm text-muted-foreground">Loading editor…</div>}>
+            <Suspense
+              fallback={<div className="text-sm text-muted-foreground">Loading editor…</div>}
+            >
               <RichTextField value={value} onChange={onChange} />
             </Suspense>
           ),
@@ -687,9 +700,7 @@ export const puckConfig: Config = {
         templateId: {
           type: 'custom',
           label: 'Template',
-          render: ({ value, onChange }) => (
-            <TemplateRefField value={value} onChange={onChange} />
-          ),
+          render: ({ value, onChange }) => <TemplateRefField value={value} onChange={onChange} />,
         },
         ...styleFields,
       },
@@ -732,9 +743,7 @@ export const puckConfig: Config = {
         <Box
           as="form"
           s={s}
-          {...(action
-            ? { action, method }
-            : { onSubmit: (e: FormEvent) => e.preventDefault() })}
+          {...(action ? { action, method } : { onSubmit: (e: FormEvent) => e.preventDefault() })}
         >
           <Content />
         </Box>
@@ -750,7 +759,12 @@ export const puckConfig: Config = {
       },
       defaultProps: { text: 'Label', forId: '' },
       render: ({ text, forId, ...s }) => (
-        <Box as="label" s={s} className="mb-1 block text-sm font-medium" {...(forId ? { htmlFor: forId } : {})}>
+        <Box
+          as="label"
+          s={s}
+          className="mb-1 block text-sm font-medium"
+          {...(forId ? { htmlFor: forId } : {})}
+        >
           {text}
         </Box>
       ),
@@ -1122,8 +1136,7 @@ export const puckConfig: Config = {
       },
       defaultProps: { tag: 'div', content: [] },
       render: ({ content: Content, tag, ...s }) => {
-        const safeTag =
-          typeof tag === 'string' && /^[a-z][a-z0-9-]*$/.test(tag) ? tag : 'div'
+        const safeTag = typeof tag === 'string' && /^[a-z][a-z0-9-]*$/.test(tag) ? tag : 'div'
         return (
           <Box as={safeTag as ElementType} s={s}>
             <Content />
@@ -1148,7 +1161,11 @@ export const puckConfig: Config = {
     // Real components (hooks) in blocks-interactive.tsx; render delegates to them.
     Dropdown: {
       label: 'Dropdown',
-      fields: { label: { type: 'text', label: 'Button label' }, content: { type: 'slot' }, ...styleFields },
+      fields: {
+        label: { type: 'text', label: 'Button label' },
+        content: { type: 'slot' },
+        ...styleFields,
+      },
       defaultProps: { label: 'Menu', content: [] },
       render: (props) => <DropdownView {...props} />,
     },
@@ -1167,7 +1184,11 @@ export const puckConfig: Config = {
 
     Navbar: {
       label: 'Navbar',
-      fields: { brand: { type: 'text', label: 'Brand' }, content: { type: 'slot' }, ...styleFields },
+      fields: {
+        brand: { type: 'text', label: 'Brand' },
+        content: { type: 'slot' },
+        ...styleFields,
+      },
       defaultProps: { brand: 'Brand', content: [] },
       render: (props) => <NavbarView {...props} />,
     },
@@ -1234,6 +1255,12 @@ export const puckConfig: Config = {
     },
   },
 }
+
+/**
+ * Modules fold their own blocks in here rather than being imported by name
+ * above — see `module-blocks.ts`. Core stays ignorant of which modules exist.
+ */
+export const puckConfig: Config = withModuleBlocks(baseConfig)
 
 // Lock support: a `_locked` layer (toggled from the Layers panel) freezes its
 // drag / delete / duplicate / edit affordances. Puck only exposes permissions

@@ -15,6 +15,24 @@ export interface ComboboxInputProps {
   className?: string
   createLabel?: string
   emptyLabel?: string
+  /**
+   * Keep `options` in the order given instead of sorting them alphabetically.
+   *
+   * For a short list of tags, alphabetical is the helpful order. For a list
+   * that arrives already ranked — city names by population, say — sorting
+   * destroys the ranking and buries the answer: alphabetical puts Aberdeen
+   * above New York City.
+   */
+  preserveOrder?: boolean
+  /**
+   * Cap how many options are rendered at once.
+   *
+   * Unset means unlimited, which is right for the handful of entries most
+   * callers pass. It is not right for eleven thousand: every option becomes a
+   * DOM node, and the browser stops responding. When the cap bites, the menu
+   * says how many were left out rather than quietly showing a short list.
+   */
+  maxVisible?: number
 }
 
 function getScrollParents(el: HTMLElement | null): HTMLElement[] {
@@ -41,6 +59,8 @@ export function ComboboxInput({
   className,
   createLabel = 'Create',
   emptyLabel = 'No matches',
+  preserveOrder = false,
+  maxVisible,
 }: ComboboxInputProps) {
   const generatedId = React.useId()
   const inputId = id ?? generatedId
@@ -74,26 +94,50 @@ export function ComboboxInput({
       seen.add(v)
       out.push(v)
     }
-    out.sort((a, b) => a.localeCompare(b))
+    if (!preserveOrder) out.sort((a, b) => a.localeCompare(b))
     return out
-  }, [options])
+  }, [options, preserveOrder])
 
   const q = value.trim()
   const filtered = React.useMemo(() => {
     if (!q) return normalized
     const lo = q.toLowerCase()
-    return normalized.filter((o) => o.toLowerCase().includes(lo))
+
+    /**
+     * Matches that *start* with what was typed come first, the rest after,
+     * each keeping the order they arrived in. Without this a plain substring
+     * match ranks "Kota Jakarta Timur" alongside "Jakarta" with nothing to
+     * separate them, and the obvious answer is not the first row.
+     */
+    const starts: string[] = []
+    const contains: string[] = []
+    for (const o of normalized) {
+      const l = o.toLowerCase()
+      if (l.startsWith(lo)) starts.push(o)
+      else if (l.includes(lo)) contains.push(o)
+    }
+    return [...starts, ...contains]
   }, [normalized, q])
+
+  /**
+   * How many matches the cap hid. Reported rather than swallowed — a list
+   * silently cut to its first 50 looks like the whole answer.
+   */
+  const hidden = maxVisible === undefined ? 0 : Math.max(0, filtered.length - maxVisible)
+  const visible = React.useMemo(
+    () => (maxVisible === undefined ? filtered : filtered.slice(0, maxVisible)),
+    [filtered, maxVisible]
+  )
 
   const showCreate =
     q.length > 0 && !normalized.some((o) => o.toLowerCase() === q.toLowerCase())
 
   type Entry = { kind: 'option' | 'create'; value: string }
   const entries = React.useMemo<Entry[]>(() => {
-    const arr: Entry[] = filtered.map((o) => ({ kind: 'option', value: o }))
+    const arr: Entry[] = visible.map((o) => ({ kind: 'option', value: o }))
     if (showCreate) arr.unshift({ kind: 'create', value: q })
     return arr
-  }, [filtered, showCreate, q])
+  }, [visible, showCreate, q])
 
   const updatePanelPosition = React.useCallback(() => {
     const anchor = rootRef.current
@@ -257,6 +301,14 @@ export function ComboboxInput({
           )
         })
       )}
+      {hidden > 0 ? (
+        <li
+          aria-hidden
+          className="border-t border-border px-2 py-1.5 text-xs text-muted-foreground"
+        >
+          {hidden.toLocaleString()} more — keep typing to narrow
+        </li>
+      ) : null}
     </ul>
   )
 
@@ -284,8 +336,16 @@ export function ComboboxInput({
           onFocus={() => setOpen(true)}
           onClick={() => setOpen(true)}
           onKeyDown={onKeyDown}
+          /**
+           * Deliberately the same tokens as `Input` — height, border, ring,
+           * text size and shadow. This control shares grid rows with plain
+           * inputs and selects, and when it was `h-8`/`border-input`/`ring-3`
+           * it sat four pixels short of its neighbours with a different border
+           * and focus ring. `pr-8` is the one intentional difference: the
+           * chevron button is absolutely positioned over that space.
+           */
           className={cn(
-            'h-8 w-full min-w-0 rounded-lg border border-input bg-transparent py-1 pl-2.5 pr-8 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80'
+            'flex h-9 w-full min-w-0 rounded-lg border border-border bg-background py-1 pl-3 pr-8 text-sm shadow-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50'
           )}
         />
         <button

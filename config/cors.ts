@@ -32,9 +32,11 @@ const corsConfig = defineConfig({
   origin: app.inDev ? true : prodOrigins,
 
   /**
-   * HTTP methods accepted for cross-origin requests.
+   * HTTP methods accepted for cross-origin requests. PATCH is required: several
+   * admin routes use it (media metadata, task reordering) and omitting it here
+   * makes their preflight fail cross-origin.
    */
-  methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
 
   /**
    * Reflect request headers by default. Use a string array to restrict

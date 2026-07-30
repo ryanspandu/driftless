@@ -1,6 +1,12 @@
 # Dependencies and AdonisJS build
 node_modules
 build
+
+# Release layout — see scripts/build-release.mjs
+releases/
+shared/
+current
+current.next
 tmp/*
 !tmp/.gitkeep
 
@@ -24,3 +30,28 @@ yarn-error.log
 
 # Platform specific
 .DS_Store
+
+# Modules
+#
+# `modules/*`, not `modules/`: git cannot re-include anything inside an excluded
+# *directory*, so the negations below were decorative — `modules/tasks/` only
+# stayed in version control because it had been added to the index before the
+# rule existed. Matching the children instead makes the exceptions real.
+#
+# Bundled, first-party packages are tracked. Everything else under `modules/` is
+# an installed payload and belongs to the operator, not to this repository.
+#
+# **Every first-party package must be listed below.** Missing one does not fail
+# loudly: Tailwind skips gitignored files, so the package's UI silently loses any
+# utility class that no other file in the project happens to use. That is how
+# `pl-12` vanished from the money input and left the currency symbol sitting
+# underneath the value.
+
+# modules/*
+# !modules/tasks/
+# !modules/announcements/
+# !modules/ecommerce/
+# !modules/paths.ts
+# !modules/registry.ts
+# !modules/tsconfig.json
+# !modules/types.ts

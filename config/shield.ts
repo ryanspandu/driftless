@@ -35,10 +35,19 @@ const shieldConfig = defineConfig({
     enabled: env.get('NODE_ENV') !== 'test',
 
     /**
-     * Route patterns to exclude from CSRF checks. The external token-authed API
-     * (`/api/v1/*`) uses Bearer tokens, not cookies, so CSRF does not apply.
+     * Route patterns to exclude from CSRF checks.
+     *
+     * - `/api/v1/*` — the external token-authed API uses Bearer tokens, not
+     *   cookies, so CSRF does not apply.
+     * - `/api/webhooks/*` — payment gateways cannot send a CSRF token and have
+     *   no session to protect. These routes authenticate by verifying the
+     *   provider's signature over the raw request body instead, which is
+     *   strictly stronger than a CSRF token for this purpose.
      */
-    exceptRoutes: (ctx: HttpContext) => ctx.request.url().startsWith('/api/v1/'),
+    exceptRoutes: (ctx: HttpContext) => {
+      const url = ctx.request.url()
+      return url.startsWith('/api/v1/') || url.startsWith('/api/webhooks/')
+    },
 
     /**
      * Expose an encrypted XSRF-TOKEN cookie for frontend HTTP clients.

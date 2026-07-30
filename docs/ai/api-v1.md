@@ -32,7 +32,7 @@ docs feature ([api-docs.md](./api-docs.md)) already reserves a `bearerAuth` secu
   token (per app), copies the plaintext once, can revoke any time. Designed so OAuth2 client-credentials
   can be added later without a rewrite.
 - **Exposure scope (v1):** **Content + CMS records only**, read **and** write. Users, roles, permissions,
-  media, pages, templates, settings, plugins, modules stay first-party (session-only) and are NOT exposed.
+  media, pages, templates, settings and modules stay first-party (session-only) and are NOT exposed.
 - **Token mechanism:** AdonisJS **access tokens** (`@adonisjs/auth/access_tokens`) — opaque, hashed in DB,
   revocable, with built-in `abilities` (scopes). Chosen over JWT (hard to revoke) and ad-hoc API keys.
 - **Layered access (security):** effective access = **intersection** of (a) the token owner's RBAC

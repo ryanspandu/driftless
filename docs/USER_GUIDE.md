@@ -13,10 +13,9 @@ the toggle next to the logo.
 Sidebar sections, top to bottom:
 
 1. **Core menus** — Dashboard, Analytics, UI (Content / Pages / Templates), Media, Collections,
-   Plugins, Integrations, User Management, Settings.
+   Integrations, User Management, Settings.
 2. **Apps** — enabled [modules](#modules) (e.g. Tasks).
 3. **Collections** — your dynamic CMS collections.
-4. **Plugins** — enabled plugins' pages.
 5. **Account** — your name/role + sign out.
 
 ## Light / dark mode
@@ -58,7 +57,7 @@ The bundled example is **Tasks** (`/admin/tasks`) — a lightweight task tracker
 do / In progress / Done), priority, and due dates, using the same clean table layout as the rest
 of the dashboard. It's a starting point you can grow into full project management.
 
-Modules differ from **plugins** (managed at `/admin/plugins`): plugins are optional/third-party
+Apps and plugins are the same system — a package's `kind` is the only difference: plugins are optional/third-party
 add-ons; modules are first-party parts of *your* product. Developers add a new module with one
 command — see [docs/ai/modules.md](./ai/modules.md).
 
@@ -100,4 +99,4 @@ permission", your role likely lacks that permission. A superadmin holds everythi
 
 ## Related
 
-- [Developer / AI docs](./ai/) — architecture, modules, CMS, offline, plugins.
+- [Developer / AI docs](./ai/) — architecture, modules, CMS, offline.

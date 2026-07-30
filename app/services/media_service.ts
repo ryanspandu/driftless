@@ -1,5 +1,6 @@
 import type { MultipartFile } from '@adonisjs/core/bodyparser'
 import app from '@adonisjs/core/services/app'
+import env from '#start/env'
 import { DateTime } from 'luxon'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { extname, join } from 'node:path'
@@ -39,7 +40,18 @@ export interface PaginatedMedia {
 
 export default class MediaService {
   private get uploadDir(): string {
-    return app.publicPath('uploads')
+    /**
+     * `MEDIA_STORAGE_PATH` was declared in `start/env.ts` and never read — an
+     * env var that looked meaningful and did nothing. It is honoured now, so an
+     * operator can put the media library on a mounted volume.
+     *
+     * The default is unchanged. In the release layout `public/uploads` is a
+     * symlink out to `shared/uploads`, which is what keeps the library from
+     * being deleted by every rebuild; overriding this points somewhere else
+     * entirely and takes that protection with it.
+     */
+    const configured = env.get('MEDIA_STORAGE_PATH')
+    return configured ? app.makePath(configured) : app.publicPath('uploads')
   }
 
   async list(params: {

@@ -1,6 +1,7 @@
 import Page from '#models/page'
 import PageRevision from '#models/page_revision'
 import { newUlid } from '#services/ulid_service'
+import { currentBuildId } from '#services/release'
 import { DateTime } from 'luxon'
 
 export type PageStatus = 'DRAFT' | 'PUBLISHED'
@@ -211,17 +212,28 @@ export default class PagesService {
     await row.delete()
   }
 
-  /** Store the SSG HTML snapshot without bumping updated_at. */
+  /**
+   * Store the SSG HTML snapshot without bumping updated_at.
+   *
+   * Stamped with the build that rendered it, because the HTML has hashed asset
+   * URLs in it and outlives the build those chunks came from.
+   */
   async cacheRenderedHtml(id: string, html: string): Promise<void> {
-    await Page.query().where('id', id).update({ rendered_html: html })
+    await Page.query()
+      .where('id', id)
+      .update({ rendered_html: html, rendered_build: currentBuildId() })
   }
 
   /**
    * Clear every SSG HTML snapshot. Templates are shared across pages, so any
    * template edit can affect any SSG page — clearing all snapshots is correct.
+   *
+   * This is for *content* changes. Snapshots left behind by an older build do
+   * not need clearing — they fail the build-id check on read and re-render
+   * themselves, which is the only version that survives a rolling restart.
    */
   async invalidateAllSnapshots(): Promise<void> {
-    await Page.query().update({ rendered_html: null })
+    await Page.query().update({ rendered_html: null, rendered_build: null })
   }
 
   private async snapshotRevision(row: Page, authorId: number | null): Promise<void> {

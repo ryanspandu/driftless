@@ -37,11 +37,26 @@ export function LayoutShell({
     return <div className="contents theme-light">{page}</div>
   }
 
-  // Admin area: core admin pages ("admin/*") and plugin admin pages
-  // ("plugins/<name>/admin/*"). Plugin public pages fall through to PublicLayout.
-  const isPluginAdmin = /^plugins\/[^/]+\/admin\//.test(pageName)
+  /**
+   * Error pages stand alone — no site chrome.
+   *
+   * `errors/*` covers the public 404 and 500. The header is a builder template
+   * full of links to a site the visitor has just failed to reach; showing it
+   * above "page not found" invites them to try the very navigation that did not
+   * help. `theme-light` is kept because the whole public side is light-only.
+   *
+   * The **admin** 404 (`admin/not_found`) deliberately keeps its chrome: a
+   * signed-in operator who mistypes a URL should still have the sidebar.
+   */
+  if (pageName.startsWith('errors/')) {
+    return <div className="contents theme-light">{page}</div>
+  }
+
+  // Admin area: core admin pages ("admin/*") and module admin pages
+  // ("modules/<name>/admin/*"). A module's public pages fall through to
+  // PublicLayout.
   const isModuleAdmin = /^modules\/[^/]+\/admin\//.test(pageName)
-  if (pageName.startsWith('admin/') || isPluginAdmin || isModuleAdmin) {
+  if (pageName.startsWith('admin/') || isModuleAdmin) {
     return (
       <AbilityProvider>
         <OfflineProvider>

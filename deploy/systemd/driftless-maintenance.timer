@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the Driftless maintenance sweep every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+# Catch up after downtime rather than skipping a window: the sweep releases
+# stock held by abandoned checkouts, and skipping it strands inventory.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

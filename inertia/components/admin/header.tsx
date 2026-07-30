@@ -5,7 +5,12 @@ import { ConnectionIndicator } from '~/components/admin/connection-indicator'
 import { SyncCenter } from '~/components/admin/sync-center'
 import { ThemeToggle } from '~/components/admin/theme-toggle'
 import { UserAccountDropdown } from '~/components/admin/user-account-dropdown'
+import { modulePageLabel } from '~/lib/module-labels'
 
+/**
+ * Core pages only. A module's pages are labelled by the module — see
+ * `modulePageLabel` — so this table never has to learn what is installed.
+ */
 const PAGE_LABELS: Record<string, string> = {
   '/admin/dashboard': 'Dashboard',
   '/admin/analytics': 'Analytics',
@@ -14,10 +19,12 @@ const PAGE_LABELS: Record<string, string> = {
   '/admin/users': 'Users',
   '/admin/roles': 'Roles',
   '/admin/permissions': 'Permissions',
-  '/admin/plugins': 'Plugins',
   '/admin/pages': 'Pages',
   '/admin/templates': 'Templates',
   '/admin/settings': 'Settings',
+  '/admin/settings/application': 'Application',
+  '/admin/settings/email': 'Email',
+  '/admin/website-settings': 'Website settings',
   '/admin/profile': 'Profile',
   '/admin/integrations': 'Integrations',
   '/admin/cms/collections': 'Collections',
@@ -25,6 +32,12 @@ const PAGE_LABELS: Record<string, string> = {
 
 function getPageLabel(pathname: string): string {
   if (PAGE_LABELS[pathname]) return PAGE_LABELS[pathname]
+
+  // Modules get a say before the core prefix rules, since their paths are
+  // namespaced and cannot collide with the ones handled below.
+  const fromModule = modulePageLabel(pathname)
+  if (fromModule) return fromModule
+
   if (pathname.startsWith('/admin/cms/collections/')) return 'Collection Settings'
   if (pathname.startsWith('/admin/cms/')) {
     const parts = pathname.split('/')

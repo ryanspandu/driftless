@@ -52,7 +52,34 @@ export const runnerHooks: Required<Pick<Config, 'setup' | 'teardown'>> = {
  * Learn more - https://japa.dev/docs/test-suites#lifecycle-hooks
  */
 export const configureSuite: Config['configureSuite'] = (suite) => {
-  if (['browser', 'functional', 'e2e'].includes(suite.name)) {
-    return suite.setup(() => testUtils.httpServer().start())
+  /**
+   * `modules` is here because a module's tests live with the module and are
+   * functional in nature — they boot the app and make HTTP requests. Leaving it
+   * out starts no server, and every request fails as a bare connection error
+   * that says nothing about the real cause.
+   */
+  if (['browser', 'functional', 'e2e', 'modules', 'pg'].includes(suite.name)) {
+    suite.setup(() => testUtils.httpServer().start())
+
+    /**
+     * Rate limits are per-minute and every test shares one IP, so without this
+     * the *density* of the suite decides whether it passes: pack enough
+     * checkout requests into a minute and a later test gets a 429 where it
+     * expected a 404. Clearing between tests keeps a limit a property of the
+     * test that exercises it rather than of whatever ran just before.
+     *
+     * Safe because the store is in-memory in tests (`LIMITER_STORE=memory` in
+     * `.env.test`) — this clears the suite's own counters, never a real Redis.
+     */
+    const clearLimits = async () => {
+      const { default: limiter } = await import('@adonisjs/limiter/services/main')
+      await limiter.clear(['memory'])
+    }
+
+    // Both, because `onTest` only sees tests registered straight on the suite —
+    // anything inside a `test.group(...)` arrives through `onGroup`, and nearly
+    // every test here is in a group.
+    suite.onTest((test) => test.setup(clearLimits))
+    suite.onGroup((group) => group.each.setup(clearLimits))
   }
 }
