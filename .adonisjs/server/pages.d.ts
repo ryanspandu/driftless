@@ -43,6 +43,7 @@ declare module '@adonisjs/inertia/types' {
     'admin/settings': ExtractProps<(typeof import('../../inertia/pages/admin/settings.tsx'))['default']>
     'admin/settings/application': ExtractProps<(typeof import('../../inertia/pages/admin/settings/application.tsx'))['default']>
     'admin/settings/email': ExtractProps<(typeof import('../../inertia/pages/admin/settings/email.tsx'))['default']>
+    'admin/settings/general': ExtractProps<(typeof import('../../inertia/pages/admin/settings/general.tsx'))['default']>
     'admin/templates/builder': ExtractProps<(typeof import('../../inertia/pages/admin/templates/builder.tsx'))['default']>
     'admin/templates/index': ExtractProps<(typeof import('../../inertia/pages/admin/templates/index.tsx'))['default']>
     'admin/users': ExtractProps<(typeof import('../../inertia/pages/admin/users.tsx'))['default']>

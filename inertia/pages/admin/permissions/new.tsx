@@ -1,14 +1,5 @@
-
-import { Link } from '@inertiajs/react'
-import { ArrowLeft } from 'lucide-react'
-import { Button } from '~/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '~/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
+import { BackButton } from '~/components/admin/back-button'
 import { PermissionForm } from '~/components/admin/permission-form'
 import { useCreatePermission } from '~/hooks/api/use-permissions'
 import { useRouter } from '~/hooks/use-inertia-url'
@@ -20,14 +11,7 @@ export default function NewPermissionPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          render={<Link href="/admin/permissions" aria-label="Back to permissions" />}
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
+        <BackButton href="/admin/permissions" label="Back to permissions" />
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">New permission</h1>
           <p className="text-sm text-muted-foreground">
@@ -40,8 +24,8 @@ export default function NewPermissionPage() {
         <CardHeader>
           <CardTitle>Permission details</CardTitle>
           <CardDescription>
-            Use a clear namespace so it&apos;s easy to grep later (e.g.{' '}
-            <code>report:export</code>, <code>billing:read</code>).
+            Use a clear namespace so it&apos;s easy to grep later (e.g. <code>report:export</code>,{' '}
+            <code>billing:read</code>).
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -810,6 +810,12 @@ const routes = {
     tokens: [{"old":"/admin/settings","type":0,"val":"admin","end":""},{"old":"/admin/settings","type":0,"val":"settings","end":""}],
     types: placeholder as Registry['settings.settings_page']['types'],
   },
+  'settings.general_settings_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/settings/general',
+    tokens: [{"old":"/admin/settings/general","type":0,"val":"admin","end":""},{"old":"/admin/settings/general","type":0,"val":"settings","end":""},{"old":"/admin/settings/general","type":0,"val":"general","end":""}],
+    types: placeholder as Registry['settings.general_settings_page']['types'],
+  },
   'settings.website_settings_page': {
     methods: ["GET","HEAD"],
     pattern: '/admin/website-settings',

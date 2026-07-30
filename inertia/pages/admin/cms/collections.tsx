@@ -92,11 +92,7 @@ function CollectionCard({
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 text-muted-foreground"
-                />
+                <Button variant="ghost" size="icon" className="size-8 text-muted-foreground" />
               }
               aria-label="Collection actions"
             >
@@ -115,11 +111,7 @@ function CollectionCard({
               {canManageSchema ? (
                 <DropdownMenuItem
                   className="gap-2 cursor-pointer"
-                  render={
-                    <Link
-                      href={`/admin/cms/collections/${encodeURIComponent(key)}`}
-                    />
-                  }
+                  render={<Link href={`/admin/cms/collections/${encodeURIComponent(key)}`} />}
                 >
                   <Pencil className="size-4" />
                   Edit schema

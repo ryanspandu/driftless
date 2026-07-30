@@ -1615,6 +1615,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['settingsPage']>>>
     }
   }
+  'settings.general_settings_page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/settings/general'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['generalSettingsPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['generalSettingsPage']>>>
+    }
+  }
   'settings.website_settings_page': {
     methods: ["GET","HEAD"]
     pattern: '/admin/website-settings'

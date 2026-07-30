@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, router, usePage } from '@inertiajs/react'
-import { ArrowLeft, ImagePlus, Plus, Trash2, X } from 'lucide-react'
+import { router, usePage } from '@inertiajs/react'
+import { ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
@@ -11,6 +11,7 @@ import { Label } from '~/components/ui/label'
 import { Switch } from '~/components/ui/switch'
 import { AppSelect } from '~/components/ui/app-select'
 import { MoneyInput } from '../../components/money-input'
+import { BackButton } from '~/components/admin/back-button'
 import { PageHeader } from '~/components/admin/page-header'
 import { MediaImagePicker } from '~/components/admin/media-image-picker'
 import { RichTextEditor } from '~/components/cms/rich-text-editor'
@@ -228,15 +229,7 @@ export default function ProductEditPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-8"
-          render={<Link href="/admin/ecommerce/products" />}
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          <span className="sr-only">Back to products</span>
-        </Button>
+        <BackButton href="/admin/ecommerce/products" label="Back to products" />
         <PageHeader
           title={isNew ? 'New product' : (data?.title ?? 'Product')}
           subtitle={isNew ? 'Create a product and its first variant.' : `/${data?.slug ?? ''}`}

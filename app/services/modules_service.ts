@@ -35,6 +35,14 @@ export interface ModuleDto {
   schemaReady: boolean
   /** Whether uninstall is even possible (the manifest declares its tables). */
   canUninstall: boolean
+  /**
+   * Trust tier, from the manifest.
+   *
+   * Required rather than optional: the server always knows the answer (`'app'`
+   * is the manifest default), and an optional field would push a `?? 'app'`
+   * into every call site that reads it.
+   */
+  kind: 'app' | 'plugin'
 }
 
 /** Nav group as sent to the sidebar (the manifest `nav` + the module name). */
@@ -147,7 +155,13 @@ export default class ModulesService {
          * moves are left alone: a downgrade has no hook to run, and running an
          * upgrade path for it would be worse than doing nothing.
          */
-        if (manifest.onUpgrade && previous && semver.valid(previous) && semver.valid(manifest.version) && semver.gt(manifest.version, previous)) {
+        if (
+          manifest.onUpgrade &&
+          previous &&
+          semver.valid(previous) &&
+          semver.valid(manifest.version) &&
+          semver.gt(manifest.version, previous)
+        ) {
           try {
             await manifest.onUpgrade(previous)
           } catch (error) {
@@ -206,10 +220,12 @@ export default class ModulesService {
    * the admin explaining it.
    */
   async quarantine(name: string, reason: string): Promise<void> {
-    await Module.query().where('name', name).update({
-      enabled: false,
-      boot_error: reason.slice(0, 1000),
-    })
+    await Module.query()
+      .where('name', name)
+      .update({
+        enabled: false,
+        boot_error: reason.slice(0, 1000),
+      })
 
     this.bustCache()
   }
@@ -313,6 +329,12 @@ export default class ModulesService {
           enabled: row ? Boolean(row.enabled) : (m.autoEnable ?? true),
           schemaReady: await installer.tablesReady(m.tables ?? []),
           canUninstall: Boolean(m.tables?.length),
+          /**
+           * From the manifest, not `row.kind` — same rule as `label` and
+           * `version` above. The manifest is what the code actually is; the row
+           * is a cache of it that `reconcile()` keeps in step.
+           */
+          kind: m.kind ?? 'app',
         }
       })
     )
@@ -353,6 +375,13 @@ export default class ModulesService {
         name,
         enabled,
         version: manifest.version,
+        /**
+         * Without this the column default (`'app'`) wins, so a plugin toggled
+         * before `reconcile()` ever saw it is persisted as an app — and stays
+         * that way until the manifest's version happens to change, because
+         * reconcile only re-syncs `kind` when it notices drift.
+         */
+        kind: manifest.kind ?? 'app',
         installedAt: DateTime.now(),
       })
     } else {
@@ -389,6 +418,7 @@ export default class ModulesService {
       enabled: Boolean(row.enabled),
       schemaReady: await new SchemaInstallerService().tablesReady(manifest.tables ?? []),
       canUninstall: Boolean(manifest.tables?.length),
+      kind: manifest.kind ?? 'app',
     }
   }
 

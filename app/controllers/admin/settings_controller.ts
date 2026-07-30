@@ -75,6 +75,12 @@ export default class SettingsController {
     return inertia.render('admin/website-settings', {})
   }
 
+  /** Public site on/off and which core sidebar menus are visible. */
+  async generalSettingsPage({ inertia }: HttpContext) {
+    return renderPage(inertia, 'admin/settings/general', {})
+  }
+
+  /** The module manager — apps and plugins. */
   async applicationSettingsPage({ inertia }: HttpContext) {
     return renderPage(inertia, 'admin/settings/application', {})
   }

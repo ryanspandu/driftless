@@ -369,6 +369,13 @@ export interface ModuleDto {
   schemaReady: boolean
   /** False when the manifest declares no tables, so uninstall is not possible. */
   canUninstall: boolean
+  /**
+   * Trust tier — what separates the Apps tab from the Plugins tab.
+   *
+   * Mirrors `ModuleDto` in `app/services/modules_service.ts`; the two are
+   * hand-duplicated and must change together.
+   */
+  kind: 'app' | 'plugin'
 }
 
 export type CmsCollectionSource = 'PRISMA' | 'DYNAMIC'

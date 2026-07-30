@@ -1,66 +1,58 @@
-
-import { Link } from "@inertiajs/react";
-import { FormEvent, useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import { FcGoogle } from "react-icons/fc";
-import { Button } from "~/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
-import { Checkbox } from "~/components/ui/checkbox";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { Switch } from "~/components/ui/switch";
-import { Can } from "~/components/providers/ability-provider";
+import { Link } from '@inertiajs/react'
+import { type FormEvent, useEffect, useState } from 'react'
+import { FcGoogle } from 'react-icons/fc'
+import { Button } from '~/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
+import { Checkbox } from '~/components/ui/checkbox'
+import { Input } from '~/components/ui/input'
+import { Label } from '~/components/ui/label'
+import { Switch } from '~/components/ui/switch'
+import { BackButton } from '~/components/admin/back-button'
+import { Can } from '~/components/providers/ability-provider'
 import {
   useIntegrationSettings,
   useUpdateIntegrationSettings,
-} from "~/hooks/api/use-integration-settings";
+} from '~/hooks/api/use-integration-settings'
 
 export default function GoogleIntegrationPage() {
-  
-  const query = useIntegrationSettings( );
-  const update = useUpdateIntegrationSettings( );
+  const query = useIntegrationSettings()
+  const update = useUpdateIntegrationSettings()
 
-  const [googleAuthEnabled, setGoogleAuthEnabled] = useState(false);
-  const [googleClientId, setGoogleClientId] = useState("");
-  const [googleClientSecretNew, setGoogleClientSecretNew] = useState("");
-  const [clearGoogleSecret, setClearGoogleSecret] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [googleAuthEnabled, setGoogleAuthEnabled] = useState(false)
+  const [googleClientId, setGoogleClientId] = useState('')
+  const [googleClientSecretNew, setGoogleClientSecretNew] = useState('')
+  const [clearGoogleSecret, setClearGoogleSecret] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    if (!query.data) return;
-    const d = query.data;
-    setGoogleAuthEnabled(d.googleAuthEnabled);
-    setGoogleClientId(d.googleClientId ?? "");
-    setGoogleClientSecretNew("");
-    setClearGoogleSecret(false);
-  }, [query.data]);
+    if (!query.data) return
+    const d = query.data
+    setGoogleAuthEnabled(d.googleAuthEnabled)
+    setGoogleClientId(d.googleClientId ?? '')
+    setGoogleClientSecretNew('')
+    setClearGoogleSecret(false)
+  }, [query.data])
 
   async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSaved(false);
+    e.preventDefault()
+    setError(null)
+    setSaved(false)
     try {
       await update.mutateAsync({
         googleAuthEnabled,
         googleClientId: googleClientId.trim() || null,
         ...(clearGoogleSecret
-          ? { googleClientSecret: "" }
+          ? { googleClientSecret: '' }
           : googleClientSecretNew.trim()
             ? { googleClientSecret: googleClientSecretNew.trim() }
             : {}),
-      });
-      setGoogleClientSecretNew("");
-      setClearGoogleSecret(false);
-      setSaved(true);
+      })
+      setGoogleClientSecretNew('')
+      setClearGoogleSecret(false)
+      setSaved(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : 'Save failed')
     }
   }
 
@@ -68,24 +60,13 @@ export default function GoogleIntegrationPage() {
     <Can permission="settings:manage" fallback={<NoAccess />}>
       <div className="w-full max-w-none space-y-6">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            render={
-              <Link href="/admin/integrations" aria-label="Back to integrations" />
-            }
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
+          <BackButton href="/admin/integrations" label="Back to integrations" />
           <div className="flex items-center gap-3">
             <div className="flex size-12 items-center justify-center rounded-2xl bg-muted">
               <FcGoogle className="size-7" aria-hidden />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">
-                Google sign-in
-              </h1>
+              <h1 className="text-2xl font-semibold tracking-tight">Google sign-in</h1>
               <p className="text-sm text-muted-foreground">
                 OAuth 2.0 client for &quot;Sign in with Google&quot;.
               </p>
@@ -96,24 +77,22 @@ export default function GoogleIntegrationPage() {
         {query.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : query.error ? (
-          <p className="text-sm text-destructive">
-            {(query.error as Error).message}
-          </p>
+          <p className="text-sm text-destructive">{(query.error as Error).message}</p>
         ) : (
           <form className="space-y-6" onSubmit={onSubmit}>
             <Card>
               <CardHeader>
                 <CardTitle>Credentials</CardTitle>
                 <CardDescription>
-                  From Google Cloud Console → APIs &amp; Services → Credentials.
-                  Redirect URI must be:{" "}
+                  From Google Cloud Console → APIs &amp; Services → Credentials. Redirect URI must
+                  be:{' '}
                   <code className="rounded bg-muted px-1 py-0.5 text-xs">
                     {query.data?.googleRedirectUriHint}
                   </code>
                   {query.data?.envGoogleOAuthFallback ? (
                     <span className="mt-2 block text-xs text-amber-600 dark:text-amber-500">
-                      Environment variables also supply OAuth credentials; DB
-                      values override when set.
+                      Environment variables also supply OAuth credentials; DB values override when
+                      set.
                     </span>
                   ) : null}
                 </CardDescription>
@@ -147,14 +126,14 @@ export default function GoogleIntegrationPage() {
                     type="password"
                     value={googleClientSecretNew}
                     onChange={(e) => {
-                      setGoogleClientSecretNew(e.target.value);
-                      setClearGoogleSecret(false);
+                      setGoogleClientSecretNew(e.target.value)
+                      setClearGoogleSecret(false)
                     }}
                     autoComplete="new-password"
                     placeholder={
                       query.data?.hasGoogleClientSecretInDb
-                        ? "Leave blank to keep stored secret"
-                        : "Enter client secret"
+                        ? 'Leave blank to keep stored secret'
+                        : 'Enter client secret'
                     }
                     className="font-mono text-sm"
                   />
@@ -169,8 +148,8 @@ export default function GoogleIntegrationPage() {
                         id="clearGoogleSecret"
                         checked={clearGoogleSecret}
                         onCheckedChange={(v) => {
-                          setClearGoogleSecret(!!v);
-                          if (v) setGoogleClientSecretNew("");
+                          setClearGoogleSecret(!!v)
+                          if (v) setGoogleClientSecretNew('')
                         }}
                       />
                       <Label htmlFor="clearGoogleSecret" className="font-normal">
@@ -188,20 +167,14 @@ export default function GoogleIntegrationPage() {
               </p>
             ) : null}
             {saved ? (
-              <p className="text-sm text-green-600 dark:text-green-500">
-                Google settings saved.
-              </p>
+              <p className="text-sm text-green-600 dark:text-green-500">Google settings saved.</p>
             ) : null}
 
             <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={update.isPending}>
-                {update.isPending ? "Saving…" : "Save"}
+                {update.isPending ? 'Saving…' : 'Save'}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                render={<Link href="/admin/integrations" />}
-              >
+              <Button type="button" variant="outline" render={<Link href="/admin/integrations" />}>
                 Cancel
               </Button>
             </div>
@@ -209,7 +182,7 @@ export default function GoogleIntegrationPage() {
         )}
       </div>
     </Can>
-  );
+  )
 }
 
 function NoAccess() {
@@ -223,5 +196,5 @@ function NoAccess() {
         Back to dashboard
       </Button>
     </div>
-  );
+  )
 }

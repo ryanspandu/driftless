@@ -76,7 +76,8 @@ A **plugin** packages a feature — its back-end *and* front-end — in a single
 
 A **module** is a first-party feature area — back-end *and* front-end — in a single folder under `modules/<name>/`. Same packaging as a plugin, but for core parts of *your* product; enabled modules get a first-class **Apps** group in the sidebar.
 
-- **Manage them** at **Settings → Application** (`/admin/settings/application`): toggle each module on/off (DB-backed, no restart). The same panel turns the public site on/off (dashboard-only SAAS mode) and hides core sidebar menus (hidden menus' pages return a clean in-dashboard 404).
+- **Manage them** at **Settings → Modules** (`/admin/settings/application`): install, enable/disable (DB-backed, no restart) and remove each one, with **Apps** and **Plugins** on separate tabs. Folders dropped into `modules/` that the running server has not loaded yet appear above the tabs with an Install button.
+- **Settings → General** (`/admin/settings/general`) turns the public site on/off (dashboard-only SAAS mode), controls public sign-up, and hides core sidebar menus (hidden menus' pages return a clean in-dashboard 404).
 - **Example:** the bundled **Tasks** module ([`modules/tasks/`](modules/tasks)) — a lightweight task tracker at `/admin/tasks`.
 - **Add one:** `node ace make:module <name>`, register it in `modules/registry.ts`, run migrations, and `npm run build` once. Full guide: [docs/ai/modules.md](docs/ai/modules.md).
 

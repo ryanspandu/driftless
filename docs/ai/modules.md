@@ -93,7 +93,7 @@ node ace modules:install <name>     # compat → migrate → rebuild if ui/ → 
 node ace modules:uninstall <name> --confirm=<name> [--remove-folder]
 ```
 
-Or from **Settings → Application → Modules**, which spawns exactly the same command. See
+Or from **Settings → Modules**, which spawns exactly the same command. See
 "Installing from the admin UI" below for why it has to be a separate process.
 
 `modules:install` exists because the manual steps were previously left to memory, and one of
@@ -332,20 +332,48 @@ The e-commerce module is the worked example — see
 - **Hook** `inertia/hooks/api/use-modules.ts`: `useModulesMenu`, `useModulesList`,
   `useToggleModule`.
 
-## Settings → Application (`/admin/settings/application`)
+## Settings → General (`/admin/settings/general`)
 
-`inertia/pages/admin/settings/application.tsx` — one panel, `settings:manage`:
+`inertia/pages/admin/settings/general.tsx`, `settings:manage`:
 
 - **Public site** — landing on/off (dashboard-only SAAS). Off → `PublicController.home`/`post`
-  redirect to dashboard/login.
+  redirect to dashboard/login. Plus public sign-up on/off.
 - **Dashboard management** — hide core sidebar menus. Hidden menus' **pages return 404** (not
   just hidden): `app/middleware/nav_enabled_middleware.ts` maps page prefixes → nav title and
   throws 404, rendered as the in-dashboard 404 page (see below).
-- **Modules** — enable/disable each module (the DB toggle).
 
-State lives in `web_settings` section `app_config` (`landing_enabled`, `hidden_nav` CSV), read
-by `WebSettingsService.getAppConfig()` and exposed to the sidebar via `GET /api/admin/nav-config`.
-`applyPatches` resets to default (drops the override row) when a value is empty.
+State lives in `web_settings` section `app_config` (`landing_enabled`, `registration_enabled`,
+`hidden_nav` CSV), read by `WebSettingsService.getAppConfig()` and exposed to the sidebar via
+`GET /api/admin/nav-config`. `applyPatches` resets to default (drops the override row) when a
+value is empty.
+
+> `nav_enabled_middleware`'s `PATH_NAV` has no `/admin/settings` prefix, so this page can never
+> be hidden by `hidden_nav`. That is load-bearing rather than incidental — the page that controls
+> which menus exist must not be reachable only through a menu it can switch off.
+
+## Settings → Modules (`/admin/settings/application`)
+
+`inertia/pages/admin/settings/application.tsx`, `settings:manage`. The URL still says
+`application`; the page and its breadcrumb say Modules.
+
+- **Apps | Plugins tabs**, split on `ModuleDto.kind`, with the active tab in `?tab=` via
+  `useUrlState()`. `apps` is the default and is dropped from the URL.
+- Each tab renders `~/components/admin/modules-table.tsx` — the shared `DataTable` with
+  `hideSyncColumn` (modules take no part in the offline sync engine) and
+  `enableBulkSelect={false}` (there is no bulk operation: install is single-flight, uninstall
+  demands typing the name, and enabling is order-sensitive because of `requires`).
+- The **Switch is disabled when `schemaReady` is false.** A module with no tables cannot be
+  switched on, so the control says so rather than accepting the click and then explaining itself
+  with an error. The "Setup required" badge and the Install row action carry the message.
+- Row actions are permission-gated: Install behind `module:install`, Uninstall behind
+  `module:uninstall`. ADMIN holds the first and not the second.
+- **Found on disk** — a callout *above* the tabs listing folders in `modules/` this server never
+  imported. Above rather than inside a tab because an unloaded module has no `kind`; reading it
+  would mean importing an unknown manifest into the live process.
+
+`kind` reaches the client through `ModulesService.list()`, taken from the **manifest**
+(`m.kind ?? 'app'`) rather than the DB row — same rule as `label` and `version`. The client
+mirror in `inertia/types/api.ts` is hand-duplicated and must change with it.
 
 ## In-dashboard 404
 
@@ -357,7 +385,7 @@ inertia render is not flushed to the response).
 
 ## Installing a module from the admin
 
-Enabling a module in Settings → Application applies its migrations for you — no terminal.
+Installing a module from Settings → Modules applies its migrations for you — no terminal.
 
 ### The constraint that shapes this
 

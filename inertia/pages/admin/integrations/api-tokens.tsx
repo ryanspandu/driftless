@@ -1,14 +1,5 @@
-import { Link } from '@inertiajs/react'
-import { FormEvent, useState } from 'react'
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Check,
-  Copy,
-  KeyRound,
-  Plus,
-  Trash2,
-} from 'lucide-react'
+import { type FormEvent, useState } from 'react'
+import { AlertTriangle, Check, Copy, KeyRound, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ApiTokenCreatedDto } from '~/types/api'
 import { API_TOKEN_ABILITIES } from '~/types/api'
@@ -34,13 +25,10 @@ import {
   TableHeader,
   TableRow,
 } from '~/components/ui/table'
+import { BackButton } from '~/components/admin/back-button'
 import { PageHeader } from '~/components/admin/page-header'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
-import {
-  useApiTokens,
-  useCreateApiToken,
-  useRevokeApiToken,
-} from '~/hooks/api/use-api-tokens'
+import { useApiTokens, useCreateApiToken, useRevokeApiToken } from '~/hooks/api/use-api-tokens'
 import { cn, formatAdminTableDateTime } from '~/lib/utils'
 
 // Maps the friendly expiry select value to the backend `expiresIn` string
@@ -155,14 +143,7 @@ function ApiTokensPageInner() {
   return (
     <div className="w-full max-w-none space-y-6">
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          render={<Link href="/admin/integrations" aria-label="Back to integrations" />}
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
+        <BackButton href="/admin/integrations" label="Back to integrations" />
         <div className="flex items-center gap-3">
           <div className="flex size-12 items-center justify-center rounded-2xl bg-muted">
             <KeyRound className="size-7 text-foreground" aria-hidden />
@@ -170,7 +151,8 @@ function ApiTokensPageInner() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">API Tokens</h1>
             <p className="text-sm text-muted-foreground">
-              Personal Access Tokens for the external <code className="rounded bg-muted px-1">/api/v1</code> API.
+              Personal Access Tokens for the external{' '}
+              <code className="rounded bg-muted px-1">/api/v1</code> API.
             </p>
           </div>
         </div>
@@ -245,7 +227,11 @@ function ApiTokensPageInner() {
                         <span className="text-xs text-muted-foreground">—</span>
                       ) : (
                         token.abilities.map((a) => (
-                          <Badge key={a} variant={abilityVariant(a)} title={ABILITY_LABELS.get(a) ?? a}>
+                          <Badge
+                            key={a}
+                            variant={abilityVariant(a)}
+                            title={ABILITY_LABELS.get(a) ?? a}
+                          >
                             {shortAbilityLabel(a)}
                           </Badge>
                         ))
@@ -286,8 +272,8 @@ function ApiTokensPageInner() {
             <DialogHeader>
               <DialogTitle>Create API token</DialogTitle>
               <DialogDescription>
-                Name the token, pick its abilities, and choose an optional expiry. The plaintext token is
-                shown only once after creation.
+                Name the token, pick its abilities, and choose an optional expiry. The plaintext
+                token is shown only once after creation.
               </DialogDescription>
             </DialogHeader>
 
@@ -320,7 +306,9 @@ function ApiTokensPageInner() {
                           checked={checked}
                           onCheckedChange={(v) => toggleAbility(ability.id, !!v)}
                         />
-                        <span className={cn(ability.id === '*' && 'font-medium')}>{ability.label}</span>
+                        <span className={cn(ability.id === '*' && 'font-medium')}>
+                          {ability.label}
+                        </span>
                       </label>
                     )
                   })}
@@ -371,8 +359,8 @@ function ApiTokensPageInner() {
             <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
               <span>
-                Store this token securely. Anyone with it can access the API within its abilities until it is
-                revoked.
+                Store this token securely. Anyone with it can access the API within its abilities
+                until it is revoked.
               </span>
             </div>
 
@@ -380,8 +368,18 @@ function ApiTokensPageInner() {
               <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-muted px-3 py-2 font-mono text-xs whitespace-nowrap">
                 {created?.token}
               </code>
-              <Button type="button" variant="outline" size="icon" onClick={onCopy} aria-label="Copy token">
-                {copied ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={onCopy}
+                aria-label="Copy token"
+              >
+                {copied ? (
+                  <Check className="size-4 text-emerald-600" />
+                ) : (
+                  <Copy className="size-4" />
+                )}
               </Button>
             </div>
           </div>

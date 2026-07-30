@@ -1286,6 +1286,53 @@ export class MediaSchema extends BaseModel {
   declare width: number | null
 }
 
+export class ModuleInstallJobSchema extends BaseModel {
+  static $columns = ['activeLock', 'appliedMigrations', 'createdAt', 'errorMessage', 'errorReason', 'finishedAt', 'heartbeatAt', 'id', 'logTail', 'moduleName', 'pid', 'releaseStamp', 'requestId', 'requestedByUserId', 'requiresBuild', 'requiresRestart', 'restartKind', 'startedAt', 'state', 'step', 'updatedAt'] as const
+  $columns = ModuleInstallJobSchema.$columns
+  @column()
+  declare activeLock: string | null
+  @column()
+  declare appliedMigrations: any | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare errorMessage: string | null
+  @column()
+  declare errorReason: string | null
+  @column.dateTime()
+  declare finishedAt: DateTime | null
+  @column.dateTime()
+  declare heartbeatAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare logTail: string | null
+  @column()
+  declare moduleName: string
+  @column()
+  declare pid: number | null
+  @column()
+  declare releaseStamp: string | null
+  @column()
+  declare requestId: string | null
+  @column()
+  declare requestedByUserId: number | null
+  @column()
+  declare requiresBuild: boolean
+  @column()
+  declare requiresRestart: boolean
+  @column()
+  declare restartKind: string | null
+  @column.dateTime()
+  declare startedAt: DateTime | null
+  @column()
+  declare state: string
+  @column()
+  declare step: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class ModuleSchema extends BaseModel {
   static $columns = ['bootError', 'createdAt', 'enabled', 'id', 'installedAt', 'kind', 'name', 'source', 'updatedAt', 'version'] as const
   $columns = ModuleSchema.$columns
@@ -1331,7 +1378,7 @@ export class PageRevisionSchema extends BaseModel {
 }
 
 export class PageSchema extends BaseModel {
-  static $columns = ['authorId', 'content', 'createdAt', 'deletedAt', 'footerTemplateId', 'headerTemplateId', 'id', 'layoutId', 'path', 'publishedAt', 'renderMode', 'renderedHtml', 'seo', 'status', 'title', 'updatedAt'] as const
+  static $columns = ['authorId', 'content', 'createdAt', 'deletedAt', 'footerTemplateId', 'headerTemplateId', 'id', 'layoutId', 'path', 'publishedAt', 'renderMode', 'renderedBuild', 'renderedHtml', 'seo', 'status', 'title', 'updatedAt'] as const
   $columns = PageSchema.$columns
   @column()
   declare authorId: number | null
@@ -1355,6 +1402,8 @@ export class PageSchema extends BaseModel {
   declare publishedAt: DateTime | null
   @column()
   declare renderMode: string
+  @column()
+  declare renderedBuild: string | null
   @column()
   declare renderedHtml: string | null
   @column()

@@ -1,14 +1,5 @@
-
-import { Link } from '@inertiajs/react'
-import { ArrowLeft } from 'lucide-react'
-import { Button } from '~/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '~/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
+import { BackButton } from '~/components/admin/back-button'
 import { RoleForm } from '~/components/admin/role-form'
 import { useCreateRole } from '~/hooks/api/use-roles'
 import { usePermissionsList } from '~/hooks/api/use-permissions'
@@ -22,14 +13,7 @@ export default function NewRolePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          render={<Link href="/admin/roles" aria-label="Back to roles" />}
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
+        <BackButton href="/admin/roles" label="Back to roles" />
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">New role</h1>
           <p className="text-sm text-muted-foreground">

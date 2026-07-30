@@ -1,7 +1,8 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
 import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
 import { WEBSITE_SETTING_SECTIONS } from '~/types/api'
+import { BackButton } from '~/components/admin/back-button'
 import { ImageSettingControl } from '~/components/admin/image-setting-control'
 import { MetaTagsEditor, type MetaTag } from '~/components/admin/meta-tags-editor'
 import { Button } from '~/components/ui/button'
@@ -42,11 +43,14 @@ export default function WebsiteSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Website settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Public site title, SEO, favicon, and custom code applied across your published pages.
-        </p>
+      <div className="flex items-center gap-3">
+        <BackButton href="/admin/settings" label="Back to settings" />
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Website settings</h1>
+          <p className="text-sm text-muted-foreground">
+            Public site title, SEO, favicon, and custom code applied across your published pages.
+          </p>
+        </div>
       </div>
 
       <Can permission="settings:manage">
@@ -176,8 +180,8 @@ function SiteMetaSection() {
           <div className="border-t pt-4">
             <MetaTagsEditor tags={metaTags} onChange={setMetaTags} label="Global meta tags" />
             <p className="mt-2 text-xs text-muted-foreground">
-              Injected into <code>&lt;head&gt;</code> on every published page (e.g. <code>theme-color</code>,
-              <code>twitter:site</code>).
+              Injected into <code>&lt;head&gt;</code> on every published page (e.g.{' '}
+              <code>theme-color</code>,<code>twitter:site</code>).
             </p>
           </div>
 
@@ -210,8 +214,8 @@ function SettingsDeniedCard() {
       <CardHeader>
         <CardTitle className="text-base">Website settings</CardTitle>
         <CardDescription>
-          You need the <code className="rounded bg-muted px-1 text-xs">settings:manage</code> permission
-          to edit website metadata and custom code.
+          You need the <code className="rounded bg-muted px-1 text-xs">settings:manage</code>{' '}
+          permission to edit website metadata and custom code.
         </CardDescription>
       </CardHeader>
     </Card>

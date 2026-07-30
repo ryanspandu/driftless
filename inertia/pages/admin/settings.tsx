@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react'
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react'
 import {
   BookOpen,
   ChevronRight,
@@ -8,6 +8,7 @@ import {
   Globe,
   KeyRound,
   Mail,
+  Package,
   Plug2,
   SlidersHorizontal,
   type LucideIcon,
@@ -81,15 +82,21 @@ export default function SettingsPage() {
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <SettingsLinkCard
+                icon={SlidersHorizontal}
+                title="General"
+                description="Turn the public site on or off, and choose which sidebar menus appear."
+                href="/admin/settings/general"
+              />
+              <SettingsLinkCard
                 icon={Globe}
                 title="Website settings"
                 description="Public site title, favicon, site-wide SEO meta, and global custom CSS/JS."
                 href="/admin/website-settings"
               />
               <SettingsLinkCard
-                icon={SlidersHorizontal}
-                title="Application"
-                description="Public site on/off, hide sidebar menus, and enable/disable modules."
+                icon={Package}
+                title="Modules"
+                description="Install, enable and remove apps and plugins under modules/."
                 href="/admin/settings/application"
               />
               <SettingsLinkCard
@@ -101,10 +108,7 @@ export default function SettingsPage() {
             </div>
           </SettingsSection>
 
-          <SettingsSection
-            title="Integrations"
-            description="Connect external services."
-          >
+          <SettingsSection title="Integrations" description="Connect external services.">
             <SettingsLinkCard
               icon={Plug2}
               title="Integrations"

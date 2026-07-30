@@ -30,6 +30,7 @@ export interface ApiDefinition {
   settings: {
     getAuthConfig: typeof routes['settings.get_auth_config']
     settingsPage: typeof routes['settings.settings_page']
+    generalSettingsPage: typeof routes['settings.general_settings_page']
     websiteSettingsPage: typeof routes['settings.website_settings_page']
     applicationSettingsPage: typeof routes['settings.application_settings_page']
     integrationsPage: typeof routes['settings.integrations_page']

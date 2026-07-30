@@ -1,24 +1,18 @@
-
-import { Link, router } from '@inertiajs/react'
+import { router } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { ArrowLeft, History, Trash2 } from "lucide-react";
+import { History, Trash2 } from 'lucide-react'
 import {
   isCustomCollectionIcon,
   resolveCollectionLucideIcon,
-} from "~/components/cms/collection-icon-lucide";
-import { Button } from "~/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
-import { RecordForm } from "~/components/cms/record-form";
-import { RevisionsPanel } from "~/components/cms/revisions-panel";
-import { useCmsCollection } from "~/hooks/api/use-cms-collections";
-import { useOfflineRecords } from "~/hooks/offline/use-offline-records";
-import { useConfirmDelete } from "~/components/providers/delete-confirm-provider";
+} from '~/components/cms/collection-icon-lucide'
+import { Button } from '~/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
+import { RecordForm } from '~/components/cms/record-form'
+import { RevisionsPanel } from '~/components/cms/revisions-panel'
+import { BackButton } from '~/components/admin/back-button'
+import { useCmsCollection } from '~/hooks/api/use-cms-collections'
+import { useOfflineRecords } from '~/hooks/offline/use-offline-records'
+import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 
 interface CmsRecordEditPageProps {
   collectionKey: string
@@ -33,19 +27,18 @@ export default function CmsRecordEditPage({
   const isNew = recordId === 'new'
   const confirmDelete = useConfirmDelete()
 
-  const collectionQuery = useCmsCollection(key);
-  const offline = useOfflineRecords(key);
-  const collection = collectionQuery.data;
+  const collectionQuery = useCmsCollection(key)
+  const offline = useOfflineRecords(key)
+  const collection = collectionQuery.data
 
   const record = useMemo(() => {
     if (isNew) return null
     return offline.rows.find((r) => r.data.id === recordId)?.data ?? null
-  }, [offline.rows, recordId, isNew]);
+  }, [offline.rows, recordId, isNew])
 
-  const [revisionsOpen, setRevisionsOpen] = useState(false);
+  const [revisionsOpen, setRevisionsOpen] = useState(false)
 
-  const isLoading =
-    collectionQuery.isLoading || (!isNew && offline.isLoading && !record);
+  const isLoading = collectionQuery.isLoading || (!isNew && offline.isLoading && !record)
 
   const iconValue = collection?.icon ?? 'LayoutList'
   const isCustomImage = isCustomCollectionIcon(iconValue)
@@ -54,15 +47,7 @@ export default function CmsRecordEditPage({
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-3">
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-8"
-          render={<Link href={`/admin/cms/${encodeURIComponent(key)}`} />}
-          aria-label="Back"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
+        <BackButton href={`/admin/cms/${encodeURIComponent(key)}`} label="Back to records" />
         <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/50 text-foreground/80">
           {isCustomImage ? (
             // eslint-disable-next-line @next/next/no-img-element -- data URL / remote icon
@@ -97,42 +82,34 @@ export default function CmsRecordEditPage({
       <Card>
         <CardHeader>
           <CardTitle>Details</CardTitle>
-          <CardDescription>
-            Changes save offline-first and sync in the background.
-          </CardDescription>
+          <CardDescription>Changes save offline-first and sync in the background.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : !collection ? (
-            <p className="text-sm text-muted-foreground">
-              This collection no longer exists.
-            </p>
+            <p className="text-sm text-muted-foreground">This collection no longer exists.</p>
           ) : isNew ? (
             <RecordForm
               collection={collection}
               submitLabel="Create record"
-              onCancel={() =>
-                router.visit(`/admin/cms/${encodeURIComponent(key)}`)
-              }
+              onCancel={() => router.visit(`/admin/cms/${encodeURIComponent(key)}`)}
               onSubmit={async (value) => {
-                await offline.create(value);
-                router.visit(`/admin/cms/${encodeURIComponent(key)}`);
+                await offline.create(value)
+                router.visit(`/admin/cms/${encodeURIComponent(key)}`)
               }}
             />
           ) : !record ? (
             <p className="text-sm text-muted-foreground">
-              Record not found in the local cache. It may have been deleted or
-              the sync engine hasn&apos;t fetched it yet.
+              Record not found in the local cache. It may have been deleted or the sync engine
+              hasn&apos;t fetched it yet.
             </p>
           ) : (
             <RecordForm
               collection={collection}
               initial={record}
               submitLabel="Save changes"
-              onCancel={() =>
-                router.visit(`/admin/cms/${encodeURIComponent(key)}`)
-              }
+              onCancel={() => router.visit(`/admin/cms/${encodeURIComponent(key)}`)}
               extraActions={
                 <Button
                   type="button"
@@ -142,10 +119,10 @@ export default function CmsRecordEditPage({
                     void confirmDelete({
                       description: `Delete record "${record.id}"?`,
                     }).then(async (confirmed) => {
-                      if (!confirmed) return;
-                      await offline.remove(record.id);
-                      router.visit(`/admin/cms/${encodeURIComponent(key)}`);
-                    });
+                      if (!confirmed) return
+                      await offline.remove(record.id)
+                      router.visit(`/admin/cms/${encodeURIComponent(key)}`)
+                    })
                   }}
                 >
                   <Trash2 className="size-4" />
@@ -153,8 +130,8 @@ export default function CmsRecordEditPage({
                 </Button>
               }
               onSubmit={async (value) => {
-                await offline.update(record.id, value);
-                router.visit(`/admin/cms/${encodeURIComponent(key)}`);
+                await offline.update(record.id, value)
+                router.visit(`/admin/cms/${encodeURIComponent(key)}`)
               }}
             />
           )}
@@ -170,5 +147,5 @@ export default function CmsRecordEditPage({
         />
       ) : null}
     </div>
-  );
+  )
 }

@@ -328,6 +328,7 @@ router
     router
       .group(() => {
         router.get('/admin/settings', [() => import('#controllers/admin/settings_controller'), 'settingsPage'])
+        router.get('/admin/settings/general', [() => import('#controllers/admin/settings_controller'), 'generalSettingsPage'])
         router.get('/admin/website-settings', [() => import('#controllers/admin/settings_controller'), 'websiteSettingsPage'])
         router.get('/admin/settings/application', [() => import('#controllers/admin/settings_controller'), 'applicationSettingsPage'])
         router.get('/admin/integrations', [() => import('#controllers/admin/settings_controller'), 'integrationsPage'])

@@ -1,16 +1,9 @@
-
 import { Link } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { ArrowLeft, Loader2, Plus } from 'lucide-react'
+import { Loader2, Plus } from 'lucide-react'
 import type { CreateCmsCollectionFieldRequest, CreateCmsCollectionRequest } from '~/types/api'
 import { Button } from '~/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '~/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { Checkbox } from '~/components/ui/checkbox'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
@@ -25,6 +18,7 @@ import { ApiError } from '~/lib/api'
 import { useCmsCollectionsList, useCreateCmsCollection } from '~/hooks/api/use-cms-collections'
 import { ComboboxInput } from '~/components/ui/combobox-input'
 import { CollectionIconField } from '~/components/cms/collection-icon-field'
+import { BackButton } from '~/components/admin/back-button'
 import { useRouter } from '~/hooks/use-inertia-url'
 
 function hasDuplicates(values: string[]): boolean {
@@ -47,9 +41,7 @@ export default function NewCmsCollectionPage() {
     () =>
       Array.from(
         new Set(
-          (collectionsQuery.data ?? [])
-            .map((c) => c.group?.trim())
-            .filter((g): g is string => !!g)
+          (collectionsQuery.data ?? []).map((c) => c.group?.trim()).filter((g): g is string => !!g)
         )
       ).sort((a, b) => a.localeCompare(b)),
     [collectionsQuery.data]
@@ -143,15 +135,7 @@ export default function NewCmsCollectionPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          render={<Link href="/admin/cms/collections" />}
-          aria-label="Back"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
+        <BackButton href="/admin/cms/collections" label="Back to collections" />
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">New collection</h1>
           <p className="text-sm text-muted-foreground">
@@ -208,17 +192,16 @@ export default function NewCmsCollectionPage() {
               placeholder="e.g. Content"
               options={groupOptions}
             />
-            <p className="text-xs text-muted-foreground">Pick an existing group or type a new one.</p>
+            <p className="text-xs text-muted-foreground">
+              Pick an existing group or type a new one.
+            </p>
           </div>
           <div className="space-y-1 md:col-span-2">
             <CollectionIconField id="coll-icon" value={icon} onChange={setIcon} />
           </div>
           <div className="col-span-full flex flex-wrap items-center gap-6">
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={revisionsOn}
-                onCheckedChange={(v) => setRevisionsOn(v === true)}
-              />
+              <Checkbox checked={revisionsOn} onCheckedChange={(v) => setRevisionsOn(v === true)} />
               Track revisions
             </label>
             <label className="flex items-center gap-2 text-sm">

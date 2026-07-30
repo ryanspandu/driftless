@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, usePage } from '@inertiajs/react'
-import { ArrowLeft, Ban, PackageCheck, Undo2 } from 'lucide-react'
+import { usePage } from '@inertiajs/react'
+import { Ban, PackageCheck, Undo2 } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
@@ -17,6 +17,7 @@ import { Label } from '~/components/ui/label'
 import { Switch } from '~/components/ui/switch'
 import { Textarea } from '~/components/ui/textarea'
 import { MoneyInput } from '../../components/money-input'
+import { BackButton } from '~/components/admin/back-button'
 import { PageHeader } from '~/components/admin/page-header'
 import { Can } from '~/components/providers/ability-provider'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
@@ -205,15 +206,7 @@ export default function OrderDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-8"
-          render={<Link href="/admin/ecommerce/orders" />}
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          <span className="sr-only">Back to orders</span>
-        </Button>
+        <BackButton href="/admin/ecommerce/orders" label="Back to orders" />
         <PageHeader
           title={order.number}
           subtitle={`${order.email} · placed ${new Date(order.createdAt).toLocaleString()}`}

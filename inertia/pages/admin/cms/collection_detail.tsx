@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowLeft, GripVertical, Loader2, Plus, Save, Trash2, Workflow, X } from 'lucide-react'
+import { GripVertical, Loader2, Plus, Save, Trash2, Workflow, X } from 'lucide-react'
 import type { AddCmsFieldRequest, CmsCollectionDto, CmsFieldDto, CmsFieldType } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -35,6 +35,7 @@ import {
   ComponentSchemaEditor,
   componentSchemaError,
 } from '~/components/cms/component-schema-editor'
+import { BackButton } from '~/components/admin/back-button'
 import { useCmsComponentsList } from '~/hooks/api/use-cms-components'
 import {
   useAddCmsField,
@@ -158,15 +159,7 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
   return (
     <div className="space-y-6 pb-24">
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8 shrink-0"
-          render={<Link href="/admin/cms/collections" />}
-          aria-label="Back"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
+        <BackButton href="/admin/cms/collections" label="Back to collections" />
         <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/50 text-foreground/80">
           {headerCustom ? (
             // eslint-disable-next-line @next/next/no-img-element -- data URL / remote icon

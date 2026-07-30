@@ -1,15 +1,8 @@
-
-import { Link } from '@inertiajs/react'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '~/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
+import { BackButton } from '~/components/admin/back-button'
 import { PermissionForm } from '~/components/admin/permission-form'
 import {
   useDeletePermission,
@@ -36,14 +29,7 @@ export default function EditPermissionPage({ permissionId }: Props) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            render={<Link href="/admin/permissions" aria-label="Back to permissions" />}
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
+          <BackButton href="/admin/permissions" label="Back to permissions" />
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-mono text-xl font-semibold tracking-tight">

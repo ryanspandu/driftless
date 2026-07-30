@@ -1,11 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from '@inertiajs/react'
-import { ArrowLeft, CheckCircle2, Send, XCircle } from 'lucide-react'
+import { CheckCircle2, Send, XCircle } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { Switch } from '~/components/ui/switch'
+import { BackButton } from '~/components/admin/back-button'
 import { PageHeader } from '~/components/admin/page-header'
 import { Can } from '~/components/providers/ability-provider'
 import {
@@ -280,15 +280,7 @@ export default function EmailSettingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-8"
-          render={<Link href="/admin/settings" />}
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          <span className="sr-only">Back to settings</span>
-        </Button>
+        <BackButton href="/admin/settings" label="Back to settings" />
         <PageHeader
           title="Email"
           subtitle="SMTP credentials for outgoing transactional email."
