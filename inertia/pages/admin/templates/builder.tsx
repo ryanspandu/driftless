@@ -40,8 +40,11 @@ export default function TemplateBuilder({ id }: { id: string }) {
     try {
       await updateMut.mutateAsync({ id, content: data as unknown as Record<string, unknown> })
       toast.success('Template design saved')
-    } catch {
+    } catch (error) {
       toast.error('Failed to save')
+      // Rethrown so BuilderShell keeps the template marked unsaved — see the
+      // guard there; a failed save must not clear it.
+      throw error
     }
   }
 

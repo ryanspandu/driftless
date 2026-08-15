@@ -9,7 +9,6 @@ import {
   House,
   Image as ImageIcon,
   Key,
-  PuzzlePiece,
   Shapes,
   ShieldCheck,
   SidebarSimple,
@@ -70,7 +69,12 @@ const navEntries: NavEntry[] = [
   { title: 'Media', href: '/admin/media', icon: ImageIcon },
   { title: 'Collections', href: '/admin/cms/collections', icon: Stack, activeMatch: 'prefix' },
   { title: 'Components', href: '/admin/cms/components', icon: Boxes, activeMatch: 'prefix' },
-  { title: 'Integrations', href: '/admin/integrations', icon: PuzzlePiece, activeMatch: 'prefix' },
+  /**
+   * Integrations is deliberately **not** here. It is configured once and then
+   * forgotten, which is what "settings" means — a top-level entry put it on a
+   * par with Dashboard and Media, and duplicated a card that already exists on
+   * the Settings hub. It lives at Settings → Integrations now.
+   */
   {
     title: 'User Management',
     icon: Users,
@@ -481,7 +485,6 @@ export function AppSidebar({ pathname }: { pathname: string }) {
             })}
           </Fragment>
         ))}
-
       </nav>
 
       {/* Footer — account chip + sign out */}

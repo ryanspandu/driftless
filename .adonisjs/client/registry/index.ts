@@ -918,11 +918,11 @@ const routes = {
     tokens: [{"old":"/api/admin/settings/page-code","type":0,"val":"api","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"page-code","end":""}],
     types: placeholder as Registry['settings.update_page_code']['types'],
   },
-  'settings.integrations_api_tokens_page': {
+  'settings.api_tokens_page': {
     methods: ["GET","HEAD"],
-    pattern: '/admin/integrations/api-tokens',
-    tokens: [{"old":"/admin/integrations/api-tokens","type":0,"val":"admin","end":""},{"old":"/admin/integrations/api-tokens","type":0,"val":"integrations","end":""},{"old":"/admin/integrations/api-tokens","type":0,"val":"api-tokens","end":""}],
-    types: placeholder as Registry['settings.integrations_api_tokens_page']['types'],
+    pattern: '/admin/settings/api-tokens',
+    tokens: [{"old":"/admin/settings/api-tokens","type":0,"val":"admin","end":""},{"old":"/admin/settings/api-tokens","type":0,"val":"settings","end":""},{"old":"/admin/settings/api-tokens","type":0,"val":"api-tokens","end":""}],
+    types: placeholder as Registry['settings.api_tokens_page']['types'],
   },
   'api_tokens.index': {
     methods: ["GET","HEAD"],

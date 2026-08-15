@@ -143,7 +143,7 @@ function ApiTokensPageInner() {
   return (
     <div className="w-full max-w-none space-y-6">
       <div className="flex items-center gap-3">
-        <BackButton href="/admin/integrations" label="Back to integrations" />
+        <BackButton href="/admin/settings" label="Back to settings" />
         <div className="flex items-center gap-3">
           <div className="flex size-12 items-center justify-center rounded-2xl bg-muted">
             <KeyRound className="size-7 text-foreground" aria-hidden />

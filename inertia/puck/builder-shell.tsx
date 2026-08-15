@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { Puck, usePuck, type Data } from '@measured/puck'
+import { router } from '@inertiajs/react'
 import {
   Blocks,
   Globe,
@@ -81,6 +82,66 @@ export function BuilderShell({
     prevSel.current = selId
     if (selId) setLeftTab('element')
   }, [selId])
+
+  /**
+   * Unsaved-changes guard.
+   *
+   * Nothing in this editor autosaves — the design only reaches the server on
+   * Publish — so closing the tab or clicking the breadcrumb back to Pages threw
+   * away everything since the last publish, silently. Dirtiness is the current
+   * document compared against the last one we successfully saved; `appState.data`
+   * is replaced (not mutated) on every edit, so the serialisation is memoised on
+   * its identity rather than run each render.
+   *
+   * Page settings count too: title, path and SEO are edited in the dialog and
+   * ride along on the same Publish, so they are just as losable as the blocks.
+   */
+  const currentJson = useMemo(
+    () => JSON.stringify({ data: appState.data, meta: pageMeta ?? null }),
+    [appState.data, pageMeta]
+  )
+  const [savedJson, setSavedJson] = useState(currentJson)
+  const dirty = currentJson !== savedJson
+
+  useEffect(() => {
+    if (!dirty) return
+
+    // Full navigations (tab close, reload, "View live") — the browser shows its
+    // own generic prompt; the text is not ours to choose.
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+
+    // Inertia visits (the back link) never fire `beforeunload`, so they need
+    // their own confirmation or the guard would only cover half the exits.
+    const offInertia = router.on('before', (event) => {
+      if (!window.confirm('You have unsaved changes. Leave without publishing?')) {
+        event.preventDefault()
+      }
+    })
+
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
+      offInertia()
+    }
+  }, [dirty])
+
+  /**
+   * Publish, then mark the document clean — but only if it actually saved.
+   * The callers surface their own error toast and rethrow, so a failed save
+   * leaves the page dirty and still guarded.
+   */
+  const publish = async () => {
+    const attempted = currentJson
+    try {
+      await onPublish(appState.data)
+      setSavedJson(attempted)
+    } catch {
+      // Already reported by the caller; keep the unsaved state.
+    }
+  }
 
   return (
     <div className="flex h-screen flex-col">
@@ -185,7 +246,15 @@ export function BuilderShell({
             </Button>
           </div>
           {topbarEnd}
-          <Button size="sm" className="gap-1.5" onClick={() => void onPublish(appState.data)}>
+          {dirty ? (
+            <span
+              className="shrink-0 text-xs text-muted-foreground"
+              title="This design has changes that are not published yet"
+            >
+              Unsaved
+            </span>
+          ) : null}
+          <Button size="sm" className="gap-1.5" onClick={() => void publish()}>
             <Globe className="size-4" />
             Publish
           </Button>

@@ -27,6 +27,7 @@ const PAGE_LABELS: Record<string, string> = {
   // breadcrumb describes the page rather than the route that reaches it.
   '/admin/settings/application': 'Modules',
   '/admin/settings/email': 'Email',
+  '/admin/settings/api-tokens': 'API tokens',
   '/admin/website-settings': 'Website settings',
   '/admin/profile': 'Profile',
   '/admin/integrations': 'Integrations',

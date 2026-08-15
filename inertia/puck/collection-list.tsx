@@ -41,6 +41,19 @@ export const CollectionDataContext = createContext<Record<string, CmsRecord[]>>(
 const inputCls =
   'w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring'
 
+/**
+ * How many records a CollectionList asks for.
+ *
+ * Shared by the context key, the client fetch and — by mirroring, not import —
+ * `app/services/page_data_resolver.ts`, which keys the SSR/SSG payload the same
+ * way. The two must normalise identically or the lookup misses and a page that
+ * was resolved on the server silently re-fetches on the client. Change both
+ * together.
+ */
+function recordLimit(limit: number | undefined): number {
+  return Number(limit) || 12
+}
+
 function useCollections(): CollectionMeta[] {
   const [cols, setCols] = useState<CollectionMeta[]>([])
   useEffect(() => {
@@ -58,6 +71,40 @@ function useCollections(): CollectionMeta[] {
   return cols
 }
 
+/**
+ * One "map a collection field to this slot" select.
+ *
+ * Declared at module scope on purpose. Nested inside `CollectionSourceField` it
+ * was a *new component type* on every render, so React unmounted and remounted
+ * every select on each keystroke — the open dropdown closed and focus jumped
+ * the moment anything changed.
+ */
+function FieldSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string | undefined
+  options: CollectionMeta['fields']
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="block space-y-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <select className={inputCls} value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
+        <option value="">—</option>
+        {options.map((f) => (
+          <option key={f.key} value={f.key}>
+            {f.label} ({f.key})
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 export function CollectionSourceField({
   value,
   onChange,
@@ -70,26 +117,6 @@ export function CollectionSourceField({
   const current = cols.find((c) => c.key === v.collectionKey)
   const fieldOptions = current?.fields ?? []
   const set = (patch: Partial<CollectionSource>) => onChange({ ...v, ...patch })
-
-  function FieldSelect({ label, prop }: { label: string; prop: keyof CollectionSource }) {
-    return (
-      <label className="block space-y-1">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <select
-          className={inputCls}
-          value={(v[prop] as string) ?? ''}
-          onChange={(e) => set({ [prop]: e.target.value } as Partial<CollectionSource>)}
-        >
-          <option value="">—</option>
-          {fieldOptions.map((f) => (
-            <option key={f.key} value={f.key}>
-              {f.label} ({f.key})
-            </option>
-          ))}
-        </select>
-      </label>
-    )
-  }
 
   return (
     <div className="space-y-2">
@@ -111,10 +138,30 @@ export function CollectionSourceField({
 
       {v.collectionKey ? (
         <div className="grid grid-cols-2 gap-2">
-          <FieldSelect label="Title field" prop="titleField" />
-          <FieldSelect label="Excerpt field" prop="excerptField" />
-          <FieldSelect label="Image field" prop="imageField" />
-          <FieldSelect label="Link field" prop="linkField" />
+          <FieldSelect
+            label="Title field"
+            value={v.titleField}
+            options={fieldOptions}
+            onChange={(titleField) => set({ titleField })}
+          />
+          <FieldSelect
+            label="Excerpt field"
+            value={v.excerptField}
+            options={fieldOptions}
+            onChange={(excerptField) => set({ excerptField })}
+          />
+          <FieldSelect
+            label="Image field"
+            value={v.imageField}
+            options={fieldOptions}
+            onChange={(imageField) => set({ imageField })}
+          />
+          <FieldSelect
+            label="Link field"
+            value={v.linkField}
+            options={fieldOptions}
+            onChange={(linkField) => set({ linkField })}
+          />
           <label className="col-span-2 block space-y-1">
             <span className="text-xs text-muted-foreground">Link base (prefix)</span>
             <input
@@ -132,7 +179,8 @@ export function CollectionSourceField({
 
 function useRecords(collectionKey: string | undefined, limit: number | undefined) {
   const preloadMap = useContext(CollectionDataContext)
-  const preloaded = collectionKey ? preloadMap[`${collectionKey}:${limit ?? 12}`] : undefined
+  const size = recordLimit(limit)
+  const preloaded = collectionKey ? preloadMap[`${collectionKey}:${size}`] : undefined
   const [records, setRecords] = useState<CmsRecord[]>(preloaded ?? [])
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle')
 
@@ -150,7 +198,7 @@ function useRecords(collectionKey: string | undefined, limit: number | undefined
     }
     let alive = true
     setState('loading')
-    fetch(`/api/public/cms/${encodeURIComponent(collectionKey)}/records?limit=${limit ?? 12}`, {
+    fetch(`/api/public/cms/${encodeURIComponent(collectionKey)}/records?limit=${size}`, {
       headers: { Accept: 'application/json' },
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('failed'))))
@@ -166,7 +214,7 @@ function useRecords(collectionKey: string | undefined, limit: number | undefined
     return () => {
       alive = false
     }
-  }, [collectionKey, limit, preloaded])
+  }, [collectionKey, size, preloaded])
 
   return { records, state }
 }

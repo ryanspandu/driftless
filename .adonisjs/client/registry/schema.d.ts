@@ -1831,16 +1831,16 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updatePageCode']>>>
     }
   }
-  'settings.integrations_api_tokens_page': {
+  'settings.api_tokens_page': {
     methods: ["GET","HEAD"]
-    pattern: '/admin/integrations/api-tokens'
+    pattern: '/admin/settings/api-tokens'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['integrationsApiTokensPage']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['integrationsApiTokensPage']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['apiTokensPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['apiTokensPage']>>>
     }
   }
   'api_tokens.index': {

@@ -11,9 +11,14 @@ import { useWebsiteSettings, useUpdateWebsiteSettings } from '~/hooks/api/use-we
  *
  * Kept in step by hand with `navEntries` in `~/components/admin/sidebar.tsx`
  * and `PATH_NAV` in `app/middleware/nav_enabled_middleware.ts`; all three key
- * on the same title strings.
+ * on the same title strings, so a group listed here and missing from either of
+ * the others is a toggle that does nothing.
+ *
+ * `Integrations` was removed along with its sidebar entry: it is reached from
+ * the Settings hub now, so there is no menu to hide. A stored `Integrations`
+ * value left over in `hidden_nav` is inert — it matches no entry.
  */
-const HIDEABLE_NAV = ['Analytics', 'UI', 'Media', 'Collections', 'Integrations', 'User Management']
+const HIDEABLE_NAV = ['Analytics', 'UI', 'Media', 'Collections', 'User Management']
 
 function ToggleRow({
   title,

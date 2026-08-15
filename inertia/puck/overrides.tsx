@@ -46,11 +46,11 @@ import {
 import { FaFacebookF, FaXTwitter } from 'react-icons/fa6'
 import { cn } from '~/lib/utils'
 import { puckConfig } from '~/puck/config'
+import { moduleBlockIcons } from '~/puck/module-blocks'
 
-/** Icon per block type (keyed by the Puck component name). Shared with the
- *  Layers tree (layers-tree.tsx) so tiles and tree rows use the same glyphs.
- *  Anything not listed falls back to `Square`. */
-export const ICONS: Record<string, ComponentType<{ className?: string }>> = {
+/** Icons for core's own blocks. Modules contribute theirs from their
+ *  `ui/puck/blocks.tsx`; the two are merged into `ICONS` below. */
+const CORE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   // Structure
   Section: RectangleHorizontal,
   Container: Square,
@@ -111,6 +111,15 @@ export const ICONS: Record<string, ComponentType<{ className?: string }>> = {
   Spacer: MoveVertical,
   Divider: Minus,
   TemplateRef: Component,
+}
+
+/** Icon per block type (keyed by the Puck component name). Shared with the
+ *  Layers tree (layers-tree.tsx) and the Detail panel so tiles and tree rows use
+ *  the same glyphs. Module blocks bring their own (see `module-blocks.ts`); core
+ *  wins on a name collision. Anything not listed falls back to `Square`. */
+export const ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  ...moduleBlockIcons(),
+  ...CORE_ICONS,
 }
 
 /** Legacy friendlier labels (the drawer + tree now prefer the config `label`). */

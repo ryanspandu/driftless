@@ -56,7 +56,7 @@ npm run dev            # NOT plain `node ace serve`
 - Keep controllers thin; put logic in `app/services/`.
 - Add permission middleware on new admin API routes.
 - Browse `/api/docs` (Scalar, via adonis-autoswagger) in dev for the auto-generated OpenAPI of `/api/*` — **dev-only**, see [docs/ai/api-docs.md](docs/ai/api-docs.md).
-- The external, token-authed API is `/api/v1/*` (Bearer access tokens; effective access = RBAC ∩ token ability; Redis rate-limit). Mint/revoke tokens at `/admin/integrations/api-tokens` (self-service — any admin-area user manages their own). See [docs/ai/api-v1.md](docs/ai/api-v1.md).
+- The external, token-authed API is `/api/v1/*` (Bearer access tokens; effective access = RBAC ∩ token ability; Redis rate-limit). Mint/revoke tokens at `/admin/settings/api-tokens` (self-service — any admin-area user manages their own). See [docs/ai/api-v1.md](docs/ai/api-v1.md).
 - Use the shared `DataTable` (`~/components/data-table`) for **every** table — never a raw `<table>` or a custom table. See [docs/ai/frontend.md](docs/ai/frontend.md#data-tables).
 - Run `npm run typecheck` after substantive TS changes.
 

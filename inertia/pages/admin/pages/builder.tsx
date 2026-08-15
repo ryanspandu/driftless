@@ -79,8 +79,11 @@ function BuilderInner({ id, page }: { id: string; page: PageDto }) {
         seo: meta.seo,
       })
       toast.success('Page saved')
-    } catch {
+    } catch (error) {
       toast.error('Failed to save')
+      // Rethrown so BuilderShell keeps the page marked unsaved — a failed save
+      // that clears the guard is how you lose the work you thought was safe.
+      throw error
     }
   }
 

@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react'
 import type { Config } from '@measured/puck'
 
 /**
@@ -12,6 +13,15 @@ export interface ModulePuckBlocks {
   /** The drawer group these components appear under. */
   category: { key: string; title: string }
   components: NonNullable<Config['components']>
+  /**
+   * Glyph per component name, for the drawer tile / Layers row / Detail header.
+   *
+   * Core's icon map (`overrides.tsx`) is keyed by component name and cannot list
+   * a module's blocks without naming the module, so a module ships its own
+   * icons here. Omitting one is not fatal — the block falls back to the generic
+   * square — but it reads as a broken tile, so contribute one per component.
+   */
+  icons?: Record<string, ComponentType<{ className?: string }>>
 }
 
 /**
@@ -58,4 +68,19 @@ export function withModuleBlocks(config: Config): Config {
   }
 
   return { ...config, categories, components }
+}
+
+/**
+ * Every module's block icons, folded into one map keyed by component name.
+ *
+ * Merged into core's `ICONS` in `overrides.tsx`, where core's own entries win —
+ * the same rule the component merge above uses, for the same reason: a module
+ * must not be able to change how a built-in block looks.
+ */
+export function moduleBlockIcons(): Record<string, ComponentType<{ className?: string }>> {
+  const icons: Record<string, ComponentType<{ className?: string }>> = {}
+  for (const mod of Object.values(contributions)) {
+    Object.assign(icons, mod?.default?.icons ?? {})
+  }
+  return icons
 }

@@ -365,7 +365,14 @@ router
     // API Tokens (Personal Access Tokens for the external /api/v1 API).
     // Self-service: any authenticated admin-area user manages their OWN tokens
     // (the controller scopes to auth.user), so no extra permission is required.
-    router.get('/admin/integrations/api-tokens', [() => import('#controllers/admin/settings_controller'), 'integrationsApiTokensPage'])
+    router.get('/admin/settings/api-tokens', [() => import('#controllers/admin/settings_controller'), 'apiTokensPage'])
+    /**
+     * Moved out of `/admin/integrations/*` — that prefix is nav-gated, so
+     * hiding the Integrations menu used to 404 this page. Kept as a redirect
+     * because it is a page people bookmark, and a 404 on upgrade reads as
+     * "my tokens are gone".
+     */
+    router.get('/admin/integrations/api-tokens', ({ response }) => response.redirect('/admin/settings/api-tokens'))
     router.get('/api/admin/api-tokens', [() => import('#controllers/admin/api_tokens_controller'), 'index'])
     router.post('/api/admin/api-tokens', [() => import('#controllers/admin/api_tokens_controller'), 'store'])
     router.delete('/api/admin/api-tokens/:id', [() => import('#controllers/admin/api_tokens_controller'), 'destroy'])

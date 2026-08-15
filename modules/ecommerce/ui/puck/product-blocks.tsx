@@ -227,7 +227,7 @@ export function ProductList({
  * The variant picker sends only an id and a quantity — never a price. There is
  * no field here a tampered request could use to influence what is charged.
  */
-export function ProductDetail({ slug }: { slug?: string }) {
+export function ProductDetail({ slug, editing }: { slug?: string; editing?: boolean }) {
   /**
    * The block's own slug wins; a blank one inherits the route's.
    *
@@ -251,6 +251,23 @@ export function ProductDetail({ slug }: { slug?: string }) {
   const [status, setStatus] = useState<'idle' | 'adding' | 'added' | 'error'>('idle')
 
   const live = useLiveAvailability((product?.variants ?? []).map((variant) => variant.id))
+
+  /**
+   * Nothing to resolve: no slug on the block and no `:slug` in the URL. That is
+   * the normal state of a product *template* in the builder, so say what will
+   * happen rather than "no longer available" — which reads as a broken page and
+   * is what the seeded product template showed on every open. On a public page
+   * with no binding there is genuinely nothing to draw, so render nothing.
+   */
+  if (!target) {
+    if (!editing) return null
+    return (
+      <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+        Bound to the product URL — each product renders here on <code>/shop/p/:slug</code>. Set a
+        slug in the Element panel to pin this block to one product.
+      </div>
+    )
+  }
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>
   if (!product) {

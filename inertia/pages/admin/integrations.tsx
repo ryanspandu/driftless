@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react'
-import { KeyRound, Plug2, Shield } from 'lucide-react'
+import { Plug2, Shield } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import {
   GoogleAnalyticsBrandImg,
@@ -32,7 +32,7 @@ export default function IntegrationsIndexPage() {
     <Can permission="settings:manage" fallback={<NoAccess />}>
       <div className="space-y-8">
         <div className="flex items-center gap-3">
-          <BackButton href="/admin/dashboard" label="Back to dashboard" />
+          <BackButton href="/admin/settings" label="Back to settings" />
           <div className="flex items-center gap-2">
             <Plug2 className="size-6 text-muted-foreground" aria-hidden />
             <div>
@@ -91,16 +91,12 @@ export default function IntegrationsIndexPage() {
                 statusVariant={clarityOn ? 'success' : 'muted'}
               />
             </li>
-            <li>
-              <IntegrationHubCard
-                href="/admin/integrations/api-tokens"
-                title="API Tokens"
-                description="Personal Access Tokens for the external /api/v1 API."
-                icon={KeyRound}
-                status="Manage"
-                statusVariant="muted"
-              />
-            </li>
+            {/*
+              No API tokens card here. This page is for connecting *external*
+              services — its own subtitle says so — and a personal access token
+              for our own API is not one. It also duplicated the card on the
+              Settings hub, which is where it lives: Settings → Developer & API.
+            */}
           </ul>
         )}
       </div>

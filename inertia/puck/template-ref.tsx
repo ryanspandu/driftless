@@ -88,14 +88,36 @@ function toData(doc: Record<string, unknown> | undefined | null): Data {
     : ({ content: [], root: {} } as unknown as Data)
 }
 
+/** A doc with no blocks (`undefined`, `{}` or `{ content: [] }`) renders nothing. */
+function hasBlocks(doc: Record<string, unknown> | undefined | null): boolean {
+  if (!doc || !Object.keys(doc).length) return false
+  const blocks = (doc as { content?: unknown }).content
+  return !Array.isArray(blocks) || blocks.length > 0
+}
+
 /**
- * Load the Puck config lazily (dynamic import) to avoid a static import cycle
- * with `config.tsx`. The config is module-level singleton, so this resolves
- * immediately after the first load.
+ * The Puck config, handed down by whoever is already holding it.
+ *
+ * `PublicPageView` imports the config anyway, so on a public page it can simply
+ * provide it. That matters for more than tidiness: the dynamic-import fallback
+ * below runs in an effect, which never happens during SSR — so a server render
+ * emitted the "Loading…" notice in place of every referenced template, and an
+ * SSG page baked that notice into its cached HTML. Provided config = the
+ * template's blocks are in the initial HTML.
+ */
+export const PuckConfigContext = createContext<Config | undefined>(undefined)
+
+/**
+ * Use the provided config when there is one; otherwise load it lazily (dynamic
+ * import) to avoid a static import cycle with `config.tsx`. The config is a
+ * module-level singleton, so the fallback resolves immediately after first load
+ * — it covers the builder canvas, where no provider is mounted.
  */
 function usePuckConfig(): Config | undefined {
+  const provided = useContext(PuckConfigContext)
   const [config, setConfig] = useState<Config>()
   useEffect(() => {
+    if (provided) return
     let alive = true
     import('~/puck/config')
       .then((m) => {
@@ -105,27 +127,34 @@ function usePuckConfig(): Config | undefined {
     return () => {
       alive = false
     }
-  }, [])
-  return config
+  }, [provided])
+  return provided ?? config
 }
 
 export function TemplateRefView({ templateId }: { templateId?: string }) {
   const preloaded = useContext(TemplateContext)
   const fromContext = templateId ? preloaded[templateId] : undefined
 
-  const [content, setContent] = useState<Record<string, unknown> | undefined>(fromContext)
+  /**
+   * The fetched result, tagged with the template it belongs to.
+   *
+   * Tagged rather than bare so switching templates cannot render the previous
+   * one's blocks while the new one loads, and — the actual bug — so "fetched,
+   * and it is empty" is distinguishable from "not fetched yet". Keying only on
+   * `content` being falsy left an empty template spinning on "Loading…"
+   * forever, with nothing to tell the operator the template simply has no
+   * blocks in it.
+   */
+  const [fetched, setFetched] = useState<{
+    id: string
+    content?: Record<string, unknown>
+  } | null>(null)
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle')
   const config = usePuckConfig()
 
   useEffect(() => {
-    if (!templateId) {
-      setContent(undefined)
-      setState('idle')
-      return
-    }
-    // Server-resolved content already present — use it, skip the client fetch.
-    if (fromContext) {
-      setContent(fromContext)
+    // Nothing to load, or the server already resolved it — skip the fetch.
+    if (!templateId || fromContext) {
       setState('idle')
       return
     }
@@ -137,7 +166,7 @@ export function TemplateRefView({ templateId }: { templateId?: string }) {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('failed'))))
       .then((d: { content?: Record<string, unknown> }) => {
         if (alive) {
-          setContent(d.content ?? undefined)
+          setFetched({ id: templateId, content: d.content ?? undefined })
           setState('idle')
         }
       })
@@ -149,12 +178,16 @@ export function TemplateRefView({ templateId }: { templateId?: string }) {
     }
   }, [templateId, fromContext])
 
+  // Only the fetch for *this* template counts; a result left over from the
+  // previously selected one is not this block's content.
+  const mine = fetched && fetched.id === templateId ? fetched : null
+  const resolved = fromContext !== undefined || mine !== null
+  const content = fromContext ?? mine?.content
+
   if (!templateId) return <div className={notice}>Pick a template in the right panel</div>
-  if (!content) {
-    if (state === 'error') return <div className={notice}>Could not load template</div>
-    return <div className={notice}>Loading…</div>
-  }
-  if (!config) return <div className={notice}>Loading…</div>
+  if (state === 'error') return <div className={notice}>Could not load template</div>
+  if (!resolved || !config) return <div className={notice}>Loading…</div>
+  if (!hasBlocks(content)) return <div className={notice}>This template is empty</div>
 
   return <Render config={config} data={toData(content)} />
 }

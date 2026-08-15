@@ -108,7 +108,7 @@ A versioned, **token-authenticated** surface for other apps — separate from th
 services; routes are guarded by `middleware.auth({ guards: ['api'] })` + the reused
 `middleware.permission(...)` + `middleware.tokenAbility({ ability })`, so **effective access = RBAC ∩ token
 ability**. Bearer access tokens (`@adonisjs/auth/access_tokens`) are minted as Personal Access Tokens at
-`/admin/integrations/api-tokens`; requests are rate-limited via Redis (`@adonisjs/limiter`). v1 routes
+`/admin/settings/api-tokens`; requests are rate-limited via Redis (`@adonisjs/limiter`). v1 routes
 need explicit `.as('v1.*')` names to avoid Tuyau registry clashes. Full reference: [api-v1.md](./api-v1.md).
 
 ## Related

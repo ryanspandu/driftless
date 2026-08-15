@@ -24,7 +24,6 @@ declare module '@adonisjs/inertia/types' {
     'admin/content/new': ExtractProps<(typeof import('../../inertia/pages/admin/content/new.tsx'))['default']>
     'admin/dashboard': ExtractProps<(typeof import('../../inertia/pages/admin/dashboard.tsx'))['default']>
     'admin/integrations': ExtractProps<(typeof import('../../inertia/pages/admin/integrations.tsx'))['default']>
-    'admin/integrations/api-tokens': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/api-tokens.tsx'))['default']>
     'admin/integrations/captcha': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/captcha.tsx'))['default']>
     'admin/integrations/clarity': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/clarity.tsx'))['default']>
     'admin/integrations/google-analytics': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/google-analytics.tsx'))['default']>
@@ -41,6 +40,7 @@ declare module '@adonisjs/inertia/types' {
     'admin/roles/new': ExtractProps<(typeof import('../../inertia/pages/admin/roles/new.tsx'))['default']>
     'admin/roles/show': ExtractProps<(typeof import('../../inertia/pages/admin/roles/show.tsx'))['default']>
     'admin/settings': ExtractProps<(typeof import('../../inertia/pages/admin/settings.tsx'))['default']>
+    'admin/settings/api-tokens': ExtractProps<(typeof import('../../inertia/pages/admin/settings/api-tokens.tsx'))['default']>
     'admin/settings/application': ExtractProps<(typeof import('../../inertia/pages/admin/settings/application.tsx'))['default']>
     'admin/settings/email': ExtractProps<(typeof import('../../inertia/pages/admin/settings/email.tsx'))['default']>
     'admin/settings/general': ExtractProps<(typeof import('../../inertia/pages/admin/settings/general.tsx'))['default']>

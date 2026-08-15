@@ -2,7 +2,7 @@
 
 **Status:** IMPLEMENTED — backend + hardening DONE + runtime-verified (2026-06-23). Phases 1–4 shipped:
 access-tokens `api` guard + `withAccessTokens` on User + `auth_access_tokens` migration; **self-service**
-PAT management (no extra permission); admin PAT CRUD (`/api/admin/api-tokens`) + admin UI page (`/admin/integrations/api-tokens`);
+PAT management (no extra permission); admin PAT CRUD (`/api/admin/api-tokens`) + admin UI page (`/admin/settings/api-tokens`);
 `/api/v1/content` + `/api/v1/cms/:key/records` token-guarded, layered RBAC ∩ token-ability; **Redis-backed
 rate limiting** (`@adonisjs/limiter`, 120 req/min per token) + **env-driven prod CORS allowlist**
 (`CORS_ALLOWED_ORIGINS`). Verified by live HTTP: GET+valid token → 200 + data; no/bad token → 401; write
@@ -88,7 +88,7 @@ docs feature ([api-docs.md](./api-docs.md)) already reserves a `bearerAuth` secu
 6. `ApiTokensController` (admin): `index` (list — never returns plaintext), `store` (create → returns
    plaintext **once**), `destroy` (revoke). Backed by `User.accessTokens` APIs, scoped to `auth.user`.
 7. Routes under `/api/admin/api-tokens`, session-guarded only (no permission middleware). Inertia page
-   route `/admin/integrations/api-tokens` (kept under Settings → Integrations).
+   route `/admin/settings/api-tokens` (under Settings → Developer & API).
 8. Admin UI page: create form (name + abilities multiselect + optional expiry), one-time plaintext reveal
    with copy, list with revoke. Follow the admin list-page pattern (see [frontend.md](./frontend.md)).
 

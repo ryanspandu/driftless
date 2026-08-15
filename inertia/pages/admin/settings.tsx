@@ -126,7 +126,7 @@ export default function SettingsPage() {
                 icon={KeyRound}
                 title="API tokens"
                 description="Personal access tokens for the /api/v1 API — scoped abilities, expiry, one-time reveal."
-                href="/admin/integrations/api-tokens"
+                href="/admin/settings/api-tokens"
               />
               {import.meta.env.DEV ? (
                 <>

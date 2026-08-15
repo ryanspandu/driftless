@@ -1,3 +1,4 @@
+import { Package, ShoppingBag, ShoppingCart } from 'lucide-react'
 import type { ModulePuckBlocks } from '~/puck/module-blocks'
 import { styleFields, Box } from '~/puck/style-fields'
 import { CartWidget, ProductDetail, ProductList } from './product-blocks'
@@ -11,6 +12,15 @@ import { CartWidget, ProductDetail, ProductList } from './product-blocks'
  */
 export default {
   category: { key: 'commerce', title: 'Commerce' },
+  /**
+   * Glyphs for the drawer tiles / Layers rows. Core's icon map cannot list these
+   * without naming the module, so they travel with the blocks.
+   */
+  icons: {
+    ProductList: ShoppingBag,
+    ProductDetail: Package,
+    CartWidget: ShoppingCart,
+  },
   components: {
   /**
    * Commerce blocks.
@@ -77,7 +87,16 @@ export default {
     defaultProps: { slug: '' },
     render: ({ slug, ...s }) => (
       <Box s={s}>
-        <ProductDetail slug={slug} />
+        {/*
+          The builder canvas has no route to bind to, so a blank slug resolves to
+          nothing there. `editing` lets the block say why instead of claiming the
+          product is gone — which is what every operator saw on the seeded
+          product-page template.
+        */}
+        <ProductDetail
+          slug={slug}
+          editing={!!(s.puck as { isEditing?: boolean } | undefined)?.isEditing}
+        />
       </Box>
     ),
   },

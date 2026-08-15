@@ -44,7 +44,7 @@ export interface ApiDefinition {
     updateIntegrationSettings: typeof routes['settings.update_integration_settings']
     getPageCode: typeof routes['settings.get_page_code']
     updatePageCode: typeof routes['settings.update_page_code']
-    integrationsApiTokensPage: typeof routes['settings.integrations_api_tokens_page']
+    apiTokensPage: typeof routes['settings.api_tokens_page']
     navConfig: typeof routes['settings.nav_config']
   }
   googleAuth: {

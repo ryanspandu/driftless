@@ -1048,6 +1048,10 @@ function FieldControl({
     return <ArrayControl field={field} name={name} itemId={itemId} value={value} onChange={onChange} />
   }
 
+  if (field.type === 'object') {
+    return <ObjectControl field={field} name={name} itemId={itemId} value={value} onChange={onChange} />
+  }
+
   if (field.type === 'textarea') {
     return (
       <textarea
@@ -1077,6 +1081,48 @@ function FieldControl({
       value={(value as string | undefined) ?? ''}
       onChange={(e) => onChange(e.target.value)}
     />
+  )
+}
+
+/**
+ * Editor for `type: 'object'` fields — a group of sub-fields stored under one
+ * prop (e.g. the commerce Product List's `source`).
+ *
+ * Without this the field fell through to the plain text input below, which
+ * rendered an object as an empty box and wrote a *string* back over it the
+ * moment anything was typed — silently destroying the block's binding.
+ */
+function ObjectControl({
+  field,
+  name,
+  itemId,
+  value,
+  onChange,
+}: {
+  field: Field
+  name: string
+  itemId: string
+  value: unknown
+  onChange: (value: unknown) => void
+}) {
+  const obj = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  const objectFields = (field as { objectFields?: Record<string, Field> }).objectFields ?? {}
+
+  return (
+    <div className="space-y-1.5 rounded-md border border-input p-2">
+      {Object.entries(objectFields).map(([k, f]) => (
+        <label key={k} className="block space-y-0.5">
+          <span className="block text-[11px] text-muted-foreground">{f?.label ?? k}</span>
+          <FieldControl
+            field={f}
+            name={`${name}.${k}`}
+            itemId={itemId}
+            value={obj[k]}
+            onChange={(v) => onChange({ ...obj, [k]: v })}
+          />
+        </label>
+      ))}
+    </div>
   )
 }
 

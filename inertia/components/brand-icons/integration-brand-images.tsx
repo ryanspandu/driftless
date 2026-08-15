@@ -8,7 +8,7 @@ export function GoogleAnalyticsBrandImg({
 }) {
   return (
     <img
-      src="/img/google-analytic.webp"
+      src="/img/google-analytic.png"
       alt=""
       width={28}
       height={28}

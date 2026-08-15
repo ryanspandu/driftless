@@ -183,7 +183,18 @@ function styleToCss(s: StyleBag): CSSProperties {
     filter: str(s, 'filter'),
   }
 
-  if (str(s, 'maxWidth')) {
+  /**
+   * A capped block with no margin of its own centres itself — what an author
+   * means by "max width 1100px" almost always includes "in the middle".
+   *
+   * But only when they have not said otherwise. This used to centre
+   * unconditionally, writing `marginLeft/Right: auto` over an authored `margin`
+   * (longhand beats shorthand), so a Container with `margin: 0 0 0 40px` sat
+   * centred and the left offset simply vanished with nothing to explain it.
+   * An explicit margin now wins outright; `auto` typed into the left/right
+   * boxes still centres.
+   */
+  if (str(s, 'maxWidth') && !str(s, 'margin')) {
     css.marginLeft = 'auto'
     css.marginRight = 'auto'
   }

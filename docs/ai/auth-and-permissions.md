@@ -4,7 +4,7 @@
 
 - **Guard**: session-based `web` guard (`config/auth.ts`).
 - **Provider**: `sessionUserProvider` with `app/models/user.ts`.
-- **API tokens**: a second `api` guard (`tokensGuard`, `@adonisjs/auth/access_tokens`) for the external `/api/v1` — opaque Personal Access Tokens (`auth_access_tokens` table, `withAccessTokens` on User), minted/revoked at `/admin/integrations/api-tokens` (**self-service** — each user manages their own, no extra permission). Effective access = user RBAC ∩ token abilities. See [api-v1.md](./api-v1.md).
+- **API tokens**: a second `api` guard (`tokensGuard`, `@adonisjs/auth/access_tokens`) for the external `/api/v1` — opaque Personal Access Tokens (`auth_access_tokens` table, `withAccessTokens` on User), minted/revoked at `/admin/settings/api-tokens` (**self-service** — each user manages their own, no extra permission). Effective access = user RBAC ∩ token abilities. See [api-v1.md](./api-v1.md).
 - **Routes**: `/login`, `/register`, `/logout`, `/api/me` in `start/routes.ts`. `/signup`, `/auth/signup`, `/auth/register` are legacy redirect aliases to `/register`.
 - **Google OAuth**: `google_auth_controller` — `/auth/google`, callback, status.
 - **CAPTCHA**: Configurable via integration settings + env; used on auth forms when enabled.

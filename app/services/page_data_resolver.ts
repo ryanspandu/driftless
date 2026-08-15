@@ -17,6 +17,10 @@ function collectRefs(node: unknown, acc: CollectionRef[]): void {
     const block = node as { type?: string; props?: Record<string, unknown> }
     const source = block.props?.source as { collectionKey?: string } | undefined
     if (block.type === 'CollectionList' && source?.collectionKey) {
+      // `Number(x) || 12` must match `recordLimit()` in `inertia/puck/collection-list.tsx`
+      // exactly — the client looks the payload up under the key built from it,
+      // and a limit the two normalise differently (`0`, `'6'`) resolves data
+      // here that the page then never finds and re-fetches on the client.
       acc.push({ key: source.collectionKey, limit: Number(block.props?.limit) || 12 })
     }
 

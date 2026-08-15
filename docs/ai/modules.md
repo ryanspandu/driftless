@@ -204,6 +204,7 @@ So core never names a module. It discovers contributions by **shape**:
 | The module itself | directory holding `module.ts` / `module.js` | `modules/registry.ts` |
 | Admin & storefront pages | `import.meta.glob('../modules/*/ui/**/*.tsx')` | `inertia/app.tsx` |
 | Page-builder blocks | `import.meta.glob('../../modules/*/ui/puck/blocks.tsx')` | `inertia/puck/module-blocks.ts` |
+| Page-builder block icons | the `icons` map on that same default export | `inertia/puck/module-blocks.ts` → `inertia/puck/overrides.tsx` |
 | Breadcrumb labels | `import.meta.glob('../../modules/*/ui/labels.ts')` | `inertia/lib/module-labels.ts` |
 | Tests | `modules/*/tests/**/*.spec.ts` | `adonisrc.ts`, suite `modules` |
 | Migrations | directory scan | `config/database.ts` |

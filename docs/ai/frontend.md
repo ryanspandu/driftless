@@ -114,9 +114,16 @@ Every admin list/table page follows one pattern (`inertia/pages/admin/content.ts
 `inertia/components/admin/sidebar.tsx`: Phosphor icons, **active-only duotone** (active row gets
 `weight="duotone"` + brand-tinted bg + a left accent bar via the `--sidebar-active*` tokens in
 `app.css`). Sections: core nav → **Apps** (enabled [modules](./modules.md)) → dynamic Collections
-→ Plugins → a user chip footer. Core nav entries are hidden when their title is in
-`hidden_nav` (read from `/api/admin/nav-config`); see [modules.md](./modules.md) for the
-Settings → Application toggles and the in-dashboard 404 (`admin/not_found`).
+→ a user chip footer. Core nav entries are hidden when their title is in `hidden_nav` (read from
+`/api/admin/nav-config`); see [modules.md](./modules.md) for the Settings → General toggles and
+the in-dashboard 404 (`admin/not_found`).
+
+**Three lists must agree**, all keyed on the same title strings: `navEntries` here,
+`HIDEABLE_NAV` in `inertia/pages/admin/settings/general.tsx`, and `PATH_NAV` in
+`app/middleware/nav_enabled_middleware.ts`. A title in `HIDEABLE_NAV` but missing from the other
+two is a toggle that does nothing; a *path prefix* in `PATH_NAV` whose page is reachable from
+somewhere other than the sidebar is a 404 waiting for whoever follows that other route. That
+second case is why **Integrations is in none of them** — it is a Settings hub card, not a menu.
 
 ## Theme scoping (important)
 

@@ -105,7 +105,16 @@ export default class SettingsController {
     return inertia.render('admin/integrations/clarity', {})
   }
 
-  async integrationsApiTokensPage({ inertia }: HttpContext) {
-    return inertia.render('admin/integrations/api-tokens', {})
+  /**
+   * Personal access tokens for `/api/v1`.
+   *
+   * Lives under `/admin/settings/*`, not `/admin/integrations/*`, and the move
+   * was a bug fix rather than tidying: the old path matched the `Integrations`
+   * prefix in `nav_enabled_middleware`, so hiding that menu 404'd this page —
+   * a page the Settings hub presents under "Developer & API", with nothing to
+   * suggest the two were connected.
+   */
+  async apiTokensPage({ inertia }: HttpContext) {
+    return renderPage(inertia, 'admin/settings/api-tokens', {})
   }
 }
