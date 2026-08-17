@@ -1,10 +1,23 @@
 @layout('emails/layout')
 
 @section('content')
-  <h1 style="margin:0 0 8px 0; font-size:20px; font-weight:600;">Thank you for your order</h1>
-  <p style="margin:0 0 24px 0; color:#52525b;">
-    Order <strong style="color:#18181b;">{{ number }}</strong> is confirmed and paid.
-  </p>
+  {{--
+    Heading, intro, button label and outro come from Settings → Email →
+    Notifications. The line items, totals and download links below do not: an
+    operator editing copy must not be able to ship a receipt with no receipt in
+    it.
+  --}}
+  @if(logoUrl)
+    <img src="{{ logoUrl }}" alt="{{ siteName ?? '' }}" height="28"
+         style="display:block; height:28px; width:auto; margin:0 0 20px 0; border:0;" />
+  @end
+
+  @if(heading)
+    <h1 style="margin:0 0 8px 0; font-size:20px; font-weight:600;">{{ heading }}</h1>
+  @end
+  @if(intro)
+    <p style="margin:0 0 24px 0; color:#52525b;">{{ intro }}</p>
+  @end
 
   {{--
     The line items, as a plain table. Amounts arrive pre-formatted from the
@@ -76,15 +89,15 @@
   @if(orderUrl)
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0 0;">
       <tr>
-        <td style="background-color:#18181b; border-radius:8px;">
+        <td style="background-color:{{ accentColor ?? '#18181b' }}; border-radius:8px;">
           <a href="{{ orderUrl }}" style="display:inline-block; padding:12px 20px; font-size:14px; font-weight:500; color:#ffffff; text-decoration:none;">
-            View your order
+            {{ buttonLabel ?? 'View your order' }}
           </a>
         </td>
       </tr>
     </table>
-    <p style="margin:16px 0 0 0; font-size:13px; color:#71717a;">
-      Keep this email — that link is how you reach your order without an account.
-    </p>
+    @if(outro)
+      <p style="margin:16px 0 0 0; font-size:13px; color:#71717a;">{{ outro }}</p>
+    @end
   @end
 @end

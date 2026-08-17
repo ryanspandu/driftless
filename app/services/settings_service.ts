@@ -6,9 +6,50 @@ import IntegrationSetting from '#models/integration_setting'
 import { newUlid } from '#services/ulid_service'
 
 const WEB_DEFAULTS: Record<string, Record<string, string>> = {
+  /**
+   * Identity of the **admin shell** — deliberately not the public site's name,
+   * which is `site_meta.site_title`. One installation can be "Acme CMS" to its
+   * operators and "Acme Store" to its visitors.
+   *
+   * This section was written by the settings UI but was missing here, so
+   * `getMergedSections()` could not seed it and the API returned nothing for it
+   * until somebody pressed Save. Its defaults lived duplicated in the frontend
+   * as a result.
+   */
+  admin_branding: {
+    project_name: 'Driftless',
+    project_tagline: 'Admin panel',
+    // Empty means "use the initial badge" — see `useAdminBranding`.
+    logo_url: '',
+  },
   auth_pages: {
     background_url: '',
     logo_url: '',
+    /**
+     * Builder pages that replace the built-in auth screens, by page id. Empty
+     * means "use the built-in page" — and because `applyPatches` deletes a row
+     * whose value is empty, clearing the picker restores the default with no
+     * special case.
+     */
+    login_page_id: '',
+    register_page_id: '',
+    forgot_password_page_id: '',
+    reset_password_page_id: '',
+  },
+  // Builder pages that replace the public error screens. Same convention.
+  error_pages: {
+    not_found_page_id: '',
+    server_error_page_id: '',
+  },
+  /**
+   * Shared look for every outgoing email. Site-wide rather than per-email,
+   * because a logo that differs between the receipt and the password reset
+   * reads as one of them being forged.
+   */
+  email_branding: {
+    logo_url: '',
+    accent_color: '#4f39f6',
+    footer_note: '',
   },
   site_meta: {
     site_title: 'Driftless',

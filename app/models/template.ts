@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 
-export type TemplateType = 'HEADER' | 'FOOTER' | 'COMPONENT' | 'LAYOUT'
+export type TemplateType = 'HEADER' | 'FOOTER' | 'COMPONENT' | 'LAYOUT' | 'EMAIL'
 
 const jsonColumn = {
   prepare: (v: unknown) => JSON.stringify(v ?? {}),
@@ -24,6 +24,16 @@ export default class Template extends BaseModel {
   /** Puck block tree. */
   @column(jsonColumn)
   declare content: Record<string, unknown>
+
+  /**
+   * An EMAIL template's design, already flattened to email HTML.
+   *
+   * Written by the builder on publish rather than rendered per send: the queue
+   * worker loads no SSR bundle, so rendering React there would mean shipping a
+   * second one just to format mail. Null for every other type.
+   */
+  @column()
+  declare renderedHtml: string | null
 
   /** The site-wide default for its type (HEADER / FOOTER / LAYOUT). */
   @column()

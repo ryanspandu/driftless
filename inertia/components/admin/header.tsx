@@ -22,6 +22,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/admin/pages': 'Pages',
   '/admin/templates': 'Templates',
   '/admin/settings': 'Settings',
+  '/admin/settings/appearance': 'Appearance',
   '/admin/settings/general': 'General',
   // The URL still says "application"; the page is the module manager, and a
   // breadcrumb describes the page rather than the route that reaches it.

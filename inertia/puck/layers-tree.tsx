@@ -1,7 +1,17 @@
-import { useMemo, useState, type ComponentType, type DragEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentType, type DragEvent } from 'react'
 import { usePuck, type ComponentData, type Config } from '@measured/puck'
-import { ChevronDown, ChevronRight, Eye, EyeOff, Lock, LockOpen, Square, Trash2 } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Lock,
+  LockOpen,
+  Square,
+  Trash2,
+} from 'lucide-react'
 import { cn } from '~/lib/utils'
+import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { ICONS, LABELS } from './overrides'
 
 /**
@@ -81,6 +91,24 @@ function buildDescendants(tree: TreeNode[]): Map<string, Set<string>> {
   return map
 }
 
+/** How many layers a delete would take with it. */
+function countDescendants(node: TreeNode): number {
+  return node.children.reduce((sum, child) => sum + 1 + countDescendants(child), 0)
+}
+
+/** Map of node id → its ancestor ids, outermost first. Used to reveal a selection. */
+function buildAncestors(tree: TreeNode[]): Map<string, string[]> {
+  const map = new Map<string, string[]>()
+  const walk = (nodes: TreeNode[], chain: string[]) => {
+    for (const node of nodes) {
+      map.set(node.id, chain)
+      if (node.children.length > 0) walk(node.children, [...chain, node.id])
+    }
+  }
+  walk(tree, [])
+  return map
+}
+
 export function LayersTree() {
   const { appState, config, dispatch, getSelectorForId, getItemById, selectedItem } = usePuck()
 
@@ -89,9 +117,66 @@ export function LayersTree() {
   const descendants = useMemo(() => buildDescendants(tree), [tree])
   const selectedId = (selectedItem?.props as { id?: string } | undefined)?.id ?? null
 
+  const ancestors = useMemo(() => buildAncestors(tree), [tree])
+
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ id: string; pos: DropPos } | null>(null)
+
+  const treeRef = useRef<HTMLDivElement>(null)
+  /**
+   * The last selection we scrolled to.
+   *
+   * Without it the scroll effect — which has to watch `collapsed`, since the row
+   * does not exist in the DOM until its ancestors expand — would also fire every
+   * time the author collapses something by hand, yanking the panel back to the
+   * selection they were not looking at.
+   */
+  const revealedRef = useRef<string | null>(null)
+
+  /**
+   * Reveal whatever is selected, however it got selected.
+   *
+   * Clicking a block on the canvas sets Puck's `itemSelector`, but the tree had
+   * no reaction to that: a selection nested inside a collapsed branch stayed
+   * invisible, so the panel showed no relationship between what was clicked and
+   * where it lives.
+   *
+   * Adjusted during render rather than in an effect — React's documented pattern
+   * for deriving state from a changed input. It runs before paint, so the row
+   * never appears in the wrong place first, and it fires only on the frame the
+   * selection actually changes, which is what keeps the expansion **one-shot**:
+   * collapsing an ancestor by hand afterwards is not immediately undone.
+   */
+  const [lastSelected, setLastSelected] = useState<string | null>(selectedId)
+  if (selectedId !== lastSelected) {
+    setLastSelected(selectedId)
+    const chain = selectedId ? (ancestors.get(selectedId) ?? []) : []
+    if (chain.some((id) => collapsed.has(id))) {
+      setCollapsed((prev) => {
+        const next = new Set(prev)
+        for (const id of chain) next.delete(id)
+        return next
+      })
+    }
+  }
+
+  useEffect(() => {
+    // Cleared here rather than during render so re-selecting the same block
+    // after a deselect still scrolls to it — and so nothing touches a ref while
+    // rendering.
+    if (!selectedId) {
+      revealedRef.current = null
+      return
+    }
+    if (revealedRef.current === selectedId) return
+    const row = treeRef.current?.querySelector(`[data-layer-id="${CSS.escape(selectedId)}"]`)
+    // Absent while its ancestors are still collapsed; the expand above re-runs
+    // this effect once they open.
+    if (!row) return
+    revealedRef.current = selectedId
+    row.scrollIntoView({ block: 'nearest' })
+  }, [selectedId, collapsed])
 
   const select = (id: string) => {
     const sel = getSelectorForId(id)
@@ -188,7 +273,9 @@ export function LayersTree() {
     } else {
       pos = y < rect.height / 2 ? 'before' : 'after'
     }
-    setDropTarget((prev) => (prev && prev.id === targetId && prev.pos === pos ? prev : { id: targetId, pos }))
+    setDropTarget((prev) =>
+      prev && prev.id === targetId && prev.pos === pos ? prev : { id: targetId, pos }
+    )
   }
 
   // Drop INTO a container: address its first slot zone (`${id}:${slot}`) and
@@ -203,7 +290,12 @@ export function LayersTree() {
     if (src.zone === destZone) {
       if (src.index < destIndex) destIndex -= 1
       if (destIndex !== src.index) {
-        dispatch({ type: 'reorder', sourceIndex: src.index, destinationIndex: destIndex, destinationZone: destZone })
+        dispatch({
+          type: 'reorder',
+          sourceIndex: src.index,
+          destinationIndex: destIndex,
+          destinationZone: destZone,
+        })
       }
     } else {
       dispatch({
@@ -234,7 +326,12 @@ export function LayersTree() {
       // Removing the source first shifts everything after it down by one.
       if (src.index < destIndex) destIndex -= 1
       if (destIndex !== src.index) {
-        dispatch({ type: 'reorder', sourceIndex: src.index, destinationIndex: destIndex, destinationZone: destZone })
+        dispatch({
+          type: 'reorder',
+          sourceIndex: src.index,
+          destinationIndex: destIndex,
+          destinationZone: destZone,
+        })
       }
     } else {
       dispatch({
@@ -257,7 +354,7 @@ export function LayersTree() {
   }
 
   return (
-    <div className="p-1.5" onDragEnd={resetDrag}>
+    <div ref={treeRef} className="p-1.5" onDragEnd={resetDrag}>
       {tree.map((node) => (
         <TreeRow
           key={node.id}
@@ -278,6 +375,89 @@ export function LayersTree() {
         />
       ))}
     </div>
+  )
+}
+
+/**
+ * Delete, with the confirmation anchored to the row it belongs to.
+ *
+ * A centred modal for a per-row action costs the author their place: it dims the
+ * tree they were reading and puts the question somewhere other than the thing
+ * being questioned. A popover beside the trash keeps the row, its label and its
+ * position on screen visible while the question is answered.
+ *
+ * The count is still spelled out, because that is what the tree hides — a
+ * container reads as one layer right up until it removes six.
+ */
+function DeleteLayerButton({
+  label,
+  nested,
+  onConfirm,
+}: {
+  label: string
+  nested: number
+  onConfirm: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              'flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-opacity hover:bg-muted hover:text-destructive',
+              open ? 'text-destructive opacity-100' : 'opacity-0 group-hover:opacity-100'
+            )}
+            aria-label="Delete layer"
+          />
+        }
+      >
+        <Trash2 className="size-3.5" />
+      </PopoverTrigger>
+      <PopoverContent
+        side="left"
+        align="center"
+        className="w-60 p-3"
+        // The row behind is a click-to-select target; without this, dismissing
+        // the popover would also reselect whatever it was covering.
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-xs leading-relaxed text-foreground">
+          Delete <span className="font-medium">“{label}”</span>
+          {nested > 0 ? (
+            <>
+              {' '}
+              and the {nested} layer{nested === 1 ? '' : 's'} inside it
+            </>
+          ) : null}
+          ?
+        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          You can undo this from the toolbar.
+        </p>
+        <div className="mt-3 flex justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="rounded-md border border-input px-2 py-1 text-[11px] hover:bg-muted"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              onConfirm()
+            }}
+            className="rounded-md bg-destructive px-2 py-1 text-[11px] font-medium text-white hover:opacity-90"
+          >
+            Delete
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -329,6 +509,7 @@ function TreeRow({
       <div
         role="button"
         tabIndex={0}
+        data-layer-id={node.id}
         draggable={!editing && !node.locked}
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'move'
@@ -372,7 +553,11 @@ function TreeRow({
             className="flex size-4 shrink-0 items-center justify-center opacity-70 hover:opacity-100"
             aria-label={expanded ? 'Collapse' : 'Expand'}
           >
-            {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+            {expanded ? (
+              <ChevronDown className="size-3.5" />
+            ) : (
+              <ChevronRight className="size-3.5" />
+            )}
           </button>
         ) : (
           <span className="size-4 shrink-0" />
@@ -399,17 +584,11 @@ function TreeRow({
               {node.label}
             </span>
             {!node.locked && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete(node.id)
-                }}
-                className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-destructive group-hover:opacity-100"
-                aria-label="Delete layer"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+              <DeleteLayerButton
+                label={node.label}
+                nested={countDescendants(node)}
+                onConfirm={() => onDelete(node.id)}
+              />
             )}
             <button
               type="button"

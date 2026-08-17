@@ -23,6 +23,13 @@ const PATH_NAV: { prefix: string; nav: string }[] = [
    * Settings hub rather than the sidebar, so there is no menu to hide — and
    * leaving it here meant hiding a menu entry silently 404'd the page a
    * still-visible Settings card linked to.
+   *
+   * `/admin/website-settings` is absent for the same reason, which is easy to
+   * misread as an oversight because it *is* a child of the UI menu. It is also
+   * linked from the Settings hub, so gating it on the UI menu would 404 a page
+   * a visible card points at — exactly the failure described above. Its three
+   * siblings (Content, Pages, Templates) have no such second entrance, which is
+   * why they are listed and it is not.
    */
   { prefix: '/admin/users', nav: 'User Management' },
   { prefix: '/admin/roles', nav: 'User Management' },

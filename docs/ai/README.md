@@ -14,9 +14,9 @@ Reference docs for AI coding assistants (Cursor, Claude Code, GitHub Copilot, Co
 | [cms.md](./cms.md) | Dynamic collections, fields, revisions, sidebar grouping |
 | [cms-content-modeling.md](./cms-content-modeling.md) | Field-type catalog, single types, relations (4 cardinalities), components (inline + registry), per-field width |
 | [modules.md](./modules.md) | The one package system. Apps and plugins are both modules — `kind` on the manifest is the only difference |
-| [modules.md](./modules.md) | Module system: first-party app areas (DB-toggled), `make:module`, install from the admin, Settings → Application |
+| [modules.md](./modules.md) | Module system: first-party app areas (DB-toggled), `make:module`, install from the admin, Settings → Modules |
 | [modules.md](./modules.md) → module READMEs | A module documents itself: see `modules/<name>/README.md`. E-commerce: [modules/ecommerce/README.md](../../modules/ecommerce/README.md) |
-| [mail.md](./mail.md) | Transactional email: SMTP from the admin (encrypted) or env, queued sending, Edge templates |
+| [mail.md](./mail.md) | Transactional email: SMTP provider presets, per-email toggles and editable copy, delivery log, `EMAIL` builder templates |
 | [auth-and-permissions.md](./auth-and-permissions.md) | Session auth, OAuth, permission grammar |
 | [offline-and-pwa.md](./offline-and-pwa.md) | Dexie, sync engine, Serwist |
 | [api-docs.md](./api-docs.md) | Auto OpenAPI docs (adonis-autoswagger + Scalar at `/api/docs`, **dev-only**); implemented |
@@ -29,8 +29,11 @@ Reference docs for AI coding assistants (Cursor, Claude Code, GitHub Copilot, Co
 |-----|--------|
 | [pages-builder.md](./pages-builder.md) | Puck visual page builder: blocks, render modes (SSR/SSG/CSR), collection binding |
 | [builder-layers.md](./builder-layers.md) | Webflow-style custom builder layout: Layers tree + Detail style panel + navbar |
-| [templates.md](./templates.md) | Reusable HEADER/FOOTER/LAYOUT/COMPONENT templates + per-page composition |
+| [templates.md](./templates.md) | Reusable HEADER/FOOTER/LAYOUT/COMPONENT/EMAIL templates + per-page composition |
+| [settings-ia.md](./settings-ia.md) | Which settings screen owns which field, and the `web_settings` key map — read before adding a setting |
 | [page-settings.md](./page-settings.md) | Page Settings (SEO, General) + per-page & site-wide custom code/meta; `/admin/website-settings` |
+| [code-pages.md](./code-pages.md) | Hand-written React pages (`kind = CODE`) and custom builder blocks — the escape hatches from the builder, and when **not** to use them |
+| [auth-pages.md](./auth-pages.md) | Replacing `/login`, `/register`, password reset and the public 404/500 with builder pages; the working auth form blocks; the password-reset flow |
 
 ## Legacy / ops
 

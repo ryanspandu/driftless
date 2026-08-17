@@ -22,6 +22,7 @@ import { PageHeader } from '~/components/admin/page-header'
 import { formatMoney } from '../lib/money'
 import { cn } from '~/lib/utils'
 import { useAbandonedCarts, useSalesReport, useStoreStats } from './_api'
+import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 const RANGES = [
   { days: 7, label: '7 days' },
@@ -94,24 +95,14 @@ function SalesPanel() {
             </div>
           ) : null}
         </div>
-        <div className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-muted p-1">
-          {RANGES.map((range) => (
-            <button
-              key={range.days}
-              type="button"
-              aria-pressed={days === range.days}
-              onClick={() => setDays(range.days)}
-              className={cn(
-                'rounded-md px-2.5 py-1 text-xs transition-colors',
-                days === range.days
-                  ? 'bg-background font-medium text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {range.label}
-            </button>
-          ))}
-        </div>
+        {/* Days are numbers; the shared control keys on strings, so they are
+            converted at the boundary rather than widening its type. */}
+        <TableFilterTabs
+          value={String(days)}
+          options={RANGES.map((range) => ({ value: String(range.days), label: range.label }))}
+          onChange={(value) => setDays(Number(value))}
+          ariaLabel="Date range"
+        />
       </CardHeader>
 
       <CardContent>

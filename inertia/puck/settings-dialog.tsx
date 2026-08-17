@@ -37,8 +37,14 @@ export interface PageMeta {
   layoutId: string | null
   headerTemplateId: string | null
   footerTemplateId: string | null
+  /** Render no header / no footer at all — distinct from "use the site default". */
+  hideHeader: boolean
+  hideFooter: boolean
   seo: Record<string, unknown>
 }
+
+/** Sentinel for "none" in the header/footer selects. Never sent as an id. */
+const NONE = '__none__'
 
 type SectionKey = 'general' | 'seo' | 'page-code' | 'global-code'
 
@@ -178,6 +184,18 @@ function GeneralSection({ meta, onChange }: { meta: PageMeta; onChange: (m: Page
     { value: '', label: '— Default —' },
     ...(list ?? []).map((t) => ({ value: t.id, label: t.name })),
   ]
+  /**
+   * Header/footer get a third option. `''` (a null id) has always meant "use
+   * the site default"; `NONE` means render none at all, which a sign-in screen
+   * or a bare landing page needs. It is a UI sentinel translated into the
+   * `hideHeader` / `hideFooter` flags — the id columns carry a foreign key and
+   * cannot store it.
+   */
+  const slotOpts = (list: TemplateSummaryDto[] | undefined, noneLabel: string) => [
+    { value: '', label: '— Default —' },
+    { value: NONE, label: noneLabel },
+    ...(list ?? []).map((t) => ({ value: t.id, label: t.name })),
+  ]
 
   return (
     <SectionBody title="General" description="Page basics, render mode, and template overrides.">
@@ -235,18 +253,22 @@ function GeneralSection({ meta, onChange }: { meta: PageMeta; onChange: (m: Page
         <Row label="Header override" htmlFor="set-header">
           <AppSelect
             id="set-header"
-            value={meta.headerTemplateId ?? ''}
-            onChange={(v) => patch({ headerTemplateId: v || null })}
-            options={opts(headers.data)}
+            value={meta.hideHeader ? NONE : (meta.headerTemplateId ?? '')}
+            onChange={(v) =>
+              patch({ headerTemplateId: v === NONE ? null : v || null, hideHeader: v === NONE })
+            }
+            options={slotOpts(headers.data, '— None (no header) —')}
             placeholder="— Default —"
           />
         </Row>
         <Row label="Footer override" htmlFor="set-footer">
           <AppSelect
             id="set-footer"
-            value={meta.footerTemplateId ?? ''}
-            onChange={(v) => patch({ footerTemplateId: v || null })}
-            options={opts(footers.data)}
+            value={meta.hideFooter ? NONE : (meta.footerTemplateId ?? '')}
+            onChange={(v) =>
+              patch({ footerTemplateId: v === NONE ? null : v || null, hideFooter: v === NONE })
+            }
+            options={slotOpts(footers.data, '— None (no footer) —')}
             placeholder="— Default —"
           />
         </Row>

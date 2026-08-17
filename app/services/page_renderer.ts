@@ -62,9 +62,34 @@ export default class PageRenderer {
     const preview = options.preview ?? false
     const isInertiaVisit = Boolean(request.header('x-inertia'))
 
-    // Render mode → component + caching. SSR/SSG use the SSR-allowlisted
-    // component; CSR stays client-rendered. Preview is always uncached.
-    const component = page.renderMode === 'CSR' ? 'public/page' : 'public/page_ssr'
+    /**
+     * Kind → renderer, render mode → SSR or not.
+     *
+     * Both wrappers take the same shape of props; a CODE page simply names a
+     * component instead of carrying a block tree. SSR/SSG use the
+     * SSR-allowlisted variant; CSR stays client-rendered. Preview is always
+     * uncached.
+     */
+    const isCode = page.kind === 'CODE'
+    /**
+     * A code page resolves blocks only when it actually has some.
+     *
+     * Its `content` is the document behind `<BuilderRegion />`. A code page
+     * with no region leaves it empty, and resolving template refs, collections
+     * and block data over an empty document is pure cost on every request —
+     * but a page *with* a region needs all three, or a CollectionList inside it
+     * would render nothing that a builder page renders fine.
+     */
+    const hasRegion = isCode && hasBlocks(page.content)
+    const resolveBlocks = !isCode || hasRegion
+    const serverRendered = page.renderMode !== 'CSR'
+    const component = isCode
+      ? serverRendered
+        ? 'public/code_ssr'
+        : 'public/code'
+      : serverRendered
+        ? 'public/page_ssr'
+        : 'public/page'
     if (preview || options.skipSnapshot) {
       /**
        * `skipSnapshot` means this page is rendering *someone else's* record, so
@@ -91,22 +116,39 @@ export default class PageRenderer {
     let headerContent: Record<string, unknown> | null = null
     let footerContent: Record<string, unknown> | null = null
     if (!layoutContent) {
-      const header = page.headerTemplateId
-        ? await templatesService.find(page.headerTemplateId).catch(() => null)
-        : await templatesService.getDefault('HEADER')
-      const footer = page.footerTemplateId
-        ? await templatesService.find(page.footerTemplateId).catch(() => null)
-        : await templatesService.getDefault('FOOTER')
+      /**
+       * Three states per slot, not two: a named template, the site default, or
+       * nothing at all. `hideHeader` carries the third — a null id already
+       * means "site default", so a page that wants no header (a sign-in screen
+       * owning the viewport, a bare landing page) had no way to say so.
+       */
+      const header = page.hideHeader
+        ? null
+        : page.headerTemplateId
+          ? await templatesService.find(page.headerTemplateId).catch(() => null)
+          : await templatesService.getDefault('HEADER')
+      const footer = page.hideFooter
+        ? null
+        : page.footerTemplateId
+          ? await templatesService.find(page.footerTemplateId).catch(() => null)
+          : await templatesService.getDefault('FOOTER')
       headerContent = header?.content ?? null
       footerContent = footer?.content ?? null
     }
 
-    const templates = await templatesService.resolveRefs([
-      page.content,
-      layoutContent,
-      headerContent,
-      footerContent,
-    ])
+    /**
+     * The header and footer are resolved for a code page regardless — it can
+     * opt into them via `<SiteChrome>` — but the page's own document is only
+     * walked when it has a region to fill.
+     */
+    const templates = resolveBlocks
+      ? await templatesService.resolveRefs([
+          page.content,
+          layoutContent,
+          headerContent,
+          footerContent,
+        ])
+      : {}
 
     const composedDocs = [
       page.content,
@@ -117,14 +159,16 @@ export default class PageRenderer {
     ]
 
     const collections =
-      page.renderMode === 'CSR' ? undefined : await resolvePageCollections(composedDocs)
+      !resolveBlocks || page.renderMode === 'CSR'
+        ? undefined
+        : await resolvePageCollections(composedDocs)
 
     /**
      * SSG skips **volatile** resolvers: price and stock must not be baked into
      * a cached snapshot. Those blocks hydrate on the client instead.
      */
     const blockData =
-      page.renderMode === 'CSR'
+      !resolveBlocks || page.renderMode === 'CSR'
         ? undefined
         : await resolveBlockData(composedDocs, {
             includeVolatile: page.renderMode !== 'SSG' || preview,
@@ -159,6 +203,8 @@ export default class PageRenderer {
       page: {
         title: options.seoOverride?.title ?? page.title,
         path: page.path,
+        // The slug the custom renderer looks up; absent for builder pages.
+        component: isCode ? (page.component ?? '') : undefined,
         content: page.content,
         seo,
         layout: layoutContent,
@@ -193,6 +239,13 @@ export default class PageRenderer {
 
     return result
   }
+}
+
+/** A document with no blocks in it — `undefined`, `{}` or an empty `content`. */
+function hasBlocks(doc: Record<string, unknown> | undefined | null): boolean {
+  if (!doc || !Object.keys(doc).length) return false
+  const content = (doc as { content?: unknown }).content
+  return Array.isArray(content) ? content.length > 0 : Boolean(content)
 }
 
 /** Drop `undefined` so a partial override does not erase what it omits. */

@@ -1,5 +1,7 @@
 import { DateTime } from 'luxon'
 import MailDispatcher from '#services/mail_dispatcher'
+import MailEventsService from '#services/mail_events_service'
+import type { MailPresentation } from '#mails/event_mail'
 import { WebSettingsService } from '#services/settings_service'
 import Order from '#modules/ecommerce/models/order'
 import OrderItem from '#modules/ecommerce/models/order_item'
@@ -14,6 +16,7 @@ import Customer from '#modules/ecommerce/models/customer'
 import CartService from '#modules/ecommerce/services/cart_service'
 import PricingService from '#modules/ecommerce/services/pricing_service'
 import MarketingConsentService from '#modules/ecommerce/services/marketing_consent_service'
+import { ECOMMERCE_MAIL_EVENTS } from '#modules/ecommerce/services/mail_events'
 import env from '#start/env'
 import { DateTime as Luxon } from 'luxon'
 import type { OrderShippedContext } from '#modules/ecommerce/mails/order_shipped_mail'
@@ -32,8 +35,35 @@ const dispatcher = new MailDispatcher()
 const storeSettings = new StoreSettingsService()
 const webSettings = new WebSettingsService()
 const delivery = new DigitalDeliveryService()
+const mailEvents = new MailEventsService()
 
 export default class OrderNotifierService {
+  /**
+   * The operator's copy and branding for one event, as the templates expect.
+   *
+   * One helper so the three notifiers cannot drift on which fields they pass —
+   * a missing `accentColor` is a button that renders black on a site whose
+   * brand is not.
+   */
+  private async presentation(
+    event: string,
+    values: Record<string, unknown>
+  ): Promise<MailPresentation> {
+    const [copy, branding] = await Promise.all([
+      mailEvents.copy(event, values),
+      mailEvents.branding(),
+    ])
+    return {
+      subject: copy.subject,
+      heading: copy.heading,
+      intro: copy.intro,
+      buttonLabel: copy.buttonLabel,
+      outro: copy.outro,
+      logoUrl: branding.logoUrl,
+      accentColor: branding.accentColor,
+    }
+  }
+
   /**
    * Everything the confirmation email renders, or null if there is no order to
    * describe.
@@ -86,6 +116,11 @@ export default class OrderNotifierService {
     }
 
     return {
+      ...(await this.presentation(ECOMMERCE_MAIL_EVENTS.orderConfirmation, {
+        siteName,
+        number: order.number,
+        total: money(order.totalAmount),
+      })),
       siteName,
       number: order.number,
       items: lines,
@@ -122,7 +157,9 @@ export default class OrderNotifierService {
       const context = await this.buildConfirmation(orderId)
       if (!context) return false
 
-      await dispatcher.sendLater(new OrderConfirmationMail(context.recipient, context))
+      await dispatcher.sendLater(new OrderConfirmationMail(context.recipient, context), {
+        event: ECOMMERCE_MAIL_EVENTS.orderConfirmation,
+      })
       return true
     } catch (error) {
       /**
@@ -157,6 +194,12 @@ export default class OrderNotifierService {
     const token = readOrderToken(order)
 
     return {
+      ...(await this.presentation(ECOMMERCE_MAIL_EVENTS.orderShipped, {
+        siteName,
+        number: order.number,
+        carrier: order.carrier ?? '',
+        trackingNumber: order.trackingNumber ?? '',
+      })),
       siteName,
       number: order.number,
       carrier: order.carrier,
@@ -188,7 +231,9 @@ export default class OrderNotifierService {
       const context = await this.buildShipmentNotice(orderId)
       if (!context) return false
 
-      await dispatcher.sendLater(new OrderShippedMail(context.recipient, context))
+      await dispatcher.sendLater(new OrderShippedMail(context.recipient, context), {
+        event: ECOMMERCE_MAIL_EVENTS.orderShipped,
+      })
       return true
     } catch (error) {
       console.error('[ecommerce] shipment email failed', {
@@ -268,6 +313,10 @@ export default class OrderNotifierService {
 
         await dispatcher.sendLater(
           new BasketReminderMail(customer.email, {
+            ...(await this.presentation(ECOMMERCE_MAIL_EVENTS.basketReminder, {
+              siteName,
+              total: money(priced.totalAmount),
+            })),
             siteName,
             items: priced.lines.map((line) => ({
               title: line.title,
@@ -280,7 +329,8 @@ export default class OrderNotifierService {
             unsubscribeUrl: consent.unsubscribeUrl(token),
             footerNote: `You are receiving this because you asked ${siteName} for offers.`,
             recipient: customer.email,
-          })
+          }),
+          { event: ECOMMERCE_MAIL_EVENTS.basketReminder }
         )
 
         cart.remindedAt = Luxon.now()

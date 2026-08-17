@@ -55,7 +55,7 @@ export default function WebsiteSettingsPage() {
 
       <Can permission="settings:manage">
         <Tabs value={tab} onValueChange={(value) => onTabChange(value as string)}>
-          <TabsList className="grid h-auto grid-cols-1 gap-1 sm:grid-cols-2">
+          <TabsList>
             <TabsTrigger value="site-meta">Site &amp; SEO</TabsTrigger>
             <TabsTrigger value="custom-code">Custom code</TabsTrigger>
           </TabsList>

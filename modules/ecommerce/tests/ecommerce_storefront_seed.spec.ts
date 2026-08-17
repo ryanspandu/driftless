@@ -12,6 +12,25 @@ import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 import StorefrontSeederService from '#modules/ecommerce/services/storefront_seeder_service'
 import { registerEcommerceBlockResolvers } from '#modules/ecommerce/services/block_resolvers'
 
+/** The paths `StorefrontSeederService` creates. */
+const STOREFRONT_PATHS = ['shop-front', 'shop-product']
+
+/**
+ * How many pages the storefront seeder owns.
+ *
+ * Counted by path rather than with `Page.all()`, which these assertions used to
+ * do. A global count silently couples this module's tests to every seeder
+ * `testUtils.db().seed()` happens to run — and it duly broke the moment core
+ * gained seeders that create pages (`staticbloom_home_seeder`,
+ * `auth_pages_seeder`). What the test means is "the seeder made its two pages",
+ * not "the database has exactly two rows".
+ */
+async function storefrontPageCount(): Promise<number> {
+  const rows = await Page.query().whereIn('path', STOREFRONT_PATHS)
+  return rows.length
+}
+
+
 const settings = new StoreSettingsService()
 
 async function resetDatabase() {
@@ -101,7 +120,7 @@ test.group('E-commerce | storefront seeding', (group) => {
     assert.lengthOf(second.created, 0)
     assert.equal(second.shopPageId, first.shopPageId)
     assert.equal(second.productPageId, first.productPageId)
-    assert.lengthOf(await Page.all(), 2)
+    assert.equal(await storefrontPageCount(), 2)
   })
 
   test('never overwrites an edited page', async ({ assert }) => {
@@ -245,7 +264,7 @@ test.group('E-commerce | enabling the module', (group) => {
 
     const store = await settings.getOrCreate()
     assert.equal(store.shopPageId, first)
-    assert.lengthOf(await Page.all(), 2)
+    assert.equal(await storefrontPageCount(), 2)
   })
 
   test('enabling an already-enabled module does not re-seed', async ({ assert }) => {
@@ -258,6 +277,6 @@ test.group('E-commerce | enabling the module', (group) => {
      * `onEnable` fires on the off→on transition only. Without that guard, every
      * save of the settings screen would re-run first-run seeding.
      */
-    assert.lengthOf(await Page.all(), 0)
+    assert.equal(await storefrontPageCount(), 0)
   })
 })

@@ -2,10 +2,12 @@ import Page from '#models/page'
 import PageRevision from '#models/page_revision'
 import { newUlid } from '#services/ulid_service'
 import { currentBuildId } from '#services/release'
+import { CODE_PAGES } from '#services/code_pages.generated'
 import { DateTime } from 'luxon'
 
 export type PageStatus = 'DRAFT' | 'PUBLISHED'
 export type PageRenderMode = 'SSR' | 'SSG' | 'CSR'
+export type PageKind = 'BUILDER' | 'CODE'
 
 /** A fresh, empty Puck document. */
 const EMPTY_DOC: Record<string, unknown> = { content: [], root: {} }
@@ -16,9 +18,13 @@ export interface PageSummaryDto {
   path: string
   status: PageStatus
   renderMode: PageRenderMode
+  kind: PageKind
+  component: string | null
   layoutId: string | null
   headerTemplateId: string | null
   footerTemplateId: string | null
+  hideHeader: boolean
+  hideFooter: boolean
   authorId: number | null
   publishedAt: string | null
   createdAt: string
@@ -43,9 +49,13 @@ interface CreatePageInput {
   path: string
   status?: PageStatus
   renderMode?: PageRenderMode
+  kind?: PageKind
+  component?: string | null
   layoutId?: string | null
   headerTemplateId?: string | null
   footerTemplateId?: string | null
+  hideHeader?: boolean
+  hideFooter?: boolean
   content?: Record<string, unknown>
   seo?: Record<string, unknown>
 }
@@ -55,9 +65,13 @@ interface UpdatePageInput {
   path?: string
   status?: PageStatus
   renderMode?: PageRenderMode
+  kind?: PageKind
+  component?: string | null
   layoutId?: string | null
   headerTemplateId?: string | null
   footerTemplateId?: string | null
+  hideHeader?: boolean
+  hideFooter?: boolean
   content?: Record<string, unknown>
   seo?: Record<string, unknown>
 }
@@ -90,17 +104,24 @@ export default class PagesService {
     await this.assertPathFree(path)
 
     const status = dto.status ?? 'DRAFT'
+    const kind = dto.kind ?? 'BUILDER'
+    const component = kind === 'CODE' ? this.assertComponent(dto.component) : null
+
     const row = await Page.create({
       id: newUlid(),
       title: dto.title,
       path,
       status,
       renderMode: dto.renderMode ?? 'SSR',
+      kind,
+      component: kind === 'CODE' ? component : null,
       content: dto.content ?? EMPTY_DOC,
       seo: dto.seo ?? {},
       layoutId: dto.layoutId ?? null,
       headerTemplateId: dto.headerTemplateId ?? null,
       footerTemplateId: dto.footerTemplateId ?? null,
+      hideHeader: dto.hideHeader ?? false,
+      hideFooter: dto.hideFooter ?? false,
       authorId,
       publishedAt: status === 'PUBLISHED' ? DateTime.now() : null,
     })
@@ -118,9 +139,21 @@ export default class PagesService {
     }
     if (dto.title !== undefined) row.title = dto.title
     if (dto.renderMode !== undefined) row.renderMode = dto.renderMode
+    if (dto.kind !== undefined) row.kind = dto.kind
+    if (dto.component !== undefined) row.component = dto.component
+
+    /**
+     * Re-validated after the assignments so it covers every route in: switching
+     * an existing builder page to CODE, changing the component, or updating a
+     * CODE page while leaving both fields untouched.
+     */
+    if (row.kind === 'CODE') row.component = this.assertComponent(row.component)
+    else row.component = null
     if (dto.layoutId !== undefined) row.layoutId = dto.layoutId
     if (dto.headerTemplateId !== undefined) row.headerTemplateId = dto.headerTemplateId
     if (dto.footerTemplateId !== undefined) row.footerTemplateId = dto.footerTemplateId
+    if (dto.hideHeader !== undefined) row.hideHeader = dto.hideHeader
+    if (dto.hideFooter !== undefined) row.hideFooter = dto.hideFooter
     if (dto.content !== undefined) row.content = dto.content
     if (dto.seo !== undefined) row.seo = dto.seo
     if (dto.status !== undefined) {
@@ -142,9 +175,7 @@ export default class PagesService {
   }
 
   async listRevisions(pageId: string): Promise<PageRevisionDto[]> {
-    const rows = await PageRevision.query()
-      .where('page_id', pageId)
-      .orderBy('created_at', 'desc')
+    const rows = await PageRevision.query().where('page_id', pageId).orderBy('created_at', 'desc')
     return rows.map((r) => this.toRevisionDto(r))
   }
 
@@ -247,6 +278,26 @@ export default class PagesService {
     })
   }
 
+  /**
+   * A CODE page must name a component that exists in this build.
+   *
+   * Checked against the generated manifest rather than trusted from the client,
+   * because the admin picker is not the only way in — the API accepts a raw
+   * value. An unchecked name does not fail loudly: it reaches the browser and
+   * throws inside Inertia's async resolver, which reads as a blank page rather
+   * than an error. Refusing the write is the only point where it can still be
+   * reported as what it is.
+   */
+  private assertComponent(value: string | null | undefined): string {
+    const component = (value ?? '').trim()
+    if (!component) throw new Error('A code page needs a component')
+    if (!CODE_PAGES.includes(component)) {
+      const known = CODE_PAGES.length ? CODE_PAGES.join(', ') : 'none in this build'
+      throw new Error(`Unknown page component "${component}". Available: ${known}`)
+    }
+    return component
+  }
+
   private async assertPathFree(path: string, exceptId?: string): Promise<void> {
     const q = Page.query().where('path', path).whereNull('deleted_at')
     if (exceptId) q.whereNot('id', exceptId)
@@ -266,9 +317,15 @@ export default class PagesService {
       path: row.path,
       status: row.status,
       renderMode: row.renderMode,
+      kind: row.kind ?? 'BUILDER',
+      component: row.component,
       layoutId: row.layoutId,
       headerTemplateId: row.headerTemplateId,
       footerTemplateId: row.footerTemplateId,
+      // Coalesced: rows created before the columns existed read back as null
+      // under SQLite, and `null` here would render as an indeterminate checkbox.
+      hideHeader: Boolean(row.hideHeader),
+      hideFooter: Boolean(row.hideFooter),
       authorId: row.authorId,
       publishedAt: row.publishedAt ? row.publishedAt.toISO() : null,
       createdAt: row.createdAt.toISO()!,

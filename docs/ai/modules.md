@@ -209,6 +209,7 @@ So core never names a module. It discovers contributions by **shape**:
 | Tests | `modules/*/tests/**/*.spec.ts` | `adonisrc.ts`, suite `modules` |
 | Migrations | directory scan | `config/database.ts` |
 | Permissions, nav, reserved URL segments | manifest fields | `modules/registry.ts` |
+| Emails the module sends | `registerMailEvent(...)` from `boot()` | `app/services/mail_events.ts` — see [mail.md](./mail.md#mail-events--what-can-be-sent-and-whether-it-is) |
 
 Two rules follow, and both are enforced:
 
@@ -283,7 +284,7 @@ normal. Guard each step with a conditional UPDATE rather than a read-then-write.
 `Record<string, number>` summary; the command prints the non-zero entries.
 
 The e-commerce module is the worked example — see
-[ecommerce.md](./ecommerce.md#maintenance-sweeps--required-not-optional).
+[ecommerce.md](../../modules/ecommerce/README.md#maintenance-sweeps--required-not-optional).
 
 ## Backend wiring (all already in place)
 

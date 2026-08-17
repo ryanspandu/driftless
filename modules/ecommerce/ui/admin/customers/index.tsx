@@ -13,8 +13,9 @@ import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { Can } from '~/components/providers/ability-provider'
 import { useUrlState } from '~/hooks/use-url-state'
-import { cn, formatAdminTableDateTime } from '~/lib/utils'
+import { formatAdminTableDateTime } from '~/lib/utils'
 import { useCustomers, useSetCustomerStatus, type CustomerDto } from '../_api'
+import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 const STATUS_VALUES = ['all', 'active', 'blocked'] as const
 type StatusFilter = (typeof STATUS_VALUES)[number]
@@ -173,32 +174,15 @@ export default function CustomersPage() {
   )
 
   const statusFilter = (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
-      {STATUS_FILTERS.map((f) => {
-        const active = status === f.value
-        return (
-          <button
-            key={f.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() =>
-              url.set({
-                status: f.value === DEFAULT_STATUS ? undefined : f.value,
-                page: undefined,
-              })
-            }
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-              active
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {f.label}
-          </button>
-        )
-      })}
-    </div>
+    <TableFilterTabs
+      value={status}
+      options={STATUS_FILTERS}
+      onChange={(value) =>
+        // Back to page 1: page 5 of the old filter is usually past the end of
+        // the new one, which reads as an empty table.
+        url.set({ status: value === DEFAULT_STATUS ? undefined : value, page: undefined })
+      }
+    />
   )
 
   return (

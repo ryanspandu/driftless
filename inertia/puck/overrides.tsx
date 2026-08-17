@@ -13,6 +13,7 @@ import {
   GalleryHorizontal,
   Heading,
   Image as ImageIcon,
+  KeyRound,
   LayoutGrid,
   LayoutList,
   LayoutTemplate,
@@ -20,6 +21,8 @@ import {
   Link,
   Link2,
   List,
+  LockKeyhole,
+  LogIn,
   MapPin,
   Minus,
   MousePointerClick,
@@ -41,12 +44,14 @@ import {
   TextCursorInput,
   Type,
   Upload,
+  UserPlus,
   Video,
 } from 'lucide-react'
 import { FaFacebookF, FaXTwitter } from 'react-icons/fa6'
 import { cn } from '~/lib/utils'
 import { puckConfig } from '~/puck/config'
 import { moduleBlockIcons } from '~/puck/module-blocks'
+import { customBlockIcons } from '~/puck/custom-blocks'
 
 /** Icons for core's own blocks. Modules contribute theirs from their
  *  `ui/puck/blocks.tsx`; the two are merged into `ICONS` below. */
@@ -81,6 +86,10 @@ const CORE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   SplineScene: Box,
   Rive: Play,
   // Forms
+  LoginForm: LogIn,
+  RegisterForm: UserPlus,
+  ForgotPasswordForm: KeyRound,
+  ResetPasswordForm: LockKeyhole,
   FormBlock: LayoutList,
   Label: Tag,
   Input: TextCursorInput,
@@ -115,10 +124,12 @@ const CORE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
 
 /** Icon per block type (keyed by the Puck component name). Shared with the
  *  Layers tree (layers-tree.tsx) and the Detail panel so tiles and tree rows use
- *  the same glyphs. Module blocks bring their own (see `module-blocks.ts`); core
- *  wins on a name collision. Anything not listed falls back to `Square`. */
+ *  the same glyphs. Module blocks (`module-blocks.ts`) and first-party custom
+ *  blocks (`custom-blocks.ts`) bring their own; core wins on a name collision.
+ *  Anything not listed falls back to `Square`. */
 export const ICONS: Record<string, ComponentType<{ className?: string }>> = {
   ...moduleBlockIcons(),
+  ...customBlockIcons(),
   ...CORE_ICONS,
 }
 

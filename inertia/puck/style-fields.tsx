@@ -1,7 +1,13 @@
 import { createElement, type CSSProperties, type ElementType, type ReactNode } from 'react'
 import type { Field } from '@measured/puck'
 import { cn } from '~/lib/utils'
-import { AlignControl, BoxModelControl, ColorControl, NumberUnitControl } from '~/puck/style-controls'
+import {
+  AlignControl,
+  BoxModelControl,
+  ColorControl,
+  NumberUnitControl,
+} from '~/puck/style-controls'
+import { backgroundsToCss, readLayers } from '~/puck/background-layers'
 
 /**
  * Shared style controls for the Pages builder ("enrich toward Webflow").
@@ -136,7 +142,6 @@ function styleToCss(s: StyleBag): CSSProperties {
     padding: str(s, 'padding'),
     margin: str(s, 'margin'),
     maxWidth: str(s, 'maxWidth'),
-    background: str(s, 'bg'),
     color: str(s, 'textColor'),
     fontFamily: str(s, 'font'),
     textAlign: str(s, 'align') as CSSProperties['textAlign'],
@@ -181,6 +186,22 @@ function styleToCss(s: StyleBag): CSSProperties {
     transform: str(s, 'transform'),
     transition: str(s, 'transition'),
     filter: str(s, 'filter'),
+  }
+
+  /**
+   * Background: a base colour, optionally under a stack of layers.
+   *
+   * With no layers this keeps writing the `background` **shorthand** exactly as
+   * it always did, so every page built before layers existed renders byte for
+   * byte. With layers, the colour has to move to `backgroundColor` — the
+   * shorthand resets `background-image`, and would wipe the stack out.
+   */
+  const layers = backgroundsToCss(readLayers(s.backgrounds))
+  if (layers) {
+    css.backgroundColor = str(s, 'bg')
+    Object.assign(css, layers)
+  } else {
+    css.background = str(s, 'bg')
   }
 
   /**

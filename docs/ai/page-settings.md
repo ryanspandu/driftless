@@ -32,9 +32,18 @@ builder layout ([builder-layers.md](./builder-layers.md)).
      + **global meta tags** (free-form).
    - **Custom code** — the same site-wide CSS/JS editor (`GlobalCodePanel`).
 
-   This page is distinct from `/admin/settings` ("Settings"), which keeps admin-shell
-   concerns (sidebar branding, login/register pages, integrations, application
-   toggles). The "Site & SEO" tab was **moved** from `/admin/settings` to here.
+   This page is distinct from `/admin/settings` ("Settings"), which is now a **hub of links
+   only** — every form it used to hold moved to `/admin/settings/appearance` (admin panel
+   branding, the sign-in screens, and the built-in-page overrides). The "Site & SEO" tab was
+   **moved** from `/admin/settings` to here.
+
+   The boundary to keep: **this page is the public website's identity** (site title, favicon,
+   SEO) and **Appearance is the admin shell's** (`admin_branding.project_name`, labelled
+   "Admin panel name"). Those two fields used to be labelled "Site title" and "Website name",
+   both defaulting to "Driftless" on two different screens with nothing explaining the
+   difference — and the second one was wired to nothing at all. If you add a field here, ask
+   which of the two audiences it names. The full screen-by-screen map is in
+   [settings-ia.md](./settings-ia.md).
 
 ---
 

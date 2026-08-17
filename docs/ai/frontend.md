@@ -70,7 +70,7 @@ Files:
 | `getRowId` | Stable row id (defaults to `row.id`) |
 | `searchPlaceholder` | Search input placeholder |
 | `searchValue` / `onSearchChange` | Controlled (server-side) search |
-| `filters` | Filter controls (e.g. `AppSelect`) rendered beside the search box |
+| `filters` | Filter controls — `TableFilterTabs` for a status/segment filter, `AppSelect` for a long list — rendered beside the search box |
 | `urlSync={{ paramPrefix? }}` | Reflect search/sort/page in the URL |
 | `serverPagination={{…}}` | API-driven pagination |
 | `getSyncStatus` / `lastSyncedAt` / `hideSyncColumn` | Offline sync column + "Last synced" label |
@@ -84,11 +84,54 @@ Files:
   data={rows}
   getRowId={(r) => r.id}
   searchPlaceholder="Search by title or slug…"
-  filters={<AppSelect value={status} onChange={setStatus} options={statusOptions} />}
+  filters={<TableFilterTabs value={status} onChange={setStatus} options={statusOptions} />}
   urlSync={{ paramPrefix: 'all' }}
   emptyMessage="No results."
 />
 ```
+
+## Filters and tabs
+
+There is **one** tab look in the admin, and it comes from the design system. Two components, and
+the choice between them is mechanical:
+
+| Situation | Use |
+|---|---|
+| Switching which panel of a page you are looking at | `Tabs` / `TabsList` / `TabsTrigger` (`~/components/ui/tabs`) |
+| A status/segment filter in a `DataTable` toolbar, usually with counts | `TableFilterTabs` (`~/components/admin/table-filter-tabs`) |
+| More than a handful of options, or they need searching | `AppSelect` (`~/components/ui/app-select`) |
+
+**Never hand-roll either one.** `TabsList` already *is* the segmented control —
+`inline-flex rounded-lg bg-muted p-1`, active `bg-background shadow-sm` — and `TableFilterTabs`
+renders `Tabs` underneath, adding only the count, an optional leading icon, and an optional
+`title` hint.
+
+```tsx
+<TableFilterTabs
+  value={tab}
+  options={[
+    { value: 'all', label: 'All', count: rows.length },
+    { value: 'published', label: 'Published', count: published.length },
+  ]}
+  onChange={onTabChange}
+/>
+```
+
+Do not pass a `className` to `TabsList`. An override is what made one page's tabs stretch
+full-width while every other page's sat inline, and it is the only reason they ever looked
+different.
+
+**Why this rule is written this way.** The previous version of this doc told you to build the
+control from its classes (`bg-muted p-1`, active `bg-background shadow-sm`) rather than naming a
+component. Twelve screens across core and the modules each grew their own copy of that markup, so
+a change to the look meant twelve edits — and a thirteenth was added by an agent that "extracted"
+the duplicate into a *second* component rather than noticing `Tabs` already existed, colliding
+with the unrelated `SegmentedControl` in `inertia/puck/style-controls.tsx`. Name components, not
+class strings.
+
+> `inertia/puck/style-controls.tsx` also exports a `SegmentedControl`. That one belongs to the
+> page builder's Element panel — a different context with a different density. Do not reach for it
+> from an admin page, and do not confuse the two.
 
 ## Admin list-page design pattern
 
@@ -99,8 +142,8 @@ Every admin list/table page follows one pattern (`inertia/pages/admin/content.ts
   shows a **breadcrumb** (`Admin › X`), not a duplicate title.
 - **No `<Card>` wrapper** around a `DataTable` — the table renders directly (it has its own
   elevated `bg-card` surface, toolbar, and pagination).
-- **Status/category filter → segmented control** in the DataTable `filters` slot
-  (`bg-muted p-1`, active = `bg-background shadow-sm`), not big tabs above the table.
+- **Status/category filter → `<TableFilterTabs>`** in the DataTable `filters` slot, not big tabs
+  above the table. See [Filters and tabs](#filters-and-tabs) — do **not** hand-roll the buttons.
 - **Primary cell**: stacked `flex flex-col leading-tight` with `font-medium` primary +
   `text-xs text-muted-foreground` secondary (e.g. title + slug).
 - **Tinted status badges**: `~/components/ui/badge` has `success` (green) / `warning` (amber)

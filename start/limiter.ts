@@ -70,6 +70,33 @@ export const registerThrottle = limiter.define('auth_register', ((ctx) =>
     .usingKey(`register_ip_${ctx.request.ip()}`)) as LimiterBuilder)
 
 /**
+ * Password reset requests, per IP.
+ *
+ * Each one sends an email to an address the requester chose, so an unlimited
+ * endpoint is a free way to flood someone else's inbox from our domain — and
+ * to burn our sending reputation doing it.
+ */
+export const forgotPasswordIpThrottle = limiter.define('auth_forgot_ip', ((ctx) =>
+  limiter
+    .allowRequests(5)
+    .every('1 hour')
+    .usingKey(`forgot_ip_${ctx.request.ip()}`)) as LimiterBuilder)
+
+/**
+ * Password reset requests, per target address.
+ *
+ * Caps how many mails one mailbox can be made to receive even when the requests
+ * come from many hosts. `emailKey` reads the `email` field, which is exactly
+ * what this form posts — unlike the login form, whose field is named `login`
+ * (see the note on `loginAccountThrottle`).
+ */
+export const forgotPasswordAccountThrottle = limiter.define('auth_forgot_account', ((ctx) =>
+  limiter
+    .allowRequests(3)
+    .every('1 hour')
+    .usingKey(`forgot_acct_${emailKey(ctx)}`)) as LimiterBuilder)
+
+/**
  * Installing a module and applying migrations — the two operations that run a
  * build on the production box and restart the site.
  *

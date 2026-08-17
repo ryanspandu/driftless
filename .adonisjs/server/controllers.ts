@@ -31,6 +31,7 @@ export const controllers = {
   GoogleAuth: () => import('#controllers/google_auth_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),
   PagesPublic: () => import('#controllers/pages_public_controller'),
+  PasswordReset: () => import('#controllers/password_reset_controller'),
   PublicCms: () => import('#controllers/public_cms_controller'),
   PublicContent: () => import('#controllers/public_content_controller'),
   Public: () => import('#controllers/public_controller'),

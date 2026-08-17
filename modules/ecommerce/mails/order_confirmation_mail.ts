@@ -1,4 +1,5 @@
 import { BaseMail } from '@adonisjs/mail'
+import type { MailPresentation } from '#mails/event_mail'
 
 export interface OrderConfirmationLine {
   title: string
@@ -15,7 +16,7 @@ export interface OrderConfirmationDownload {
   expiresNote: string | null
 }
 
-export interface OrderConfirmationContext {
+export interface OrderConfirmationContext extends MailPresentation {
   siteName: string
   number: string
   items: OrderConfirmationLine[]
@@ -59,7 +60,7 @@ export default class OrderConfirmationMail extends BaseMail {
 
     this.message
       .to(this.to)
-      .subject(`${context.siteName}: order ${context.number} confirmed`)
+      .subject(context.subject)
       .htmlView('emails/order_confirmation', { ...context, title: `Order ${context.number}` })
       /**
        * A text alternative, for the same two reasons the test mail has one:

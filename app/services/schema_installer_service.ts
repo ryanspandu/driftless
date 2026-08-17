@@ -1,5 +1,4 @@
 import app from '@adonisjs/core/services/app'
-import db from '@adonisjs/lucid/services/db'
 import { MigrationRunner } from '@adonisjs/lucid/migration'
 import PublicError, { publicError } from '#exceptions/public_error'
 import { LOCK_KEYS, withAdvisoryLock } from '#services/advisory_lock'
@@ -67,6 +66,21 @@ export interface InstallResult {
  */
 let inFlight: Promise<InstallResult> | null = null
 
+/**
+ * Resolve Lucid from the container rather than importing
+ * `@adonisjs/lucid/services/db`.
+ *
+ * That service module only assigns its export on `app.booted()`, which fires
+ * **after every provider's `boot()` has finished** — and `tablesReady()` is
+ * called from `ModulesProvider.boot()` during reconcile. Importing it gives
+ * `undefined` there, and only on a *fresh* database, because reconcile asks
+ * about tables solely for modules that have no row yet. Same reason
+ * `advisory_lock.ts` and both providers reach for the container.
+ */
+async function database() {
+  return app.container.make('lucid.db')
+}
+
 function classify(name: string): PendingMigration {
   const moduleMatch = name.match(/^modules\/([^/]+)\//)
   if (moduleMatch) return { name, origin: 'module', owner: moduleMatch[1]! }
@@ -83,7 +97,10 @@ export default class SchemaInstallerService {
    * this is safe to call on every page load.
    */
   async pending(): Promise<PendingMigration[]> {
-    const migrator = new MigrationRunner(db, app, { direction: 'up', dryRun: true })
+    const migrator = new MigrationRunner(await database(), app, {
+      direction: 'up',
+      dryRun: true,
+    })
     const list = await migrator.getList()
     return list.filter((row) => row.status === 'pending').map((row) => classify(row.name))
   }
@@ -118,7 +135,7 @@ export default class SchemaInstallerService {
    * abstraction for a bulk existence check — `hasTable` is singular by design.
    */
   private async existingTables(names: string[]): Promise<Set<string>> {
-    const connection = db.connection()
+    const connection = (await database()).connection()
 
     if (connection.dialect.name === 'postgres') {
       const result = await connection.rawQuery(
@@ -146,7 +163,7 @@ export default class SchemaInstallerService {
 
   /** Migration names `adonis_schema` currently records as run. */
   private async migratedNames(): Promise<Set<string>> {
-    const rows = await db.from('adonis_schema').select('name')
+    const rows = await (await database()).from('adonis_schema').select('name')
     return new Set(rows.map((row: { name: string }) => row.name))
   }
 
@@ -175,9 +192,10 @@ export default class SchemaInstallerService {
    * database and an absolutely unacceptable one behind an admin button.
    */
   private async hasBeenMigrated(): Promise<boolean> {
-    const schema = db.connection().schema
+    const lucid = await database()
+    const schema = lucid.connection().schema
     if (!(await schema.hasTable('adonis_schema'))) return false
-    const row = await db.from('adonis_schema').select('id').first()
+    const row = await lucid.from('adonis_schema').select('id').first()
     return Boolean(row)
   }
 
@@ -265,7 +283,7 @@ export default class SchemaInstallerService {
 
   /** Run the migrator and turn its result into an exception on failure. */
   private async execute(): Promise<void> {
-    const migrator = new MigrationRunner(db, app, {
+    const migrator = new MigrationRunner(await database(), app, {
       direction: 'up',
       // We hold our own lock; letting Lucid also try would fail (its
       // non-blocking acquire would see ours) and then throw from `shutdown()`.
@@ -327,7 +345,7 @@ export default class SchemaInstallerService {
     const prefix = `modules/${name}/migrations/%`
     const dropped: string[] = []
 
-    const trx = await db.transaction()
+    const trx = await (await database()).transaction()
     try {
       // Drop in reverse declaration order so a child table goes before the
       // parent it references.

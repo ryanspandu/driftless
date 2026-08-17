@@ -2,6 +2,40 @@ import app from '@adonisjs/core/services/app'
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
 import type { StatusPageRange, StatusPageRenderer } from '@adonisjs/core/types/http'
 import { renderPage } from '#helpers/inertia_render'
+import AuthPageOverrideService, { type OverrideSlot } from '#services/auth_page_override_service'
+import PageRenderer from '#services/page_renderer'
+
+const overrides = new AuthPageOverrideService()
+const renderer = new PageRenderer()
+
+/**
+ * Render a designated builder page for an error screen, or `null` to fall back.
+ *
+ * Everything is inside one `try`, and that is load-bearing rather than
+ * defensive habit: this runs on the 500 path, a 500 is very often a database
+ * that has gone away, and both the lookup and the render need the database. An
+ * unguarded call here turns one failure into a loop and the visitor gets
+ * nothing at all.
+ *
+ * `skipSnapshot` because the page is being served at some other URL entirely —
+ * caching that output under the page's own id would then serve an error screen
+ * at the page's real address.
+ */
+async function renderErrorOverride(
+  slot: OverrideSlot,
+  ctx: HttpContext,
+  status: number
+): Promise<unknown | null> {
+  try {
+    const page = await overrides.resolve(slot)
+    if (!page) return null
+    ctx.response.status(status)
+    return await renderer.render(page, ctx, { skipSnapshot: true })
+  } catch (error) {
+    console.error('[errors] error page override failed', { slot, error: (error as Error).message })
+    return null
+  }
+}
 
 export default class HttpExceptionHandler extends ExceptionHandler {
   /**
@@ -22,14 +56,26 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * to return the HTML contents to send as a response.
    */
   protected statusPages: Record<StatusPageRange, StatusPageRenderer> = {
-    '404': (_, ctx) => {
+    '404': async (_, ctx) => {
       // Admin pages get the in-dashboard 404 (sidebar chrome); everything else
-      // gets the public 404.
+      // gets the public 404. The admin branch deliberately has no override —
+      // an operator who mistypes a URL should keep their sidebar.
       const path = ctx.request.url()
-      const page = path.startsWith('/admin') ? 'admin/not_found' : 'errors/not_found'
-      return renderPage(ctx.inertia, page, { path })
+      if (path.startsWith('/admin')) {
+        return renderPage(ctx.inertia, 'admin/not_found', { path })
+      }
+
+      const override = await renderErrorOverride('notFound', ctx, 404)
+      if (override !== null) return override
+
+      return renderPage(ctx.inertia, 'errors/not_found', { path })
     },
-    '500..599': (_, ctx) => ctx.inertia.render('errors/server_error', {}),
+    '500..599': async (_, ctx) => {
+      const override = await renderErrorOverride('serverError', ctx, 500)
+      if (override !== null) return override
+
+      return ctx.inertia.render('errors/server_error', {})
+    },
   }
 
   /**

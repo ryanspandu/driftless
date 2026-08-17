@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react'
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode } from 'react'
 import {
   BookOpen,
   ChevronRight,
@@ -9,71 +9,46 @@ import {
   KeyRound,
   Mail,
   Package,
+  Palette,
   Plug2,
   SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react'
-import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
-import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
-import { WEBSITE_SETTING_SECTIONS } from '~/types/api'
-import { ImageSettingControl } from '~/components/admin/image-setting-control'
-import { WebsiteLogoDropzone } from '~/components/admin/website-logo-dropzone'
 import { PageHeader } from '~/components/admin/page-header'
 import { Badge } from '~/components/ui/badge'
-import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
-import { Input } from '~/components/ui/input'
-import { Label } from '~/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Can, useAbility } from '~/components/providers/ability-provider'
-import { useUpdateWebsiteSettings, useWebsiteSettings } from '~/hooks/api/use-website-settings'
 
-const AUTH_DEFAULT_BG = '/bg-login.webp'
-const AUTH_DEFAULT_LOGO = '/logo-text.svg'
-
+/**
+ * The Settings hub — links only.
+ *
+ * It used to be a hub *and* an editor: two live forms sat above the link cards,
+ * inside a tab set whose labels hid what was in them (the 404/500 overrides
+ * were filed under "Login & register"). Every form now lives on its own page,
+ * so this screen has exactly one job and every card reads the same way.
+ */
 export default function SettingsPage() {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  // Active tab lives in `?tab=` so each section is linkable. `admin-sidebar` is
-  // the default and is omitted from the URL.
-  const tab = useMemo(() => {
-    const t = searchParams.get('tab')
-    return t === 'auth-pages' ? t : 'admin-sidebar'
-  }, [searchParams])
-  const onTabChange = (value: string) => {
-    const merged = mergeSearchParamsLive(searchParams, {
-      tab: value === 'admin-sidebar' ? undefined : value,
-    })
-    replaceUrlIfChanged(pathname, router, merged, { scroll: false })
-  }
-
   return (
     <div className="space-y-8">
       <PageHeader
         title="Settings"
-        subtitle="Admin appearance, login pages, integrations, and developer access."
+        subtitle="Appearance, the public site, email, modules, integrations and developer access."
       />
 
       <Can permission="settings:manage">
         <div className="space-y-8">
           <SettingsSection
-            title="Appearance"
-            description="How the admin shell and the sign-in pages look."
+            title="Look & feel"
+            description="How the admin shell and the built-in public screens appear."
           >
-            <Tabs value={tab} onValueChange={(value) => onTabChange(value as string)}>
-              <TabsList className="grid h-auto grid-cols-1 gap-1 sm:grid-cols-2">
-                <TabsTrigger value="admin-sidebar">Admin sidebar</TabsTrigger>
-                <TabsTrigger value="auth-pages">Login &amp; register</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="admin-sidebar" className="mt-4">
-                <AdminSidebarSection />
-              </TabsContent>
-              <TabsContent value="auth-pages" className="mt-4">
-                <AuthPagesSection />
-              </TabsContent>
-            </Tabs>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SettingsLinkCard
+                icon={Palette}
+                title="Appearance"
+                description="Admin panel name and logo, the sign-in screens, and which of your pages replace the built-in login, register and error pages."
+                href="/admin/settings/appearance"
+              />
+            </div>
           </SettingsSection>
 
           <SettingsSection
@@ -102,7 +77,7 @@ export default function SettingsPage() {
               <SettingsLinkCard
                 icon={Mail}
                 title="Email"
-                description="SMTP credentials for transactional email — order receipts, resets. Send a test message."
+                description="SMTP credentials, which emails send, editable copy, and a delivery log."
                 href="/admin/settings/email"
               />
             </div>
@@ -235,198 +210,6 @@ function SettingsLinkCard({
     <Link href={href} className="block">
       {inner}
     </Link>
-  )
-}
-
-function AdminSidebarSection() {
-  const { data, isPending } = useWebsiteSettings()
-  const update = useUpdateWebsiteSettings()
-  const ab = data?.sections?.[WEBSITE_SETTING_SECTIONS.ADMIN_BRANDING]
-  const [projectName, setProjectName] = useState('Driftless')
-  const [projectTagline, setProjectTagline] = useState('CMS Admin')
-  const [logoUrl, setLogoUrl] = useState('/logo.svg')
-  const [saved, setSaved] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!ab) return
-    setProjectName(ab.project_name ?? 'Driftless')
-    setProjectTagline(ab.project_tagline ?? 'CMS Admin')
-    setLogoUrl(ab.logo_url ?? '/logo.svg')
-  }, [ab])
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    setFormError(null)
-    try {
-      await update.mutateAsync({
-        patches: [
-          {
-            section: WEBSITE_SETTING_SECTIONS.ADMIN_BRANDING,
-            key: 'project_name',
-            value: projectName.trim() || 'Driftless',
-          },
-          {
-            section: WEBSITE_SETTING_SECTIONS.ADMIN_BRANDING,
-            key: 'project_tagline',
-            value: projectTagline.trim(),
-          },
-          {
-            section: WEBSITE_SETTING_SECTIONS.ADMIN_BRANDING,
-            key: 'logo_url',
-            value: logoUrl.trim() || '/logo.svg',
-          },
-        ],
-      })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not save.')
-    }
-  }
-
-  return (
-    <form onSubmit={onSubmit}>
-      <Card>
-        <CardHeader>
-          <CardDescription>
-            Name, tagline, and logo in the admin shell (stored as key–value rows in the database).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <WebsiteLogoDropzone value={logoUrl} onChange={setLogoUrl} disabled={isPending} />
-          <div className="space-y-2">
-            <Label htmlFor="projectName">Website name</Label>
-            <Input
-              id="projectName"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="Driftless"
-              autoComplete="off"
-              disabled={isPending}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="projectTagline">Sidebar tagline</Label>
-            <Input
-              id="projectTagline"
-              value={projectTagline}
-              onChange={(e) => setProjectTagline(e.target.value)}
-              placeholder="CMS Admin"
-              autoComplete="off"
-              disabled={isPending}
-            />
-            <p className="text-xs text-muted-foreground">
-              Short line under the website name in the sidebar.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={isPending || update.isPending}>
-              Save admin sidebar
-            </Button>
-          </div>
-          {formError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {formError}
-            </p>
-          ) : null}
-          {saved ? (
-            <p className="text-sm text-green-600 dark:text-green-500" role="status">
-              Admin sidebar saved.
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
-    </form>
-  )
-}
-
-function AuthPagesSection() {
-  const { data, isPending } = useWebsiteSettings()
-  const update = useUpdateWebsiteSettings()
-  const ap = data?.sections?.[WEBSITE_SETTING_SECTIONS.AUTH_PAGES]
-  const [backgroundUrl, setBackgroundUrl] = useState(AUTH_DEFAULT_BG)
-  const [logoUrl, setLogoUrl] = useState(AUTH_DEFAULT_LOGO)
-  const [saved, setSaved] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!ap) return
-    setBackgroundUrl(ap.background_url ?? AUTH_DEFAULT_BG)
-    setLogoUrl(ap.logo_url ?? AUTH_DEFAULT_LOGO)
-  }, [ap])
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    setFormError(null)
-    try {
-      await update.mutateAsync({
-        patches: [
-          {
-            section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
-            key: 'background_url',
-            value: backgroundUrl.trim() || AUTH_DEFAULT_BG,
-          },
-          {
-            section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
-            key: 'logo_url',
-            value: logoUrl.trim() || AUTH_DEFAULT_LOGO,
-          },
-        ],
-      })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not save.')
-    }
-  }
-
-  return (
-    <form onSubmit={onSubmit}>
-      <Card>
-        <CardHeader>
-          <CardDescription>
-            Left panel on sign-in and sign-up: background image and logo. Uses the same layout for
-            both pages.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <ImageSettingControl
-            label="Background image"
-            value={backgroundUrl}
-            onChange={setBackgroundUrl}
-            defaultAsset={AUTH_DEFAULT_BG}
-            resetLabel="Use default background"
-            disabled={isPending}
-            preview="wide"
-          />
-          <ImageSettingControl
-            label="Panel logo"
-            value={logoUrl}
-            onChange={setLogoUrl}
-            defaultAsset={AUTH_DEFAULT_LOGO}
-            resetLabel="Use default logo"
-            disabled={isPending}
-            preview="square"
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={isPending || update.isPending}>
-              Save login &amp; register
-            </Button>
-          </div>
-          {formError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {formError}
-            </p>
-          ) : null}
-          {saved ? (
-            <p className="text-sm text-green-600 dark:text-green-500" role="status">
-              Login &amp; register appearance saved.
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
-    </form>
   )
 }
 

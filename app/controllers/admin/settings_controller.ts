@@ -70,6 +70,15 @@ export default class SettingsController {
     return inertia.render('admin/settings', {})
   }
 
+  /**
+   * Admin-shell branding, the sign-in screens, and the built-in-page overrides.
+   *
+   * Moved off the Settings hub, which was a hub and an editor at once.
+   */
+  async appearanceSettingsPage({ inertia }: HttpContext) {
+    return renderPage(inertia, 'admin/settings/appearance', {})
+  }
+
   /** Public website settings — site/SEO + global meta tags + global custom code. */
   async websiteSettingsPage({ inertia }: HttpContext) {
     return inertia.render('admin/website-settings', {})

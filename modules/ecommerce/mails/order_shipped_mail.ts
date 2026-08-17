@@ -1,7 +1,8 @@
 import { BaseMail } from '@adonisjs/mail'
+import type { MailPresentation } from '#mails/event_mail'
 import type { OrderConfirmationLine } from '#modules/ecommerce/mails/order_confirmation_mail'
 
-export interface OrderShippedContext {
+export interface OrderShippedContext extends MailPresentation {
   siteName: string
   number: string
   carrier: string | null
@@ -37,7 +38,7 @@ export default class OrderShippedMail extends BaseMail {
 
     this.message
       .to(this.to)
-      .subject(`${context.siteName}: order ${context.number} has shipped`)
+      .subject(context.subject)
       .htmlView('emails/order_shipped', { ...context, title: `Order ${context.number} shipped` })
       .text(this.plainText())
   }

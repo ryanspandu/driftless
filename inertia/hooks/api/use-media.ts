@@ -90,12 +90,37 @@ export function useReplaceMediaFile() {
   })
 }
 
+/**
+ * Read an image's intrinsic pixel size before it is sent.
+ *
+ * The server has no decoder, so the dimensions have to come from here — the
+ * browser is about to decode the file anyway to preview it. Anything it refuses
+ * to decode (an SVG with no intrinsic size, a corrupt file) simply uploads
+ * without dimensions rather than failing the upload over metadata.
+ */
+async function readImageSize(file: File): Promise<{ width: number; height: number } | null> {
+  if (!file.type.startsWith('image/')) return null
+  try {
+    const bitmap = await createImageBitmap(file)
+    const size = { width: bitmap.width, height: bitmap.height }
+    bitmap.close()
+    return size
+  } catch {
+    return null
+  }
+}
+
 export function useUploadMedia() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (file: File) => {
       const form = new FormData()
       form.append('file', file)
+      const size = await readImageSize(file)
+      if (size) {
+        form.append('width', String(size.width))
+        form.append('height', String(size.height))
+      }
       try {
         const res = await api.post<MediaDto>('/api/admin/media', form, {
           headers: { 'Content-Type': 'multipart/form-data' },

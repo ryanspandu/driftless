@@ -29,6 +29,7 @@ import {
   SpacingControl,
   type SegmentedOption,
 } from './style-controls'
+import { BackgroundLayersControl } from './background-controls'
 import { ICONS, LABELS } from './overrides'
 
 /**
@@ -227,9 +228,8 @@ const ALIGN_SELF_OPTIONS = [
   { label: 'Baseline', value: 'baseline' },
 ]
 
-const STYLE_SECTIONS: { title: string; keys: string[]; defaultOpen?: boolean }[] = [
-  { title: 'Background', keys: ['bg'], defaultOpen: true },
-]
+/** `bg` is the base colour; `backgrounds` is the layer stack painted over it. */
+const BACKGROUND_KEYS = ['bg', 'backgrounds']
 
 const STYLE_KEYS = new Set([
   ...SPACING_KEYS,
@@ -241,27 +241,8 @@ const STYLE_KEYS = new Set([
   ...BORDER_KEYS,
   ...FLEXCHILD_KEYS,
   ...ADVANCED_KEYS,
-  ...STYLE_SECTIONS.flatMap((s) => s.keys),
+  ...BACKGROUND_KEYS,
 ])
-
-/** Compact, Webflow-ish labels for the inline style rows. */
-const SHORT_LABELS: Record<string, string> = {
-  width: 'Width',
-  maxWidth: 'Max W',
-  minHeight: 'Min H',
-  font: 'Font',
-  fontWeight: 'Weight',
-  textSize: 'Size',
-  lineHeight: 'Line H',
-  textColor: 'Color',
-  align: 'Align',
-  bg: 'Color',
-  borderWidth: 'Width',
-  borderColor: 'Color',
-  borderRadius: 'Radius',
-  boxShadow: 'Shadow',
-  className: 'Class',
-}
 
 export function DetailPanel() {
   const { selectedItem, config, dispatch, getSelectorForId } = usePuck()
@@ -307,7 +288,9 @@ export function DetailPanel() {
     <div className="pb-10">
       <div className="flex items-center gap-2 border-b px-3 py-2.5 text-sm font-semibold">
         {Icon ? <Icon className="size-4 text-muted-foreground" /> : null}
-        {(config.components?.[type] as { label?: string } | undefined)?.label ?? LABELS[type] ?? type}
+        {(config.components?.[type] as { label?: string } | undefined)?.label ??
+          LABELS[type] ??
+          type}
       </div>
 
       {contentKeys.length > 0 && (
@@ -346,26 +329,7 @@ export function DetailPanel() {
 
       {hasStyle && <TypographySection props={props} update={update} />}
 
-      {STYLE_SECTIONS.map((sec) => {
-        const keys = sec.keys.filter((k) => k in fields)
-        if (keys.length === 0) return null
-        return (
-          <Section key={sec.title} title={sec.title} defaultOpen={sec.defaultOpen}>
-            {keys.map((k) => (
-              <FieldRow
-                key={k}
-                inline
-                field={fields[k]}
-                name={k}
-                itemId={id}
-                label={SHORT_LABELS[k] ?? fields[k]?.label ?? k}
-                value={props[k]}
-                onChange={(v) => update({ [k]: v })}
-              />
-            ))}
-          </Section>
-        )
-      })}
+      {'bg' in fields && <BackgroundSection props={props} update={update} />}
 
       {hasStyle && <BordersSection props={props} update={update} />}
 
@@ -373,6 +337,37 @@ export function DetailPanel() {
 
       {hasStyle && <AdvancedSection props={props} update={update} />}
     </div>
+  )
+}
+
+/**
+ * Webflow's Backgrounds panel: the base colour, then the layer stack over it.
+ *
+ * The colour stays a plain `bg` string — it was here before layers existed and
+ * every page still uses it — while the stack lives in its own `backgrounds`
+ * array. Keeping them separate is what lets a page with no layers compile to
+ * exactly the CSS it always did.
+ */
+function BackgroundSection({
+  props,
+  update,
+}: {
+  props: Record<string, unknown>
+  update: (patch: Record<string, unknown>) => void
+}) {
+  const bg = typeof props.bg === 'string' ? props.bg : ''
+  return (
+    <Section title="Backgrounds">
+      <InlineRow label="Color" set={!!bg}>
+        <ColorControl value={bg} onChange={(v) => update({ bg: v })} />
+      </InlineRow>
+      <BackgroundLayersControl
+        value={props.backgrounds}
+        // Stored as `undefined` when empty so an untouched block keeps the exact
+        // prop set it had, rather than gaining an empty array on first glance.
+        onChange={(layers) => update({ backgrounds: layers.length ? layers : undefined })}
+      />
+    </Section>
   )
 }
 
@@ -418,7 +413,7 @@ function EffectsSection({
             onChange={(e) => setPct(Number(e.target.value))}
             className="h-1.5 flex-1 cursor-pointer accent-blue-500"
           />
-          <div className="flex h-8 items-center rounded-md border border-input bg-background px-1.5">
+          <div className="flex h-7 items-center rounded-md border border-input bg-background px-1.5">
             <input
               type="number"
               min={0}
@@ -538,7 +533,10 @@ function BordersSection({
         />
       </InlineRow>
       <InlineRow label="Width" set={!!get('borderWidth')}>
-        <NumberUnitControl value={get('borderWidth')} onChange={(v) => update({ borderWidth: v })} />
+        <NumberUnitControl
+          value={get('borderWidth')}
+          onChange={(v) => update({ borderWidth: v })}
+        />
       </InlineRow>
       <InlineRow label="Color" set={!!get('borderColor')}>
         <ColorControl value={get('borderColor')} onChange={(v) => update({ borderColor: v })} />
@@ -675,9 +673,12 @@ function SizeSection({
           )
         })}
       </div>
-      <div className="flex min-h-8 items-center gap-2 pt-1">
+      <div className="flex min-h-7 items-center gap-2 pt-1">
         <span
-          className={cn('w-14 shrink-0 text-xs', overflow ? 'text-blue-400' : 'text-muted-foreground')}
+          className={cn(
+            'w-14 shrink-0 text-xs',
+            overflow ? 'text-blue-400' : 'text-muted-foreground'
+          )}
         >
           Overflow
         </span>
@@ -796,7 +797,10 @@ function TypographySection({
           <NumberUnitControl value={get('textSize')} onChange={(v) => update({ textSize: v })} />
         </StackField>
         <StackField label="Height" set={!!get('lineHeight')}>
-          <NumberUnitControl value={get('lineHeight')} onChange={(v) => update({ lineHeight: v })} />
+          <NumberUnitControl
+            value={get('lineHeight')}
+            onChange={(v) => update({ lineHeight: v })}
+          />
         </StackField>
       </div>
       <InlineRow label="Color" set={!!get('textColor')}>
@@ -883,7 +887,7 @@ function TypographySection({
 
 function InlineRow({ label, set, children }: { label: string; set: boolean; children: ReactNode }) {
   return (
-    <div className="flex min-h-8 items-center gap-2">
+    <div className="flex min-h-7 items-center gap-2">
       <span
         className={cn(
           'w-14 shrink-0 text-xs leading-tight',
@@ -897,7 +901,15 @@ function InlineRow({ label, set, children }: { label: string; set: boolean; chil
   )
 }
 
-function StackField({ label, set, children }: { label: string; set: boolean; children: ReactNode }) {
+function StackField({
+  label,
+  set,
+  children,
+}: {
+  label: string
+  set: boolean
+  children: ReactNode
+}) {
   return (
     <div>
       <span className={cn('mb-1 block text-xs', set ? 'text-blue-400' : 'text-muted-foreground')}>
@@ -958,10 +970,16 @@ function FieldRow({
 
   if (inline) {
     return (
-      <div className="flex min-h-8 items-center gap-2">
+      <div className="flex min-h-7 items-center gap-2">
         <span className={cn('w-14 shrink-0 leading-tight', labelCls)}>{label}</span>
         <div className="min-w-0 flex-1">
-          <FieldControl field={field} name={name} itemId={itemId} value={value} onChange={onChange} />
+          <FieldControl
+            field={field}
+            name={name}
+            itemId={itemId}
+            value={value}
+            onChange={onChange}
+          />
         </div>
       </div>
     )
@@ -976,7 +994,7 @@ function FieldRow({
 }
 
 const inputCls =
-  'h-8 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-1 focus:ring-ring'
+  'h-7 w-full rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-ring'
 
 function FieldControl({
   field,
@@ -1045,11 +1063,15 @@ function FieldControl({
   }
 
   if (field.type === 'array') {
-    return <ArrayControl field={field} name={name} itemId={itemId} value={value} onChange={onChange} />
+    return (
+      <ArrayControl field={field} name={name} itemId={itemId} value={value} onChange={onChange} />
+    )
   }
 
   if (field.type === 'object') {
-    return <ObjectControl field={field} name={name} itemId={itemId} value={value} onChange={onChange} />
+    return (
+      <ObjectControl field={field} name={name} itemId={itemId} value={value} onChange={onChange} />
+    )
   }
 
   if (field.type === 'textarea') {

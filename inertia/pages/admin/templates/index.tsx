@@ -6,6 +6,7 @@ import { Copy, MoreHorizontal, Plus, SquarePen, Star, Trash2 } from 'lucide-reac
 import type { TemplateSummaryDto, TemplateType } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +23,7 @@ import {
   useDuplicateTemplate,
   useSetDefaultTemplate,
 } from '~/hooks/api/use-templates'
-import { cn, formatAdminTableDateTime } from '~/lib/utils'
+import { formatAdminTableDateTime } from '~/lib/utils'
 import { apiErrorMessage } from '~/lib/api'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
@@ -33,6 +34,7 @@ const TYPE_LABEL: Record<TemplateType, string> = {
   FOOTER: 'Footer',
   COMPONENT: 'Component',
   LAYOUT: 'Layout',
+  EMAIL: 'Email',
 }
 
 type TabValue = 'all' | TemplateType
@@ -43,13 +45,16 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: 'FOOTER', label: 'Footers' },
   { value: 'COMPONENT', label: 'Components' },
   { value: 'LAYOUT', label: 'Layouts' },
+  { value: 'EMAIL', label: 'Emails' },
 ]
 
 // Read the active tab from `?tab=` so views are linkable. URLs stay lowercase
 // (`?tab=header`); `all` is the default and omitted from the query string.
 function parseTemplatesTab(sp: ReturnType<typeof useSearchParams>): TabValue {
   const t = (sp.get('tab') ?? '').toUpperCase()
-  if (t === 'HEADER' || t === 'FOOTER' || t === 'COMPONENT' || t === 'LAYOUT') return t
+  if (t === 'HEADER' || t === 'FOOTER' || t === 'COMPONENT' || t === 'LAYOUT' || t === 'EMAIL') {
+    return t
+  }
   return 'all'
 }
 
@@ -185,27 +190,15 @@ export default function TemplatesPage() {
   // table toolbar as a compact segmented control. Filtering is server-side, so
   // only the active tab's row count is known — per-segment counts are omitted.
   const typeFilter = (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
-      {TABS.map((t) => {
-        const active = tab === t.value
-        return (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => onTabChange(t.value)}
-            aria-pressed={active}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-              active
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
+    <Tabs value={tab} onValueChange={(value) => onTabChange(value as TabValue)}>
+      <TabsList>
+        {TABS.map((t) => (
+          <TabsTrigger key={t.value} value={t.value}>
             {t.label}
-          </button>
-        )
-      })}
-    </div>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   )
 
   return (

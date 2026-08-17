@@ -28,6 +28,25 @@ export default class Page extends BaseModel {
   @column()
   declare renderMode: 'SSR' | 'SSG' | 'CSR'
 
+  /**
+   * Builder document or hand-written React.
+   *
+   * A CODE page ignores `content` entirely — its markup comes from the custom
+   * component named by `component`.
+   */
+  @column()
+  declare kind: 'BUILDER' | 'CODE'
+
+  /**
+   * Custom page slug for a CODE page, resolved against `inertia/custom/pages/`.
+   *
+   * Deliberately **not** an Inertia component name: the renderer looks this up
+   * in a glob scoped to that one folder, so a page row cannot address an admin
+   * screen or any other page in the app.
+   */
+  @column()
+  declare component: string | null
+
   /** Puck block tree (`{ content, root, zones }`). */
   @column(jsonColumn)
   declare content: Record<string, unknown>
@@ -60,6 +79,19 @@ export default class Page extends BaseModel {
 
   @column()
   declare footerTemplateId: string | null
+
+  /**
+   * Render no header / no footer at all.
+   *
+   * Separate from the ids above because null there means "use the site
+   * default" — there was no way to say "none", which a sign-in or landing page
+   * that owns the whole viewport needs.
+   */
+  @column()
+  declare hideHeader: boolean
+
+  @column()
+  declare hideFooter: boolean
 
   @column()
   declare authorId: number | null

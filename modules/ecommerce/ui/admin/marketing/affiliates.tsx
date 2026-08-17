@@ -28,6 +28,7 @@ import { useUrlState } from '~/hooks/use-url-state'
 import { apiErrorMessage } from '~/lib/api-client'
 import { cn } from '~/lib/utils'
 import { useAffiliates, useSaveAffiliate, type AffiliateDto } from '../_api'
+import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
@@ -313,27 +314,11 @@ export default function AffiliatesPage() {
   )
 
   const statusFilter = (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
-      {FILTERS.map((f) => {
-        const active = filter === f.value
-        return (
-          <button
-            key={f.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() => setFilter(f.value)}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-              active
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {f.label}
-          </button>
-        )
-      })}
-    </div>
+    <TableFilterTabs
+      value={filter}
+      options={FILTERS}
+      onChange={setFilter}
+    />
   )
 
   return (

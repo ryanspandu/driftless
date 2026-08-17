@@ -210,6 +210,7 @@ export interface UpdateIntegrationSettingsRequest {
 export const WEBSITE_SETTING_SECTIONS = {
   ADMIN_BRANDING: 'admin_branding',
   AUTH_PAGES: 'auth_pages',
+  ERROR_PAGES: 'error_pages',
   SITE_META: 'site_meta',
 } as const
 
@@ -267,15 +268,24 @@ export interface UpdateContentRequest {
 export type PageRenderMode = 'SSR' | 'SSG' | 'CSR'
 
 /** List row — omits the (potentially large) Puck block tree. */
+/** Builder document, or a hand-written React component under `inertia/custom/pages/`. */
+export type PageKind = 'BUILDER' | 'CODE'
+
 export interface PageSummaryDto {
   id: string
   title: string
   path: string
   status: ContentStatus
   renderMode: PageRenderMode
+  kind: PageKind
+  /** Custom page slug; only set when `kind` is `CODE`. */
+  component: string | null
   layoutId: string | null
   headerTemplateId: string | null
   footerTemplateId: string | null
+  /** Render no header / no footer at all — distinct from "use the site default". */
+  hideHeader: boolean
+  hideFooter: boolean
   authorId: number | null
   publishedAt: string | null
   createdAt: string
@@ -292,9 +302,13 @@ export interface CreatePageRequest {
   path: string
   status?: ContentStatus
   renderMode?: PageRenderMode
+  kind?: PageKind
+  component?: string | null
   layoutId?: string | null
   headerTemplateId?: string | null
   footerTemplateId?: string | null
+  hideHeader?: boolean
+  hideFooter?: boolean
   content?: Record<string, unknown>
   seo?: Record<string, unknown>
 }
@@ -304,14 +318,18 @@ export interface UpdatePageRequest {
   path?: string
   status?: ContentStatus
   renderMode?: PageRenderMode
+  kind?: PageKind
+  component?: string | null
   layoutId?: string | null
   headerTemplateId?: string | null
   footerTemplateId?: string | null
+  hideHeader?: boolean
+  hideFooter?: boolean
   content?: Record<string, unknown>
   seo?: Record<string, unknown>
 }
 
-export type TemplateType = 'HEADER' | 'FOOTER' | 'COMPONENT' | 'LAYOUT'
+export type TemplateType = 'HEADER' | 'FOOTER' | 'COMPONENT' | 'LAYOUT' | 'EMAIL'
 
 export interface TemplateSummaryDto {
   id: string
@@ -324,6 +342,8 @@ export interface TemplateSummaryDto {
 
 export interface TemplateDto extends TemplateSummaryDto {
   content: Record<string, unknown>
+  /** Email HTML; only EMAIL templates have one, and only once published. */
+  renderedHtml: string | null
 }
 
 export interface CreateTemplateRequest {
@@ -337,6 +357,8 @@ export interface UpdateTemplateRequest {
   name?: string
   content?: Record<string, unknown>
   isDefault?: boolean
+  /** Rendered in the builder on publish; ignored for non-EMAIL templates. */
+  renderedHtml?: string | null
 }
 
 export interface ModuleNavSubItem {

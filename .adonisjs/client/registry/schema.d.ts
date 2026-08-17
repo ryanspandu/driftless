@@ -103,6 +103,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/public_templates_controller').default['show']>>>
     }
   }
+  'media.serve': {
+    methods: ["GET","HEAD"]
+    pattern: '/media/*'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { '*': ParamValue[] }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['serve']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['serve']>>>
+    }
+  }
+  'media.serveLegacy': {
+    methods: ["GET","HEAD"]
+    pattern: '/uploads/*'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { '*': ParamValue[] }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['serve']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/media_controller').default['serve']>>>
+    }
+  }
   'seo.robots': {
     methods: ["GET","HEAD"]
     pattern: '/robots.txt'
@@ -233,6 +257,54 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>>
+    }
+  }
+  'password_reset.create': {
+    methods: ["GET","HEAD"]
+    pattern: '/forgot-password'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_reset_controller').default['create']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_reset_controller').default['create']>>>
+    }
+  }
+  'password_reset.store': {
+    methods: ["POST"]
+    pattern: '/forgot-password'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_reset_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_reset_controller').default['store']>>>
+    }
+  }
+  'password_reset.edit': {
+    methods: ["GET","HEAD"]
+    pattern: '/reset-password/:token'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { token: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_reset_controller').default['edit']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_reset_controller').default['edit']>>>
+    }
+  }
+  'password_reset.update': {
+    methods: ["POST"]
+    pattern: '/reset-password'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_reset_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_reset_controller').default['update']>>>
     }
   }
   'legacy.signup.store': {
@@ -893,6 +965,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['collections']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['collections']>>>
+    }
+  }
+  'pages.code_components': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/pages/code-components'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['codeComponents']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['codeComponents']>>>
     }
   }
   'pages.store': {
@@ -1615,6 +1699,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['settingsPage']>>>
     }
   }
+  'settings.appearance_settings_page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/settings/appearance'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['appearanceSettingsPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['appearanceSettingsPage']>>>
+    }
+  }
   'settings.general_settings_page': {
     methods: ["GET","HEAD"]
     pattern: '/admin/settings/general'
@@ -1757,6 +1853,42 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['sendTest']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['sendTest']>>>
+    }
+  }
+  'mail_settings.events': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/settings/mail/events'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['events']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['events']>>>
+    }
+  }
+  'mail_settings.update_event': {
+    methods: ["PUT"]
+    pattern: '/api/admin/settings/mail/events/:key'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['updateEvent']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['updateEvent']>>>
+    }
+  }
+  'mail_settings.deliveries': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/settings/mail/deliveries'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['deliveries']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['deliveries']>>>
     }
   }
   'settings.get_web_settings': {

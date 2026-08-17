@@ -1,7 +1,8 @@
 import { BaseMail } from '@adonisjs/mail'
+import type { MailPresentation } from '#mails/event_mail'
 import type { OrderConfirmationLine } from '#modules/ecommerce/mails/order_confirmation_mail'
 
-export interface BasketReminderContext {
+export interface BasketReminderContext extends MailPresentation {
   siteName: string
   items: OrderConfirmationLine[]
   total: string
@@ -37,7 +38,7 @@ export default class BasketReminderMail extends BaseMail {
 
     this.message
       .to(this.to)
-      .subject(`${context.siteName}: you left something in your basket`)
+      .subject(context.subject)
       .header('List-Unsubscribe', `<${context.unsubscribeUrl}>`)
       .header('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click')
       .htmlView('emails/basket_reminder', { ...context, title: 'Your basket' })

@@ -39,6 +39,7 @@ Open http://localhost:3333 (default). Admin seed credentials are in `.env.exampl
 | Audience | Entry |
 |----------|--------|
 | **Users / admins** | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) |
+| **Operators (self-hosting)** | [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) — including [email setup](docs/SELF_HOSTING.md#setting-up-email) |
 | **AI assistants** | [AGENTS.md](AGENTS.md) → [docs/ai/](docs/ai/) |
 | **Migration from legacy stack** | [docs/LEGACY_MIGRATION.md](docs/LEGACY_MIGRATION.md) |
 
@@ -64,22 +65,15 @@ Every admin table is built from a single shared component (`inertia/components/d
 
 When adding a page with tabular data, reuse this `DataTable` component rather than writing a new table. Details: [docs/ai/frontend.md](docs/ai/frontend.md#data-tables).
 
-## Plugins
-
-A **plugin** packages a feature — its back-end *and* front-end — in a single folder under `plugins/<name>/`. A plugin can provide an **admin dashboard** and a **public page** for visitors.
-
-- **Manage them** at **Admin → Plugins** (`/admin/plugins`): each installed plugin has an **Active** toggle. Disabling hides its menu and blocks its routes immediately, without a restart; its data is kept and restored when you re-enable it.
-- **Example:** the bundled **Announcements** plugin ([`plugins/announcements/`](plugins/announcements)) — manage entries at `/admin/announcements`, visitors read them at `/announcements`.
-- **Add one:** create a folder under `plugins/`, register it in `plugins/registry.ts`, run migrations, and `npm run build` once. Full guide: [docs/ai/plugins.md](docs/ai/plugins.md).
-
 ## Modules
 
 A **module** is a first-party feature area — back-end *and* front-end — in a single folder under `modules/<name>/`. Same packaging as a plugin, but for core parts of *your* product; enabled modules get a first-class **Apps** group in the sidebar.
 
+- **Apps and plugins are one system.** `kind` on the manifest is the only difference: an *app* is a first-party part of your product, a *plugin* is a narrower third-party add-on. There is no separate `plugins/` directory.
 - **Manage them** at **Settings → Modules** (`/admin/settings/application`): install, enable/disable (DB-backed, no restart) and remove each one, with **Apps** and **Plugins** on separate tabs. Folders dropped into `modules/` that the running server has not loaded yet appear above the tabs with an Install button.
 - **Settings → General** (`/admin/settings/general`) turns the public site on/off (dashboard-only SAAS mode), controls public sign-up, and hides core sidebar menus (hidden menus' pages return a clean in-dashboard 404).
-- **Example:** the bundled **Tasks** module ([`modules/tasks/`](modules/tasks)) — a lightweight task tracker at `/admin/tasks`.
-- **Add one:** `node ace make:module <name>`, register it in `modules/registry.ts`, run migrations, and `npm run build` once. Full guide: [docs/ai/modules.md](docs/ai/modules.md).
+- **Examples:** **Tasks** ([`modules/tasks/`](modules/tasks)) at `/admin/tasks`, and **Announcements** ([`modules/announcements/`](modules/announcements)) at `/admin/announcements`.
+- **Add one:** `node ace make:module <name>`, run migrations, and `npm run build` once. **Nothing to register** — a folder is found because it holds a `module.ts` whose `name` matches it, which is what lets an installer add one by copying a directory. Full guide: [docs/ai/modules.md](docs/ai/modules.md).
 
 ## License
 

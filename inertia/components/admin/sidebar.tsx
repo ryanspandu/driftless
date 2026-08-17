@@ -23,6 +23,7 @@ import {
 // code path keeps using Lucide (see CollectionMenuIcon).
 import { Boxes } from 'lucide-react'
 import { cn } from '~/lib/utils'
+import { useAdminBranding } from '~/hooks/use-admin-branding'
 import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
 import { useModulesMenu } from '~/hooks/api/use-modules'
 import { useNavConfig } from '~/hooks/api/use-nav-config'
@@ -157,6 +158,8 @@ export function AppSidebar({ pathname }: { pathname: string }) {
       me.email?.[0]?.toUpperCase() ||
       'U'
     : 'U'
+
+  const branding = useAdminBranding()
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -318,12 +321,25 @@ export function AppSidebar({ pathname }: { pathname: string }) {
       >
         {!collapsed && (
           <>
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground ring-2 ring-primary/15">
-              D
-            </div>
+            {branding.logoUrl ? (
+              <img
+                src={branding.logoUrl}
+                alt={branding.projectName}
+                className="size-8 shrink-0 rounded-lg object-contain"
+              />
+            ) : (
+              /* No logo set: the initial badge, which is what this has always
+                 shown. Falling back to a file would make a cleared logo look
+                 like a broken image. */
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground ring-2 ring-primary/15">
+                {branding.projectName.slice(0, 1).toUpperCase()}
+              </div>
+            )}
             <div className="flex min-w-0 flex-col leading-tight">
-              <span className="truncate text-sm font-semibold">Driftless</span>
-              <span className="truncate text-[11px] text-sidebar-foreground/50">Admin panel</span>
+              <span className="truncate text-sm font-semibold">{branding.projectName}</span>
+              <span className="truncate text-[11px] text-sidebar-foreground/50">
+                {branding.projectTagline}
+              </span>
             </div>
           </>
         )}

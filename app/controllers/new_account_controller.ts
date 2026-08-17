@@ -6,6 +6,8 @@ import vine from '@vinejs/vine'
 import CaptchaService from '#services/captcha_service'
 import { IntegrationSettingsService, WebSettingsService } from '#services/settings_service'
 import { SELF_REGISTERED_ROLE } from '#database/seeder_constants'
+import AuthPageOverrideService from '#services/auth_page_override_service'
+import PageRenderer from '#services/page_renderer'
 
 const signupValidator = vine.compile(
   vine.object({
@@ -21,6 +23,8 @@ const signupValidator = vine.compile(
 const integrationService = new IntegrationSettingsService()
 const captchaService = new CaptchaService()
 const webSettingsService = new WebSettingsService()
+const overrides = new AuthPageOverrideService()
+const renderer = new PageRenderer()
 
 function signupFailure(
   response: HttpContext['response'],
@@ -47,10 +51,22 @@ async function assertRegistrationOpen() {
 }
 
 export default class NewAccountController {
-  async create({ inertia }: HttpContext) {
+  async create(ctx: HttpContext) {
+    /**
+     * The gate runs *before* the override lookup. Closed registration has to
+     * stay a 404 whichever screen would have been rendered — an override must
+     * not become a way around the toggle.
+     */
     await assertRegistrationOpen()
+
+    const override = await overrides.resolve('register')
+    if (override) {
+      // See the note in `SessionController.create` for why `skipSnapshot`.
+      return renderer.render(override, ctx, { skipSnapshot: true })
+    }
+
     const authConfig = await integrationService.getAuthPublicConfig()
-    return inertia.render('auth/signup', { authConfig })
+    return ctx.inertia.render('auth/signup', { authConfig })
   }
 
   async store({ request, response, auth, session }: HttpContext) {

@@ -27,9 +27,14 @@ export default class TemplatesController {
   }
 
   async update({ params, request, response }: HttpContext) {
-    const { name, content, isDefault } = request.all()
+    const { name, content, isDefault, renderedHtml } = request.all()
     try {
-      const item = await templatesService.update(params.id, { name, content, isDefault })
+      const item = await templatesService.update(params.id, {
+        name,
+        content,
+        isDefault,
+        renderedHtml,
+      })
       return response.json(item)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })

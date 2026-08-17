@@ -10,6 +10,7 @@ import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { useUrlState } from '~/hooks/use-url-state'
 import { cn, formatAdminTableDateTime } from '~/lib/utils'
 import { useOrders, type OrderListItemDto, type OrderStage, type PaymentStatus } from '../_api'
+import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 /**
  * Tabs are cut by **stage**, not by payment status.
@@ -181,30 +182,13 @@ export default function OrdersPage() {
   )
 
   const stageFilter = (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
-      {STAGE_FILTERS.map((f) => {
-        const active = stage === f.value
-        return (
-          <button
-            key={f.value}
-            type="button"
-            aria-pressed={active}
-            title={f.hint}
-            onClick={() =>
-              url.set({ stage: f.value === 'all' ? undefined : f.value, page: undefined })
-            }
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-              active
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {f.label}
-          </button>
-        )
-      })}
-    </div>
+    <TableFilterTabs
+      value={stage}
+      options={STAGE_FILTERS}
+      onChange={(value) =>
+        url.set({ stage: value === 'all' ? undefined : value, page: undefined })
+      }
+    />
   )
 
   return (

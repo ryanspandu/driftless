@@ -10,8 +10,8 @@ import { Can } from '~/components/providers/ability-provider'
 import { useUrlState } from '~/hooks/use-url-state'
 import { apiErrorMessage } from '~/lib/api-client'
 import { formatMoney } from '../../lib/money'
-import { cn } from '~/lib/utils'
 import { useCommissions, usePayCommissions, useStoreSettings, type CommissionDto } from '../_api'
+import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 type StatusFilter = 'all' | CommissionDto['status']
 
@@ -187,27 +187,11 @@ export default function CommissionsPage() {
   )
 
   const statusFilter = (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
-      {FILTERS.map((f) => {
-        const active = filter === f.value
-        return (
-          <button
-            key={f.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() => setFilter(f.value)}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-              active
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {f.label}
-          </button>
-        )
-      })}
-    </div>
+    <TableFilterTabs
+      value={filter}
+      options={FILTERS}
+      onChange={setFilter}
+    />
   )
 
   return (

@@ -30,6 +30,9 @@ const TYPE_OPTIONS: { value: TemplateType; label: string }[] = [
   { value: 'FOOTER', label: 'Footer' },
   { value: 'COMPONENT', label: 'Component' },
   { value: 'LAYOUT', label: 'Layout' },
+  // Opens a different builder: email clients cannot render the page blocks, so
+  // an EMAIL template gets its own table-based, inline-styled block set.
+  { value: 'EMAIL', label: 'Email' },
 ]
 
 export function TemplateFormDialog({ open, onOpenChange, onSubmit }: Props) {

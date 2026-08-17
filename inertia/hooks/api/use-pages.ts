@@ -1,9 +1,4 @@
-import type {
-  PageDto,
-  PageSummaryDto,
-  CreatePageRequest,
-  UpdatePageRequest,
-} from '~/types/api'
+import type { PageDto, PageSummaryDto, CreatePageRequest, UpdatePageRequest } from '~/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '~/lib/api-client'
 
@@ -25,6 +20,22 @@ export function usePage(id: string, enabled = true) {
   return useQuery({
     queryKey: qk.one(id),
     queryFn: () => apiFetch<PageDto>(`/api/admin/pages/${id}`),
+    enabled,
+  })
+}
+
+/**
+ * Hand-written page components available in this build.
+ *
+ * The picker is fed from the same generated manifest the server validates
+ * against, so it can never offer a value the save would reject.
+ */
+export function useCodeComponents(enabled = true) {
+  return useQuery({
+    queryKey: ['pages', 'code-components'] as const,
+    queryFn: () => apiFetch<string[]>('/api/admin/pages/code-components'),
+    // Fixed at build time — refetching it during a session cannot change it.
+    staleTime: Number.POSITIVE_INFINITY,
     enabled,
   })
 }

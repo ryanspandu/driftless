@@ -4,6 +4,7 @@ import MailSettingsService from '#services/mail_settings_service'
 import MailDispatcher, { MailNotConfiguredError } from '#services/mail_dispatcher'
 import TestMail from '#mails/test_mail'
 import AuditLogService from '#services/audit_log_service'
+import MailEventsService from '#services/mail_events_service'
 import { WebSettingsService } from '#services/settings_service'
 import { renderPage } from '#helpers/inertia_render'
 import type User from '#models/user'
@@ -32,10 +33,29 @@ const testValidator = vine.compile(
   })
 )
 
+const eventValidator = vine.compile(
+  vine.object({
+    enabled: vine.boolean().optional(),
+    /**
+     * `null` restores the shipped default; `''` is a real value meaning "leave
+     * this part out". Both must survive validation, which is why every field is
+     * `nullable().optional()` rather than merely optional.
+     */
+    subject: vine.string().maxLength(512).nullable().optional(),
+    heading: vine.string().maxLength(255).nullable().optional(),
+    intro: vine.string().maxLength(4000).nullable().optional(),
+    buttonLabel: vine.string().maxLength(128).nullable().optional(),
+    outro: vine.string().maxLength(4000).nullable().optional(),
+    /** A designed EMAIL template, or null for the built-in layout. */
+    templateId: vine.string().maxLength(64).nullable().optional(),
+  })
+)
+
 const settingsService = new MailSettingsService()
 const dispatcher = new MailDispatcher()
 const webSettings = new WebSettingsService()
 const audit = new AuditLogService()
+const mailEvents = new MailEventsService()
 
 export default class MailSettingsController {
   async page({ inertia }: HttpContext) {
@@ -44,6 +64,53 @@ export default class MailSettingsController {
 
   async show({ response }: HttpContext) {
     return response.json(await settingsService.getDto())
+  }
+
+  /** Every declared email with its effective on/off state. */
+  async events({ response }: HttpContext) {
+    return response.json(await mailEvents.list())
+  }
+
+  async updateEvent(ctx: HttpContext) {
+    const { params, request, response, auth } = ctx
+    const key = String((params as Record<string, unknown>).key ?? '')
+    const payload = await request.validateUsing(eventValidator)
+
+    try {
+      let list = await mailEvents.list()
+      if (payload.enabled !== undefined) {
+        list = await mailEvents.setEnabled(key, payload.enabled)
+      }
+
+      if (payload.templateId !== undefined) {
+        list = await mailEvents.setTemplate(key, payload.templateId)
+      }
+
+      const { enabled: _enabled, templateId: _templateId, ...copy } = payload
+      if (Object.keys(copy).length > 0) {
+        list = await mailEvents.setCopy(key, copy)
+      }
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'mail.event_updated',
+        subjectType: 'mail_event',
+        subjectId: key,
+        changes: payload,
+        ctx,
+      })
+
+      return response.json(list)
+    } catch (error) {
+      // Unknown key, or an attempt to disable something that may not be —
+      // both are the caller's mistake, not a server fault.
+      return response.status(422).json({ message: (error as Error).message })
+    }
+  }
+
+  async deliveries({ request, response }: HttpContext) {
+    const limit = Number(request.qs().limit ?? 50)
+    return response.json(await mailEvents.recentDeliveries(Number.isFinite(limit) ? limit : 50))
   }
 
   async update(ctx: HttpContext) {

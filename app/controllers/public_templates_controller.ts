@@ -25,6 +25,16 @@ const templatesService = new TemplatesService()
  * meaningfully ambiguous.
  */
 async function isPubliclyReachable(template: Template): Promise<boolean> {
+  /**
+   * An EMAIL template is never public, whatever else is true of it.
+   *
+   * This check has to come before the `isDefault` shortcut below. Email
+   * templates use `is_default` the same way headers do — the default receipt
+   * design — so without this, marking one as the default would publish an
+   * operator's email copy at an unauthenticated URL.
+   */
+  if (template.type === 'EMAIL') return false
+
   if (template.isDefault) return true
 
   const needle = `%${template.id}%`

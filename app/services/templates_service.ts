@@ -1,5 +1,6 @@
 import Template, { type TemplateType } from '#models/template'
 import Page from '#models/page'
+import MailEventSetting from '#models/mail_event_setting'
 import PagesService from '#services/pages_service'
 import { newUlid } from '#services/ulid_service'
 import { DateTime } from 'luxon'
@@ -22,6 +23,8 @@ export interface TemplateSummaryDto {
 
 export interface TemplateDto extends TemplateSummaryDto {
   content: Record<string, unknown>
+  /** Email HTML, present only on EMAIL templates that have been published. */
+  renderedHtml: string | null
 }
 
 interface CreateTemplateInput {
@@ -32,6 +35,16 @@ interface CreateTemplateInput {
 }
 
 interface UpdateTemplateInput {
+  /**
+   * Email HTML, rendered by the builder in the operator's browser.
+   *
+   * Client-supplied on purpose: the email block set and React are already
+   * loaded there, whereas the server has no SSR bundle for them. It is written
+   * only for EMAIL templates (see `update`), and reaching this endpoint at all
+   * requires `template:update` — an actor who has it can already put arbitrary
+   * markup in a page's Code Block.
+   */
+  renderedHtml?: string | null
   name?: string
   content?: Record<string, unknown>
   isDefault?: boolean
@@ -86,6 +99,14 @@ export default class TemplatesService {
     const row = await Template.query().where('id', id).whereNull('deleted_at').firstOrFail()
     if (dto.name !== undefined) row.name = dto.name
     if (dto.content !== undefined) row.content = dto.content
+    /**
+     * Only EMAIL templates carry rendered HTML. Ignoring it elsewhere means a
+     * malformed request cannot smuggle a blob onto a header template, where
+     * nothing would ever read it back out.
+     */
+    if (dto.renderedHtml !== undefined && row.type === 'EMAIL') {
+      row.renderedHtml = dto.renderedHtml
+    }
     if (dto.isDefault !== undefined) row.isDefault = dto.isDefault
     await row.save()
     if (dto.isDefault) await this.clearOtherDefaults(row.type, row.id)
@@ -124,11 +145,25 @@ export default class TemplatesService {
     const templateRow = await Template.query()
       .whereNot('id', id)
       .whereNull('deleted_at')
-      .whereRaw('content::text like ?', [`%"templateId":"${id}"%`])
+      /**
+       * `CAST(... AS TEXT)` rather than pg's `::text`, which threw on SQLite —
+       * the test suite's driver. `public_templates_controller` already used the
+       * portable form for the same query; this one had simply never been
+       * reached from a test.
+       */
+      .whereRaw('CAST(content AS TEXT) like ?', [`%"templateId":"${id}"%`])
       .count('* as total')
     const templates = Number((templateRow[0] as any)?.$extras?.total ?? 0)
 
-    return { pages, templates, total: pages + templates }
+    /**
+     * An EMAIL template wired to a notification counts too. Without this,
+     * deleting one silently reverts that email to the built-in design — the
+     * operator's copy would keep sending, just not the way they designed it.
+     */
+    const mailRow = await MailEventSetting.query().where('template_id', id).count('* as total')
+    const mails = Number((mailRow[0] as any)?.$extras?.total ?? 0)
+
+    return { pages, templates: templates + mails, total: pages + templates + mails }
   }
 
   async duplicate(id: string): Promise<TemplateDto> {
@@ -221,6 +256,6 @@ export default class TemplatesService {
   }
 
   private toDto(row: Template): TemplateDto {
-    return { ...this.toSummary(row), content: row.content }
+    return { ...this.toSummary(row), content: row.content, renderedHtml: row.renderedHtml ?? null }
   }
 }

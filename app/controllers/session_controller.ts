@@ -4,9 +4,13 @@ import CaptchaService from '#services/captcha_service'
 import { IntegrationSettingsService } from '#services/settings_service'
 import { collectUserPermissions } from '#services/permission_ability_service'
 import UserAuthService from '#services/user_auth_service'
+import AuthPageOverrideService from '#services/auth_page_override_service'
+import PageRenderer from '#services/page_renderer'
 
 const integrationService = new IntegrationSettingsService()
 const captchaService = new CaptchaService()
+const overrides = new AuthPageOverrideService()
+const renderer = new PageRenderer()
 
 function authFailure(response: HttpContext['response'], session: HttpContext['session'], message: string) {
   session.flash('error', message)
@@ -14,9 +18,30 @@ function authFailure(response: HttpContext['response'], session: HttpContext['se
 }
 
 export default class SessionController {
-  async create({ inertia }: HttpContext) {
+  /**
+   * The sign-in screen — a builder page when one is designated, else the
+   * built-in component.
+   *
+   * Only this GET branches. `store` below is untouched, so every credential
+   * check, throttle and CAPTCHA rule applies identically whichever screen the
+   * form was rendered from.
+   */
+  async create(ctx: HttpContext) {
+    const override = await overrides.resolve('login')
+    if (override) {
+      /**
+       * `skipSnapshot` because this page is being served at `/login`, not at
+       * its own path. Without it the SSG cache — which is keyed on the page —
+       * would be written here and then served for the page's public URL, and
+       * could freeze one visitor's flashed error message into it. It also
+       * forces `Cache-Control: no-store`, which is what a credential screen
+       * wants anyway.
+       */
+      return renderer.render(override, ctx, { skipSnapshot: true })
+    }
+
     const authConfig = await integrationService.getAuthPublicConfig()
-    return inertia.render('auth/login', { authConfig })
+    return ctx.inertia.render('auth/login', { authConfig })
   }
 
   async store({ request, auth, response, session }: HttpContext) {

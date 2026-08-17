@@ -270,6 +270,10 @@ export default defineModule({
     const { registerEcommerceBlockResolvers } =
       await import('#modules/ecommerce/services/block_resolvers')
     registerEcommerceBlockResolvers()
+
+    const { registerEcommerceMailEvents } =
+      await import('#modules/ecommerce/services/mail_events')
+    registerEcommerceMailEvents()
   },
 
   registerRoutes,

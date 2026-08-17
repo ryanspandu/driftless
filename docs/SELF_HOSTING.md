@@ -33,7 +33,7 @@ are missing.
 | Process | Missing means |
 |---|---|
 | Web | — |
-| Queue worker | Email is never delivered. Payment webhooks are never retried |
+| Queue worker | Email is never delivered — password resets included. Payment webhooks are never retried. Visible at *Settings → Email → Log* as rows stuck on **Queued** |
 | Maintenance (every 5 min) | Stock held by abandoned checkouts is never released. Affiliate commissions never mature. Delivered orders never close |
 
 `deploy/ecosystem.config.cjs` (PM2) and `deploy/systemd/` set up all three.
@@ -61,7 +61,7 @@ sudo systemctl restart driftless
 
 Put the folder in `modules/<name>/`, then either:
 
-**From the admin UI** — Settings → Application → Modules. A folder the running server has not
+**From the admin UI** — Settings → Modules. A folder the running server has not
 loaded yet shows up with a *Found on disk* badge and an Install button. Before anything
 happens the dialog tells you which migrations will run, whether the front-end will be rebuilt,
 and exactly what the restart does to your visitors. You can close the tab; the result is
@@ -94,6 +94,34 @@ node ace modules:uninstall <name> --confirm=<name> [--remove-folder]
 This is the **only operation with no undo** — it drops the module's tables. `--remove-folder`
 moves the directory to `shared/backups/` rather than deleting it. Take a database backup first
 if you are not certain.
+
+## Setting up email
+
+Nothing is emailed until you configure this — no password resets, no order receipts. Two ways,
+and the database wins over the environment if both are set:
+
+- **Settings → Email** in the admin. Credentials are encrypted at rest. Pick a **Provider** and
+  the host, port and username fill in; you paste one secret.
+- **`shared/.env`** — `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`,
+  `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`.
+
+Press **Send test email** afterwards. That send is not queued, so a failure there is the real
+failure your users would hit — and the error it shows you is the relay's own.
+
+### Two ways this quietly half-works
+
+**`APP_URL` must be your real domain.** Password-reset links are built from it, never from the
+incoming request — a `Host` header can be forged, and that is exactly how a reset email ends up
+pointing at an attacker's server with a live token attached. Leave the development value in place
+and every reset link you send points at `localhost`, which nobody can open.
+
+**The queue worker must be running.** Mail is queued, so without the worker messages pile up
+instead of failing. *Settings → Email → Log* is where you see it: rows stuck at **Queued** mean
+the job was accepted and nobody delivered it. See
+[three processes](#the-part-people-get-wrong-three-processes).
+
+Nothing on the site reports either problem. Both look like "email works" until someone tells you
+they never received anything.
 
 ## Upgrading Driftless
 

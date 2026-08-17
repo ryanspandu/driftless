@@ -6,6 +6,8 @@
 - **Provider**: `sessionUserProvider` with `app/models/user.ts`.
 - **API tokens**: a second `api` guard (`tokensGuard`, `@adonisjs/auth/access_tokens`) for the external `/api/v1` — opaque Personal Access Tokens (`auth_access_tokens` table, `withAccessTokens` on User), minted/revoked at `/admin/settings/api-tokens` (**self-service** — each user manages their own, no extra permission). Effective access = user RBAC ∩ token abilities. See [api-v1.md](./api-v1.md).
 - **Routes**: `/login`, `/register`, `/logout`, `/api/me` in `start/routes.ts`. `/signup`, `/auth/signup`, `/auth/register` are legacy redirect aliases to `/register`.
+- **Password reset**: `/forgot-password` and `/reset-password/:token`, in the same `guest` group. Single-use tokens hashed at rest, one-hour expiry, no user enumeration. See [auth-pages.md](./auth-pages.md#password-reset).
+- **Builder-page overrides**: any of the auth screens (and the public 404/500) can be replaced by a page built in the page builder, chosen in Settings → Appearance. Only the GET branches change; every POST is untouched. **Trust boundary:** a designated auth page can carry custom JS, so edit rights on it are effectively admin rights over the sign-in screen — see [auth-pages.md](./auth-pages.md#trust-boundary).
 - **Google OAuth**: `google_auth_controller` — `/auth/google`, callback, status.
 - **CAPTCHA**: Configurable via integration settings + env; used on auth forms when enabled.
 

@@ -69,6 +69,12 @@ export default defineConfig({
     // Registers core job handlers before modules add theirs.
     () => import('#providers/queue_provider'),
     () => import('#providers/cms_provider'),
+    // Core block resolvers before modules register theirs — a duplicate block
+    // type throws, so core claiming its own names first is the clearer error.
+    () => import('#providers/blocks_provider'),
+    // Same ordering rule, same reason: core's mail event keys are claimed
+    // before any module's `boot()` runs.
+    () => import('#providers/mail_events_provider'),
     () => import('#providers/modules_provider'),
   ],
 

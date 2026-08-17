@@ -26,7 +26,8 @@ import { useOfflineRecords } from '~/hooks/offline/use-offline-records'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { toSyncStatus } from '~/lib/offline/sync-status'
 import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
-import { cn, formatAdminTableDateTime } from '~/lib/utils'
+import { formatAdminTableDateTime } from '~/lib/utils'
+import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 function parseStatusParam(raw: string | null, draftsOn: boolean): ContentStatus | 'ALL' {
   if (!draftsOn) return 'ALL'
@@ -192,32 +193,15 @@ function CmsRecordsPageInner({ collectionKey: key }: { collectionKey: string }) 
   }, [offline.rows])
 
   const statusFilter = collection?.draftsOn ? (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
-      {[
+    <TableFilterTabs
+      value={status}
+      options={[
         { value: 'ALL' as const, label: 'All', count: statusCounts.all },
         { value: 'PUBLISHED' as const, label: 'Published', count: statusCounts.published },
         { value: 'DRAFT' as const, label: 'Draft', count: statusCounts.draft },
-      ].map((f) => {
-        const active = status === f.value
-        return (
-          <button
-            key={f.value}
-            type="button"
-            onClick={() => setStatus(f.value)}
-            aria-pressed={active}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-              active
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {f.label}
-            <span className="text-xs tabular-nums text-muted-foreground">{f.count}</span>
-          </button>
-        )
-      })}
-    </div>
+      ]}
+      onChange={setStatus}
+    />
   ) : undefined
 
   const syncMap = useMemo(() => new Map(filtered.map((r) => [r.data.id, r.sync])), [filtered])

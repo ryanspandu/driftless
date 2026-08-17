@@ -29,11 +29,23 @@ export function LayoutShell({
     )
   }
 
-  // CMS-rendered public pages render standalone (the page defines its own shell).
-  // Both the CSR (`public/page`) and SSR (`public/page_ssr`) variants. The
-  // `theme-light` scope keeps the public site light regardless of the admin
-  // dark-mode toggle (`contents` so it adds no box of its own).
-  if (pageName === 'public/page' || pageName === 'public/page_ssr') {
+  /**
+   * CMS-rendered public pages render standalone (the page defines its own
+   * shell) — builder documents (`public/page*`) and hand-written code pages
+   * (`public/code*`) alike, in both their CSR and SSR variants.
+   *
+   * A code page must land here rather than in `PublicLayout`: it owns its whole
+   * output and opts into the site header/footer through `<SiteChrome>`, so
+   * wrapping it in a second layout would render the chrome twice. The
+   * `theme-light` scope keeps the public site light regardless of the admin
+   * dark-mode toggle (`contents` so it adds no box of its own).
+   */
+  if (
+    pageName === 'public/page' ||
+    pageName === 'public/page_ssr' ||
+    pageName === 'public/code' ||
+    pageName === 'public/code_ssr'
+  ) {
     return <div className="contents theme-light">{page}</div>
   }
 

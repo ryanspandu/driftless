@@ -52,6 +52,7 @@ import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { useAbility } from '~/components/providers/ability-provider'
 import { cn } from '~/lib/utils'
+import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE'
 type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH'
@@ -405,32 +406,14 @@ export default function TasksAdminPage() {
   )
 
   const viewToggle = (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
-      {([
-        { value: 'board', label: 'Board', icon: LayoutGrid },
-        { value: 'list', label: 'List', icon: ListIcon },
-      ] as const).map((v) => {
-        const active = view === v.value
-        const Icon = v.icon
-        return (
-          <button
-            key={v.value}
-            type="button"
-            onClick={() => setView(v.value)}
-            aria-pressed={active}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-              active
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Icon className="size-4" />
-            {v.label}
-          </button>
-        )
-      })}
-    </div>
+    <TableFilterTabs
+      value={view}
+      options={[
+        { value: 'board', label: 'Board', icon: <LayoutGrid className="size-4" /> },
+        { value: 'list', label: 'List', icon: <ListIcon className="size-4" /> },
+      ]}
+      onChange={setView}
+    />
   )
 
   const statusFilters: { value: 'all' | TaskStatus; label: string; count: number }[] = [
@@ -444,28 +427,11 @@ export default function TasksAdminPage() {
     { value: 'DONE', label: 'Done', count: sharedFiltered.filter((t) => t.status === 'DONE').length },
   ]
   const statusFilter = (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
-      {statusFilters.map((f) => {
-        const active = tab === f.value
-        return (
-          <button
-            key={f.value}
-            type="button"
-            onClick={() => setTab(f.value)}
-            aria-pressed={active}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-              active
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {f.label}
-            <span className="text-xs tabular-nums text-muted-foreground">{f.count}</span>
-          </button>
-        )
-      })}
-    </div>
+    <TableFilterTabs
+      value={tab}
+      options={statusFilters}
+      onChange={setTab}
+    />
   )
 
   const columns = useMemo<ColumnDef<TaskDto, unknown>[]>(

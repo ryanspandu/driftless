@@ -72,6 +72,10 @@ CMS "Pages" feature: build landing / marketing / about pages with a drag & drop
 visual builder (Webflow-like, incremental), bound to existing CMS collections,
 with a per-page render mode (**SSR / SSG / CSR-PWA**).
 
+A page can instead be written by hand in React (`kind = CODE`), and your own React
+components can be registered as builder blocks — see [code-pages.md](code-pages.md).
+The builder remains the default, and the recommended path for AI assistants.
+
 ## Rendering a builder page from another route
 
 [`app/services/page_renderer.ts`](../../app/services/page_renderer.ts) owns the composition
@@ -88,7 +92,7 @@ a builder page.
 | `skipSnapshot` | Required for a template. The SSG cache is keyed on the page, so caching one record's output would serve it for every other record. Also forces `Cache-Control: no-store` |
 
 The e-commerce module's `/shop/p/:slug` is the worked example — see
-[ecommerce.md](./ecommerce.md#product-pages-one-template-every-product).
+[ecommerce.md](../../modules/ecommerce/README.md#product-pages-one-template-every-product).
 
 ## Decisions (locked)
 
@@ -183,12 +187,16 @@ Plus `page_revisions` (mirror `cms_revisions`).
   **Basic** (Div Block, List, List Item, Link Block, Button) · **Typography** (Heading, Paragraph,
   Text Link, Text Block, Block Quote, Rich Text) · **CMS** (Collection List) · **Media** (Image,
   Video, YouTube, Lottie, Spline, Rive) · **Forms** (Form Block, Label, Input, File Upload, Text
-  Area, Checkbox, Radio Button, Select, reCAPTCHA\*, Form Button) · **Advanced** (Search, Background
+  Area, Checkbox, Radio Button, Select, reCAPTCHA\*, Form Button, **Login Form, Sign-up Form,
+  Forgot Password Form, Reset Password Form**) · **Advanced** (Search, Background
   Video, Dropdown, Code Embed, Lightbox, Navbar, Slider, Tabs, Map, Facebook, X, Custom Element, Code
   Block) · **Other** (Grid, Columns, Spacer, Divider, Template Reference). `Box` forwards extra DOM
   attrs (e.g. `href`) so blocks render as real `<a>`/`<li>`/`<input>`/etc.
-  \*Forms are **render-only** (no submission backend yet); reCAPTCHA is a placeholder. Webflow's
-  "Locales List" is skipped (no i18n locales).
+  \*The four auth blocks submit for real, and `FormBlock`'s **Submits to** field wires a
+  hand-assembled form to the same endpoints — see [auth-pages.md](./auth-pages.md). The
+  remaining native form elements are still render-only (there is no generic form-submission
+  backend), and reCAPTCHA is a placeholder. Webflow's "Locales List" is skipped (no i18n
+  locales).
 - `inertia/puck/media-embeds.tsx` (+ `media-rive-inner.tsx`) — **lazy, client-only** players for
   Lottie (`@lottiefiles/dotlottie-react`), Spline (`@splinetool/react-spline`), Rive
   (`@rive-app/react-canvas`); mount-guarded so the heavy runtimes stay out of the main + SSR bundles

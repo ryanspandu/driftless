@@ -1,4 +1,4 @@
-import { type ComponentType } from 'react'
+import { type ComponentType, type KeyboardEvent } from 'react'
 import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react'
 import { cn } from '~/lib/utils'
 
@@ -10,8 +10,64 @@ import { cn } from '~/lib/utils'
  * UI gets richer.
  */
 
+/**
+ * Every field in this panel is dense by default.
+ *
+ * The panel is ~290px wide and stacks a dozen sections; at `h-8`/`text-sm` the
+ * unit dropdown alone could squeeze a number field to zero width, and the
+ * vertical cost meant constant scrolling. One size, applied everywhere, rather
+ * than an opt-in that has to be remembered at each call site.
+ */
 const inputCls =
-  'h-8 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-1 focus:ring-ring'
+  'h-7 w-full rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-ring'
+
+// ─────────────────────── Keyboard stepping (arrow keys) ───────────────────────
+
+/**
+ * Nudge a numeric field with the arrow keys.
+ *
+ * These are `type="text"` inputs — they accept `16px` and `50%`, which a
+ * `type="number"` cannot hold — and that quietly costs the arrow-key stepping
+ * a number field gets for free. Restored here with Webflow's own increments, so
+ * muscle memory carries over: **↑/↓ = 1**, **Shift = 10**, **Alt = 0.1**.
+ *
+ * Returns null when there is nothing to step — a non-arrow key, or a value with
+ * no number in it (`auto`, `calc(…)`) — which is the signal to leave the event
+ * alone rather than swallow it.
+ */
+export function stepNumericValue(
+  value: string,
+  event: { key: string; shiftKey: boolean; altKey: boolean }
+): string | null {
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return null
+
+  const raw = (value ?? '').trim()
+  const { num, unit } = parseNumUnit(raw)
+  if (unit === 'auto' || unit === 'none') return null
+
+  const current = Number.parseFloat(num || '0')
+  if (Number.isNaN(current)) return null
+
+  const step = event.shiftKey ? 10 : event.altKey ? 0.1 : 1
+  const next = current + (event.key === 'ArrowUp' ? step : -step)
+  // 0.1 steps otherwise produce 0.30000000000000004; two decimals is already
+  // finer than any length in this panel needs.
+  const rounded = String(Math.round(next * 100) / 100)
+
+  // A value typed without a unit stays without one; an empty field picks up the
+  // control's default rather than becoming a bare number CSS would ignore.
+  return /^-?[\d.]+$/.test(raw) ? rounded : composeNumUnit(rounded, unit)
+}
+
+/** Wire {@link stepNumericValue} onto an input. */
+function stepHandler(value: string, onChange: (next: string) => void) {
+  return (e: KeyboardEvent<HTMLInputElement>) => {
+    const next = stepNumericValue(value, e)
+    if (next === null) return
+    e.preventDefault()
+    onChange(next)
+  }
+}
 
 // ───────────────────────── Text align (segmented) ─────────────────────────
 
@@ -40,7 +96,7 @@ export function AlignControl({
             aria-label={v}
             onClick={() => onChange(active ? '' : v)}
             className={cn(
-              'flex h-7 flex-1 items-center justify-center rounded transition-colors',
+              'flex h-6 flex-1 items-center justify-center rounded transition-colors',
               active
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -88,7 +144,7 @@ export function SegmentedControl({
             aria-pressed={active}
             onClick={() => onChange(active && allowClear ? '' : o.value)}
             className={cn(
-              'flex h-7 flex-1 items-center justify-center gap-1 rounded px-1 text-xs font-medium transition-colors',
+              'flex h-6 flex-1 items-center justify-center gap-1 rounded px-1 text-[11px] font-medium transition-colors',
               active
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -120,7 +176,7 @@ export function ColorControl({
   return (
     <div className="flex items-center gap-2">
       <label
-        className="size-8 shrink-0 cursor-pointer rounded-md border border-input"
+        className="size-7 shrink-0 cursor-pointer rounded-md border border-input"
         style={{ background: v || 'transparent' }}
         title="Pick a colour"
       >
@@ -195,7 +251,8 @@ export function BoxModelControl({
             value={sides[i]}
             placeholder="0"
             onChange={(e) => setSide(i, e.target.value)}
-            className="h-8 w-full rounded-md border border-input bg-background px-1.5 text-center text-sm tabular-nums outline-none focus:ring-1 focus:ring-ring"
+            onKeyDown={stepHandler(sides[i], (next) => setSide(i, next))}
+            className="h-7 w-full rounded-md border border-input bg-background px-1 text-center text-xs tabular-nums outline-none focus:ring-1 focus:ring-ring"
           />
         </label>
       ))}
@@ -245,12 +302,19 @@ export function NumberUnitControl({
         placeholder={unitless ? unit : '0'}
         disabled={unitless}
         onChange={(e) => onChange(composeNumUnit(e.target.value, unit))}
-        className="h-8 w-full min-w-0 bg-transparent px-2 text-sm tabular-nums outline-none disabled:cursor-not-allowed disabled:opacity-60"
+        onKeyDown={stepHandler(value ?? '', onChange)}
+        className="h-7 w-full min-w-0 bg-transparent px-1.5 text-xs tabular-nums outline-none disabled:cursor-not-allowed disabled:opacity-60"
       />
+      {/*
+        `appearance-none` drops the native dropdown arrow — roughly 18px of
+        chrome the number field pays for out of the same line, and enough on its
+        own to collapse the input to nothing in the narrower columns. The unit
+        text is the affordance.
+      */}
       <select
         value={unit}
         onChange={(e) => onChange(composeNumUnit(num, e.target.value))}
-        className="h-8 cursor-pointer border-l border-input bg-transparent pl-1.5 pr-1 text-xs uppercase text-muted-foreground outline-none hover:text-foreground"
+        className="h-7 cursor-pointer appearance-none border-l border-input bg-transparent px-1 text-center text-[10px] uppercase text-muted-foreground outline-none hover:text-foreground"
         aria-label="Unit"
       >
         {unitOptions.map((u) => (
@@ -321,7 +385,8 @@ export function BoxShadowControl({
               value={sh[key]}
               placeholder="0"
               onChange={(e) => set({ [key]: e.target.value } as Partial<Shadow>)}
-              className="h-8 w-full rounded-md border border-input bg-background px-1 text-center text-sm tabular-nums outline-none focus:ring-1 focus:ring-ring"
+              onKeyDown={stepHandler(sh[key], (next) => set({ [key]: next } as Partial<Shadow>))}
+              className="h-7 w-full rounded-md border border-input bg-background px-1 text-center text-xs tabular-nums outline-none focus:ring-1 focus:ring-ring"
             />
           </label>
         ))}
@@ -351,6 +416,7 @@ function SideBox({
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
+      onKeyDown={stepHandler(value, onChange)}
       className={cn(
         'absolute w-9 rounded bg-transparent py-0.5 text-center text-xs tabular-nums text-foreground outline-none hover:bg-muted focus:bg-muted focus:ring-1 focus:ring-ring',
         className
@@ -378,10 +444,30 @@ export function OffsetControl({
       <span className="absolute left-2.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
         Inset
       </span>
-      <SideBox className="left-1/2 top-1 -translate-x-1/2" value={top ?? ''} placeholder="auto" onChange={(v) => onChange('top', v)} />
-      <SideBox className="right-1.5 top-1/2 -translate-y-1/2" value={right ?? ''} placeholder="auto" onChange={(v) => onChange('right', v)} />
-      <SideBox className="bottom-1 left-1/2 -translate-x-1/2" value={bottom ?? ''} placeholder="auto" onChange={(v) => onChange('bottom', v)} />
-      <SideBox className="left-1.5 top-1/2 -translate-y-1/2" value={left ?? ''} placeholder="auto" onChange={(v) => onChange('left', v)} />
+      <SideBox
+        className="left-1/2 top-1 -translate-x-1/2"
+        value={top ?? ''}
+        placeholder="auto"
+        onChange={(v) => onChange('top', v)}
+      />
+      <SideBox
+        className="right-1.5 top-1/2 -translate-y-1/2"
+        value={right ?? ''}
+        placeholder="auto"
+        onChange={(v) => onChange('right', v)}
+      />
+      <SideBox
+        className="bottom-1 left-1/2 -translate-x-1/2"
+        value={bottom ?? ''}
+        placeholder="auto"
+        onChange={(v) => onChange('bottom', v)}
+      />
+      <SideBox
+        className="left-1.5 top-1/2 -translate-y-1/2"
+        value={left ?? ''}
+        placeholder="auto"
+        onChange={(v) => onChange('left', v)}
+      />
       <div className="mx-auto h-7 w-14 rounded bg-muted/40" />
     </div>
   )
@@ -418,19 +504,51 @@ export function SpacingControl({
       <span className="absolute left-2.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
         Margin
       </span>
-      <SideBox className="left-1/2 top-1 -translate-x-1/2" value={m[0]} onChange={(v) => setM(0, v)} />
-      <SideBox className="right-1.5 top-1/2 -translate-y-1/2" value={m[1]} onChange={(v) => setM(1, v)} />
-      <SideBox className="bottom-1 left-1/2 -translate-x-1/2" value={m[2]} onChange={(v) => setM(2, v)} />
-      <SideBox className="left-1.5 top-1/2 -translate-y-1/2" value={m[3]} onChange={(v) => setM(3, v)} />
+      <SideBox
+        className="left-1/2 top-1 -translate-x-1/2"
+        value={m[0]}
+        onChange={(v) => setM(0, v)}
+      />
+      <SideBox
+        className="right-1.5 top-1/2 -translate-y-1/2"
+        value={m[1]}
+        onChange={(v) => setM(1, v)}
+      />
+      <SideBox
+        className="bottom-1 left-1/2 -translate-x-1/2"
+        value={m[2]}
+        onChange={(v) => setM(2, v)}
+      />
+      <SideBox
+        className="left-1.5 top-1/2 -translate-y-1/2"
+        value={m[3]}
+        onChange={(v) => setM(3, v)}
+      />
 
       <div className="relative rounded-md border border-border/60 bg-background px-10 pb-8 pt-9">
         <span className="absolute left-2.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
           Padding
         </span>
-        <SideBox className="left-1/2 top-1 -translate-x-1/2" value={p[0]} onChange={(v) => setP(0, v)} />
-        <SideBox className="right-1.5 top-1/2 -translate-y-1/2" value={p[1]} onChange={(v) => setP(1, v)} />
-        <SideBox className="bottom-1 left-1/2 -translate-x-1/2" value={p[2]} onChange={(v) => setP(2, v)} />
-        <SideBox className="left-1.5 top-1/2 -translate-y-1/2" value={p[3]} onChange={(v) => setP(3, v)} />
+        <SideBox
+          className="left-1/2 top-1 -translate-x-1/2"
+          value={p[0]}
+          onChange={(v) => setP(0, v)}
+        />
+        <SideBox
+          className="right-1.5 top-1/2 -translate-y-1/2"
+          value={p[1]}
+          onChange={(v) => setP(1, v)}
+        />
+        <SideBox
+          className="bottom-1 left-1/2 -translate-x-1/2"
+          value={p[2]}
+          onChange={(v) => setP(2, v)}
+        />
+        <SideBox
+          className="left-1.5 top-1/2 -translate-y-1/2"
+          value={p[3]}
+          onChange={(v) => setP(3, v)}
+        />
         <div className="mx-auto h-5 w-12 rounded bg-muted/50" />
       </div>
     </div>

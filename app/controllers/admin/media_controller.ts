@@ -55,8 +55,31 @@ export default class MediaController {
       return response.status(422).json({ message: 'No file uploaded' })
     }
 
-    const media = await mediaService.upload(file, auth.user!.id)
+    const { width, height } = request.only(['width', 'height'])
+    const media = await mediaService.upload(file, auth.user!.id, {
+      width: typeof width === 'string' ? Number(width) : null,
+      height: typeof height === 'string' ? Number(height) : null,
+    })
     return response.status(201).json(media)
+  }
+
+  /**
+   * Serve a stored file.
+   *
+   * Public and unauthenticated on purpose: these URLs are embedded in published
+   * pages. It exists because `MEDIA_STORAGE_PATH` can put the library outside
+   * `public/`, where `@adonisjs/static` cannot reach it — the default layout is
+   * still served statically and never gets here.
+   */
+  async serve({ params, response }: HttpContext) {
+    const segments: string[] = Array.isArray(params['*']) ? params['*'] : []
+    const path = segments.length ? mediaService.resolveFilePath(segments.join('/')) : null
+    if (!path) return response.notFound({ message: 'Not found' })
+
+    // Content-addressed names (a ULID per upload), so a long cache is safe; an
+    // edit in place is cache-busted by the `?v=` the client appends.
+    response.header('Cache-Control', 'public, max-age=31536000')
+    return response.download(path)
   }
 
   async destroy({ params, response }: HttpContext) {

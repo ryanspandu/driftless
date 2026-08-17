@@ -19,6 +19,19 @@ export interface ApiDefinition {
   publicTemplates: {
     show: typeof routes['public_templates.show']
   }
+  media: {
+    serve: typeof routes['media.serve']
+    serveLegacy: typeof routes['media.serveLegacy']
+    page: typeof routes['media.page']
+    index: typeof routes['media.index']
+    trash: typeof routes['media.trash']
+    store: typeof routes['media.store']
+    replace: typeof routes['media.replace']
+    update: typeof routes['media.update']
+    restore: typeof routes['media.restore']
+    forceDestroy: typeof routes['media.force_destroy']
+    destroy: typeof routes['media.destroy']
+  }
   seo: {
     robots: typeof routes['seo.robots']
     sitemap: typeof routes['seo.sitemap']
@@ -30,6 +43,7 @@ export interface ApiDefinition {
   settings: {
     getAuthConfig: typeof routes['settings.get_auth_config']
     settingsPage: typeof routes['settings.settings_page']
+    appearanceSettingsPage: typeof routes['settings.appearance_settings_page']
     generalSettingsPage: typeof routes['settings.general_settings_page']
     websiteSettingsPage: typeof routes['settings.website_settings_page']
     applicationSettingsPage: typeof routes['settings.application_settings_page']
@@ -62,6 +76,12 @@ export interface ApiDefinition {
     destroy: typeof routes['session.destroy']
     me: typeof routes['session.me']
     updateProfile: typeof routes['session.update_profile']
+  }
+  passwordReset: {
+    create: typeof routes['password_reset.create']
+    store: typeof routes['password_reset.store']
+    edit: typeof routes['password_reset.edit']
+    update: typeof routes['password_reset.update']
   }
   legacy: {
     signup: {
@@ -129,6 +149,7 @@ export interface ApiDefinition {
     index: typeof routes['pages.index']
     trash: typeof routes['pages.trash']
     collections: typeof routes['pages.collections']
+    codeComponents: typeof routes['pages.code_components']
     store: typeof routes['pages.store']
     restore: typeof routes['pages.restore']
     forceDestroy: typeof routes['pages.force_destroy']
@@ -188,22 +209,14 @@ export interface ApiDefinition {
     revisionsIndex: typeof routes['cms.revisions_index']
     revisionsRestore: typeof routes['cms.revisions_restore']
   }
-  media: {
-    page: typeof routes['media.page']
-    index: typeof routes['media.index']
-    trash: typeof routes['media.trash']
-    store: typeof routes['media.store']
-    replace: typeof routes['media.replace']
-    update: typeof routes['media.update']
-    restore: typeof routes['media.restore']
-    forceDestroy: typeof routes['media.force_destroy']
-    destroy: typeof routes['media.destroy']
-  }
   mailSettings: {
     page: typeof routes['mail_settings.page']
     show: typeof routes['mail_settings.show']
     update: typeof routes['mail_settings.update']
     sendTest: typeof routes['mail_settings.send_test']
+    events: typeof routes['mail_settings.events']
+    updateEvent: typeof routes['mail_settings.update_event']
+    deliveries: typeof routes['mail_settings.deliveries']
   }
   apiTokens: {
     index: typeof routes['api_tokens.index']

@@ -1,8 +1,9 @@
-import { lazy, Suspense, type ElementType, type FormEvent, type ReactNode } from 'react'
+import { lazy, Suspense, type ElementType, type ReactNode } from 'react'
 import type { Config } from '@measured/puck'
 import { cn } from '~/lib/utils'
 import { CollectionSourceField, CollectionList } from '~/puck/collection-list'
 import { withModuleBlocks } from '~/puck/module-blocks'
+import { withCustomBlocks } from '~/puck/custom-blocks'
 import { RichTextView } from '~/puck/rich-text-view'
 import { styleFields, Box } from '~/puck/style-fields'
 import { MediaField } from '~/puck/media-field'
@@ -14,6 +15,13 @@ import {
   SliderView,
   TabsView,
 } from '~/puck/blocks-interactive'
+import {
+  ForgotPasswordFormView,
+  FormBlockView,
+  LoginFormView,
+  RegisterFormView,
+  ResetPasswordFormView,
+} from '~/puck/blocks-auth'
 import { TemplateRefField, TemplateRefView } from '~/puck/template-ref'
 import { PageOutletView } from '~/puck/page-outlet'
 import { cssFromSnippets, readSnippets } from '~/puck/custom-code'
@@ -88,6 +96,11 @@ const baseConfig: Config = {
     forms: {
       title: 'Forms',
       components: [
+        // Turnkey auth forms first: they are the ones that work on their own.
+        'LoginForm',
+        'RegisterForm',
+        'ForgotPasswordForm',
+        'ResetPasswordForm',
         'FormBlock',
         'Label',
         'Input',
@@ -720,13 +733,156 @@ const baseConfig: Config = {
     },
 
     // ── Forms ──────────────────────────────────────────────────────────────
-    // Native form elements. Rendering only — wiring submissions to a backend
-    // handler is a separate feature; a Form Block with no Action just prevents
-    // the default submit.
+    // Two ways to build a form. The four auth blocks below are complete and
+    // working on their own; the native elements after them are for assembling
+    // one by hand, and a Form Block's `handler` is what makes such an assembly
+    // submit somewhere real.
+
+    LoginForm: {
+      label: 'Login Form',
+      fields: {
+        loginLabel: { type: 'text', label: 'Identifier label' },
+        passwordLabel: { type: 'text', label: 'Password label' },
+        submitLabel: { type: 'text', label: 'Button label' },
+        showGoogle: {
+          type: 'radio',
+          label: 'Google sign-in',
+          options: [
+            { label: 'Show', value: 'true' },
+            { label: 'Hide', value: 'false' },
+          ],
+        },
+        showForgotLink: {
+          type: 'radio',
+          label: 'Forgot password link',
+          options: [
+            { label: 'Show', value: 'true' },
+            { label: 'Hide', value: 'false' },
+          ],
+        },
+        showSignupLink: {
+          type: 'radio',
+          label: 'Sign-up link',
+          options: [
+            { label: 'Show', value: 'true' },
+            { label: 'Hide', value: 'false' },
+          ],
+        },
+        ...styleFields,
+      },
+      defaultProps: {
+        loginLabel: 'Email or username',
+        passwordLabel: 'Password',
+        submitLabel: 'Sign in',
+        showGoogle: 'true',
+        showForgotLink: 'true',
+        showSignupLink: 'true',
+      },
+      render: (props) => <LoginFormView {...props} />,
+    },
+
+    RegisterForm: {
+      label: 'Sign-up Form',
+      fields: {
+        usernameLabel: { type: 'text', label: 'Username label' },
+        emailLabel: { type: 'text', label: 'Email label' },
+        passwordLabel: { type: 'text', label: 'Password label' },
+        submitLabel: { type: 'text', label: 'Button label' },
+        showNameFields: {
+          type: 'radio',
+          label: 'First / last name',
+          options: [
+            { label: 'Show', value: 'true' },
+            { label: 'Hide', value: 'false' },
+          ],
+        },
+        showLoginLink: {
+          type: 'radio',
+          label: 'Sign-in link',
+          options: [
+            { label: 'Show', value: 'true' },
+            { label: 'Hide', value: 'false' },
+          ],
+        },
+        ...styleFields,
+      },
+      defaultProps: {
+        usernameLabel: 'Username',
+        emailLabel: 'Email',
+        passwordLabel: 'Password',
+        submitLabel: 'Sign up',
+        showNameFields: 'true',
+        showLoginLink: 'true',
+      },
+      render: (props) => <RegisterFormView {...props} />,
+    },
+
+    ForgotPasswordForm: {
+      label: 'Forgot Password Form',
+      fields: {
+        emailLabel: { type: 'text', label: 'Email label' },
+        submitLabel: { type: 'text', label: 'Button label' },
+        showLoginLink: {
+          type: 'radio',
+          label: 'Sign-in link',
+          options: [
+            { label: 'Show', value: 'true' },
+            { label: 'Hide', value: 'false' },
+          ],
+        },
+        ...styleFields,
+      },
+      defaultProps: {
+        emailLabel: 'Email',
+        submitLabel: 'Send reset link',
+        showLoginLink: 'true',
+      },
+      render: (props) => <ForgotPasswordFormView {...props} />,
+    },
+
+    ResetPasswordForm: {
+      label: 'Reset Password Form',
+      fields: {
+        passwordLabel: { type: 'text', label: 'New password label' },
+        confirmLabel: { type: 'text', label: 'Confirm label' },
+        submitLabel: { type: 'text', label: 'Button label' },
+        expiredMessage: { type: 'textarea', label: 'Expired-link message' },
+        ...styleFields,
+      },
+      defaultProps: {
+        passwordLabel: 'New password',
+        confirmLabel: 'Confirm password',
+        submitLabel: 'Update password',
+        expiredMessage: '',
+      },
+      render: (props) => <ResetPasswordFormView {...props} />,
+    },
+
     FormBlock: {
       label: 'Form Block',
       fields: {
-        action: { type: 'text', label: 'Action URL (optional)' },
+        /**
+         * With a handler set, this form posts to the matching built-in endpoint
+         * and the children must be named exactly as the server reads them —
+         * a mistyped `name` is a form that fails with no message. The names are
+         * listed here rather than only in the docs for that reason.
+         *
+         * Note this path cannot satisfy CAPTCHA: the `Recaptcha` block is a
+         * placeholder that produces no token, so with CAPTCHA enabled only the
+         * turnkey Login/Sign-up blocks can submit successfully.
+         */
+        handler: {
+          type: 'select',
+          label: 'Submits to',
+          options: [
+            { label: 'Nothing / custom action URL', value: 'none' },
+            { label: 'Sign in — name inputs: login, password', value: 'login' },
+            { label: 'Sign up — name inputs: email, username, password', value: 'register' },
+            { label: 'Forgot password — name input: email', value: 'forgotPassword' },
+            { label: 'Reset password — name inputs: password, passwordConfirmation', value: 'resetPassword' },
+          ],
+        },
+        action: { type: 'text', label: 'Action URL (ignored when Submits to is set)' },
         method: {
           type: 'select',
           label: 'Method',
@@ -738,16 +894,8 @@ const baseConfig: Config = {
         content: { type: 'slot' },
         ...styleFields,
       },
-      defaultProps: { action: '', method: 'post', content: [] },
-      render: ({ content: Content, action, method, ...s }) => (
-        <Box
-          as="form"
-          s={s}
-          {...(action ? { action, method } : { onSubmit: (e: FormEvent) => e.preventDefault() })}
-        >
-          <Content />
-        </Box>
-      ),
+      defaultProps: { handler: 'none', action: '', method: 'post', content: [] },
+      render: (props) => <FormBlockView {...props} />,
     },
 
     Label: {
@@ -1259,8 +1407,10 @@ const baseConfig: Config = {
 /**
  * Modules fold their own blocks in here rather than being imported by name
  * above — see `module-blocks.ts`. Core stays ignorant of which modules exist.
+ * First-party blocks written for this project fold in the same way from
+ * `inertia/custom/blocks/`, after modules so neither can shadow the other.
  */
-export const puckConfig: Config = withModuleBlocks(baseConfig)
+export const puckConfig: Config = withCustomBlocks(withModuleBlocks(baseConfig))
 
 // Lock support: a `_locked` layer (toggled from the Layers panel) freezes its
 // drag / delete / duplicate / edit affordances. Puck only exposes permissions

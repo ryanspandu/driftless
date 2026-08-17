@@ -25,6 +25,7 @@ import { useConfirmDelete } from '~/components/providers/delete-confirm-provider
 import { useUrlState } from '~/hooks/use-url-state'
 import { cn } from '~/lib/utils'
 import { useDeleteProduct, useProducts, type ProductDto, type ProductStatus } from '../_api'
+import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 const STATUS_FILTERS: { value: ProductStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -209,31 +210,15 @@ export default function ProductsPage() {
   )
 
   const statusFilter = (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
-      {STATUS_FILTERS.map((f) => {
-        const active = status === f.value
-        return (
-          <button
-            key={f.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() =>
-              // Back to page 1: page 5 of the old filter is usually past the
-              // end of the new one, which reads as an empty table.
-              url.set({ status: f.value === 'all' ? undefined : f.value, page: undefined })
-            }
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-              active
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {f.label}
-          </button>
-        )
-      })}
-    </div>
+    <TableFilterTabs
+      value={status}
+      options={STATUS_FILTERS}
+      onChange={(value) =>
+        // Back to page 1: page 5 of the old filter is usually past the end of
+        // the new one, which reads as an empty table.
+        url.set({ status: value === 'all' ? undefined : value, page: undefined })
+      }
+    />
   )
 
   return (

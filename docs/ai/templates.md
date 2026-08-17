@@ -1,5 +1,23 @@
 # Templates — reusable headers, footers, components & layouts
 
+> **`EMAIL` is a fifth type, and it does not use the page blocks.** An email
+> template is designed with a separate, table-based block set
+> (`inertia/puck/email-config.tsx`), flattened to HTML in the browser on publish
+> and stored in `templates.rendered_html`. Wired to an email in Settings → Email
+> → Notifications. Never served by `/api/public/templates/:id`. Full reasoning
+> in [mail.md](./mail.md#designing-an-email-in-the-page-builder).
+
+> **A page's header/footer has three states, not two.** `— Default —` uses the site default
+> template, `— None —` renders no header/footer at all, and picking one overrides just that
+> page. "None" is stored as `pages.hide_header` / `hide_footer` rather than a sentinel id,
+> because those id columns carry a real foreign key to `templates` — and because a null id
+> already meant "default", leaving no way to say "none". A sign-in screen or a bare landing
+> page needs it.
+>
+> Note also that `layout_id`, `header_template_id` and `footer_template_id` were **never read
+> from the request body** by `admin/pages_controller` until "None" was added — the Layout and
+> override pickers had been silently discarding every choice since they shipped.
+
 **Status:** COMPLETE (2026-06-21) — T1–T4 shipped. `templates` table (data migrated from the now-removed
 page_globals/page_templates); `TemplatesService`; admin CRUD + **Templates** sidebar menu (list by type,
 builder reuse at `/admin/templates/:id/edit`, set-default, duplicate); live `TemplateRef` + `PageOutlet`

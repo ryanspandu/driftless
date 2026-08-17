@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 /*
  * Scan module front-end code so Tailwind picks up their UI classes.
@@ -10,7 +10,7 @@
  * packages are gitignored by design. Naming each directory explicitly is what
  * Tailwind honours.
  */
-@import "./modules.generated.css";
+@import './modules.generated.css';
 
 /* Smooth in-page anchor navigation (public landing nav links). */
 html {
@@ -26,7 +26,9 @@ html {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-active: var(--sidebar-active);
   --color-sidebar-active-foreground: var(--sidebar-active-foreground);
@@ -175,71 +177,297 @@ html {
   line-height: 1.6;
   color: var(--foreground);
 }
-.tiptap-content > * + * { margin-top: 0.75em; }
-.tiptap-content h1 { font-size: 1.75rem; font-weight: 700; line-height: 1.2; margin-top: 1em; }
-.tiptap-content h2 { font-size: 1.4rem; font-weight: 600; line-height: 1.3; margin-top: 1em; }
-.tiptap-content h3 { font-size: 1.15rem; font-weight: 600; line-height: 1.4; margin-top: 1em; }
-.tiptap-content h4 { font-size: 1.05rem; font-weight: 600; line-height: 1.4; margin-top: 1em; }
-.tiptap-content h5 { font-size: 0.95rem; font-weight: 600; line-height: 1.4; margin-top: 1em; }
-.tiptap-content h6 { font-size: 0.85rem; font-weight: 600; line-height: 1.4; margin-top: 1em; color: var(--muted-foreground); }
-.tiptap-content p { margin: 0; }
-.tiptap-content ul, .tiptap-content ol { padding-left: 1.25rem; }
-.tiptap-content ul { list-style: disc; }
-.tiptap-content ol { list-style: decimal; }
-.tiptap-content li > p { margin: 0; }
-.tiptap-content blockquote { border-left: 3px solid var(--border); padding-left: 0.75rem; color: var(--muted-foreground); font-style: italic; }
-.tiptap-content code { background: color-mix(in oklab, var(--muted) 80%, transparent); padding: 0.1em 0.35em; border-radius: 0.3rem; font-size: 0.85em; }
-.tiptap-content pre { background: var(--muted); color: var(--foreground); padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 0.85rem; overflow-x: auto; }
-.tiptap-content pre code { background: transparent; padding: 0; }
-.tiptap-content a { color: var(--primary); text-decoration: underline; text-underline-offset: 0.2em; }
-.tiptap-content hr { border: 0; border-top: 1px solid var(--border); margin: 1.25em 0; }
-.tiptap-content img { max-width: 100%; height: auto; border-radius: 0.5rem; }
-.tiptap-content img.ProseMirror-selectednode { outline: 2px solid var(--ring); outline-offset: 2px; }
-.tiptap-content .is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: var(--muted-foreground); }
-.tiptap-content mark { background-color: #fde047; color: #0f172a; padding: 0.05em 0.15em; border-radius: 0.2em; }
-.tiptap-content sub { font-size: 0.75em; vertical-align: sub; }
-.tiptap-content sup { font-size: 0.75em; vertical-align: super; }
+.tiptap-content > * + * {
+  margin-top: 0.75em;
+}
+.tiptap-content h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 1em;
+}
+.tiptap-content h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 1em;
+}
+.tiptap-content h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1em;
+}
+.tiptap-content h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1em;
+}
+.tiptap-content h5 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1em;
+}
+.tiptap-content h6 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1em;
+  color: var(--muted-foreground);
+}
+.tiptap-content p {
+  margin: 0;
+}
+.tiptap-content ul,
+.tiptap-content ol {
+  padding-left: 1.25rem;
+}
+.tiptap-content ul {
+  list-style: disc;
+}
+.tiptap-content ol {
+  list-style: decimal;
+}
+.tiptap-content li > p {
+  margin: 0;
+}
+.tiptap-content blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+.tiptap-content code {
+  background: color-mix(in oklab, var(--muted) 80%, transparent);
+  padding: 0.1em 0.35em;
+  border-radius: 0.3rem;
+  font-size: 0.85em;
+}
+.tiptap-content pre {
+  background: var(--muted);
+  color: var(--foreground);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  overflow-x: auto;
+}
+.tiptap-content pre code {
+  background: transparent;
+  padding: 0;
+}
+.tiptap-content a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.tiptap-content hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.25em 0;
+}
+.tiptap-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+.tiptap-content img.ProseMirror-selectednode {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.tiptap-content .is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}
+.tiptap-content mark {
+  background-color: #fde047;
+  color: #0f172a;
+  padding: 0.05em 0.15em;
+  border-radius: 0.2em;
+}
+.tiptap-content sub {
+  font-size: 0.75em;
+  vertical-align: sub;
+}
+.tiptap-content sup {
+  font-size: 0.75em;
+  vertical-align: super;
+}
 /* Tables */
-.tiptap-content .tableWrapper { overflow-x: auto; margin: 1em 0; }
-.tiptap-content table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-.tiptap-content table td, .tiptap-content table th { border: 1px solid var(--border); padding: 0.4em 0.6em; vertical-align: top; position: relative; min-width: 3em; }
-.tiptap-content table th { background: var(--muted); font-weight: 600; text-align: left; }
-.tiptap-content table .selectedCell:after { content: ''; position: absolute; inset: 0; background: color-mix(in oklab, var(--primary) 14%, transparent); pointer-events: none; }
-.tiptap-content table .column-resize-handle { position: absolute; right: -2px; top: 0; bottom: 0; width: 4px; background: var(--primary); cursor: col-resize; }
-.tiptap-content .resize-cursor { cursor: col-resize; }
+.tiptap-content .tableWrapper {
+  overflow-x: auto;
+  margin: 1em 0;
+}
+.tiptap-content table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+.tiptap-content table td,
+.tiptap-content table th {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.6em;
+  vertical-align: top;
+  position: relative;
+  min-width: 3em;
+}
+.tiptap-content table th {
+  background: var(--muted);
+  font-weight: 600;
+  text-align: left;
+}
+.tiptap-content table .selectedCell:after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  pointer-events: none;
+}
+.tiptap-content table .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--primary);
+  cursor: col-resize;
+}
+.tiptap-content .resize-cursor {
+  cursor: col-resize;
+}
 /* Task lists */
-.tiptap-content ul[data-type="taskList"] { list-style: none; padding-left: 0.25rem; }
-.tiptap-content ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; }
-.tiptap-content ul[data-type="taskList"] li > label { margin-top: 0.2em; user-select: none; }
-.tiptap-content ul[data-type="taskList"] li > div { flex: 1 1 auto; }
-.tiptap-content ul[data-type="taskList"] input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: var(--primary); }
+.tiptap-content ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.tiptap-content ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.tiptap-content ul[data-type='taskList'] li > label {
+  margin-top: 0.2em;
+  user-select: none;
+}
+.tiptap-content ul[data-type='taskList'] li > div {
+  flex: 1 1 auto;
+}
+.tiptap-content ul[data-type='taskList'] input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--primary);
+}
 /* Embeds (YouTube) */
-.tiptap-content div[data-youtube-video] { margin: 1em 0; }
-.tiptap-content iframe { max-width: 100%; width: 100%; aspect-ratio: 16 / 9; height: auto; border: 0; border-radius: 0.5rem; }
+.tiptap-content div[data-youtube-video] {
+  margin: 1em 0;
+}
+.tiptap-content iframe {
+  max-width: 100%;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border: 0;
+  border-radius: 0.5rem;
+}
 /* Code syntax highlighting (highlight.js tokens) — global so the editor and the
    public `prose` render code blocks with the same colors. */
-.hljs-comment, .hljs-quote { color: #6b7280; font-style: italic; }
-.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section, .hljs-link { color: #8b5cf6; }
-.hljs-string, .hljs-attr, .hljs-template-tag, .hljs-addition, .hljs-symbol, .hljs-bullet { color: #16a34a; }
-.hljs-number, .hljs-built_in, .hljs-builtin-name, .hljs-meta, .hljs-params { color: #ea580c; }
-.hljs-title, .hljs-type, .hljs-class .hljs-title, .hljs-function .hljs-title { color: #2563eb; }
-.hljs-tag, .hljs-name, .hljs-attribute { color: #db2777; }
-.hljs-deletion { color: #e11d48; }
-.hljs-emphasis { font-style: italic; }
-.hljs-strong { font-weight: 600; }
+.hljs-comment,
+.hljs-quote {
+  color: #6b7280;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-link {
+  color: #8b5cf6;
+}
+.hljs-string,
+.hljs-attr,
+.hljs-template-tag,
+.hljs-addition,
+.hljs-symbol,
+.hljs-bullet {
+  color: #16a34a;
+}
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-meta,
+.hljs-params {
+  color: #ea580c;
+}
+.hljs-title,
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-function .hljs-title {
+  color: #2563eb;
+}
+.hljs-tag,
+.hljs-name,
+.hljs-attribute {
+  color: #db2777;
+}
+.hljs-deletion {
+  color: #e11d48;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}
 /* Collapsible details */
 .tiptap-content [data-type='details'],
-.prose [data-type='details'] { display: flex; gap: 0.5rem; margin: 1em 0; border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.6rem 0.75rem; }
+.prose [data-type='details'] {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1em 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+}
 .tiptap-content [data-type='details'] > div,
-.prose [data-type='details'] > div { flex: 1 1 auto; min-width: 0; }
+.prose [data-type='details'] > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .tiptap-content [data-type='detailsSummary'],
-.prose [data-type='detailsSummary'] { font-weight: 600; }
-.tiptap-content [data-type='details'] > button { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.5rem; border: 0; background: transparent; cursor: pointer; color: var(--muted-foreground); }
-.tiptap-content [data-type='details'] > button::before { content: '\25B6'; font-size: 0.65em; transition: transform 0.15s ease; }
-.tiptap-content [data-type='details'].is-open > button::before { transform: rotate(90deg); }
+.prose [data-type='detailsSummary'] {
+  font-weight: 600;
+}
+.tiptap-content [data-type='details'] > button {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.5rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted-foreground);
+}
+.tiptap-content [data-type='details'] > button::before {
+  content: '\25B6';
+  font-size: 0.65em;
+  transition: transform 0.15s ease;
+}
+.tiptap-content [data-type='details'].is-open > button::before {
+  transform: rotate(90deg);
+}
 /* Public page has no JS to toggle: hide the dead button and always show content */
-.prose [data-type='details'] > button { display: none; }
-.prose [data-type='detailsContent'] { display: block !important; }
+.prose [data-type='details'] > button {
+  display: none;
+}
+.prose [data-type='detailsContent'] {
+  display: block !important;
+}
 
 /* Puck builder — render the component drawer as a 3-column grid of icon tiles.
    Targets Puck's internal Drawer container (hash-agnostic substring match);
@@ -296,4 +524,30 @@ html.dark {
 html.dark [class*='_Button_']:not([class*='--secondary']) {
   color: #fff;
 }
-.tiptap-content p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--muted-foreground); float: left; pointer-events: none; height: 0; }
+.tiptap-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  float: left;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Editor canvas fidelity: Puck wraps every component in its own drag `<div>`
+   carrying an inline `position: relative`. That wrapper — not the styled
+   ancestor the author chose — then becomes the containing block for any
+   `position: absolute` block inside it, so `inset: 0` measures against a
+   wrapper sized to its own out-of-flow content, collapses to 0×0, and covers
+   nothing. On the published page there is no wrapper and the same block fills
+   its parent, so an overlay that hid half the design in production was
+   invisible in the builder.
+
+   Neutralised only for wrappers that actually contain a positioned block, so
+   Puck keeps its relative wrapper (and the action overlay anchored to it)
+   everywhere else. `:has()` is the whole point here — the rule has to depend on
+   the child's own positioning. */
+[data-puck-component]:has(> [style*='position:absolute']),
+[data-puck-component]:has(> [style*='position: absolute']),
+[data-puck-component]:has(> [style*='position:fixed']),
+[data-puck-component]:has(> [style*='position: fixed']) {
+  position: static !important;
+}

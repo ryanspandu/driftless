@@ -54,6 +54,18 @@ const routes = {
     tokens: [{"old":"/api/public/templates/:id","type":0,"val":"api","end":""},{"old":"/api/public/templates/:id","type":0,"val":"public","end":""},{"old":"/api/public/templates/:id","type":0,"val":"templates","end":""},{"old":"/api/public/templates/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['public_templates.show']['types'],
   },
+  'media.serve': {
+    methods: ["GET","HEAD"],
+    pattern: '/media/*',
+    tokens: [{"old":"/media/*","type":0,"val":"media","end":""},{"old":"/media/*","type":2,"val":"*","end":""}],
+    types: placeholder as Registry['media.serve']['types'],
+  },
+  'media.serveLegacy': {
+    methods: ["GET","HEAD"],
+    pattern: '/uploads/*',
+    tokens: [{"old":"/uploads/*","type":0,"val":"uploads","end":""},{"old":"/uploads/*","type":2,"val":"*","end":""}],
+    types: placeholder as Registry['media.serveLegacy']['types'],
+  },
   'seo.robots': {
     methods: ["GET","HEAD"],
     pattern: '/robots.txt',
@@ -119,6 +131,30 @@ const routes = {
     pattern: '/login',
     tokens: [{"old":"/login","type":0,"val":"login","end":""}],
     types: placeholder as Registry['session.store']['types'],
+  },
+  'password_reset.create': {
+    methods: ["GET","HEAD"],
+    pattern: '/forgot-password',
+    tokens: [{"old":"/forgot-password","type":0,"val":"forgot-password","end":""}],
+    types: placeholder as Registry['password_reset.create']['types'],
+  },
+  'password_reset.store': {
+    methods: ["POST"],
+    pattern: '/forgot-password',
+    tokens: [{"old":"/forgot-password","type":0,"val":"forgot-password","end":""}],
+    types: placeholder as Registry['password_reset.store']['types'],
+  },
+  'password_reset.edit': {
+    methods: ["GET","HEAD"],
+    pattern: '/reset-password/:token',
+    tokens: [{"old":"/reset-password/:token","type":0,"val":"reset-password","end":""},{"old":"/reset-password/:token","type":1,"val":"token","end":""}],
+    types: placeholder as Registry['password_reset.edit']['types'],
+  },
+  'password_reset.update': {
+    methods: ["POST"],
+    pattern: '/reset-password',
+    tokens: [{"old":"/reset-password","type":0,"val":"reset-password","end":""}],
+    types: placeholder as Registry['password_reset.update']['types'],
   },
   'legacy.signup.store': {
     methods: ["POST"],
@@ -449,6 +485,12 @@ const routes = {
     pattern: '/api/admin/pages/collections',
     tokens: [{"old":"/api/admin/pages/collections","type":0,"val":"api","end":""},{"old":"/api/admin/pages/collections","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/collections","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/collections","type":0,"val":"collections","end":""}],
     types: placeholder as Registry['pages.collections']['types'],
+  },
+  'pages.code_components': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/pages/code-components',
+    tokens: [{"old":"/api/admin/pages/code-components","type":0,"val":"api","end":""},{"old":"/api/admin/pages/code-components","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/code-components","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/code-components","type":0,"val":"code-components","end":""}],
+    types: placeholder as Registry['pages.code_components']['types'],
   },
   'pages.store': {
     methods: ["POST"],
@@ -810,6 +852,12 @@ const routes = {
     tokens: [{"old":"/admin/settings","type":0,"val":"admin","end":""},{"old":"/admin/settings","type":0,"val":"settings","end":""}],
     types: placeholder as Registry['settings.settings_page']['types'],
   },
+  'settings.appearance_settings_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/settings/appearance',
+    tokens: [{"old":"/admin/settings/appearance","type":0,"val":"admin","end":""},{"old":"/admin/settings/appearance","type":0,"val":"settings","end":""},{"old":"/admin/settings/appearance","type":0,"val":"appearance","end":""}],
+    types: placeholder as Registry['settings.appearance_settings_page']['types'],
+  },
   'settings.general_settings_page': {
     methods: ["GET","HEAD"],
     pattern: '/admin/settings/general',
@@ -881,6 +929,24 @@ const routes = {
     pattern: '/api/admin/settings/mail/test',
     tokens: [{"old":"/api/admin/settings/mail/test","type":0,"val":"api","end":""},{"old":"/api/admin/settings/mail/test","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/mail/test","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/mail/test","type":0,"val":"mail","end":""},{"old":"/api/admin/settings/mail/test","type":0,"val":"test","end":""}],
     types: placeholder as Registry['mail_settings.send_test']['types'],
+  },
+  'mail_settings.events': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/settings/mail/events',
+    tokens: [{"old":"/api/admin/settings/mail/events","type":0,"val":"api","end":""},{"old":"/api/admin/settings/mail/events","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/mail/events","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/mail/events","type":0,"val":"mail","end":""},{"old":"/api/admin/settings/mail/events","type":0,"val":"events","end":""}],
+    types: placeholder as Registry['mail_settings.events']['types'],
+  },
+  'mail_settings.update_event': {
+    methods: ["PUT"],
+    pattern: '/api/admin/settings/mail/events/:key',
+    tokens: [{"old":"/api/admin/settings/mail/events/:key","type":0,"val":"api","end":""},{"old":"/api/admin/settings/mail/events/:key","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/mail/events/:key","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/mail/events/:key","type":0,"val":"mail","end":""},{"old":"/api/admin/settings/mail/events/:key","type":0,"val":"events","end":""},{"old":"/api/admin/settings/mail/events/:key","type":1,"val":"key","end":""}],
+    types: placeholder as Registry['mail_settings.update_event']['types'],
+  },
+  'mail_settings.deliveries': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/settings/mail/deliveries',
+    tokens: [{"old":"/api/admin/settings/mail/deliveries","type":0,"val":"api","end":""},{"old":"/api/admin/settings/mail/deliveries","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/mail/deliveries","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/mail/deliveries","type":0,"val":"mail","end":""},{"old":"/api/admin/settings/mail/deliveries","type":0,"val":"deliveries","end":""}],
+    types: placeholder as Registry['mail_settings.deliveries']['types'],
   },
   'settings.get_web_settings': {
     methods: ["GET","HEAD"],

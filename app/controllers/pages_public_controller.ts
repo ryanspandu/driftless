@@ -4,6 +4,7 @@ import Page from '#models/page'
 import PageRenderer, { SSG_CACHE } from '#services/page_renderer'
 import { currentBuildId } from '#services/release'
 import { allReservedSegments } from '#modules/registry'
+import { mediaUrlSegment } from '#services/media_url'
 
 const renderer = new PageRenderer()
 
@@ -23,10 +24,19 @@ const RESERVED_FIRST_SEGMENT = new Set([
   'login',
   'register',
   'logout',
+  'forgot-password',
+  'reset-password',
   'offline',
   'health',
   'assets',
   'build',
+  /**
+   * Media, at both the configured prefix and the legacy one. A missing file has
+   * to 404 as a missing *file* — falling through to here makes it a missing
+   * page instead, which is how a broken image ends up reported as a routing bug.
+   */
+  mediaUrlSegment(),
+  'uploads',
   'sw.js',
   'robots.txt',
   'sitemap.xml',

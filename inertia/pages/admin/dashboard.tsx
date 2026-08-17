@@ -11,6 +11,7 @@ import { useContentList } from '~/hooks/api/use-content'
 import type { ContentDto } from '~/types/api'
 import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
 import { cn, formatAdminTableDateTime } from '~/lib/utils'
+import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 interface DashboardStats {
   totalUsers: number
@@ -140,28 +141,11 @@ function DashboardPageInner({ stats }: Props) {
     { value: 'draft', label: 'Drafts', count: draftRows.length },
   ]
   const statusFilter = (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
-      {statusFilters.map((f) => {
-        const active = tab === f.value
-        return (
-          <button
-            key={f.value}
-            type="button"
-            onClick={() => onTabChange(f.value)}
-            aria-pressed={active}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-              active
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {f.label}
-            <span className="text-xs tabular-nums text-muted-foreground">{f.count}</span>
-          </button>
-        )
-      })}
-    </div>
+    <TableFilterTabs
+      value={tab}
+      options={statusFilters}
+      onChange={onTabChange}
+    />
   )
 
   return (

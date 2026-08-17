@@ -3,8 +3,9 @@ import app from '@adonisjs/core/services/app'
 import env from '#start/env'
 import { DateTime } from 'luxon'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
-import { extname, join } from 'node:path'
+import { extname, isAbsolute, join, relative } from 'node:path'
 import Media from '#models/media'
+import { mediaUrlPrefix } from '#services/media_url'
 import { newUlid } from '#services/ulid_service'
 
 export interface MediaDto {
@@ -54,6 +55,37 @@ export default class MediaService {
     return configured ? app.makePath(configured) : app.publicPath('uploads')
   }
 
+  /**
+   * URL prefix stored on every media row.
+   *
+   * `MEDIA_URL_PREFIX` was the other half of `MEDIA_STORAGE_PATH` and had the
+   * same problem for longer: declared in `start/env.ts`, set in `.env.example`,
+   * and read by nobody. So the moment an operator followed the example file,
+   * uploads landed in `./storage/media` while their URLs still claimed
+   * `/uploads/…` — a path the static middleware cannot see, because it only
+   * serves `public/`. Every uploaded image 404ed, and nothing said why.
+   *
+   * The default stays `/uploads` so rows written before this keep resolving.
+   */
+  get urlPrefix(): string {
+    return mediaUrlPrefix()
+  }
+
+  /**
+   * Absolute path of a stored file, for the route that serves it.
+   *
+   * Returns null rather than a path whenever the name escapes the media
+   * directory — the filename reaches this straight off a URL, so `../` in it is
+   * an attempt to read the rest of the disk, not a typo.
+   */
+  resolveFilePath(name: string): string | null {
+    const base = this.uploadDir
+    const full = join(base, name)
+    const rel = relative(base, full)
+    if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null
+    return existsSync(full) ? full : null
+  }
+
   async list(params: {
     page?: number
     pageSize?: number
@@ -101,7 +133,19 @@ export default class MediaService {
     return this.toDto(media)
   }
 
-  async upload(file: MultipartFile, authorId: number | null): Promise<MediaDto> {
+  /**
+   * `dimensions` come from the client, which has already decoded the image to
+   * preview it — the same arrangement `replaceFile` uses. They were previously
+   * left null on every upload, so nothing that needs an image's intrinsic size
+   * (the media library's own listing, a background layer's `@2x`) had one to
+   * read. Still nullable: an SVG or a format the browser will not decode
+   * legitimately has no pixel size to report.
+   */
+  async upload(
+    file: MultipartFile,
+    authorId: number | null,
+    dimensions?: { width: number | null; height: number | null }
+  ): Promise<MediaDto> {
     if (!existsSync(this.uploadDir)) {
       mkdirSync(this.uploadDir, { recursive: true })
     }
@@ -117,9 +161,9 @@ export default class MediaService {
       filename,
       mimeType: file.type ? `${file.type}/${file.subtype}` : 'application/octet-stream',
       size: file.size ?? 0,
-      url: `/uploads/${filename}`,
-      width: null,
-      height: null,
+      url: `${this.urlPrefix}/${filename}`,
+      width: dimensions?.width ?? null,
+      height: dimensions?.height ?? null,
       authorId,
     })
 

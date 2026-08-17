@@ -5,10 +5,16 @@ type ParamValue = string | number | bigint | boolean
 export type ScannedRoutes = {
   ALL: {
     'home': { paramsTuple?: []; params?: {} }
+    'media.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
+    'media.serveLegacy': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'new_account.create': { paramsTuple?: []; params?: {} }
     'new_account.store': { paramsTuple?: []; params?: {} }
     'session.create': { paramsTuple?: []; params?: {} }
     'session.store': { paramsTuple?: []; params?: {} }
+    'password_reset.create': { paramsTuple?: []; params?: {} }
+    'password_reset.store': { paramsTuple?: []; params?: {} }
+    'password_reset.edit': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'password_reset.update': { paramsTuple?: []; params?: {} }
     'legacy.signup.store': { paramsTuple?: []; params?: {} }
     'session.destroy': { paramsTuple?: []; params?: {} }
     'v1.content.index': { paramsTuple?: []; params?: {} }
@@ -142,8 +148,12 @@ export type ScannedRoutes = {
   }
   GET: {
     'home': { paramsTuple?: []; params?: {} }
+    'media.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
+    'media.serveLegacy': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'new_account.create': { paramsTuple?: []; params?: {} }
     'session.create': { paramsTuple?: []; params?: {} }
+    'password_reset.create': { paramsTuple?: []; params?: {} }
+    'password_reset.edit': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'v1.content.index': { paramsTuple?: []; params?: {} }
     'v1.content.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'v1.cms.index': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
@@ -215,8 +225,12 @@ export type ScannedRoutes = {
   }
   HEAD: {
     'home': { paramsTuple?: []; params?: {} }
+    'media.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
+    'media.serveLegacy': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'new_account.create': { paramsTuple?: []; params?: {} }
     'session.create': { paramsTuple?: []; params?: {} }
+    'password_reset.create': { paramsTuple?: []; params?: {} }
+    'password_reset.edit': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'v1.content.index': { paramsTuple?: []; params?: {} }
     'v1.content.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'v1.cms.index': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
@@ -289,6 +303,8 @@ export type ScannedRoutes = {
   POST: {
     'new_account.store': { paramsTuple?: []; params?: {} }
     'session.store': { paramsTuple?: []; params?: {} }
+    'password_reset.store': { paramsTuple?: []; params?: {} }
+    'password_reset.update': { paramsTuple?: []; params?: {} }
     'legacy.signup.store': { paramsTuple?: []; params?: {} }
     'session.destroy': { paramsTuple?: []; params?: {} }
     'v1.content.store': { paramsTuple?: []; params?: {} }

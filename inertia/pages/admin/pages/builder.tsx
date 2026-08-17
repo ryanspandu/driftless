@@ -2,12 +2,14 @@ import '@measured/puck/puck.css'
 import { Puck, type Data } from '@measured/puck'
 import { useState } from 'react'
 import { Link } from '@inertiajs/react'
-import { ArrowLeft, Eye, ExternalLink, History } from 'lucide-react'
+import { ArrowLeft, Code2, Eye, ExternalLink, History } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import { puckConfig } from '~/puck/config'
 import { builderViewports } from '~/puck/style-fields'
 import { puckOverrides } from '~/puck/overrides'
 import { BuilderShell } from '~/puck/builder-shell'
+import { BuilderLoadState } from '~/puck/builder-load-state'
+import { customPageHasRegion } from '~/custom/registry'
 import type { PageMeta } from '~/puck/settings-dialog'
 import { usePage as usePageRecord, useUpdatePage } from '~/hooks/api/use-pages'
 import type { PageDto } from '~/types/api'
@@ -28,15 +30,77 @@ export default function PageBuilder({ id }: { id: string }) {
   const pageQuery = usePageRecord(id)
   const page = pageQuery.data
 
-  if (pageQuery.isLoading || !page) {
+  if (!page) {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
-        Loading builder…
-      </div>
+      <BuilderLoadState
+        error={pageQuery.error}
+        backHref="/admin/pages"
+        backLabel="Back to Pages"
+        missingLabel="This page no longer exists. It may have been deleted, or its link may be out of date."
+      />
     )
   }
 
-  return <BuilderInner id={id} page={page} />
+  /**
+   * A code page opens the builder only if it declares an editable region.
+   *
+   * Without one there is no block tree to edit: Puck would show an empty canvas
+   * and Publish would save that empty document over a page whose markup lives
+   * in a file. With one, the builder edits exactly that region — the same
+   * `content` column a builder page uses — so nothing here needs to change
+   * except the decision to open it.
+   */
+  const isCode = page.kind === 'CODE'
+  const hasRegion = isCode && customPageHasRegion(page.component ?? '')
+  if (isCode && !hasRegion) {
+    return <CodePageNotice page={page} />
+  }
+
+  return <BuilderInner id={id} page={page} regionOf={hasRegion ? page.component : null} />
+}
+
+function CodePageNotice({ page }: { page: PageDto }) {
+  return (
+    <div className="flex h-screen flex-col items-center justify-center gap-3 px-6 text-center">
+      <Code2 className="size-6 text-muted-foreground" />
+      <p className="text-sm font-medium">This page is built in code</p>
+      <p className="max-w-md text-sm text-muted-foreground">
+        Its markup comes from{' '}
+        <code className="font-mono text-xs">inertia/custom/pages/{page.component}.tsx</code>, not
+        from the visual builder. Edit that file to change the page; use the Pages list for its path,
+        status and SEO.
+      </p>
+      <div className="mt-1 flex items-center gap-2">
+        <Link
+          href="/admin/pages"
+          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1.5')}
+        >
+          <ArrowLeft className="size-4" />
+          Pages
+        </Link>
+        <a
+          href={`/admin/pages/${page.id}/preview`}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1.5')}
+        >
+          <Eye className="size-4" />
+          Preview
+        </a>
+        {page.status === 'PUBLISHED' ? (
+          <a
+            href={`/${page.path}`}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1.5')}
+          >
+            <ExternalLink className="size-4" />
+            View live
+          </a>
+        ) : null}
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -45,7 +109,16 @@ export default function PageBuilder({ id }: { id: string }) {
  * and edited from the Settings dialog. Everything is persisted together on
  * Publish (Puck `content` + `PageMeta`).
  */
-function BuilderInner({ id, page }: { id: string; page: PageDto }) {
+function BuilderInner({
+  id,
+  page,
+  regionOf,
+}: {
+  id: string
+  page: PageDto
+  /** Slug of the code page this region belongs to, when editing one. */
+  regionOf?: string | null
+}) {
   const updateMut = useUpdatePage()
   const [historyOpen, setHistoryOpen] = useState(false)
   const [meta, setMeta] = useState<PageMeta>(() => ({
@@ -56,13 +129,13 @@ function BuilderInner({ id, page }: { id: string; page: PageDto }) {
     layoutId: page.layoutId,
     headerTemplateId: page.headerTemplateId,
     footerTemplateId: page.footerTemplateId,
+    hideHeader: Boolean(page.hideHeader),
+    hideFooter: Boolean(page.hideFooter),
     seo: (page.seo ?? {}) as Record<string, unknown>,
   }))
 
   const initial =
-    page.content && Object.keys(page.content).length
-      ? (page.content as unknown as Data)
-      : EMPTY_DOC
+    page.content && Object.keys(page.content).length ? (page.content as unknown as Data) : EMPTY_DOC
 
   const save = async (data: Data) => {
     try {
@@ -76,6 +149,8 @@ function BuilderInner({ id, page }: { id: string; page: PageDto }) {
         layoutId: meta.layoutId,
         headerTemplateId: meta.headerTemplateId,
         footerTemplateId: meta.footerTemplateId,
+        hideHeader: meta.hideHeader,
+        hideFooter: meta.hideFooter,
         seo: meta.seo,
       })
       toast.success('Page saved')
@@ -111,6 +186,16 @@ function BuilderInner({ id, page }: { id: string; page: PageDto }) {
             </Link>
             <span className="truncate text-sm font-medium">{meta.title}</span>
             <span className="shrink-0 text-xs text-muted-foreground">/{meta.path}</span>
+            {/*
+              Says what is being edited. Without it the canvas looks like a whole
+              page, when in fact it is one region inside a component — and the
+              surrounding markup, which is not shown here, is not editable.
+            */}
+            {regionOf ? (
+              <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                Editable region of <code className="font-mono">custom/pages/{regionOf}.tsx</code>
+              </span>
+            ) : null}
           </>
         }
         topbarEnd={

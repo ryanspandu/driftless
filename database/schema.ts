@@ -142,33 +142,6 @@ export class CmsComponentSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
-export class CmsDemoPostSchema extends BaseModel {
-  static $columns = ['authorId', 'createdAt', 'deletedAt', 'dfdsf', 'excerpt', 'id', 'image', 'slug', 'status', 'title', 'updatedAt'] as const
-  $columns = CmsDemoPostSchema.$columns
-  @column()
-  declare authorId: string | null
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column.dateTime()
-  declare deletedAt: DateTime | null
-  @column()
-  declare dfdsf: boolean | null
-  @column()
-  declare excerpt: string | null
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare image: string | null
-  @column()
-  declare slug: string | null
-  @column()
-  declare status: string
-  @column()
-  declare title: string | null
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
-}
-
 export class CmsFieldSchema extends BaseModel {
   static $columns = ['collectionId', 'config', 'createdAt', 'deletedAt', 'id', 'key', 'label', 'order', 'required', 'type', 'unique', 'updatedAt'] as const
   $columns = CmsFieldSchema.$columns
@@ -1220,6 +1193,52 @@ export class IntegrationSettingSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class MailDeliverySchema extends BaseModel {
+  static $columns = ['completedAt', 'createdAt', 'error', 'eventKey', 'id', 'status', 'subject', 'toAddress'] as const
+  $columns = MailDeliverySchema.$columns
+  @column.dateTime()
+  declare completedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare error: string | null
+  @column()
+  declare eventKey: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare subject: string | null
+  @column()
+  declare toAddress: string
+}
+
+export class MailEventSettingSchema extends BaseModel {
+  static $columns = ['buttonLabel', 'createdAt', 'enabled', 'heading', 'intro', 'key', 'outro', 'subject', 'templateId', 'updatedAt'] as const
+  $columns = MailEventSettingSchema.$columns
+  @column()
+  declare buttonLabel: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare enabled: boolean
+  @column()
+  declare heading: string | null
+  @column()
+  declare intro: string | null
+  @column({ isPrimary: true })
+  declare key: string
+  @column()
+  declare outro: string | null
+  @column()
+  declare subject: string | null
+  @column()
+  declare templateId: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class MailSettingSchema extends BaseModel {
   static $columns = ['createdAt', 'enabled', 'fromAddress', 'fromName', 'host', 'id', 'lastTestError', 'lastTestOk', 'lastTestedAt', 'passwordEnc', 'port', 'secure', 'updatedAt', 'username'] as const
   $columns = MailSettingSchema.$columns
@@ -1378,10 +1397,12 @@ export class PageRevisionSchema extends BaseModel {
 }
 
 export class PageSchema extends BaseModel {
-  static $columns = ['authorId', 'content', 'createdAt', 'deletedAt', 'footerTemplateId', 'headerTemplateId', 'id', 'layoutId', 'path', 'publishedAt', 'renderMode', 'renderedBuild', 'renderedHtml', 'seo', 'status', 'title', 'updatedAt'] as const
+  static $columns = ['authorId', 'component', 'content', 'createdAt', 'deletedAt', 'footerTemplateId', 'headerTemplateId', 'hideFooter', 'hideHeader', 'id', 'kind', 'layoutId', 'path', 'publishedAt', 'renderMode', 'renderedBuild', 'renderedHtml', 'seo', 'status', 'title', 'updatedAt'] as const
   $columns = PageSchema.$columns
   @column()
   declare authorId: number | null
+  @column()
+  declare component: string | null
   @column()
   declare content: any
   @column.dateTime({ autoCreate: true })
@@ -1392,8 +1413,14 @@ export class PageSchema extends BaseModel {
   declare footerTemplateId: string | null
   @column()
   declare headerTemplateId: string | null
+  @column()
+  declare hideFooter: boolean
+  @column()
+  declare hideHeader: boolean
   @column({ isPrimary: true })
   declare id: string
+  @column()
+  declare kind: string
   @column()
   declare layoutId: string | null
   @column()
@@ -1414,6 +1441,25 @@ export class PageSchema extends BaseModel {
   declare title: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+}
+
+export class PasswordResetTokenSchema extends BaseModel {
+  static $columns = ['createdAt', 'expiresAt', 'id', 'tokenHash', 'updatedAt', 'usedAt', 'userId'] as const
+  $columns = PasswordResetTokenSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare tokenHash: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column.dateTime()
+  declare usedAt: DateTime | null
+  @column()
+  declare userId: number
 }
 
 export class PermissionRoleSchema extends BaseModel {
@@ -1502,7 +1548,7 @@ export class TaskSchema extends BaseModel {
 }
 
 export class TemplateSchema extends BaseModel {
-  static $columns = ['content', 'createdAt', 'deletedAt', 'id', 'isDefault', 'name', 'type', 'updatedAt'] as const
+  static $columns = ['content', 'createdAt', 'deletedAt', 'id', 'isDefault', 'name', 'renderedHtml', 'type', 'updatedAt'] as const
   $columns = TemplateSchema.$columns
   @column()
   declare content: any
@@ -1516,6 +1562,8 @@ export class TemplateSchema extends BaseModel {
   declare isDefault: boolean
   @column()
   declare name: string
+  @column()
+  declare renderedHtml: string | null
   @column()
   declare type: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })

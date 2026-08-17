@@ -58,6 +58,10 @@ npm run dev            # NOT plain `node ace serve`
 - Browse `/api/docs` (Scalar, via adonis-autoswagger) in dev for the auto-generated OpenAPI of `/api/*` — **dev-only**, see [docs/ai/api-docs.md](docs/ai/api-docs.md).
 - The external, token-authed API is `/api/v1/*` (Bearer access tokens; effective access = RBAC ∩ token ability; Redis rate-limit). Mint/revoke tokens at `/admin/settings/api-tokens` (self-service — any admin-area user manages their own). See [docs/ai/api-v1.md](docs/ai/api-v1.md).
 - Use the shared `DataTable` (`~/components/data-table`) for **every** table — never a raw `<table>` or a custom table. See [docs/ai/frontend.md](docs/ai/frontend.md#data-tables).
+- Build pages with the **page builder**. A page can instead be hand-written React
+  (`kind = CODE`, `inertia/custom/pages/`), but that is a human's deliberate choice for one
+  page — do not create code pages, or convert a builder page into one, unless asked. See
+  [docs/ai/code-pages.md](docs/ai/code-pages.md).
 - Run `npm run typecheck` after substantive TS changes.
 
 **Don't**
@@ -117,10 +121,12 @@ smaller third-party contract. Full reference: [docs/ai/modules.md](docs/ai/modul
 | [docs/ai/pages-builder.md](docs/ai/pages-builder.md) | Visual page builder (Puck): blocks, render modes, collections |
 | [docs/ai/builder-layers.md](docs/ai/builder-layers.md) | Builder custom layout: Layers + Detail style panel + navbar |
 | [docs/ai/templates.md](docs/ai/templates.md) | Reusable templates (header/footer/layout/component) |
+| [docs/ai/settings-ia.md](docs/ai/settings-ia.md) | Which settings screen owns which field + `web_settings` key map — read before adding a setting |
 | [docs/ai/page-settings.md](docs/ai/page-settings.md) | Page Settings + Website settings (custom code, SEO, meta) |
+| [docs/ai/auth-pages.md](docs/ai/auth-pages.md) | Builder pages replacing `/login`, `/register`, password reset, 404/500; auth form blocks; password-reset flow |
 | [docs/ai/modules.md](docs/ai/modules.md) | Module system (first-party app areas, DB-toggled, installable from the admin) |
 | [modules/ecommerce/README.md](modules/ecommerce/README.md) | E-commerce module (integer money, hosted Stripe/PayPal checkout) — docs live with the module |
-| [docs/ai/mail.md](docs/ai/mail.md) | Transactional email (SMTP from the admin or env, queued) |
+| [docs/ai/mail.md](docs/ai/mail.md) | Transactional email: provider presets, per-email toggles + editable copy, delivery log, `EMAIL` builder templates |
 | [docs/ai/api-docs.md](docs/ai/api-docs.md) | OpenAPI docs (adonis-autoswagger + Scalar at `/api/docs`, dev-only) |
 | [docs/ai/api-v1.md](docs/ai/api-v1.md) | External token API (`/api/v1`, PAT, RBAC ∩ ability, Redis rate-limit) |
 | [docs/ai/auth-and-permissions.md](docs/ai/auth-and-permissions.md) | Auth, RBAC |

@@ -179,7 +179,7 @@ never be used. PM2 or systemd on a plain VPS is the documented default.
 
 ## Installing a module from the admin UI
 
-Drop the folder into `modules/`, then **Settings → Application → Modules**. Folders the running
+Drop the folder into `modules/`, then **Settings → Modules**. Folders the running
 server has not loaded appear with a *Found on disk* badge. The dialog states, before anything
 happens: which migrations will run, whether the front-end will be rebuilt, and what the restart
 will do to your visitors.
