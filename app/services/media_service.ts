@@ -1,12 +1,16 @@
 import type { MultipartFile } from '@adonisjs/core/bodyparser'
+import type { HttpContext } from '@adonisjs/core/http'
 import app from '@adonisjs/core/services/app'
 import env from '#start/env'
 import { DateTime } from 'luxon'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import { readFile, rm, writeFile } from 'node:fs/promises'
 import { extname, isAbsolute, join, relative } from 'node:path'
+import { fileTypeFromFile } from 'file-type'
 import Media from '#models/media'
 import { mediaUrlPrefix } from '#services/media_url'
 import { newUlid } from '#services/ulid_service'
+import { sanitizeSvg } from '#services/html_sanitizer_service'
 
 export interface MediaDto {
   id: string
@@ -46,13 +50,22 @@ export default class MediaService {
      * env var that looked meaningful and did nothing. It is honoured now, so an
      * operator can put the media library on a mounted volume.
      *
-     * The default is unchanged. In the release layout `public/uploads` is a
-     * symlink out to `shared/uploads`, which is what keeps the library from
-     * being deleted by every rebuild; overriding this points somewhere else
-     * entirely and takes that protection with it.
+     * User media must never be served by the static middleware: SVG and HTML
+     * are active content in browsers. The controlled media route below owns
+     * all delivery, including the default layout.
      */
     const configured = env.get('MEDIA_STORAGE_PATH')
-    return configured ? app.makePath(configured) : app.publicPath('uploads')
+    const target = configured ? app.makePath(configured) : app.makePath('storage/media')
+    const rel = relative(app.publicPath(), target)
+    if (!rel || (!rel.startsWith('..') && !isAbsolute(rel))) {
+      throw new Error('MEDIA_STORAGE_PATH must be outside public/')
+    }
+    return target
+  }
+
+  /** Exposed for the administrator-only media inventory command. */
+  get storagePath(): string {
+    return this.uploadDir
   }
 
   /**
@@ -133,6 +146,40 @@ export default class MediaService {
     return this.toDto(media)
   }
 
+  async findByFilename(filename: string): Promise<Media | null> {
+    if (!/^[0-9A-HJKMNP-TV-Z]{26}\.[a-z0-9]+$/i.test(filename)) return null
+    return Media.query().where('filename', filename).whereNull('deleted_at').first()
+  }
+
+  private async inspectUpload(
+    file: MultipartFile,
+    allowed: Set<string>
+  ): Promise<{ mimeType: string; ext: string; svg?: string }> {
+    if (!file.isValid || !file.tmpPath) throw new Error('Invalid upload')
+    const bytes = await readFile(file.tmpPath)
+    const text = bytes.subarray(0, 1024).toString('utf8')
+    if (/^\s*<svg(?:\s|>)/i.test(text)) {
+      const svg = sanitizeSvg(bytes.toString('utf8'))
+      if (!svg || !allowed.has('image/svg+xml')) throw new Error('Unsafe SVG upload rejected')
+      return { mimeType: 'image/svg+xml', ext: 'svg', svg }
+    }
+    const detected = await fileTypeFromFile(file.tmpPath)
+    if (!detected || !allowed.has(detected.mime)) {
+      throw new Error('Uploaded bytes do not match an allowed file type')
+    }
+    return { mimeType: detected.mime, ext: detected.ext }
+  }
+
+  private async persistUpload(file: MultipartFile, path: string, svg?: string): Promise<number> {
+    if (svg !== undefined) {
+      await writeFile(path, svg, { flag: 'wx' })
+      await rm(file.tmpPath!, { force: true })
+      return Buffer.byteLength(svg)
+    }
+    await file.move(this.uploadDir, { name: path.split('/').pop(), overwrite: false })
+    return file.size ?? 0
+  }
+
   /**
    * `dimensions` come from the client, which has already decoded the image to
    * preview it — the same arrangement `replaceFile` uses. They were previously
@@ -150,17 +197,19 @@ export default class MediaService {
       mkdirSync(this.uploadDir, { recursive: true })
     }
 
+    const inspected = await this.inspectUpload(file, new Set([
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'application/pdf',
+      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ]))
     const id = newUlid()
-    const ext = extname(file.clientName || file.fieldName || '.bin')
-    const filename = `${id}${ext}`
-
-    await file.move(this.uploadDir, { name: filename, overwrite: false })
+    const filename = `${id}.${inspected.ext}`
+    const size = await this.persistUpload(file, join(this.uploadDir, filename), inspected.svg)
 
     const media = await Media.create({
       id,
       filename,
-      mimeType: file.type ? `${file.type}/${file.subtype}` : 'application/octet-stream',
-      size: file.size ?? 0,
+      mimeType: inspected.mimeType,
+      size,
       url: `${this.urlPrefix}/${filename}`,
       width: dimensions?.width ?? null,
       height: dimensions?.height ?? null,
@@ -199,8 +248,13 @@ export default class MediaService {
       mkdirSync(this.uploadDir, { recursive: true })
     }
 
+    const inspected = await this.inspectUpload(file, new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']))
+    const currentExt = extname(media.filename).slice(1).toLowerCase()
+    if (currentExt !== inspected.ext) throw new Error('Replacement file type must match the existing media type')
+    if (inspected.svg !== undefined) throw new Error('SVG replacement is not supported')
     await file.move(this.uploadDir, { name: media.filename, overwrite: true })
 
+    media.mimeType = inspected.mimeType
     media.size = file.size ?? media.size
     if (typeof dims.width === 'number' && Number.isFinite(dims.width)) {
       media.width = Math.round(dims.width)
@@ -239,6 +293,21 @@ export default class MediaService {
       rmSync(filePath, { force: true })
     }
     await media.delete()
+  }
+
+  async serve(response: HttpContext['response'], path: string, media: Media) {
+    const inline = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'])
+    response.header('Cache-Control', 'public, max-age=31536000, immutable')
+    response.header('X-Content-Type-Options', 'nosniff')
+    response.header('Content-Security-Policy', "default-src 'none'; sandbox")
+    response.header('Content-Type', media.mimeType)
+    response.header('Content-Disposition', `${inline.has(media.mimeType) ? 'inline' : 'attachment'}; filename=\"${media.filename}\"`)
+    if (media.mimeType === 'image/svg+xml') {
+      const safe = sanitizeSvg(await readFile(path, 'utf8'))
+      if (!safe) return response.notFound({ message: 'Not found' })
+      return response.send(safe)
+    }
+    return response.send(await readFile(path))
   }
 
   private toDto(media: Media): MediaDto {

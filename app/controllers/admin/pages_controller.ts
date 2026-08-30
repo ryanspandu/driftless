@@ -2,11 +2,23 @@ import type { HttpContext } from '@adonisjs/core/http'
 import PagesService from '#services/pages_service'
 import CmsService from '#services/cms_service'
 import { CODE_PAGES } from '#services/code_pages.generated'
+import type User from '#models/user'
+import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
+import { hasPrivilegedPageContent } from '#services/html_sanitizer_service'
 
 const pagesService = new PagesService()
 const cmsService = new CmsService()
 
 export default class PagesController {
+  private async canManageExecutableContent(
+    user: User,
+    body: Record<string, unknown>,
+    currentKind?: string
+  ): Promise<boolean> {
+    if ((body.kind ?? currentKind) !== 'CODE' && !hasPrivilegedPageContent(body.content)) return true
+    await user.load('roles', (q) => q.preload('permissions'))
+    return abilityAllowsCode(collectUserPermissions(user), 'settings:manage')
+  }
   async index({ response }: HttpContext) {
     return response.json(await pagesService.findAll())
   }
@@ -38,6 +50,9 @@ export default class PagesController {
   async store({ request, auth, response }: HttpContext) {
     const body = request.all()
     const { title, path, status, renderMode, kind, component, content, seo } = body
+    if (!(await this.canManageExecutableContent(auth.user as User, body))) {
+      return response.status(403).json({ message: 'settings:manage is required for executable page content' })
+    }
     try {
       const item = await pagesService.create(auth.user!.id, {
         title,
@@ -60,6 +75,10 @@ export default class PagesController {
     const body = request.all()
     const { title, path, status, renderMode, kind, component, content, seo } = body
     try {
+      const current = await pagesService.findOne(params.id)
+      if (!(await this.canManageExecutableContent(auth.user as User, body, current.kind))) {
+        return response.status(403).json({ message: 'settings:manage is required for executable page content' })
+      }
       const item = await pagesService.update(params.id, auth.user?.id ?? null, {
         title,
         path,

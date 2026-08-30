@@ -130,6 +130,7 @@ smaller third-party contract. Full reference: [docs/ai/modules.md](docs/ai/modul
 | [docs/ai/api-docs.md](docs/ai/api-docs.md) | OpenAPI docs (adonis-autoswagger + Scalar at `/api/docs`, dev-only) |
 | [docs/ai/api-v1.md](docs/ai/api-v1.md) | External token API (`/api/v1`, PAT, RBAC ∩ ability, Redis rate-limit) |
 | [docs/ai/auth-and-permissions.md](docs/ai/auth-and-permissions.md) | Auth, RBAC |
+| [docs/ai/security.md](docs/ai/security.md) | HTML/SVG sanitization, CSP, media rollout, OAuth and seed hardening |
 | [docs/ai/offline-and-pwa.md](docs/ai/offline-and-pwa.md) | Dexie, Serwist |
 | [docs/ai/testing.md](docs/ai/testing.md) | Japa |
 | [docs/ai/conventions.md](docs/ai/conventions.md) | Style, maintenance |

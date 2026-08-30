@@ -7,6 +7,7 @@ import CmsComponent, { type CmsComponentField } from '#models/cms_component'
 import CmsRevision from '#models/cms_revision'
 import { newUlid } from '#services/ulid_service'
 import CmsPermissionsService from '#services/cms_permissions_service'
+import { sanitizeRichText } from '#services/html_sanitizer_service'
 import {
   nativeFieldColumn,
   nativeTableName,
@@ -1213,6 +1214,8 @@ export default class CmsService {
         }
         return n
       }
+      case 'RICHTEXT':
+        return sanitizeRichText(val)
       default:
         return val
     }

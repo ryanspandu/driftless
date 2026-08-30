@@ -11,12 +11,28 @@ const shieldConfig = defineConfig({
     /**
      * Enable the Content-Security-Policy header.
      */
-    enabled: false,
+    enabled: true,
 
     /**
      * Per-resource CSP directives.
      */
-    directives: {},
+    directives: {
+      defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      scriptSrc: ["'self'", '@nonce', 'https://accounts.google.com', 'https://www.google.com', 'https://hcaptcha.com', 'https://js.hcaptcha.com'],
+      scriptSrcAttr: ["'none'"],
+      styleSrc: ["'self'", '@nonce'],
+      // Puck uses React style attributes extensively. These cannot execute JS,
+      // and are kept separate from style elements (which require a nonce).
+      styleSrcAttr: ["'unsafe-inline'"],
+      imgSrc: ["'self'", 'https:', 'data:'],
+      fontSrc: ["'self'", 'https:', 'data:'],
+      connectSrc: ["'self'", 'https://accounts.google.com', 'https://www.google.com'],
+      frameSrc: ["'self'", 'https://www.youtube.com', 'https://player.vimeo.com', 'https://www.google.com', 'https://maps.google.com', 'https://www.facebook.com', 'https://open.spotify.com'],
+      formAction: ["'self'"],
+    },
 
     /**
      * Report violations without blocking resources.

@@ -1,6 +1,7 @@
 import Content from '#models/content'
 import { newUlid } from '#services/ulid_service'
 import { DateTime } from 'luxon'
+import { sanitizeRichText } from '#services/html_sanitizer_service'
 
 export interface ContentDto {
   id: string
@@ -71,7 +72,7 @@ export default class ContentService {
       id: newUlid(),
       title: dto.title,
       slug: dto.slug,
-      body: dto.body,
+      body: sanitizeRichText(dto.body),
       status: dto.status as 'DRAFT' | 'PUBLISHED',
       authorId,
     })
@@ -95,7 +96,7 @@ export default class ContentService {
 
     if (dto.title !== undefined) row.title = dto.title
     if (dto.slug !== undefined) row.slug = dto.slug
-    if (dto.body !== undefined) row.body = dto.body
+    if (dto.body !== undefined) row.body = sanitizeRichText(dto.body)
     if (dto.status !== undefined) row.status = dto.status as 'DRAFT' | 'PUBLISHED'
     await row.save()
     return this.toDto(row)

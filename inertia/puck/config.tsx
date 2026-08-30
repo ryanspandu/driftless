@@ -1,4 +1,5 @@
 import { lazy, Suspense, type ElementType, type ReactNode } from 'react'
+import { usePage } from '@inertiajs/react'
 import type { Config } from '@measured/puck'
 import { cn } from '~/lib/utils'
 import { CollectionSourceField, CollectionList } from '~/puck/collection-list'
@@ -52,23 +53,23 @@ function parseYouTubeId(input: string): string | null {
  * the `<Box>` renderer live in `~/puck/style-fields`.
  */
 
+function PuckRoot({ children, ...rootProps }: { children?: ReactNode } & Record<string, unknown>) {
+  const { cspNonce } = usePage<{ cspNonce?: string }>().props
+  const css = cssFromSnippets(readSnippets(rootProps))
+  return (
+    <div className="theme-light">
+      {css ? <style nonce={cspNonce} dangerouslySetInnerHTML={{ __html: css }} /> : null}
+      {children}
+    </div>
+  )
+}
+
 const baseConfig: Config = {
   root: {
     // Keep the rendered page in the light theme: the canvas previews the public
     // page (always light) even while the editor chrome follows the admin's dark
     // mode. Applies in the editor canvas and on the public/SSR render alike.
-    render: ({ children, ...rootProps }: { children?: ReactNode } & Record<string, unknown>) => {
-      // Per-page custom CSS: concatenated from the page's enabled CSS snippets
-      // (or the legacy `customCss` string). Previews live in the canvas AND applies
-      // on the public render. JS snippets are injected separately by PublicPageView.
-      const css = cssFromSnippets(readSnippets(rootProps))
-      return (
-        <div className="theme-light">
-          {css ? <style dangerouslySetInnerHTML={{ __html: css }} /> : null}
-          {children}
-        </div>
-      )
-    },
+    render: PuckRoot,
   },
   // Webflow-style grouping of the Components drawer. Components not listed in any
   // category fall into Puck's default "Other" group. Built up per phase.
@@ -1196,7 +1197,8 @@ const baseConfig: Config = {
       ),
     },
 
-    // Code Embed — raw HTML (admin-authored, like custom code but per block).
+    // Code Embed — safe presentation HTML and approved iframe providers only.
+    // Server persistence removes scripts, event handlers, and unknown origins.
     CodeEmbed: {
       label: 'Code Embed',
       fields: { html: { type: 'textarea', label: 'HTML' }, ...styleFields },

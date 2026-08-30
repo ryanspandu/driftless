@@ -36,13 +36,20 @@ export default class MediaController {
     if (!file) {
       return response.status(422).json({ message: 'No file uploaded' })
     }
+    if (!file.isValid) {
+      return response.status(422).json({ message: 'Invalid upload', errors: file.errors })
+    }
 
     const { width, height } = request.only(['width', 'height'])
-    const media = await mediaService.replaceFile(params.id, file, {
-      width: typeof width === 'string' ? Number(width) : null,
-      height: typeof height === 'string' ? Number(height) : null,
-    })
-    return response.json(media)
+    try {
+      const media = await mediaService.replaceFile(params.id, file, {
+        width: typeof width === 'string' ? Number(width) : null,
+        height: typeof height === 'string' ? Number(height) : null,
+      })
+      return response.json(media)
+    } catch (error) {
+      return response.status(422).json({ message: (error as Error).message })
+    }
   }
 
   async store({ request, auth, response }: HttpContext) {
@@ -54,13 +61,20 @@ export default class MediaController {
     if (!file) {
       return response.status(422).json({ message: 'No file uploaded' })
     }
+    if (!file.isValid) {
+      return response.status(422).json({ message: 'Invalid upload', errors: file.errors })
+    }
 
     const { width, height } = request.only(['width', 'height'])
-    const media = await mediaService.upload(file, auth.user!.id, {
-      width: typeof width === 'string' ? Number(width) : null,
-      height: typeof height === 'string' ? Number(height) : null,
-    })
-    return response.status(201).json(media)
+    try {
+      const media = await mediaService.upload(file, auth.user!.id, {
+        width: typeof width === 'string' ? Number(width) : null,
+        height: typeof height === 'string' ? Number(height) : null,
+      })
+      return response.status(201).json(media)
+    } catch (error) {
+      return response.status(422).json({ message: (error as Error).message })
+    }
   }
 
   /**
@@ -73,13 +87,14 @@ export default class MediaController {
    */
   async serve({ params, response }: HttpContext) {
     const segments: string[] = Array.isArray(params['*']) ? params['*'] : []
-    const path = segments.length ? mediaService.resolveFilePath(segments.join('/')) : null
-    if (!path) return response.notFound({ message: 'Not found' })
+    const filename = segments.length ? segments.join('/') : null
+    const media = filename
+      ? await mediaService.findByFilename(filename)
+      : null
+    const path = media ? mediaService.resolveFilePath(media.filename) : null
+    if (!media || !path) return response.notFound({ message: 'Not found' })
 
-    // Content-addressed names (a ULID per upload), so a long cache is safe; an
-    // edit in place is cache-busted by the `?v=` the client appends.
-    response.header('Cache-Control', 'public, max-age=31536000')
-    return response.download(path)
+    return mediaService.serve(response, path, media)
   }
 
   async destroy({ params, response }: HttpContext) {

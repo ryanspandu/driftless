@@ -4,6 +4,7 @@ import { newUlid } from '#services/ulid_service'
 import { currentBuildId } from '#services/release'
 import { CODE_PAGES } from '#services/code_pages.generated'
 import { DateTime } from 'luxon'
+import { sanitizePuckDocument } from '#services/html_sanitizer_service'
 
 export type PageStatus = 'DRAFT' | 'PUBLISHED'
 export type PageRenderMode = 'SSR' | 'SSG' | 'CSR'
@@ -115,7 +116,7 @@ export default class PagesService {
       renderMode: dto.renderMode ?? 'SSR',
       kind,
       component: kind === 'CODE' ? component : null,
-      content: dto.content ?? EMPTY_DOC,
+      content: sanitizePuckDocument(dto.content ?? EMPTY_DOC),
       seo: dto.seo ?? {},
       layoutId: dto.layoutId ?? null,
       headerTemplateId: dto.headerTemplateId ?? null,
@@ -154,7 +155,7 @@ export default class PagesService {
     if (dto.footerTemplateId !== undefined) row.footerTemplateId = dto.footerTemplateId
     if (dto.hideHeader !== undefined) row.hideHeader = dto.hideHeader
     if (dto.hideFooter !== undefined) row.hideFooter = dto.hideFooter
-    if (dto.content !== undefined) row.content = dto.content
+    if (dto.content !== undefined) row.content = sanitizePuckDocument(dto.content)
     if (dto.seo !== undefined) row.seo = dto.seo
     if (dto.status !== undefined) {
       if (dto.status === 'PUBLISHED' && row.status !== 'PUBLISHED') row.publishedAt = DateTime.now()
@@ -191,7 +192,7 @@ export default class PagesService {
 
     const row = await Page.query().where('id', pageId).whereNull('deleted_at').firstOrFail()
 
-    row.content = revision.content
+    row.content = sanitizePuckDocument(revision.content)
     row.seo = revision.seo
     if (revision.status === 'PUBLISHED' && row.status !== 'PUBLISHED') {
       row.publishedAt = DateTime.now()

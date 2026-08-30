@@ -35,6 +35,9 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
       }),
       user: ctx.inertia.always(auth?.user ? UserTransformer.transform(auth.user) : undefined),
       permissions: ctx.inertia.always(auth?.user ? collectUserPermissions(auth.user) : []),
+      // Shield generates this before Inertia renders. Trusted settings-managed
+      // snippets consume it so CSP never needs unsafe-inline for scripts.
+      cspNonce: ctx.inertia.always(ctx.response.nonce),
     }
   }
 

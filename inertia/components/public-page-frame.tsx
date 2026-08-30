@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { usePage } from '@inertiajs/react'
 import { puckConfig } from '~/puck/config'
 import { CollectionDataContext, type CmsRecord } from '~/puck/collection-list'
 import { PuckConfigContext, TemplateContext } from '~/puck/template-ref'
@@ -53,6 +54,7 @@ export function PublicPageFrame({
   preview,
   children,
 }: PublicPageFrameProps) {
+  const { cspNonce } = usePage<{ cspNonce?: string }>().props
   const globalSnippets: CodeSnippet[] = Array.isArray(globalCode) ? globalCode : []
   const globalCss = cssFromSnippets(globalSnippets)
 
@@ -70,6 +72,7 @@ export function PublicPageFrame({
     const els = allJs.map((s) => {
       const el = document.createElement('script')
       el.setAttribute('data-page-custom-js', s.id)
+      if (cspNonce) el.setAttribute('nonce', cspNonce)
       el.textContent = s.code
       document.body.appendChild(el)
       return el
@@ -84,7 +87,7 @@ export function PublicPageFrame({
     <>
       <PublicPageHead title={title} seo={seo} globalMeta={globalMeta} />
       {globalCss ? (
-        <style data-global-css="" dangerouslySetInnerHTML={{ __html: globalCss }} />
+        <style nonce={cspNonce} data-global-css="" dangerouslySetInnerHTML={{ __html: globalCss }} />
       ) : null}
       {/* Config first: a TemplateRef needs it to render server-side at all. */}
       <PuckConfigContext.Provider value={puckConfig}>

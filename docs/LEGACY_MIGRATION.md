@@ -5,8 +5,8 @@
 - [ ] PostgreSQL running (`docker compose up -d` in the project root)
 - [ ] `DATABASE_URL` points at the **driftless** database (e.g. `postgresql://postgres:postgres@localhost:5433/driftless`) — do **not** run Lucid migrations against the legacy Prisma database; it already has conflicting tables like `media`
 - [ ] `node ace migration:run && node ace db:seed`
-- [ ] `SEED_ADMIN_PASSWORD` is quoted in `.env` (e.g. `"Driftless#333"`) — unquoted `#` is treated as a comment by dotenv
-- [ ] If admin already exists with a wrong password, run `FORCE_SEED_PASSWORD=1 node ace db:seed` (dev only)
+- [ ] `SEED_ADMIN_PASSWORD` is quoted in `.env` if it contains `#` — unquoted `#` is treated as a comment by dotenv
+- [ ] If an existing non-production admin needs a reset, run `FORCE_SEED_PASSWORD=1 node ace db:seed` (development/test only; production rejects it)
 - [ ] Start dev server with `npm run dev` (or `npm run serve`) — **not** plain `node ace serve`, which runs in static mode and needs a prior build
 - [ ] Google OAuth + CAPTCHA configured in Admin → Integrations
 - [ ] Create a dynamic CMS collection, add records, test revision restore

@@ -4,6 +4,7 @@ import MailEventSetting from '#models/mail_event_setting'
 import PagesService from '#services/pages_service'
 import { newUlid } from '#services/ulid_service'
 import { DateTime } from 'luxon'
+import { sanitizePuckDocument } from '#services/html_sanitizer_service'
 
 const pagesService = new PagesService()
 
@@ -88,7 +89,7 @@ export default class TemplatesService {
       id: newUlid(),
       name,
       type: dto.type,
-      content: dto.content ?? EMPTY_DOC,
+      content: sanitizePuckDocument(dto.content ?? EMPTY_DOC),
       isDefault: dto.isDefault ?? false,
     })
     if (row.isDefault) await this.clearOtherDefaults(row.type, row.id)
@@ -98,7 +99,7 @@ export default class TemplatesService {
   async update(id: string, dto: UpdateTemplateInput): Promise<TemplateDto> {
     const row = await Template.query().where('id', id).whereNull('deleted_at').firstOrFail()
     if (dto.name !== undefined) row.name = dto.name
-    if (dto.content !== undefined) row.content = dto.content
+    if (dto.content !== undefined) row.content = sanitizePuckDocument(dto.content)
     /**
      * Only EMAIL templates carry rendered HTML. Ignoring it elsewhere means a
      * malformed request cannot smuggle a blob onto a header template, where
@@ -172,7 +173,7 @@ export default class TemplatesService {
       id: newUlid(),
       name: `${source.name} (copy)`,
       type: source.type,
-      content: source.content,
+      content: sanitizePuckDocument(source.content),
       isDefault: false,
     })
     return this.toDto(row)

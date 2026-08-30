@@ -1,4 +1,5 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
+import app from '@adonisjs/core/services/app'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
@@ -116,9 +117,18 @@ export default class extends BaseSeeder {
   }
 
   private async seedAdmin() {
-    const email = env.get('SEED_ADMIN_EMAIL', 'admin@driftless.local')
-    const password = env.get('SEED_ADMIN_PASSWORD', 'Driftless#333')
-    const username = env.get('SEED_ADMIN_USERNAME', 'johndoe')
+    const configuredEmail = env.get('SEED_ADMIN_EMAIL')
+    const configuredPassword = env.get('SEED_ADMIN_PASSWORD')
+    const configuredUsername = env.get('SEED_ADMIN_USERNAME')
+    if (app.inProduction && (!configuredEmail || !configuredPassword || !configuredUsername)) {
+      throw new Error('Production seeding requires SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD, and SEED_ADMIN_USERNAME')
+    }
+    if (app.inProduction && env.get('FORCE_SEED_PASSWORD') === '1') {
+      throw new Error('FORCE_SEED_PASSWORD is prohibited in production')
+    }
+    const email = configuredEmail ?? 'admin@driftless.local'
+    const password = configuredPassword ?? 'Driftless#333'
+    const username = configuredUsername ?? 'johndoe'
 
     const forcePassword = env.get('FORCE_SEED_PASSWORD') === '1'
     const existing = await User.query().where('email', email).whereNull('deleted_at').first()

@@ -69,6 +69,8 @@ export default class GoogleAuthController {
     }
 
     try {
+      // Only an already-bound subject can bypass this: email is the account
+      // linking key, so an unverified Google claim must never create or bind it.
       const user = await this.findOrCreateUser(profile)
       if (user.status !== 'ACTIVE') return redirectLogin('account_inactive')
       await auth.use('web').login(user)
@@ -128,6 +130,8 @@ export default class GoogleAuthController {
       .whereNull('deleted_at')
       .first()
     if (byGoogle) return byGoogle
+
+    if (!profile.emailVerified) throw new Error('google_email_not_verified')
 
     const byEmail = await User.query()
       .where('email', profile.email)

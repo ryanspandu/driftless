@@ -21,7 +21,10 @@ node ace db:seed
 npm run dev
 ```
 
-Open http://localhost:3333 (default). Admin seed credentials are in `.env.example` (`SEED_ADMIN_*`).
+Open http://localhost:3333 (default). Set unique `SEED_ADMIN_*` credentials before seeding; production seeding refuses missing credentials and never accepts `FORCE_SEED_PASSWORD`.
+
+Security operations and the required upgrade rollout for existing media/content
+are documented in [docs/ai/security.md](docs/ai/security.md).
 
 ## Scripts
 

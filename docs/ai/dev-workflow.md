@@ -59,7 +59,7 @@ See `.env.example`. Important:
 | Variable                                   | Notes                                                                                             |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`                             | Must point at **driftless** DB, not legacy stack                                                  |
-| `SEED_ADMIN_PASSWORD`                      | Quote values containing `#` (dotenv comment)                                                      |
+| `SEED_ADMIN_PASSWORD`                      | Required for production seed; use a unique value and quote values containing `#` (dotenv comment) |
 | `FORCE_SEED_PASSWORD=1`                    | Dev only — reset seeded admin password                                                            |
 | `DISABLE_OFFLINE=1`                        | Disables offline/PWA client features when set                                                     |
 | `MEDIA_STORAGE_PATH`                       | Local media files (default `./storage/media`); directory is created automatically on first upload |

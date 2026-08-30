@@ -18,6 +18,7 @@ Reference docs for AI coding assistants (Cursor, Claude Code, GitHub Copilot, Co
 | [modules.md](./modules.md) → module READMEs | A module documents itself: see `modules/<name>/README.md`. E-commerce: [modules/ecommerce/README.md](../../modules/ecommerce/README.md) |
 | [mail.md](./mail.md) | Transactional email: SMTP provider presets, per-email toggles and editable copy, delivery log, `EMAIL` builder templates |
 | [auth-and-permissions.md](./auth-and-permissions.md) | Session auth, OAuth, permission grammar |
+| [security.md](./security.md) | Sanitization, CSP, media/SVG policy, rollout commands, secure seeds |
 | [offline-and-pwa.md](./offline-and-pwa.md) | Dexie, sync engine, Serwist |
 | [api-docs.md](./api-docs.md) | Auto OpenAPI docs (adonis-autoswagger + Scalar at `/api/docs`, **dev-only**); implemented |
 | [api-v1.md](./api-v1.md) | External token-authed API (`/api/v1`, PAT + access tokens, content/CMS, RBAC ∩ ability, Redis rate-limit); **implemented** |

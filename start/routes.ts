@@ -423,10 +423,12 @@ router
       'edit',
     ])
     // Admin-only preview — renders a page at ANY status (Draft included), uncached.
-    router.get('/admin/pages/:id/preview', [
-      () => import('#controllers/pages_public_controller'),
-      'preview',
-    ])
+    router
+      .get('/admin/pages/:id/preview', [
+        () => import('#controllers/pages_public_controller'),
+        'preview',
+      ])
+      .use(middleware.pagePermission({ permission: 'page:read' }))
     router
       .group(() => {
         router.get('/api/admin/pages', [
@@ -796,10 +798,12 @@ router
       })
       .use(middleware.permission({ permission: 'settings:manage' }))
 
-    router.get('/api/admin/settings/web', [
-      () => import('#controllers/admin/settings_controller'),
-      'getWebSettings',
-    ])
+    router
+      .get('/api/admin/settings/web', [
+        () => import('#controllers/admin/settings_controller'),
+        'getWebSettings',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
     router
       .put('/api/admin/settings/web', [
         () => import('#controllers/admin/settings_controller'),
@@ -820,10 +824,12 @@ router
       .use(middleware.permission({ permission: 'settings:manage' }))
 
     // Global (site-wide) custom code — read open to admins; write gated.
-    router.get('/api/admin/settings/page-code', [
-      () => import('#controllers/admin/settings_controller'),
-      'getPageCode',
-    ])
+    router
+      .get('/api/admin/settings/page-code', [
+        () => import('#controllers/admin/settings_controller'),
+        'getPageCode',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
     router
       .put('/api/admin/settings/page-code', [
         () => import('#controllers/admin/settings_controller'),
