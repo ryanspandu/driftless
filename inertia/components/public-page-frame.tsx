@@ -5,6 +5,7 @@ import { CollectionDataContext, type CmsRecord } from '~/puck/collection-list'
 import { PuckConfigContext, TemplateContext } from '~/puck/template-ref'
 import { BlockBindingsContext, BlockDataContext } from '~/puck/block-data'
 import { cssFromSnippets, jsSnippets, readSnippets, type CodeSnippet } from '~/puck/custom-code'
+import { initScrollAnimations } from '~/puck/scroll-animation'
 import { PublicPageHead, type MetaTag } from '~/components/public-page-head'
 
 /**
@@ -54,7 +55,8 @@ export function PublicPageFrame({
   preview,
   children,
 }: PublicPageFrameProps) {
-  const { cspNonce } = usePage<{ cspNonce?: string }>().props
+  const page = usePage<{ cspNonce?: string }>()
+  const { cspNonce } = page.props
   const globalSnippets: CodeSnippet[] = Array.isArray(globalCode) ? globalCode : []
   const globalCss = cssFromSnippets(globalSnippets)
 
@@ -82,6 +84,14 @@ export function PublicPageFrame({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jsKey])
+
+  /**
+   * Scroll-into-view reveals. Client-only (never runs in the editor, since this
+   * frame is public-page-only) and a no-op under reduced motion. Runs on mount
+   * for CSR, SSR-hydrated and SSG-snapshot pages alike; re-keyed on the page URL
+   * so an Inertia navigation re-arms the observers for the new block tree.
+   */
+  useEffect(() => initScrollAnimations(document.body), [page.url])
 
   return (
     <>

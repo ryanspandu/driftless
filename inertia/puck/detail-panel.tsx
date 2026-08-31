@@ -30,6 +30,7 @@ import {
   type SegmentedOption,
 } from './style-controls'
 import { BackgroundLayersControl } from './background-controls'
+import type { ScrollAnimationPreset } from './scroll-animation'
 import { ICONS, LABELS } from './overrides'
 
 /**
@@ -231,6 +232,36 @@ const ALIGN_SELF_OPTIONS = [
 /** `bg` is the base colour; `backgrounds` is the layer stack painted over it. */
 const BACKGROUND_KEYS = ['bg', 'backgrounds']
 
+/** Scroll-into-view reveal, stored as one object prop. */
+const INTERACTION_KEYS = ['scrollAnimation']
+
+const SCROLL_ANIM_OPTIONS = [
+  { label: 'None', value: '' },
+  { label: 'Fade', value: 'fade' },
+  { label: 'Fade up', value: 'fade-up' },
+  { label: 'Fade down', value: 'fade-down' },
+  { label: 'Fade left', value: 'fade-left' },
+  { label: 'Fade right', value: 'fade-right' },
+  { label: 'Zoom in', value: 'zoom-in' },
+  { label: 'Zoom out', value: 'zoom-out' },
+  { label: 'Flip', value: 'flip' },
+] satisfies { label: string; value: '' | ScrollAnimationPreset }[]
+
+const SCROLL_EASING_OPTIONS = [
+  { label: 'Ease', value: 'ease' },
+  { label: 'Ease in-out', value: 'ease-in-out' },
+  { label: 'Ease out', value: 'ease-out' },
+  { label: 'Ease in', value: 'ease-in' },
+  { label: 'Linear', value: 'linear' },
+]
+
+const SCROLL_ONCE_OPTIONS: SegmentedOption[] = [
+  { value: 'once', label: 'Once' },
+  { value: 'replay', label: 'Replay' },
+]
+
+const SCROLL_SLIDE_PRESETS = ['fade-up', 'fade-down', 'fade-left', 'fade-right']
+
 const STYLE_KEYS = new Set([
   ...SPACING_KEYS,
   ...SIZE_KEYS,
@@ -242,6 +273,7 @@ const STYLE_KEYS = new Set([
   ...FLEXCHILD_KEYS,
   ...ADVANCED_KEYS,
   ...BACKGROUND_KEYS,
+  ...INTERACTION_KEYS,
 ])
 
 export function DetailPanel() {
@@ -334,6 +366,8 @@ export function DetailPanel() {
       {hasStyle && <BordersSection props={props} update={update} />}
 
       {hasStyle && <EffectsSection props={props} update={update} />}
+
+      {hasStyle && <InteractionsSection props={props} update={update} />}
 
       {hasStyle && <AdvancedSection props={props} update={update} />}
     </div>
@@ -466,6 +500,116 @@ function EffectsSection({
           onChange={(e) => update({ filter: e.target.value })}
         />
       </StackField>
+    </Section>
+  )
+}
+
+/**
+ * Scroll-into-view reveal animations ("animate on scroll", Webflow's flagship
+ * interaction). Stored as one `scrollAnimation` object prop — `undefined` when
+ * the type is cleared, mirroring how `backgrounds` stores empty. The reveal
+ * fires only on the published page; the runtime never runs in the editor, so
+ * the canvas stays still while authoring.
+ */
+function InteractionsSection({
+  props,
+  update,
+}: {
+  props: Record<string, unknown>
+  update: (patch: Record<string, unknown>) => void
+}) {
+  const sa =
+    props.scrollAnimation && typeof props.scrollAnimation === 'object'
+      ? (props.scrollAnimation as Record<string, unknown>)
+      : {}
+  const get = (k: string) => (typeof sa[k] === 'string' ? (sa[k] as string) : '')
+  const type = get('type')
+  const isSlide = SCROLL_SLIDE_PRESETS.includes(type)
+
+  const setSA = (patch: Record<string, unknown>) => {
+    const next = { ...sa, ...patch }
+    // Clearing the preset removes the whole prop so an untouched block keeps its
+    // exact prop set (same rule as Backgrounds).
+    update({ scrollAnimation: next.type ? next : undefined })
+  }
+
+  return (
+    <Section title="Interactions" defaultOpen={false}>
+      <InlineRow label="Animate" set={!!type}>
+        <select
+          className={cn(inputCls, 'cursor-pointer')}
+          value={type}
+          onChange={(e) => setSA({ type: e.target.value })}
+        >
+          {SCROLL_ANIM_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </InlineRow>
+
+      {type ? (
+        <>
+          <InlineRow label="Easing" set={!!get('easing')}>
+            <select
+              className={cn(inputCls, 'cursor-pointer')}
+              value={get('easing')}
+              onChange={(e) => setSA({ easing: e.target.value })}
+            >
+              {SCROLL_EASING_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </InlineRow>
+
+          <div className="grid grid-cols-2 gap-2">
+            <StackField label="Duration" set={!!get('duration')}>
+              <NumberUnitControl
+                value={get('duration')}
+                onChange={(v) => setSA({ duration: v })}
+                units={['ms', 's']}
+              />
+            </StackField>
+            <StackField label="Delay" set={!!get('delay')}>
+              <NumberUnitControl
+                value={get('delay')}
+                onChange={(v) => setSA({ delay: v })}
+                units={['ms', 's']}
+              />
+            </StackField>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {isSlide ? (
+              <StackField label="Distance" set={!!get('distance')}>
+                <NumberUnitControl
+                  value={get('distance')}
+                  onChange={(v) => setSA({ distance: v })}
+                  units={['px', 'rem', '%']}
+                />
+              </StackField>
+            ) : null}
+            <StackField label="Trigger" set={!!get('threshold')}>
+              <NumberUnitControl
+                value={get('threshold')}
+                onChange={(v) => setSA({ threshold: v })}
+                units={['%']}
+              />
+            </StackField>
+          </div>
+
+          <InlineRow label="Replay" set={sa.once === false}>
+            <SegmentedControl
+              options={SCROLL_ONCE_OPTIONS}
+              value={sa.once === false ? 'replay' : 'once'}
+              onChange={(v) => setSA({ once: v !== 'replay' })}
+            />
+          </InlineRow>
+        </>
+      ) : null}
     </Section>
   )
 }

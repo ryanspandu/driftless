@@ -118,12 +118,17 @@ export default class SchemaController {
 
       const result = await installer.uninstall({ name, tables })
 
+      // Revoke the module's RBAC permissions, matching the CLI uninstall path
+      // (`commands/modules_uninstall.ts`). `revokePermissions` only removes codes
+      // no other module still claims, so shared permissions are left intact.
+      const revokedPermissions = await modules.revokePermissions(name)
+
       await audit.record({
         actor: { type: 'user', user: auth.user as User },
         action: 'schema.uninstalled',
         subjectType: 'module',
         subjectId: name,
-        changes: result,
+        changes: { ...result, revokedPermissions },
         ctx,
       })
 

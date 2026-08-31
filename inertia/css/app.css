@@ -551,3 +551,57 @@ html.dark [class*='_Button_']:not([class*='--secondary']) {
 [data-puck-component]:has(> [style*='position: fixed']) {
   position: static !important;
 }
+
+/* ---------------------------------------------------------------------------
+   Scroll-into-view reveal animations ("animate on scroll").
+
+   The hidden start state is gated on `.sa-active`, a class the client runtime
+   (inertia/puck/scroll-animation.ts) adds to <body> only after mount. So the
+   SSR / SSG / no-JS markup is always fully visible (good for SEO), and elements
+   only start hidden once JS can also reveal them. Timing is driven by inert
+   `--sa-*` custom properties emitted per element by `Box`, so one rule set
+   serves every duration/delay/easing/distance without generating keyframes.
+   --------------------------------------------------------------------------- */
+.sa-active [data-scroll-animation] {
+  opacity: 0;
+  transition:
+    opacity var(--sa-duration, 600ms) var(--sa-easing, ease) var(--sa-delay, 0ms),
+    transform var(--sa-duration, 600ms) var(--sa-easing, ease) var(--sa-delay, 0ms);
+  will-change: opacity, transform;
+}
+.sa-active [data-scroll-animation='fade-up'] {
+  transform: translateY(var(--sa-distance, 24px));
+}
+.sa-active [data-scroll-animation='fade-down'] {
+  transform: translateY(calc(-1 * var(--sa-distance, 24px)));
+}
+.sa-active [data-scroll-animation='fade-left'] {
+  transform: translateX(var(--sa-distance, 24px));
+}
+.sa-active [data-scroll-animation='fade-right'] {
+  transform: translateX(calc(-1 * var(--sa-distance, 24px)));
+}
+.sa-active [data-scroll-animation='zoom-in'] {
+  transform: scale(0.92);
+}
+.sa-active [data-scroll-animation='zoom-out'] {
+  transform: scale(1.08);
+}
+.sa-active [data-scroll-animation='flip'] {
+  transform: perspective(1000px) rotateX(40deg);
+}
+
+/* Revealed: any preset returns to its natural, fully visible state. */
+.sa-active [data-scroll-animation].sa-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Reduced motion: second guard (the runtime also bails). Never hide, never move. */
+@media (prefers-reduced-motion: reduce) {
+  .sa-active [data-scroll-animation] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}

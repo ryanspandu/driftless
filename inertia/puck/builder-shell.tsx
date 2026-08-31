@@ -9,11 +9,13 @@ import {
   PanelLeft,
   PanelRight,
   Redo2,
+  Search,
   Settings,
   Smartphone,
   SlidersHorizontal,
   Tablet,
   Undo2,
+  X,
 } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
@@ -38,6 +40,43 @@ import { SettingsDialog, type PageMeta } from './settings-dialog'
  * Puck's viewport system, which is gated behind `iframe.enabled` (off here, since
  * the iframe froze the editor). Device presets use the most common real widths.
  */
+
+/**
+ * Filter Puck's component drawer by a search query, in place.
+ *
+ * Puck's `<Puck.Components />` has no search of its own. Each category renders a
+ * 3-column grid (`_Drawer_`) whose direct children are the tile cells; the
+ * draggable itself (`_Drawer-draggable_`) sits *inside* a cell. We must hide the
+ * CELL, not the draggable — hiding only the draggable leaves an empty grid cell,
+ * which pushed a lone result into the middle column. Hiding the cell removes it
+ * from the grid so matches pack to the left. A category (`_ComponentList_`) with
+ * no visible cell is collapsed. We only toggle `display`, so drag-and-drop on the
+ * surviving tiles is untouched; an empty query restores everything. Selectors are
+ * Puck-internal substrings — if they ever change the filter simply no-ops.
+ */
+function filterComponentDrawer(root: HTMLElement, query: string) {
+  const q = query.trim().toLowerCase()
+  const grids = root.querySelectorAll<HTMLElement>('[class*="_Drawer_"]')
+  const categories = root.querySelectorAll<HTMLElement>('[class*="_ComponentList_"]')
+
+  grids.forEach((grid) => {
+    for (const cell of Array.from(grid.children) as HTMLElement[]) {
+      const match = !q || (cell.textContent ?? '').toLowerCase().includes(q)
+      cell.style.display = match ? '' : 'none'
+    }
+  })
+  categories.forEach((c) => {
+    if (!q) {
+      c.style.display = ''
+      return
+    }
+    const grid = c.querySelector<HTMLElement>('[class*="_Drawer_"]')
+    const anyVisible = grid
+      ? (Array.from(grid.children) as HTMLElement[]).some((cell) => cell.style.display !== 'none')
+      : false
+    c.style.display = anyVisible ? '' : 'none'
+  })
+}
 
 const DEVICE_PRESETS: {
   key: string
@@ -66,6 +105,20 @@ export function BuilderShell({
 }) {
   const { appState, history, selectedItem } = usePuck()
   const [leftTab, setLeftTab] = useState<'components' | 'element'>('components')
+  const [componentQuery, setComponentQuery] = useState('')
+  const componentsRef = useRef<HTMLDivElement>(null)
+
+  // Keep the component drawer filtered to the search query. A MutationObserver
+  // re-applies it whenever Puck re-renders the drawer (e.g. expanding a category
+  // or after a drag), so the filter stays sticky while typing.
+  useEffect(() => {
+    const root = componentsRef.current
+    if (!root || leftTab !== 'components') return
+    filterComponentDrawer(root, componentQuery)
+    const observer = new MutationObserver(() => filterComponentDrawer(root, componentQuery))
+    observer.observe(root, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [componentQuery, leftTab])
   // null = Desktop / full width. A number = a fixed canvas width in px (preset
   // or a custom value typed into the width box).
   const [canvasWidth, setCanvasWidth] = useState<number | null>(null)
@@ -279,7 +332,30 @@ export function BuilderShell({
           <div className="min-h-0 flex-1 overflow-y-auto">
             {leftTab === 'components' ? (
               <div className="p-3">
-                <Puck.Components />
+                <div className="relative mb-3">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={componentQuery}
+                    onChange={(e) => setComponentQuery(e.target.value)}
+                    placeholder="Search components…"
+                    aria-label="Search components"
+                    className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-8 text-sm outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  {componentQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setComponentQuery('')}
+                      aria-label="Clear search"
+                      className="absolute right-1.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  ) : null}
+                </div>
+                <div ref={componentsRef}>
+                  <Puck.Components />
+                </div>
               </div>
             ) : (
               <DetailPanel />

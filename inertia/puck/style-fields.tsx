@@ -8,6 +8,7 @@ import {
   NumberUnitControl,
 } from '~/puck/style-controls'
 import { backgroundsToCss, readLayers } from '~/puck/background-layers'
+import { scrollAnimationAttrs } from '~/puck/scroll-animation'
 
 /**
  * Shared style controls for the Pages builder ("enrich toward Webflow").
@@ -254,15 +255,29 @@ export function Box({
   // page / SSR (render nothing). In the editor (`puck.isEditing`) it stays
   // visible but dimmed so it can still be selected and un-hidden. `puck` is spread
   // into `s` by Puck; when absent (e.g. plain SSR) we simply hide it.
+  const puck = s.puck as { isEditing?: boolean; dragRef?: (el: Element | null) => void } | undefined
   const hidden = s._hidden === true
-  const isEditing = !!(s.puck as { isEditing?: boolean } | undefined)?.isEditing
+  const isEditing = !!puck?.isEditing
   if (hidden && !isEditing) return null
+
+  // Scroll-into-view reveal: data-attrs + inert CSS custom properties, applied
+  // only on the published page (suppressed while editing). The hidden start
+  // state lives in `.sa-active`-gated CSS, never in this inline style — so SSR
+  // and no-JS keep the element visible.
+  const anim = scrollAnimationAttrs(s, isEditing)
+
+  // For components marked `inline: true`, Puck skips its own drag wrapper and
+  // hands us a `dragRef` to put on the real element instead — so the block is
+  // itself the flex/grid item (matching the published DOM) while Puck still
+  // tracks/selects/drags it. `null` for non-inline blocks (React ignores it).
   return createElement(
     as,
     {
       ...rest,
+      ...anim.attrs,
+      ref: puck?.dragRef,
       className: cn(className, str(s, 'className')),
-      style: { ...styleToCss(s), ...style, ...(hidden ? { opacity: 0.4 } : null) },
+      style: { ...styleToCss(s), ...anim.vars, ...style, ...(hidden ? { opacity: 0.4 } : null) },
     },
     children
   )

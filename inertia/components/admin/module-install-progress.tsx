@@ -55,7 +55,10 @@ export function ModuleInstallProgress({
   }, [job])
 
   useEffect(() => {
-    if (job?.state === 'succeeded' && !invalidated.current) {
+    // Refresh once the install reaches any terminal state, not only success: a
+    // failed/abandoned install can still have applied migrations partway, which
+    // leaves the modules list and schema-pending queries stale otherwise.
+    if (job?.state && isTerminal(job.state) && !invalidated.current) {
       invalidated.current = true
       invalidate()
     }

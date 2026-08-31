@@ -121,6 +121,10 @@ export function useLatestModuleInstallJob(enabled = true) {
         timeout: 8_000,
       }),
     enabled,
+    // Poll so an admin already sitting on this page discovers an install another
+    // admin (or tab) started, without needing a remount/refocus. The endpoint is
+    // cheap and at most one job is ever active (enforced by a unique index).
+    refetchInterval: 5_000,
     retry: false,
     staleTime: 0,
   })

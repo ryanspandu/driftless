@@ -143,8 +143,9 @@ const baseConfig: Config = {
   components: {
     Section: {
       label: 'Section',
+      inline: true,
       fields: { content: { type: 'slot' }, ...styleFields },
-      defaultProps: { padding: '48px 24px', content: [] },
+      defaultProps: { content: [] },
       render: ({ content: Content, ...s }) => (
         <Box as="section" s={s} className="w-full">
           <Content />
@@ -154,8 +155,9 @@ const baseConfig: Config = {
 
     Container: {
       label: 'Container',
+      inline: true,
       fields: { content: { type: 'slot' }, ...styleFields },
-      defaultProps: { maxWidth: '1100px', padding: '0 16px', content: [] },
+      defaultProps: { content: [] },
       render: ({ content: Content, ...s }) => (
         <Box s={s}>
           <Content />
@@ -165,6 +167,7 @@ const baseConfig: Config = {
 
     Columns: {
       label: 'Columns',
+      inline: true,
       fields: {
         count: {
           type: 'select',
@@ -197,6 +200,7 @@ const baseConfig: Config = {
     // Grid — CSS grid with configurable columns + rows (Webflow Grid).
     Grid: {
       label: 'Grid',
+      inline: true,
       fields: {
         columns: {
           type: 'select',
@@ -232,6 +236,7 @@ const baseConfig: Config = {
     // sets the column count; children auto-place into the grid.
     QuickStack: {
       label: 'Quick Stack',
+      inline: true,
       fields: {
         columns: {
           type: 'select',
@@ -241,7 +246,7 @@ const baseConfig: Config = {
         content: { type: 'slot' },
         ...styleFields,
       },
-      defaultProps: { columns: '2', display: 'grid', gap: '16px', content: [] },
+      defaultProps: { columns: '2', display: 'grid', content: [] },
       render: ({ content: Content, columns, ...s }) => (
         <Box
           s={s}
@@ -256,8 +261,9 @@ const baseConfig: Config = {
     // Detail → Layout panel.
     VFlex: {
       label: 'V Flex',
+      inline: true,
       fields: { content: { type: 'slot' }, ...styleFields },
-      defaultProps: { display: 'flex', flexDirection: 'column', gap: '16px', content: [] },
+      defaultProps: { display: 'flex', flexDirection: 'column', content: [] },
       render: ({ content: Content, ...s }) => (
         <Box s={s}>
           <Content />
@@ -268,8 +274,9 @@ const baseConfig: Config = {
     // H Flex — horizontal flex container (row).
     HFlex: {
       label: 'H Flex',
+      inline: true,
       fields: { content: { type: 'slot' }, ...styleFields },
-      defaultProps: { display: 'flex', flexDirection: 'row', gap: '16px', content: [] },
+      defaultProps: { display: 'flex', flexDirection: 'row', content: [] },
       render: ({ content: Content, ...s }) => (
         <Box s={s}>
           <Content />
@@ -405,6 +412,7 @@ const baseConfig: Config = {
     // Div Block — generic container (Webflow's workhorse). Style-ready slot.
     DivBlock: {
       label: 'Div Block',
+      inline: true,
       fields: { content: { type: 'slot' }, ...styleFields },
       defaultProps: { content: [] },
       render: ({ content: Content, ...s }) => (
@@ -447,7 +455,7 @@ const baseConfig: Config = {
     ListItem: {
       label: 'List Item',
       fields: { content: { type: 'slot' }, ...styleFields },
-      defaultProps: { display: 'list-item', content: [] },
+      defaultProps: { content: [] },
       render: ({ content: Content, ...s }) => (
         <Box as="li" s={s}>
           <Content />
@@ -1169,7 +1177,7 @@ const baseConfig: Config = {
         content: { type: 'slot' },
         ...styleFields,
       },
-      defaultProps: { src: '', poster: '', minHeight: '400px', padding: '48px 24px', content: [] },
+      defaultProps: { src: '', poster: '', content: [] },
       render: ({ content: Content, src, poster, ...s }) => (
         <Box s={s} style={{ position: 'relative', overflow: 'hidden' }}>
           {src ? (
@@ -1212,7 +1220,7 @@ const baseConfig: Config = {
     Map: {
       label: 'Map',
       fields: { query: { type: 'text', label: 'Address or place' }, ...styleFields },
-      defaultProps: { query: 'New York', minHeight: '300px' },
+      defaultProps: { query: 'New York' },
       render: ({ query, ...s }) => (
         <Box s={s}>
           <iframe
@@ -1396,7 +1404,7 @@ const baseConfig: Config = {
     Divider: {
       label: 'Divider',
       fields: { ...styleFields },
-      defaultProps: { margin: '16px 0' },
+      defaultProps: {},
       render: ({ ...s }) => (
         <Box s={s}>
           <hr className="border-border" />

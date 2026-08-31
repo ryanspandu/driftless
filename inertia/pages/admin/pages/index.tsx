@@ -158,7 +158,13 @@ export default function PagesPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => router.visit(`/admin/pages/${row.original.id}/edit`)}
+                render={
+                  <a
+                    href={`/admin/pages/${row.original.id}/edit`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                }
               >
                 <SquarePen className="size-4" />
                 Open builder

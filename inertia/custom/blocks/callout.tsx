@@ -33,8 +33,6 @@ export default {
       defaultProps: {
         text: 'A custom React block, rendered from inertia/custom/blocks/callout.tsx.',
         tone: 'info',
-        padding: '14px 16px',
-        borderRadius: '10px',
       },
       render: ({ text, tone, ...s }) => (
         <Box
