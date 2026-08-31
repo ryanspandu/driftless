@@ -31,7 +31,8 @@ export function BuilderLoadState({
 }) {
   if (!error) {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
+      <div className="flex h-screen flex-col items-center justify-center gap-6 text-sm text-muted-foreground">
+        <span className="builder-loader" aria-hidden />
         Loading builder…
       </div>
     )

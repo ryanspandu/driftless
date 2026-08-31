@@ -42,6 +42,19 @@ export default class SettingsController {
     return response.json({ snippets: saved })
   }
 
+  // Site-wide responsive breakpoints (Webflow-style tiers + custom resolutions).
+  async getBreakpoints({ response }: HttpContext) {
+    return response.json({ breakpoints: await webSettingsService.getBreakpoints() })
+  }
+
+  async updateBreakpoints({ request, response }: HttpContext) {
+    const { breakpoints } = request.all()
+    const saved = await webSettingsService.setBreakpoints(breakpoints)
+    // The tier list changes the `@media` CSS baked into every SSG page.
+    await pagesService.invalidateAllSnapshots()
+    return response.json({ breakpoints: saved })
+  }
+
   // Integration settings
   async getIntegrationSettings({ response }: HttpContext) {
     const settings = await integrationService.getAdminSettings()

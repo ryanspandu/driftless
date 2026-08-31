@@ -837,6 +837,22 @@ router
       ])
       .use(middleware.permission({ permission: 'settings:manage' }))
 
+    // Site-wide responsive breakpoints — any page editor may READ them (the
+    // builder needs the tier list); changing the site's tiers is gated on
+    // settings:manage since it re-renders every page's `@media` CSS.
+    router
+      .get('/api/admin/settings/breakpoints', [
+        () => import('#controllers/admin/settings_controller'),
+        'getBreakpoints',
+      ])
+      .use(middleware.permission({ resource: 'content' }))
+    router
+      .put('/api/admin/settings/breakpoints', [
+        () => import('#controllers/admin/settings_controller'),
+        'updateBreakpoints',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+
     // API Tokens (Personal Access Tokens for the external /api/v1 API).
     // Self-service: any authenticated admin-area user manages their OWN tokens
     // (the controller scopes to auth.user), so no extra permission is required.

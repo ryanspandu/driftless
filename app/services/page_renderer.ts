@@ -185,9 +185,10 @@ export default class PageRenderer {
             },
           })
 
-    const [globalCode, globalMeta] = await Promise.all([
+    const [globalCode, globalMeta, breakpoints] = await Promise.all([
       webSettingsService.getGlobalCode(),
       webSettingsService.getSiteMetaTags(),
+      webSettingsService.getBreakpointsRaw(),
     ])
 
     /**
@@ -215,6 +216,7 @@ export default class PageRenderer {
         blockData,
         globalCode,
         globalMeta,
+        breakpoints,
         preview,
         // Echoed to the client so a block can inherit the binding there too.
         bindings: options.bindings?.params,

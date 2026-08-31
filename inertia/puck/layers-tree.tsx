@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType, type DragEvent } from 'react'
-import { usePuck, type ComponentData, type Config } from '@measured/puck'
+import { createUsePuck, type ComponentData, type Config } from '@measured/puck'
 import {
   ChevronDown,
   ChevronRight,
@@ -109,13 +109,25 @@ function buildAncestors(tree: TreeNode[]): Map<string, string[]> {
   return map
 }
 
-export function LayersTree() {
-  const { appState, config, dispatch, getSelectorForId, getItemById, selectedItem } = usePuck()
+/** Selector-scoped store hook — see builder-shell for the rationale. */
+const usePuckStore = createUsePuck()
 
-  const content = appState.data.content as unknown as RawItem[] | undefined
+export function LayersTree() {
+  // Narrow selectors: the tree re-renders on content or selection change, NOT on
+  // hover or other ui-only store ticks. `config`/`dispatch`/getters are stable.
+  const content = usePuckStore((s) => s.appState.data.content) as unknown as
+    | RawItem[]
+    | undefined
+  const config = usePuckStore((s) => s.config)
+  const dispatch = usePuckStore((s) => s.dispatch)
+  const getSelectorForId = usePuckStore((s) => s.getSelectorForId)
+  const getItemById = usePuckStore((s) => s.getItemById)
+  const selectedId = usePuckStore(
+    (s) => (s.selectedItem?.props as { id?: string } | undefined)?.id ?? null
+  )
+
   const tree = useMemo(() => buildTree(content, config), [content, config])
   const descendants = useMemo(() => buildDescendants(tree), [tree])
-  const selectedId = (selectedItem?.props as { id?: string } | undefined)?.id ?? null
 
   const ancestors = useMemo(() => buildAncestors(tree), [tree])
 
@@ -391,14 +403,17 @@ export function LayersTree() {
  */
 function DeleteLayerButton({
   label,
-  nested,
+  node,
   onConfirm,
 }: {
   label: string
-  nested: number
+  node: TreeNode
   onConfirm: () => void
 }) {
   const [open, setOpen] = useState(false)
+  // Only walk the subtree when the confirmation is actually open — computing this
+  // for every row on every render was an O(n²) tree walk on the editor hot path.
+  const nested = open ? countDescendants(node) : 0
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
@@ -586,7 +601,7 @@ function TreeRow({
             {!node.locked && (
               <DeleteLayerButton
                 label={node.label}
-                nested={countDescendants(node)}
+                node={node}
                 onConfirm={() => onDelete(node.id)}
               />
             )}

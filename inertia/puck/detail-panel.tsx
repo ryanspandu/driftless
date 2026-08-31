@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from 'react'
-import { usePuck, type ComponentData, type Field } from '@measured/puck'
+import { useContext, useState, type ReactNode } from 'react'
+import { createUsePuck, type ComponentData, type Field } from '@measured/puck'
+import { BreakpointContext, baseBreakpoint, cascadeStyleBag, readResponsive } from './breakpoints'
 import {
   AlignCenter,
   AlignJustify,
@@ -23,6 +24,8 @@ import {
   BoxModelControl,
   BoxShadowControl,
   ColorControl,
+  CommitInput,
+  CommitTextarea,
   NumberUnitControl,
   OffsetControl,
   SegmentedControl,
@@ -211,7 +214,7 @@ const CURSOR_OPTIONS = [
 
 const BORDER_KEYS = ['borderStyle', 'borderWidth', 'borderColor', 'borderRadius', 'boxShadow']
 const FLEXCHILD_KEYS = ['alignSelf', 'flexGrow', 'flexShrink', 'order', 'flexBasis']
-const ADVANCED_KEYS = ['className']
+const ADVANCED_KEYS = ['className', 'htmlId', 'attributes']
 
 const BORDER_STYLE_OPTIONS: SegmentedOption[] = [
   { value: '', icon: Ban, title: 'None' },
@@ -276,8 +279,39 @@ const STYLE_KEYS = new Set([
   ...INTERACTION_KEYS,
 ])
 
+/**
+ * The style keys that CASCADE per breakpoint. Everything visual — layout,
+ * spacing, size, position, typography, background, border, effects, flex-child.
+ * Deliberately excludes the element's identity (`className`/`htmlId`/custom
+ * `attributes`) and scroll interactions, which stay on the base layer regardless
+ * of the active breakpoint.
+ */
+const RESPONSIVE_KEYS = new Set([
+  ...SPACING_KEYS,
+  ...SIZE_KEYS,
+  ...POSITION_KEYS,
+  ...TYPO_KEYS,
+  ...LAYOUT_KEYS,
+  ...EFFECTS_KEYS,
+  ...BORDER_KEYS,
+  ...FLEXCHILD_KEYS,
+  ...BACKGROUND_KEYS,
+])
+
+/**
+ * Selector-scoped Puck store hook (see builder-shell for the rationale): the
+ * panel re-renders when the *selected item* changes, not on every store tick
+ * (hover, other-block edits). `config`/`dispatch`/`getSelectorForId` are stable
+ * references, so those subscriptions never trigger a re-render.
+ */
+const usePuckStore = createUsePuck()
+
 export function DetailPanel() {
-  const { selectedItem, config, dispatch, getSelectorForId } = usePuck()
+  const selectedItem = usePuckStore((s) => s.selectedItem)
+  const config = usePuckStore((s) => s.config)
+  const dispatch = usePuckStore((s) => s.dispatch)
+  const getSelectorForId = usePuckStore((s) => s.getSelectorForId)
+  const { breakpoints, activeBp } = useContext(BreakpointContext)
 
   if (!selectedItem) {
     return (
@@ -297,14 +331,46 @@ export function DetailPanel() {
   const id = props.id as string
   const Icon = ICONS[type] ?? null
 
+  // Which breakpoint is being edited. On the base tier, edits write flat props
+  // exactly as before. On a narrower tier, STYLE edits write to that tier's
+  // override layer (`props.responsive[bp]`); identity/content keys still write
+  // to the base. Reads use the desktop-first cascade so the panel shows the
+  // effective value at the active tier.
+  const baseId = baseBreakpoint(breakpoints)?.id
+  const onBase = !activeBp || activeBp === baseId
+  const viewProps = onBase ? props : cascadeStyleBag(props, breakpoints, activeBp)
+
   const update = (patch: Record<string, unknown>) => {
     const sel = getSelectorForId(id)
     if (!sel) return
+
+    let nextProps: Record<string, unknown>
+    if (onBase) {
+      nextProps = { ...props, ...patch }
+    } else {
+      nextProps = { ...props }
+      const responsive = { ...readResponsive(props) }
+      const layer = { ...(responsive[activeBp!] ?? {}) }
+      for (const [k, v] of Object.entries(patch)) {
+        if (RESPONSIVE_KEYS.has(k)) {
+          // Style keys cascade: set on this tier, or prune to fall back to inherited.
+          if (v === undefined || v === '' || v === null) delete layer[k]
+          else layer[k] = v
+        } else {
+          // Identity / content keys are never per-breakpoint.
+          nextProps[k] = v
+        }
+      }
+      if (Object.keys(layer).length) responsive[activeBp!] = layer
+      else delete responsive[activeBp!]
+      nextProps.responsive = Object.keys(responsive).length ? responsive : undefined
+    }
+
     dispatch({
       type: 'replace',
       destinationZone: sel.zone,
       destinationIndex: sel.index,
-      data: { ...selectedItem, props: { ...props, ...patch } } as ComponentData,
+      data: { ...selectedItem, props: nextProps } as ComponentData,
     })
   }
 
@@ -320,9 +386,19 @@ export function DetailPanel() {
     <div className="pb-10">
       <div className="flex items-center gap-2 border-b px-3 py-2.5 text-sm font-semibold">
         {Icon ? <Icon className="size-4 text-muted-foreground" /> : null}
-        {(config.components?.[type] as { label?: string } | undefined)?.label ??
-          LABELS[type] ??
-          type}
+        <span className="min-w-0 flex-1 truncate">
+          {(config.components?.[type] as { label?: string } | undefined)?.label ??
+            LABELS[type] ??
+            type}
+        </span>
+        {!onBase && (
+          <span
+            className="shrink-0 rounded bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-medium text-blue-400"
+            title={`Editing the ${breakpoints.find((b) => b.id === activeBp)?.label ?? activeBp} breakpoint. Style changes here apply to this width and narrower; class, ID and content stay shared.`}
+          >
+            {breakpoints.find((b) => b.id === activeBp)?.label ?? activeBp}
+          </span>
+        )}
       </div>
 
       {contentKeys.length > 0 && (
@@ -334,42 +410,42 @@ export function DetailPanel() {
               name={k}
               itemId={id}
               label={fields[k]?.label ?? k}
-              value={props[k]}
+              value={viewProps[k]}
               onChange={(v) => update({ [k]: v })}
             />
           ))}
         </Section>
       )}
 
-      {hasStyle && <FlexChildSection props={props} update={update} />}
+      {hasStyle && <FlexChildSection props={viewProps} update={update} />}
 
-      {hasStyle && <LayoutSection props={props} update={update} hasGap={'gap' in fields} />}
+      {hasStyle && <LayoutSection props={viewProps} update={update} hasGap={'gap' in fields} />}
 
       {hasSpacing && (
         <Section title="Spacing">
           <SpacingControl
-            margin={typeof props.margin === 'string' ? props.margin : ''}
-            padding={typeof props.padding === 'string' ? props.padding : ''}
+            margin={typeof viewProps.margin === 'string' ? viewProps.margin : ''}
+            padding={typeof viewProps.padding === 'string' ? viewProps.padding : ''}
             onChange={(margin, padding) => update({ margin, padding })}
           />
         </Section>
       )}
 
-      {hasStyle && <SizeSection props={props} update={update} />}
+      {hasStyle && <SizeSection props={viewProps} update={update} />}
 
-      {hasStyle && <PositionSection props={props} update={update} />}
+      {hasStyle && <PositionSection props={viewProps} update={update} />}
 
-      {hasStyle && <TypographySection props={props} update={update} />}
+      {hasStyle && <TypographySection props={viewProps} update={update} />}
 
-      {'bg' in fields && <BackgroundSection props={props} update={update} />}
+      {'bg' in fields && <BackgroundSection props={viewProps} update={update} />}
 
-      {hasStyle && <BordersSection props={props} update={update} />}
+      {hasStyle && <BordersSection props={viewProps} update={update} />}
 
-      {hasStyle && <EffectsSection props={props} update={update} />}
+      {hasStyle && <EffectsSection props={viewProps} update={update} />}
 
-      {hasStyle && <InteractionsSection props={props} update={update} />}
+      {hasStyle && <InteractionsSection props={viewProps} update={update} />}
 
-      {hasStyle && <AdvancedSection props={props} update={update} />}
+      {hasStyle && <AdvancedSection props={viewProps} update={update} />}
     </div>
   )
 }
@@ -474,30 +550,30 @@ function EffectsSection({
         </select>
       </InlineRow>
       <StackField label="Transform" set={!!get('transform')}>
-        <input
+        <CommitInput
           type="text"
           className={inputCls}
           value={get('transform')}
           placeholder="rotate(5deg) scale(1.1)"
-          onChange={(e) => update({ transform: e.target.value })}
+          onCommit={(v) => update({ transform: v })}
         />
       </StackField>
       <StackField label="Transition" set={!!get('transition')}>
-        <input
+        <CommitInput
           type="text"
           className={inputCls}
           value={get('transition')}
           placeholder="all 0.2s ease"
-          onChange={(e) => update({ transition: e.target.value })}
+          onCommit={(v) => update({ transition: v })}
         />
       </StackField>
       <StackField label="Filter" set={!!get('filter')}>
-        <input
+        <CommitInput
           type="text"
           className={inputCls}
           value={get('filter')}
           placeholder="blur(4px) brightness(1.1)"
-          onChange={(e) => update({ filter: e.target.value })}
+          onCommit={(v) => update({ filter: v })}
         />
       </StackField>
     </Section>
@@ -644,13 +720,13 @@ function FlexChildSection({
           { k: 'order', l: 'Order' },
         ].map(({ k, l }) => (
           <StackField key={k} label={l} set={!!get(k)}>
-            <input
+            <CommitInput
               type="text"
               inputMode="numeric"
               className={inputCls}
               value={get(k)}
               placeholder="0"
-              onChange={(e) => update({ [k]: e.target.value })}
+              onCommit={(v) => update({ [k]: v })}
             />
           </StackField>
         ))}
@@ -699,6 +775,14 @@ function BordersSection({
   )
 }
 
+type CustomAttr = { name: string; value: string }
+
+/**
+ * Attributes panel (Webflow-style): the element's custom class, HTML id, and any
+ * name/value attributes. `htmlId`/`attributes` flow through `Box`
+ * (`customAttributes`), which filters them for safety; a valid `id` also makes
+ * in-page anchors (`#features`) work.
+ */
 function AdvancedSection({
   props,
   update,
@@ -706,18 +790,71 @@ function AdvancedSection({
   props: Record<string, unknown>
   update: (patch: Record<string, unknown>) => void
 }) {
-  const v = typeof props.className === 'string' ? (props.className as string) : ''
+  const className = typeof props.className === 'string' ? props.className : ''
+  const htmlId = typeof props.htmlId === 'string' ? props.htmlId : ''
+  const attrs: CustomAttr[] = Array.isArray(props.attributes)
+    ? (props.attributes as CustomAttr[])
+    : []
+  const setAttrs = (next: CustomAttr[]) => update({ attributes: next.length ? next : undefined })
+
   return (
-    <Section title="Advanced" defaultOpen={false}>
-      <InlineRow label="Class" set={!!v}>
-        <input
+    <Section title="Attributes" defaultOpen={false}>
+      <InlineRow label="Class" set={!!className}>
+        <CommitInput
           type="text"
           className={inputCls}
-          value={v}
+          value={className}
           placeholder="custom-class"
-          onChange={(e) => update({ className: e.target.value })}
+          onCommit={(v) => update({ className: v })}
         />
       </InlineRow>
+      <InlineRow label="ID" set={!!htmlId}>
+        <CommitInput
+          type="text"
+          className={inputCls}
+          value={htmlId}
+          placeholder="element-id"
+          onCommit={(v) => update({ htmlId: v })}
+        />
+      </InlineRow>
+      <StackField label="Custom attributes" set={attrs.length > 0}>
+        <div className="space-y-1.5">
+          {attrs.map((a, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <CommitInput
+                type="text"
+                className={cn(inputCls, 'flex-1')}
+                value={a.name}
+                placeholder="name"
+                onCommit={(v) => setAttrs(attrs.map((x, j) => (j === i ? { ...x, name: v } : x)))}
+              />
+              <CommitInput
+                type="text"
+                className={cn(inputCls, 'flex-1')}
+                value={a.value}
+                placeholder="value"
+                onCommit={(v) => setAttrs(attrs.map((x, j) => (j === i ? { ...x, value: v } : x)))}
+              />
+              <button
+                type="button"
+                aria-label="Remove attribute"
+                onClick={() => setAttrs(attrs.filter((_, j) => j !== i))}
+                className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => setAttrs([...attrs, { name: '', value: '' }])}
+            className="flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-input text-xs text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+          >
+            <Plus className="size-3.5" />
+            Add attribute
+          </button>
+        </div>
+      </StackField>
     </Section>
   )
 }
@@ -873,13 +1010,13 @@ function PositionSection({
             onChange={(side, v) => update({ [side]: v })}
           />
           <InlineRow label="z-index" set={!!get('zIndex')}>
-            <input
+            <CommitInput
               type="text"
               inputMode="numeric"
               className={inputCls}
               value={get('zIndex')}
               placeholder="auto"
-              onChange={(e) => update({ zIndex: e.target.value })}
+              onCommit={(v) => update({ zIndex: v })}
             />
           </InlineRow>
         </>
@@ -914,11 +1051,11 @@ function TypographySection({
   return (
     <Section title="Typography">
       <InlineRow label="Font" set={!!get('font')}>
-        <input
+        <CommitInput
           type="text"
           value={get('font')}
           placeholder="Inherit"
-          onChange={(e) => update({ font: e.target.value })}
+          onCommit={(v) => update({ font: v })}
           className={inputCls}
         />
       </InlineRow>
@@ -1220,32 +1357,32 @@ function FieldControl({
 
   if (field.type === 'textarea') {
     return (
-      <textarea
+      <CommitTextarea
         rows={3}
         className={cn(inputCls, 'h-auto resize-y py-1.5')}
         value={(value as string | undefined) ?? ''}
-        onChange={(e) => onChange(e.target.value)}
+        onCommit={(v) => onChange(v)}
       />
     )
   }
 
   if (field.type === 'number') {
     return (
-      <input
+      <CommitInput
         type="number"
         className={inputCls}
-        value={(value as number | undefined) ?? ''}
-        onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+        value={value === undefined || value === null ? '' : String(value)}
+        onCommit={(v) => onChange(v === '' ? undefined : Number(v))}
       />
     )
   }
 
   return (
-    <input
+    <CommitInput
       type="text"
       className={inputCls}
       value={(value as string | undefined) ?? ''}
-      onChange={(e) => onChange(e.target.value)}
+      onCommit={(v) => onChange(v)}
     />
   )
 }

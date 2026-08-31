@@ -1,4 +1,11 @@
-import { type ComponentType, type KeyboardEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type InputHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from 'react'
 import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react'
 import { cn } from '~/lib/utils'
 
@@ -20,6 +27,146 @@ import { cn } from '~/lib/utils'
  */
 const inputCls =
   'h-7 w-full rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-ring'
+
+// ───────────────────── Debounced commit text fields ─────────────────────
+
+/**
+ * Keep each keystroke in LOCAL state and only call `onCommit` on a short
+ * debounce, on blur, and on Enter — never per character.
+ *
+ * Every edit in this panel funnels through a Puck `replace` dispatch that
+ * re-walks the whole document (O(n) in block count), so committing per keystroke
+ * made a block-heavy page stutter. Committing per pause keeps typing instant
+ * while collapsing a burst of keystrokes into one dispatch. Re-syncs from `value`
+ * whenever the field is not the focused element (element switch, unit change,
+ * undo/redo). Shared by {@link CommitInput} and {@link CommitTextarea}.
+ */
+function useCommit<E extends HTMLInputElement | HTMLTextAreaElement>(
+  value: string,
+  onCommit: (next: string) => void,
+  debounceMs: number
+) {
+  const [local, setLocal] = useState(value)
+  const ref = useRef<E>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Re-sync local from `value` when it changes externally (element switch, unit
+  // change, undo) — but never while the field is focused, so it can't clobber
+  // what the user is typing.
+  useEffect(() => {
+    if (ref.current && document.activeElement === ref.current) return
+    setLocal(value)
+  }, [value])
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current)
+    },
+    []
+  )
+
+  const stopTimer = () => {
+    if (timer.current) {
+      clearTimeout(timer.current)
+      timer.current = null
+    }
+  }
+  const commit = (next: string) => {
+    stopTimer()
+    if (next !== value) onCommit(next)
+  }
+  const change = (next: string) => {
+    setLocal(next)
+    stopTimer()
+    timer.current = setTimeout(() => commit(next), debounceMs)
+  }
+  const cancel = () => {
+    stopTimer()
+    setLocal(value)
+    ref.current?.blur()
+  }
+  return { local, setLocal, ref, commit, change, cancel }
+}
+
+/**
+ * Debounced single-line input. `stepOnArrows` restores Webflow's ↑/↓ numeric
+ * nudging (see {@link stepNumericValue}), committing at once since a step is a
+ * discrete action. Escape reverts.
+ */
+export function CommitInput({
+  value,
+  onCommit,
+  debounceMs = 200,
+  stepOnArrows = false,
+  ...rest
+}: {
+  value: string
+  onCommit: (next: string) => void
+  debounceMs?: number
+  stepOnArrows?: boolean
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'onBlur' | 'onKeyDown'>) {
+  const { local, setLocal, ref, commit, change, cancel } = useCommit<HTMLInputElement>(
+    value,
+    onCommit,
+    debounceMs
+  )
+  return (
+    <input
+      {...rest}
+      ref={ref}
+      value={local}
+      onChange={(e) => change(e.target.value)}
+      onKeyDown={(e) => {
+        if (stepOnArrows) {
+          const stepped = stepNumericValue(local, e)
+          if (stepped !== null) {
+            e.preventDefault()
+            setLocal(stepped)
+            commit(stepped)
+            return
+          }
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          commit(local)
+        } else if (e.key === 'Escape') {
+          cancel()
+        }
+      }}
+      onBlur={() => commit(local)}
+    />
+  )
+}
+
+/** Debounced multi-line textarea (Enter inserts a newline; Escape reverts). */
+export function CommitTextarea({
+  value,
+  onCommit,
+  debounceMs = 200,
+  ...rest
+}: {
+  value: string
+  onCommit: (next: string) => void
+  debounceMs?: number
+} & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange' | 'onBlur'>) {
+  const { local, ref, commit, change, cancel } = useCommit<HTMLTextAreaElement>(
+    value,
+    onCommit,
+    debounceMs
+  )
+  return (
+    <textarea
+      {...rest}
+      ref={ref}
+      value={local}
+      onChange={(e) => change(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') cancel()
+      }}
+      onBlur={() => commit(local)}
+    />
+  )
+}
 
 // ─────────────────────── Keyboard stepping (arrow keys) ───────────────────────
 
@@ -57,16 +204,6 @@ export function stepNumericValue(
   // A value typed without a unit stays without one; an empty field picks up the
   // control's default rather than becoming a bare number CSS would ignore.
   return /^-?[\d.]+$/.test(raw) ? rounded : composeNumUnit(rounded, unit)
-}
-
-/** Wire {@link stepNumericValue} onto an input. */
-function stepHandler(value: string, onChange: (next: string) => void) {
-  return (e: KeyboardEvent<HTMLInputElement>) => {
-    const next = stepNumericValue(value, e)
-    if (next === null) return
-    e.preventDefault()
-    onChange(next)
-  }
 }
 
 // ───────────────────────── Text align (segmented) ─────────────────────────
@@ -188,11 +325,11 @@ export function ColorControl({
           aria-label="Pick colour"
         />
       </label>
-      <input
+      <CommitInput
         type="text"
         value={v}
         placeholder="—"
-        onChange={(e) => onChange(e.target.value)}
+        onCommit={onChange}
         className={cn(inputCls, 'tabular-nums')}
       />
     </div>
@@ -246,12 +383,12 @@ export function BoxModelControl({
           <span className="text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             {label}
           </span>
-          <input
+          <CommitInput
             type="text"
             value={sides[i]}
             placeholder="0"
-            onChange={(e) => setSide(i, e.target.value)}
-            onKeyDown={stepHandler(sides[i], (next) => setSide(i, next))}
+            stepOnArrows
+            onCommit={(next) => setSide(i, next)}
             className="h-7 w-full rounded-md border border-input bg-background px-1 text-center text-xs tabular-nums outline-none focus:ring-1 focus:ring-ring"
           />
         </label>
@@ -295,14 +432,14 @@ export function NumberUnitControl({
   const unitOptions = units.includes(unit) ? units : [unit, ...units]
   return (
     <div className="flex items-stretch overflow-hidden rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring">
-      <input
+      <CommitInput
         type="text"
         inputMode="decimal"
         value={unitless ? '' : num}
         placeholder={unitless ? unit : '0'}
         disabled={unitless}
-        onChange={(e) => onChange(composeNumUnit(e.target.value, unit))}
-        onKeyDown={stepHandler(value ?? '', onChange)}
+        stepOnArrows
+        onCommit={(next) => onChange(composeNumUnit(parseNumUnit(next).num, unit))}
         className="h-7 w-full min-w-0 bg-transparent px-1.5 text-xs tabular-nums outline-none disabled:cursor-not-allowed disabled:opacity-60"
       />
       {/*
@@ -380,12 +517,12 @@ export function BoxShadowControl({
             <span className="text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               {label}
             </span>
-            <input
+            <CommitInput
               type="text"
               value={sh[key]}
               placeholder="0"
-              onChange={(e) => set({ [key]: e.target.value } as Partial<Shadow>)}
-              onKeyDown={stepHandler(sh[key], (next) => set({ [key]: next } as Partial<Shadow>))}
+              stepOnArrows
+              onCommit={(next) => set({ [key]: next } as Partial<Shadow>)}
               className="h-7 w-full rounded-md border border-input bg-background px-1 text-center text-xs tabular-nums outline-none focus:ring-1 focus:ring-ring"
             />
           </label>
@@ -411,12 +548,12 @@ function SideBox({
   placeholder?: string
 }) {
   return (
-    <input
+    <CommitInput
       type="text"
       value={value}
       placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={stepHandler(value, onChange)}
+      stepOnArrows
+      onCommit={onChange}
       className={cn(
         'absolute w-9 rounded bg-transparent py-0.5 text-center text-xs tabular-nums text-foreground outline-none hover:bg-muted focus:bg-muted focus:ring-1 focus:ring-ring',
         className

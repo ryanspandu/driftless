@@ -82,6 +82,17 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
   page_code: {
     snippets: '[]',
   },
+
+  /**
+   * Site-wide responsive breakpoints (Webflow-style). The widest tier
+   * (`maxWidth: null`) is the base; narrower tiers become `@media (max-width)`
+   * rules on published pages. Global so every page/template shares one design
+   * system. Mirrored + re-sanitised client-side in `inertia/puck/breakpoints.ts`.
+   */
+  builder: {
+    breakpoints:
+      '[{"id":"desktop","label":"Desktop","maxWidth":null},{"id":"tablet","label":"Tablet","maxWidth":768},{"id":"mobile","label":"Mobile","maxWidth":390}]',
+  },
 }
 
 /** One site-wide custom-code snippet (mirrors the builder's `CodeSnippet`). */
@@ -117,6 +128,46 @@ function parseMetaTags(raw: string | undefined): SiteMetaTag[] {
   } catch {
     return []
   }
+}
+
+/** One site-wide responsive tier (mirrors the builder's `Breakpoint`). */
+export interface ResponsiveBreakpoint {
+  id: string
+  label: string
+  maxWidth: number | null
+  custom?: boolean
+}
+
+/**
+ * Validate a stored/incoming breakpoint list. Clamps widths, validates ids,
+ * drops duplicates/overflow, and guarantees a base tier. The client re-runs its
+ * own `readBreakpoints` on render, so this is the server-side authority for what
+ * gets persisted; the two must agree (guarded by a drift test).
+ */
+function sanitizeBreakpoints(input: unknown): ResponsiveBreakpoint[] {
+  const arr = Array.isArray(input) ? input : []
+  const seen = new Set<string>()
+  const out: ResponsiveBreakpoint[] = []
+  for (const item of arr.slice(0, 12)) {
+    const o = (item ?? {}) as Record<string, unknown>
+    const id = typeof o.id === 'string' ? o.id.trim() : ''
+    if (!/^[a-z0-9_-]{1,40}$/i.test(id) || seen.has(id)) continue
+    let maxWidth: number | null
+    if (o.maxWidth === null) {
+      maxWidth = null
+    } else {
+      const n = Number(o.maxWidth)
+      if (!Number.isFinite(n)) continue
+      maxWidth = Math.round(Math.max(200, Math.min(3840, n)))
+    }
+    const label = typeof o.label === 'string' && o.label.trim() ? o.label.trim().slice(0, 40) : id
+    seen.add(id)
+    out.push({ id, label, maxWidth, custom: o.custom === true })
+  }
+  if (!out.some((b) => b.maxWidth === null)) {
+    out.unshift({ id: 'desktop', label: 'Desktop', maxWidth: null })
+  }
+  return out
 }
 
 function sanitizeSnippets(input: unknown): GlobalCodeSnippet[] {
@@ -344,6 +395,34 @@ export class WebSettingsService {
     const clean = sanitizeSnippets(snippets)
     await this.applyPatches([
       { section: 'page_code', key: 'snippets', value: JSON.stringify(clean) },
+    ])
+    return clean
+  }
+
+  /** The raw site-wide breakpoints JSON string (client parses + re-sanitises). */
+  async getBreakpointsRaw(): Promise<string> {
+    const sections = await this.getMergedSections()
+    return sections['builder']?.['breakpoints'] ?? WEB_DEFAULTS['builder']['breakpoints']
+  }
+
+  /** The site-wide breakpoints, parsed + sanitised. */
+  async getBreakpoints(): Promise<ResponsiveBreakpoint[]> {
+    try {
+      return sanitizeBreakpoints(JSON.parse(await this.getBreakpointsRaw()))
+    } catch {
+      return sanitizeBreakpoints(null)
+    }
+  }
+
+  /**
+   * Replace the site-wide breakpoints (sanitised). Callers must follow with
+   * `pagesService.invalidateAllSnapshots()` — the list changes the `@media` CSS
+   * baked into every SSG page.
+   */
+  async setBreakpoints(input: unknown): Promise<ResponsiveBreakpoint[]> {
+    const clean = sanitizeBreakpoints(input)
+    await this.applyPatches([
+      { section: 'builder', key: 'breakpoints', value: JSON.stringify(clean) },
     ])
     return clean
   }

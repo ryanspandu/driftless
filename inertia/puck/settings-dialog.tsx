@@ -1,5 +1,5 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
-import { usePuck } from '@measured/puck'
+import { createUsePuck } from '@measured/puck'
 import { Code2, Globe, Search, Settings2 } from 'lucide-react'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
@@ -333,10 +333,15 @@ function SeoSection({ meta, onChange }: { meta: PageMeta; onChange: (m: PageMeta
 
 // ── Page code (local) ──────────────────────────────────────────────────────
 
+/** Selector-scoped store hook — see builder-shell for the rationale. */
+const usePuckStore = createUsePuck()
+
 /** Page-local custom CSS / JS — multiple snippets stored on the Puck root props. */
 function PageCodeSection() {
-  const { appState, dispatch } = usePuck()
-  const root = (appState.data.root ?? {}) as { props?: Record<string, unknown> }
+  const dispatch = usePuckStore((s) => s.dispatch)
+  const root = usePuckStore(
+    (s) => (s.appState.data.root ?? {}) as { props?: Record<string, unknown> }
+  )
   const rootProps: Record<string, unknown> = root.props ?? {}
   const snippets = readSnippets(rootProps)
 

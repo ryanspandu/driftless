@@ -984,6 +984,18 @@ const routes = {
     tokens: [{"old":"/api/admin/settings/page-code","type":0,"val":"api","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"page-code","end":""}],
     types: placeholder as Registry['settings.update_page_code']['types'],
   },
+  'settings.get_breakpoints': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/settings/breakpoints',
+    tokens: [{"old":"/api/admin/settings/breakpoints","type":0,"val":"api","end":""},{"old":"/api/admin/settings/breakpoints","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/breakpoints","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/breakpoints","type":0,"val":"breakpoints","end":""}],
+    types: placeholder as Registry['settings.get_breakpoints']['types'],
+  },
+  'settings.update_breakpoints': {
+    methods: ["PUT"],
+    pattern: '/api/admin/settings/breakpoints',
+    tokens: [{"old":"/api/admin/settings/breakpoints","type":0,"val":"api","end":""},{"old":"/api/admin/settings/breakpoints","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/breakpoints","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/breakpoints","type":0,"val":"breakpoints","end":""}],
+    types: placeholder as Registry['settings.update_breakpoints']['types'],
+  },
   'settings.api_tokens_page': {
     methods: ["GET","HEAD"],
     pattern: '/admin/settings/api-tokens',

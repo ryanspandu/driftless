@@ -1,4 +1,11 @@
-import { createElement, type CSSProperties, type ElementType, type ReactNode } from 'react'
+import {
+  createElement,
+  Fragment,
+  useContext,
+  type CSSProperties,
+  type ElementType,
+  type ReactNode,
+} from 'react'
 import type { Field } from '@measured/puck'
 import { cn } from '~/lib/utils'
 import {
@@ -9,6 +16,13 @@ import {
 } from '~/puck/style-controls'
 import { backgroundsToCss, readLayers } from '~/puck/background-layers'
 import { scrollAnimationAttrs } from '~/puck/scroll-animation'
+import {
+  BreakpointContext,
+  cascadeStyleBag,
+  orderBreakpoints,
+  readResponsive,
+  type Breakpoint,
+} from '~/puck/breakpoints'
 
 /**
  * Shared style controls for the Pages builder ("enrich toward Webflow").
@@ -235,6 +249,116 @@ function styleToCss(s: StyleBag): CSSProperties {
   return css
 }
 
+/**
+ * Names a custom attribute may never set: either managed by the builder
+ * elsewhere (class/id via their own fields, style via the style panel, React
+ * internals) or an XSS vector. `id` is allowed only through the dedicated `htmlId`
+ * field, never as a free-form attribute.
+ */
+const BLOCKED_ATTRS = new Set([
+  'class',
+  'classname',
+  'id',
+  'style',
+  'ref',
+  'key',
+  'srcdoc',
+  'dangerouslysetinnerhtml',
+])
+
+/**
+ * The element's custom `id` + arbitrary name/value attributes (Element panel →
+ * Attributes), emitted onto the DOM. Filtered for safety: valid attribute names
+ * only, no `on*` event handlers, no managed/unsafe names, and no `javascript:`
+ * values. Both the editor and the published page run through here, so the guard
+ * is consistent.
+ */
+function customAttributes(s: StyleBag): Record<string, string> {
+  const out: Record<string, string> = {}
+
+  const htmlId = str(s, 'htmlId')?.trim()
+  if (htmlId) out.id = htmlId
+
+  const list = s.attributes
+  if (Array.isArray(list)) {
+    for (const raw of list) {
+      if (!raw || typeof raw !== 'object') continue
+      const name = String((raw as { name?: unknown }).name ?? '').trim()
+      const value = String((raw as { value?: unknown }).value ?? '')
+      if (!/^[a-zA-Z][a-zA-Z0-9-]*$/.test(name)) continue // valid attribute name
+      if (/^on/i.test(name)) continue // no event handlers
+      if (BLOCKED_ATTRS.has(name.toLowerCase())) continue
+      if (/^\s*javascript:/i.test(value)) continue // no javascript: URLs
+      out[name] = value
+    }
+  }
+  return out
+}
+
+// ─────────────── Responsive (per-breakpoint) CSS generation ───────────────
+
+/**
+ * A style value is safe to drop into a generated `<style>` when it can't break
+ * out of its declaration or the tag: `{`/`}` would open a new rule, `<`/`>` could
+ * close `</style>` and inject markup, and `@import`/`expression()`/
+ * `url(javascript:)` are the classic CSS-injection vectors. `;`, `()`, `,` are
+ * left alone — legitimate in `calc()`, `rgba()`, `url(data:…;base64,…)`, and
+ * without braces a stray `;` can only add a declaration to this same element's
+ * rule, which the author already controls.
+ */
+function isSafeCssValue(v: string): boolean {
+  return (
+    !/[<>{}]/.test(v) &&
+    !/@import/i.test(v) &&
+    !/expression\s*\(/i.test(v) &&
+    !/url\s*\(\s*['"]?\s*javascript:/i.test(v)
+  )
+}
+
+/** Serialise a React style object to a sanitised CSS declaration string. */
+function styleObjectToCssText(obj: CSSProperties): string {
+  let out = ''
+  for (const key of Object.keys(obj)) {
+    const raw = (obj as Record<string, unknown>)[key]
+    if (raw == null || raw === '') continue
+    const value = String(raw)
+    if (!isSafeCssValue(value)) continue
+    const prop = key.startsWith('--') ? key : key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+    out += `${prop}:${value};`
+  }
+  return out
+}
+
+/** Puck block ids are safe selector tokens; guard anyway before building CSS. */
+function safeBlockId(s: StyleBag): string | null {
+  const id = str(s, 'id')
+  return id && /^[A-Za-z0-9_-]+$/.test(id) ? id : null
+}
+
+/**
+ * The published-page stylesheet for a block that has per-breakpoint overrides:
+ * a base rule (its flat props) plus one `@media (max-width: N)` rule per tier
+ * that overrides something, emitted widest → narrowest so the narrower tier wins
+ * on a specificity tie. Scoped by `[data-b="<id>"]`. Empty when nothing applies.
+ */
+function responsiveCss(s: StyleBag, breakpoints: Breakpoint[], id: string): string {
+  const sel = `[data-b="${id}"]`
+  const responsive = readResponsive(s)
+  let out = ''
+
+  const base = styleObjectToCssText(styleToCss(s))
+  if (base) out += `${sel}{${base}}`
+
+  for (const bp of orderBreakpoints(breakpoints)) {
+    if (bp.maxWidth === null) continue
+    const override = responsive[bp.id]
+    if (!override) continue
+    const delta = styleObjectToCssText(styleToCss(override))
+    if (delta) out += `@media (max-width:${bp.maxWidth}px){${sel}{${delta}}}`
+  }
+  return out
+}
+
 export function Box({
   s = {},
   as = 'div',
@@ -266,21 +390,62 @@ export function Box({
   // and no-JS keep the element visible.
   const anim = scrollAnimationAttrs(s, isEditing)
 
+  /*
+   * Responsive breakpoints. A block with no `responsive` overrides renders
+   * exactly as before (inline `styleToCss`). Otherwise:
+   *   • Editor — the fixed-width canvas can't honour real `@media`, so flatten
+   *     the currently-previewed breakpoint (`activeBp`) to inline styles.
+   *   • Published — move ALL of this block's style props into a generated
+   *     `@media` stylesheet keyed by `data-b` (inline would out-specify the media
+   *     rules) and drop the inline style props. Non-responsive blocks keep the
+   *     inline path untouched, so existing pages are byte-for-byte identical.
+   */
+  const { breakpoints, activeBp } = useContext(BreakpointContext)
+  const hasResponsive = Object.keys(readResponsive(s)).length > 0
+  const bId = hasResponsive ? safeBlockId(s) : null
+  const useStylesheet = !isEditing && !!bId
+  const styleBag = isEditing && hasResponsive ? cascadeStyleBag(s, breakpoints, activeBp) : s
+
   // For components marked `inline: true`, Puck skips its own drag wrapper and
   // hands us a `dragRef` to put on the real element instead — so the block is
   // itself the flex/grid item (matching the published DOM) while Puck still
   // tracks/selects/drags it. `null` for non-inline blocks (React ignores it).
-  return createElement(
+  const el = createElement(
     as,
     {
       ...rest,
       ...anim.attrs,
+      ...customAttributes(s),
+      ...(useStylesheet ? { 'data-b': bId } : null),
       ref: puck?.dragRef,
       className: cn(className, str(s, 'className')),
-      style: { ...styleToCss(s), ...anim.vars, ...style, ...(hidden ? { opacity: 0.4 } : null) },
+      style: {
+        // When the stylesheet owns the style props, keep only the non-style
+        // inline bits (scroll-anim vars, a block's own hardcoded `style`, the
+        // editor's dimmed-hidden marker).
+        ...(useStylesheet ? null : styleToCss(styleBag)),
+        ...anim.vars,
+        ...style,
+        ...(hidden ? { opacity: 0.4 } : null),
+      },
     },
     children
   )
+
+  if (useStylesheet && bId) {
+    const css = responsiveCss(s, breakpoints, bId)
+    if (css) {
+      // A `<style>` in the body is `display:none` (inert, no layout impact); it
+      // is server-rendered so it lands in the SSG snapshot and works with no JS.
+      return createElement(
+        Fragment,
+        null,
+        createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
+        el
+      )
+    }
+  }
+  return el
 }
 
 /** Responsive preview breakpoints for `<Puck viewports={...}>`. */

@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
-import { Puck, usePuck, type Data } from '@measured/puck'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactElement,
+  type ReactNode,
+} from 'react'
+import { Puck, createUsePuck, type Data } from '@measured/puck'
 import { router } from '@inertiajs/react'
 import {
   Blocks,
@@ -8,20 +16,48 @@ import {
   Monitor,
   PanelLeft,
   PanelRight,
+  Pencil,
+  Plus,
   Redo2,
   Search,
   Settings,
   Smartphone,
   SlidersHorizontal,
+  Square,
   Tablet,
   Undo2,
   X,
 } from 'lucide-react'
 import { Button } from '~/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '~/components/ui/tooltip'
 import { cn } from '~/lib/utils'
 import { LayersTree } from './layers-tree'
 import { DetailPanel } from './detail-panel'
 import { SettingsDialog, type PageMeta } from './settings-dialog'
+import {
+  BASE_BREAKPOINT_ID,
+  BreakpointContext,
+  DEFAULT_BREAKPOINTS,
+  baseBreakpoint,
+  breakpointForWidth,
+  orderBreakpoints,
+  type Breakpoint,
+} from './breakpoints'
+
+/**
+ * Selector-scoped Puck store hook. Every consumer here subscribes to a NARROW
+ * slice (a primitive or a stable reference) instead of `usePuck()` (which
+ * subscribes to the whole store `(s) => s` and re-renders on every change, incl.
+ * hover/selection). This keeps the toolbar, panels and layers from re-rendering
+ * together on unrelated store ticks — the dominant editor-lag multiplier.
+ */
+const usePuckStore = createUsePuck()
 
 /**
  * Custom Puck layout for the Pages/Templates builder.
@@ -78,16 +114,17 @@ function filterComponentDrawer(root: HTMLElement, query: string) {
   })
 }
 
-const DEVICE_PRESETS: {
-  key: string
-  label: string
-  width: number | null
-  icon: ComponentType<{ className?: string }>
-}[] = [
-  { key: 'mobile', label: 'Mobile (390px)', width: 390, icon: Smartphone },
-  { key: 'tablet', label: 'Tablet (768px)', width: 768, icon: Tablet },
-  { key: 'desktop', label: 'Desktop (full)', width: null, icon: Monitor },
-]
+/**
+ * Pick a glyph for a breakpoint. Custom resolutions get a plain square (they are
+ * not a standard device); the built-in tiers get a matching device icon.
+ */
+function iconForBreakpoint(bp: Breakpoint): ComponentType<{ className?: string }> {
+  if (bp.custom) return Square
+  if (bp.maxWidth === null) return Monitor
+  if (bp.maxWidth <= 480) return Smartphone
+  if (bp.maxWidth <= 900) return Tablet
+  return Monitor
+}
 
 export function BuilderShell({
   topbarStart,
@@ -95,6 +132,8 @@ export function BuilderShell({
   onPublish,
   pageMeta,
   onPageMetaChange,
+  breakpoints = DEFAULT_BREAKPOINTS,
+  onBreakpointsChange,
 }: {
   topbarStart?: ReactNode
   topbarEnd?: ReactNode
@@ -102,8 +141,22 @@ export function BuilderShell({
   /** Page-level settings — omitted by the Templates builder. */
   pageMeta?: PageMeta
   onPageMetaChange?: (meta: PageMeta) => void
+  /** Site-wide responsive tiers (base + custom); defaults to mobile/tablet/desktop. */
+  breakpoints?: Breakpoint[]
+  /** Persist an edited tier list (add/remove custom resolutions). */
+  onBreakpointsChange?: (next: Breakpoint[]) => void
 }) {
-  const { appState, history, selectedItem } = usePuck()
+  // The document reference: replaced synchronously by the reducer on every
+  // content edit, never touched by hover/selection (those are ui-only) — so this
+  // re-renders the shell per content commit (already debounced) but not on hover.
+  const data = usePuckStore((s) => s.appState.data)
+  const hasPast = usePuckStore((s) => s.history.hasPast)
+  const hasFuture = usePuckStore((s) => s.history.hasFuture)
+  const undo = usePuckStore((s) => s.history.back)
+  const redo = usePuckStore((s) => s.history.forward)
+  const selId = usePuckStore(
+    (s) => (s.selectedItem?.props as { id?: string } | undefined)?.id ?? null
+  )
   const [leftTab, setLeftTab] = useState<'components' | 'element'>('components')
   const [componentQuery, setComponentQuery] = useState('')
   const componentsRef = useRef<HTMLDivElement>(null)
@@ -114,21 +167,98 @@ export function BuilderShell({
   useEffect(() => {
     const root = componentsRef.current
     if (!root || leftTab !== 'components') return
+    // Always apply the current query once (this also RESETS every tile to visible
+    // when the query is cleared).
     filterComponentDrawer(root, componentQuery)
-    const observer = new MutationObserver(() => filterComponentDrawer(root, componentQuery))
+    // Only keep an observer alive while there is an ACTIVE search to stay sticky.
+    // With no query there is nothing to hide, so skip it entirely — otherwise the
+    // drawer DOM mutations dnd-kit makes during a drag would fire a full-drawer
+    // sweep every frame for no reason.
+    if (!componentQuery.trim()) return
+    // Coalesce mutation bursts into a single rAF-batched re-filter.
+    let raf = 0
+    const observer = new MutationObserver(() => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        filterComponentDrawer(root, componentQuery)
+      })
+    })
     observer.observe(root, { childList: true, subtree: true })
-    return () => observer.disconnect()
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+      observer.disconnect()
+    }
   }, [componentQuery, leftTab])
   // null = Desktop / full width. A number = a fixed canvas width in px (preset
   // or a custom value typed into the width box).
   const [canvasWidth, setCanvasWidth] = useState<number | null>(null)
+  // The breakpoint tier currently being previewed/edited. Selecting a tier sets
+  // both this and the canvas width; it drives which layer the Detail panel writes
+  // to and which layer `Box` flattens for the canvas preview.
+  const [activeBp, setActiveBp] = useState<string>(
+    baseBreakpoint(breakpoints)?.id ?? BASE_BREAKPOINT_ID
+  )
+  // Selecting a breakpoint moves the canvas to its width AND makes it the edit
+  // target; typing a free width keeps editing in sync by matching it to a tier.
+  const selectBreakpoint = (bp: Breakpoint) => {
+    setCanvasWidth(bp.maxWidth)
+    setActiveBp(bp.id)
+  }
+  const setCustomWidth = (w: number | null) => {
+    setCanvasWidth(w)
+    setActiveBp(breakpointForWidth(breakpoints, w))
+  }
+  // Memoised so the canvas Boxes (context consumers) only re-render when the tier
+  // or list actually changes — not on every unrelated shell render.
+  const bpContext = useMemo(() => ({ breakpoints, activeBp }), [breakpoints, activeBp])
+
+  // Add a new site-wide custom resolution with a chosen name + width.
+  const addCustomBreakpoint = (label: string, width: number) => {
+    if (!onBreakpointsChange || !Number.isFinite(width) || width <= 0) return
+    const existing = breakpoints.find((b) => b.maxWidth === width)
+    if (existing) {
+      setActiveBp(existing.id)
+      setCanvasWidth(width)
+      return
+    }
+    let id = `bp${width}`
+    let n = 1
+    while (breakpoints.some((b) => b.id === id)) id = `bp${width}_${n++}`
+    onBreakpointsChange([
+      ...breakpoints,
+      { id, label: label.trim() || `${width}px`, maxWidth: width, custom: true },
+    ])
+    setActiveBp(id)
+    setCanvasWidth(width)
+  }
+  // Rename / resize an existing custom tier. The id stays stable so any element
+  // overrides already stored against it keep applying.
+  const updateBreakpoint = (id: string, label: string, width: number) => {
+    if (!onBreakpointsChange || !Number.isFinite(width) || width <= 0) return
+    onBreakpointsChange(
+      breakpoints.map((b) =>
+        b.id === id ? { ...b, label: label.trim() || `${width}px`, maxWidth: width } : b
+      )
+    )
+    setActiveBp(id)
+    setCanvasWidth(width)
+  }
+  const removeBreakpoint = (id: string) => {
+    if (!onBreakpointsChange) return
+    onBreakpointsChange(breakpoints.filter((b) => b.id !== id))
+    setActiveBp(baseBreakpoint(breakpoints)?.id ?? BASE_BREAKPOINT_ID)
+    setCanvasWidth(null)
+  }
+  const activeBpObj = breakpoints.find((b) => b.id === activeBp)
+  const activeIsCustom = activeBpObj?.custom === true
+  const widthIsSaved = canvasWidth !== null && breakpoints.some((b) => b.maxWidth === canvasWidth)
   const [leftOpen, setLeftOpen] = useState(true)
   const [rightOpen, setRightOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   // When a component is selected, swing the LEFT panel to Element so its settings
   // are right there. The Layers panel (right) is untouched.
-  const selId = (selectedItem?.props as { id?: string } | undefined)?.id ?? null
   const prevSel = useRef<string | null>(selId)
   useEffect(() => {
     if (selId === prevSel.current) return
@@ -137,24 +267,57 @@ export function BuilderShell({
   }, [selId])
 
   /**
+   * Keep the selection overlay glued to the element after a breakpoint switch.
+   *
+   * Switching tiers moves/resizes the selected element (new canvas width + newly
+   * flattened styles), but Puck only re-measures its selection overlay when
+   * hover/selection *changes*, not on a plain layout shift — so the highlight was
+   * left at the element's old position until you clicked it again. Dispatching a
+   * real `mouseover` on the element (found by Puck's `data-puck-component` id)
+   * drives Puck's hover path, which re-runs its own `sync()` and snaps the overlay
+   * to the new box; the paired `mouseout` clears the transient hover state.
+   */
+  const selIdRef = useRef(selId)
+  useEffect(() => {
+    selIdRef.current = selId
+  }, [selId])
+  useEffect(() => {
+    const resync = () => {
+      const sid = selIdRef.current
+      if (!sid) return
+      const el = document.querySelector(`[data-puck-component="${CSS.escape(sid)}"]`)
+      if (!el) return
+      el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+      requestAnimationFrame(() => el.dispatchEvent(new MouseEvent('mouseout', { bubbles: true })))
+    }
+    const raf = requestAnimationFrame(resync)
+    return () => cancelAnimationFrame(raf)
+  }, [activeBp, canvasWidth])
+
+  /**
    * Unsaved-changes guard.
    *
    * Nothing in this editor autosaves — the design only reaches the server on
    * Publish — so closing the tab or clicking the breadcrumb back to Pages threw
-   * away everything since the last publish, silently. Dirtiness is the current
-   * document compared against the last one we successfully saved; `appState.data`
-   * is replaced (not mutated) on every edit, so the serialisation is memoised on
-   * its identity rather than run each render.
+   * away everything since the last publish, silently.
+   *
+   * Dirtiness is the current document *reference* against the last saved one.
+   * `appState.data` is replaced (not mutated) on every edit, so `data !== saved`
+   * is O(1) — where the old whole-document `JSON.stringify` on every edit was O(n)
+   * in block count and a real contributor to the editor lag. (This over-reports in
+   * one harmless case — undoing all the way back to the saved state still reads
+   * dirty — which only ever prompts an unneeded confirm; it never loses work.
+   * Puck's own history recording is debounced, so a history-index check could
+   * *under*-report right after an edit, which would.)
    *
    * Page settings count too: title, path and SEO are edited in the dialog and
-   * ride along on the same Publish, so they are just as losable as the blocks.
+   * ride along on the same Publish, so they are just as losable as the blocks —
+   * tracked with a tiny (O(1)-sized) JSON compare of the small meta object.
    */
-  const currentJson = useMemo(
-    () => JSON.stringify({ data: appState.data, meta: pageMeta ?? null }),
-    [appState.data, pageMeta]
-  )
-  const [savedJson, setSavedJson] = useState(currentJson)
-  const dirty = currentJson !== savedJson
+  const metaJson = useMemo(() => JSON.stringify(pageMeta ?? null), [pageMeta])
+  const [savedData, setSavedData] = useState(data)
+  const [savedMeta, setSavedMeta] = useState(metaJson)
+  const dirty = data !== savedData || metaJson !== savedMeta
 
   useEffect(() => {
     if (!dirty) return
@@ -187,43 +350,52 @@ export function BuilderShell({
    * leaves the page dirty and still guarded.
    */
   const publish = async () => {
-    const attempted = currentJson
+    const attemptedData = data
+    const attemptedMeta = metaJson
     try {
-      await onPublish(appState.data)
-      setSavedJson(attempted)
+      await onPublish(attemptedData)
+      setSavedData(attemptedData)
+      setSavedMeta(attemptedMeta)
     } catch {
       // Already reported by the caller; keep the unsaved state.
     }
   }
 
   return (
+    // Shares the active breakpoint + tier list with the Detail panel (edit target)
+    // AND every Box in the canvas (preview flatten). The device switcher reads the
+    // shell's own state directly, so it lives outside the value it drives.
+    <BreakpointContext.Provider value={bpContext}>
     <div className="flex h-screen flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">{topbarStart}</div>
 
         {/* Device / canvas-size switcher (centered) */}
+        <TooltipProvider delay={250}>
         <div className="flex shrink-0 items-center gap-1.5">
           <div className="flex items-center gap-0.5 rounded-md bg-muted p-0.5">
-            {DEVICE_PRESETS.map((d) => {
-              const Icon = d.icon
-              const active = canvasWidth === d.width
+            {orderBreakpoints(breakpoints).map((bp) => {
+              const Icon = iconForBreakpoint(bp)
+              const active = bp.id === activeBp
+              const label = bp.maxWidth === null ? `${bp.label} (full)` : `${bp.label} (${bp.maxWidth}px)`
               return (
-                <button
-                  key={d.key}
-                  type="button"
-                  title={d.label}
-                  aria-label={d.label}
-                  aria-pressed={active}
-                  onClick={() => setCanvasWidth(d.width)}
-                  className={cn(
-                    'flex size-7 items-center justify-center rounded transition-colors',
-                    active
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  <Icon className="size-4" />
-                </button>
+                <Tooltip key={bp.id}>
+                  <TooltipTrigger
+                    type="button"
+                    aria-label={label}
+                    aria-pressed={active}
+                    onClick={() => selectBreakpoint(bp)}
+                    className={cn(
+                      'flex size-7 items-center justify-center rounded transition-colors',
+                      active
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    <Icon className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>{label}</TooltipContent>
+                </Tooltip>
               )
             })}
           </div>
@@ -235,14 +407,51 @@ export function BuilderShell({
               placeholder="Auto"
               onChange={(e) => {
                 const v = Number.parseInt(e.target.value, 10)
-                setCanvasWidth(Number.isFinite(v) && v > 0 ? v : null)
+                setCustomWidth(Number.isFinite(v) && v > 0 ? v : null)
               }}
               className="h-7 w-16 rounded-md border border-input bg-background px-2 text-xs tabular-nums outline-none focus:ring-1 focus:ring-ring"
               aria-label="Custom canvas width (px)"
             />
             <span className="text-xs text-muted-foreground">px</span>
+            {onBreakpointsChange && (
+              <BreakpointPopover
+                submitLabel="Add"
+                initialWidth={widthIsSaved ? null : canvasWidth}
+                onSubmit={addCustomBreakpoint}
+                trigger={
+                  <button
+                    type="button"
+                    title="Add a named custom resolution"
+                    aria-label="Add custom resolution"
+                    className="flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                  />
+                }
+              >
+                <Plus className="size-4" />
+              </BreakpointPopover>
+            )}
+            {onBreakpointsChange && activeIsCustom && activeBpObj && (
+              <BreakpointPopover
+                submitLabel="Save"
+                initialLabel={activeBpObj.label}
+                initialWidth={activeBpObj.maxWidth}
+                onSubmit={(l, w) => updateBreakpoint(activeBpObj.id, l, w)}
+                onDelete={() => removeBreakpoint(activeBpObj.id)}
+                trigger={
+                  <button
+                    type="button"
+                    title={`Rename or resize “${activeBpObj.label}”`}
+                    aria-label="Edit custom resolution"
+                    className="flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                  />
+                }
+              >
+                <Pencil className="size-3.5" />
+              </BreakpointPopover>
+            )}
           </div>
         </div>
+        </TooltipProvider>
 
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
           <div className="flex items-center">
@@ -281,8 +490,8 @@ export function BuilderShell({
               variant="ghost"
               size="icon"
               className="size-8"
-              disabled={!history.hasPast}
-              onClick={() => history.back()}
+              disabled={!hasPast}
+              onClick={() => undo()}
               aria-label="Undo"
             >
               <Undo2 className="size-4" />
@@ -291,8 +500,8 @@ export function BuilderShell({
               variant="ghost"
               size="icon"
               className="size-8"
-              disabled={!history.hasFuture}
-              onClick={() => history.forward()}
+              disabled={!hasFuture}
+              onClick={() => redo()}
               aria-label="Redo"
             >
               <Redo2 className="size-4" />
@@ -364,12 +573,32 @@ export function BuilderShell({
         </aside>
         )}
 
-        <main className="min-h-0 min-w-0 flex-1 overflow-auto bg-muted/30 p-4">
+        {/*
+         * Emulated device viewport, in two nested layers, because the canvas renders
+         * in the host document (no iframe — see file header) so `position: fixed`
+         * would otherwise escape to the WINDOW and pin above the toolbar:
+         *
+         *   .frame  — device-width box that is the containing block for `fixed`/
+         *             `sticky` (via `transform: translateZ(0)`) but does NOT scroll
+         *             (`h-full` + `overflow-hidden`). Because it holds still, fixed
+         *             descendants PIN to it, and because it is exactly the device
+         *             width, they are BOUNDED to the page (no spill into the gutters,
+         *             the "kelewat batas" bug). A transformed *scrolling* box can't do
+         *             both — its fixed children would scroll away with the content.
+         *   .scroll — the real scrollport for page content, nested inside the frame.
+         *
+         * <main> keeps only horizontal scroll, for a custom width wider than it.
+         * Editor-only: the published page has no such ancestor, so `fixed`/`sticky`
+         * behave normally against the real viewport there.
+         */}
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden bg-muted/30 p-4">
           <div
-            className="theme-light mx-auto min-h-full bg-background shadow-sm transition-[width] duration-200"
-            style={{ width: canvasWidth ? `${canvasWidth}px` : '100%' }}
+            className="theme-light relative mx-auto h-full overflow-hidden bg-background shadow-sm"
+            style={{ width: canvasWidth ? `${canvasWidth}px` : '100%', transform: 'translateZ(0)' }}
           >
-            <Puck.Preview />
+            <div className="h-full overflow-auto">
+              <Puck.Preview />
+            </div>
           </div>
         </main>
 
@@ -393,6 +622,111 @@ export function BuilderShell({
         onPageMetaChange={onPageMetaChange}
       />
     </div>
+    </BreakpointContext.Provider>
+  )
+}
+
+/**
+ * Small popover to add or edit a custom resolution: a name + a width. Reused for
+ * both — an `onDelete` turns it into an edit form (with a Delete action), while
+ * add mode pre-fills the width from the current preview.
+ */
+function BreakpointPopover({
+  trigger,
+  children,
+  submitLabel,
+  initialLabel = '',
+  initialWidth = null,
+  onSubmit,
+  onDelete,
+}: {
+  trigger: ReactElement
+  children: ReactNode
+  submitLabel: string
+  initialLabel?: string
+  initialWidth?: number | null
+  onSubmit: (label: string, width: number) => void
+  onDelete?: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [label, setLabel] = useState(initialLabel)
+  const [width, setWidth] = useState(initialWidth !== null ? String(initialWidth) : '')
+
+  // Seed the fields from the latest props each time it opens (no effect needed).
+  const openChange = (next: boolean) => {
+    if (next) {
+      setLabel(initialLabel)
+      setWidth(initialWidth !== null ? String(initialWidth) : '')
+    }
+    setOpen(next)
+  }
+
+  const submit = () => {
+    const w = Number.parseInt(width, 10)
+    if (!Number.isFinite(w) || w <= 0) return
+    onSubmit(label, w)
+    setOpen(false)
+  }
+  const inputCls =
+    'h-8 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-1 focus:ring-ring'
+
+  return (
+    <Popover open={open} onOpenChange={openChange}>
+      <PopoverTrigger render={trigger}>{children}</PopoverTrigger>
+      <PopoverContent align="center" className="w-60 p-3">
+        <div className="space-y-2.5">
+          <label className="block space-y-1">
+            <span className="text-[11px] font-medium text-muted-foreground">Name</span>
+            <input
+              autoFocus
+              value={label}
+              placeholder="e.g. Laptop"
+              onChange={(e) => setLabel(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              className={inputCls}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[11px] font-medium text-muted-foreground">Width (px)</span>
+            <input
+              type="number"
+              min={1}
+              value={width}
+              placeholder="e.g. 1024"
+              onChange={(e) => setWidth(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              className={cn(inputCls, 'tabular-nums')}
+            />
+          </label>
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            Styles set here apply at this width and narrower.
+          </p>
+          <div className="flex items-center justify-between pt-0.5">
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onDelete()
+                  setOpen(false)
+                }}
+                className="text-xs text-destructive hover:underline"
+              >
+                Delete
+              </button>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              onClick={submit}
+              className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+            >
+              {submitLabel}
+            </button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 

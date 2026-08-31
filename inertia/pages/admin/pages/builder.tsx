@@ -12,6 +12,8 @@ import { BuilderLoadState } from '~/puck/builder-load-state'
 import { customPageHasRegion } from '~/custom/registry'
 import type { PageMeta } from '~/puck/settings-dialog'
 import { usePage as usePageRecord, useUpdatePage } from '~/hooks/api/use-pages'
+import { useBreakpoints, useUpdateBreakpoints } from '~/hooks/api/use-breakpoints'
+import { readBreakpoints, type Breakpoint } from '~/puck/breakpoints'
 import type { PageDto } from '~/types/api'
 import { Button, buttonVariants } from '~/components/ui/button'
 import { PageRevisionsPanel } from '~/components/admin/page-revisions-panel'
@@ -120,6 +122,11 @@ function BuilderInner({
   regionOf?: string | null
 }) {
   const updateMut = useUpdatePage()
+  const bpQuery = useBreakpoints()
+  const updateBp = useUpdateBreakpoints()
+  // Site-wide tiers, normalised client-side (falls back to the standard set while
+  // loading or if the read is not permitted).
+  const breakpoints = readBreakpoints(bpQuery.data?.breakpoints)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [meta, setMeta] = useState<PageMeta>(() => ({
     title: page.title,
@@ -175,6 +182,10 @@ function BuilderInner({
         onPublish={save}
         pageMeta={meta}
         onPageMetaChange={setMeta}
+        breakpoints={breakpoints}
+        onBreakpointsChange={(next: Breakpoint[]) =>
+          updateBp.mutate(next, { onError: () => toast.error('Could not save breakpoints') })
+        }
         topbarStart={
           <>
             <Link

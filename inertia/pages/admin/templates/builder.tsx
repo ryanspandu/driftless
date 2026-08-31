@@ -11,6 +11,8 @@ import { puckOverrides } from '~/puck/overrides'
 import { BuilderShell } from '~/puck/builder-shell'
 import { BuilderLoadState } from '~/puck/builder-load-state'
 import { useTemplate, useUpdateTemplate } from '~/hooks/api/use-templates'
+import { useBreakpoints, useUpdateBreakpoints } from '~/hooks/api/use-breakpoints'
+import { readBreakpoints, type Breakpoint } from '~/puck/breakpoints'
 import { buttonVariants } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
 
@@ -41,6 +43,9 @@ function renderEmailHtml(data: Data): string {
 export default function TemplateBuilder({ id }: { id: string }) {
   const templateQuery = useTemplate(id)
   const updateMut = useUpdateTemplate()
+  const bpQuery = useBreakpoints()
+  const updateBp = useUpdateBreakpoints()
+  const breakpoints = readBreakpoints(bpQuery.data?.breakpoints)
   const template = templateQuery.data
 
   if (!template) {
@@ -107,6 +112,13 @@ export default function TemplateBuilder({ id }: { id: string }) {
     >
       <BuilderShell
         onPublish={save}
+        breakpoints={breakpoints}
+        onBreakpointsChange={
+          isEmail
+            ? undefined
+            : (next: Breakpoint[]) =>
+                updateBp.mutate(next, { onError: () => toast.error('Could not save breakpoints') })
+        }
         topbarStart={
           <>
             <Link

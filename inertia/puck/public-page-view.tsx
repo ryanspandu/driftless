@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import { Render, type Data } from '@measured/puck'
 import { puckConfig } from '~/puck/config'
 import { type CmsRecord } from '~/puck/collection-list'
 import { PageOutletContext } from '~/puck/page-outlet'
 import { type CodeSnippet } from '~/puck/custom-code'
+import { BreakpointContext, readBreakpoints } from '~/puck/breakpoints'
 import { PublicPageFrame } from '~/components/public-page-frame'
 
 export interface PublicPageData {
@@ -31,6 +33,8 @@ export interface PublicPageData {
   globalCode?: CodeSnippet[]
   /** Site-wide custom <meta> tags (from web settings), applied on every public page. */
   globalMeta?: { name?: string; property?: string; content?: string }[]
+  /** Site-wide responsive breakpoints JSON (from web settings) — drives `@media` CSS. */
+  breakpoints?: string
   /** True when rendered via the admin preview route — shows a subtle banner. */
   preview?: boolean
 }
@@ -69,7 +73,15 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
   const showHeader = hasBlocks(page.header)
   const showFooter = hasBlocks(page.footer)
 
-  const body = hasLayout ? (
+  // `activeBp: null` = published mode: every Box emits real `@media` CSS keyed to
+  // the site-wide tier widths (so custom resolutions work), rather than flattening
+  // a single previewed breakpoint the way the editor does.
+  const bpContext = useMemo(
+    () => ({ breakpoints: readBreakpoints(page.breakpoints), activeBp: null }),
+    [page.breakpoints]
+  )
+
+  const inner = hasLayout ? (
     <PageOutletContext.Provider value={<Render config={puckConfig} data={data} />}>
       <Render config={puckConfig} data={toData(page.layout)} />
     </PageOutletContext.Provider>
@@ -80,6 +92,7 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
       {showFooter ? <Render config={puckConfig} data={toData(page.footer)} /> : null}
     </>
   )
+  const body = <BreakpointContext.Provider value={bpContext}>{inner}</BreakpointContext.Provider>
 
   return (
     <PublicPageFrame

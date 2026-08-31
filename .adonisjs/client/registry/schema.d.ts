@@ -1963,6 +1963,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updatePageCode']>>>
     }
   }
+  'settings.get_breakpoints': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/settings/breakpoints'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['getBreakpoints']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['getBreakpoints']>>>
+    }
+  }
+  'settings.update_breakpoints': {
+    methods: ["PUT"]
+    pattern: '/api/admin/settings/breakpoints'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updateBreakpoints']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updateBreakpoints']>>>
+    }
+  }
   'settings.api_tokens_page': {
     methods: ["GET","HEAD"]
     pattern: '/admin/settings/api-tokens'
