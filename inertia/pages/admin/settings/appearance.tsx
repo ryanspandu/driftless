@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link } from '@inertiajs/react'
-import { WEBSITE_SETTING_SECTIONS } from '~/types/api'
+import { PAGE_ROLE_SLOTS, WEBSITE_SETTING_SECTIONS } from '~/types/api'
 import { ImageSettingControl } from '~/components/admin/image-setting-control'
 import { WebsiteLogoDropzone } from '~/components/admin/website-logo-dropzone'
 import { BackButton } from '~/components/admin/back-button'
@@ -251,42 +251,14 @@ function AuthPagesSection() {
 }
 
 /**
- * Which builder page stands in for each built-in screen.
- *
- * The slots live in two `web_settings` sections but read as one decision to an
- * operator ("which of my pages replaces which built-in screen"), so they share
- * a card. An empty value means the built-in page, and because `applyPatches`
- * deletes rows whose value is empty, choosing "Default" genuinely resets rather
- * than storing a sentinel.
+ * Which builder page stands in for each built-in screen — including the front
+ * page (`/`). The slot list is shared with the resolver and the Pages dashboard
+ * (`PAGE_ROLE_SLOTS` in `~/types/api`) so the two surfaces never drift. An empty
+ * value means the built-in screen, and because `applyPatches` deletes rows whose
+ * value is empty, choosing "Default" genuinely resets rather than storing a
+ * sentinel.
  */
-const PAGE_OVERRIDE_SLOTS = [
-  { section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES, key: 'login_page_id', label: 'Sign in', hint: '/login' },
-  { section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES, key: 'register_page_id', label: 'Sign up', hint: '/register' },
-  {
-    section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
-    key: 'forgot_password_page_id',
-    label: 'Forgot password',
-    hint: '/forgot-password',
-  },
-  {
-    section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
-    key: 'reset_password_page_id',
-    label: 'Reset password',
-    hint: '/reset-password/…',
-  },
-  {
-    section: WEBSITE_SETTING_SECTIONS.ERROR_PAGES,
-    key: 'not_found_page_id',
-    label: 'Not found (404)',
-    hint: 'Public 404 only — the admin 404 keeps its sidebar',
-  },
-  {
-    section: WEBSITE_SETTING_SECTIONS.ERROR_PAGES,
-    key: 'server_error_page_id',
-    label: 'Server error (500)',
-    hint: 'Falls back to the built-in page if this one cannot render',
-  },
-] as const
+const PAGE_OVERRIDE_SLOTS = PAGE_ROLE_SLOTS
 
 function PageOverridesSection() {
   const { data, isPending } = useWebsiteSettings()

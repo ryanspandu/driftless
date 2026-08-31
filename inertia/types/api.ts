@@ -211,8 +211,69 @@ export const WEBSITE_SETTING_SECTIONS = {
   ADMIN_BRANDING: 'admin_branding',
   AUTH_PAGES: 'auth_pages',
   ERROR_PAGES: 'error_pages',
+  HOME_PAGE: 'home_page',
   SITE_META: 'site_meta',
 } as const
+
+/**
+ * The built-in screens a published builder page can stand in for, with their
+ * `web_settings` (section, key) pointer and UI labels. Client presentation
+ * mirror of the server list in `app/services/page_role_slots.ts`; the pair is
+ * kept in lockstep by `tests/unit/page_role_slots.spec.ts`. Reused by the
+ * Settings → Appearance pickers and the Pages dashboard "Use as page" menu, so
+ * both surfaces write the same rows and stay consistent.
+ */
+export interface PageRoleSlot {
+  section: string
+  key: string
+  label: string
+  hint: string
+}
+
+export const PAGE_ROLE_SLOTS: readonly PageRoleSlot[] = [
+  {
+    section: WEBSITE_SETTING_SECTIONS.HOME_PAGE,
+    key: 'front_page_id',
+    label: 'Front page',
+    hint: 'The public home page at /',
+  },
+  {
+    section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
+    key: 'login_page_id',
+    label: 'Sign in',
+    hint: '/login',
+  },
+  {
+    section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
+    key: 'register_page_id',
+    label: 'Sign up',
+    hint: '/register',
+  },
+  {
+    section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
+    key: 'forgot_password_page_id',
+    label: 'Forgot password',
+    hint: '/forgot-password',
+  },
+  {
+    section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
+    key: 'reset_password_page_id',
+    label: 'Reset password',
+    hint: '/reset-password/…',
+  },
+  {
+    section: WEBSITE_SETTING_SECTIONS.ERROR_PAGES,
+    key: 'not_found_page_id',
+    label: 'Not found (404)',
+    hint: 'Public 404 only — the admin 404 keeps its sidebar',
+  },
+  {
+    section: WEBSITE_SETTING_SECTIONS.ERROR_PAGES,
+    key: 'server_error_page_id',
+    label: 'Server error (500)',
+    hint: 'Falls back to the built-in page if this one cannot render',
+  },
+] as const
 
 export interface WebsiteSettingsDto {
   sections: Record<string, Record<string, string>>

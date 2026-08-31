@@ -1,32 +1,22 @@
 import Page from '#models/page'
 import { WebSettingsService } from '#services/settings_service'
+import { PAGE_ROLE_SLOTS_BY_SLOT, type OverrideSlot } from '#services/page_role_slots'
 
 const webSettingsService = new WebSettingsService()
+
+export type { OverrideSlot }
 
 /**
  * A built-in screen that a builder page can stand in for.
  *
- * Auth screens and error screens share this mechanism because they share the
- * problem: both are rendered from a hard-coded component on a route that a
- * builder page can never own (`login` and `register` are reserved first
- * segments, and a 404 has no path at all by definition).
+ * Home, auth screens and error screens share this mechanism because they share
+ * the problem: all are rendered from a hard-coded component on a route that a
+ * builder page can never own (`/` has no builder path, `login`/`register` are
+ * reserved first segments, a 404 has no path at all). The slot → (section, key)
+ * map lives in `#services/page_role_slots` so the resolver, Settings→Appearance,
+ * and the Pages dashboard all read one list.
  */
-export type OverrideSlot =
-  | 'login'
-  | 'register'
-  | 'forgotPassword'
-  | 'resetPassword'
-  | 'notFound'
-  | 'serverError'
-
-const SLOTS: Record<OverrideSlot, { section: string; key: string }> = {
-  login: { section: 'auth_pages', key: 'login_page_id' },
-  register: { section: 'auth_pages', key: 'register_page_id' },
-  forgotPassword: { section: 'auth_pages', key: 'forgot_password_page_id' },
-  resetPassword: { section: 'auth_pages', key: 'reset_password_page_id' },
-  notFound: { section: 'error_pages', key: 'not_found_page_id' },
-  serverError: { section: 'error_pages', key: 'server_error_page_id' },
-}
+const SLOTS = PAGE_ROLE_SLOTS_BY_SLOT
 
 export default class AuthPageOverrideService {
   /**

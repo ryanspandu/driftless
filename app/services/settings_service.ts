@@ -42,6 +42,15 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
     server_error_page_id: '',
   },
   /**
+   * The builder page that renders at `/` (the front page), by page id. Empty
+   * means "use the built-in static landing (`inertia/pages/home.tsx`)". Same
+   * empty-deletes-the-row reset convention as the auth/error slots. The
+   * `landing_enabled` app_config toggle still gates the front page on/off.
+   */
+  home_page: {
+    front_page_id: '',
+  },
+  /**
    * Shared look for every outgoing email. Site-wide rather than per-email,
    * because a logo that differs between the receipt and the password reset
    * reads as one of them being forged.

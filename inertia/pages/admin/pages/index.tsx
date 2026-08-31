@@ -1,14 +1,26 @@
 import { useMemo, useState } from 'react'
 import { router } from '@inertiajs/react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { ExternalLink, MoreHorizontal, Pencil, Plus, SquarePen, Trash2 } from 'lucide-react'
-import type { PageSummaryDto } from '~/types/api'
+import {
+  Check,
+  ExternalLink,
+  Layers,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  SquarePen,
+  Trash2,
+} from 'lucide-react'
+import { PAGE_ROLE_SLOTS, type PageSummaryDto } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown_menu'
 import { PageHeader } from '~/components/admin/page-header'
@@ -24,7 +36,8 @@ import {
   useRestorePage,
   useForceDeletePage,
 } from '~/hooks/api/use-pages'
-import { formatAdminTableDateTime } from '~/lib/utils'
+import { useUpdateWebsiteSettings, useWebsiteSettings } from '~/hooks/api/use-website-settings'
+import { cn, formatAdminTableDateTime } from '~/lib/utils'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 
 const RENDER_MODE_LABEL: Record<string, string> = {
@@ -144,6 +157,12 @@ export default function PagesPage() {
         },
       },
       {
+        id: 'role',
+        enableSorting: false,
+        header: () => <span className="text-xs font-medium text-muted-foreground">Role</span>,
+        cell: ({ row }) => <PageRoleBadges pageId={row.original.id} />,
+      },
+      {
         id: 'actions',
         enableSorting: false,
         header: () => <span className="sr-only">Actions</span>,
@@ -176,6 +195,7 @@ export default function PagesPage() {
                 <Pencil className="size-4" />
                 Edit settings
               </DropdownMenuItem>
+              <PageRoleMenu page={row.original} />
               <DropdownMenuItem
                 variant="destructive"
                 className="gap-2"
@@ -274,5 +294,77 @@ export default function PagesPage() {
         }}
       />
     </div>
+  )
+}
+
+/**
+ * Badges for the built-in screens this page currently stands in for (Front page,
+ * Sign in, 404…). Reads the same `web_settings` pointers the resolver uses, so it
+ * reflects assignments made here or in Settings → Appearance. A page can fill
+ * more than one slot.
+ */
+function PageRoleBadges({ pageId }: { pageId: string }) {
+  const { data } = useWebsiteSettings()
+  const sections = data?.sections
+  const roles = PAGE_ROLE_SLOTS.filter((slot) => sections?.[slot.section]?.[slot.key] === pageId)
+  if (roles.length === 0) {
+    return <span className="text-xs text-muted-foreground">—</span>
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {roles.map((slot) => (
+        <Badge key={slot.key} variant="outline" className="text-xs font-normal">
+          {slot.label}
+        </Badge>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * "Use as page →" row-action submenu: point a built-in screen (Front page, Sign
+ * in, …, 500) at this page. Writes the same single-valued `web_settings` pointer
+ * as Settings → Appearance, so assigning a slot to this page displaces whatever
+ * page held it before. Only Published builder pages are eligible — a Draft or
+ * CODE page would resolve to the built-in screen anyway.
+ */
+function PageRoleMenu({ page }: { page: PageSummaryDto }) {
+  const { data } = useWebsiteSettings()
+  const update = useUpdateWebsiteSettings()
+  const sections = data?.sections
+  const eligible = page.status === 'PUBLISHED' && page.kind === 'BUILDER'
+
+  const setRole = (slot: (typeof PAGE_ROLE_SLOTS)[number], value: string) => {
+    void update.mutateAsync({ patches: [{ section: slot.section, key: slot.key, value }] })
+  }
+
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger className="gap-2">
+        <Layers className="size-4" />
+        Use as page
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent>
+        {!eligible ? (
+          <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+            Publish this builder page to assign a role
+          </DropdownMenuItem>
+        ) : (
+          PAGE_ROLE_SLOTS.map((slot) => {
+            const current = sections?.[slot.section]?.[slot.key] === page.id
+            return (
+              <DropdownMenuItem
+                key={slot.key}
+                className="gap-2"
+                onClick={() => setRole(slot, current ? '' : page.id)}
+              >
+                <Check className={cn('size-4', current ? 'opacity-100' : 'opacity-0')} />
+                {current ? `${slot.label} — reset to default` : slot.label}
+              </DropdownMenuItem>
+            )
+          })
+        )}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   )
 }
