@@ -2,6 +2,27 @@ import env from '#start/env'
 import type { HttpContext } from '@adonisjs/core/http'
 import { defineConfig } from '@adonisjs/shield'
 
+/**
+ * In development the Vite dev server injects an inline `@vitejs/plugin-react`
+ * preamble, serves HMR over a websocket, and applies inline styles. A strict
+ * nonce-based CSP blocks all three (a nonce makes the browser ignore the inline
+ * preamble entirely), which leaves the SPA unmounted and the page blank.
+ *
+ * These relaxations apply ONLY when NODE_ENV=development; production keeps the
+ * strict nonce-based policy below.
+ */
+const isDev = env.get('NODE_ENV') === 'development'
+
+const scriptSrc = isDev
+  ? ["'self'", "'unsafe-inline'", 'https://accounts.google.com', 'https://www.google.com', 'https://hcaptcha.com', 'https://js.hcaptcha.com']
+  : ["'self'", '@nonce', 'https://accounts.google.com', 'https://www.google.com', 'https://hcaptcha.com', 'https://js.hcaptcha.com']
+
+const styleSrc = isDev ? ["'self'", "'unsafe-inline'"] : ["'self'", '@nonce']
+
+const connectSrc = isDev
+  ? ["'self'", 'ws://localhost:*', 'http://localhost:*', 'https://accounts.google.com', 'https://www.google.com']
+  : ["'self'", 'https://accounts.google.com', 'https://www.google.com']
+
 const shieldConfig = defineConfig({
   /**
    * Configure CSP policies for your app. Refer documentation
@@ -21,15 +42,15 @@ const shieldConfig = defineConfig({
       baseUri: ["'self'"],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
-      scriptSrc: ["'self'", '@nonce', 'https://accounts.google.com', 'https://www.google.com', 'https://hcaptcha.com', 'https://js.hcaptcha.com'],
+      scriptSrc,
       scriptSrcAttr: ["'none'"],
-      styleSrc: ["'self'", '@nonce'],
+      styleSrc,
       // Puck uses React style attributes extensively. These cannot execute JS,
       // and are kept separate from style elements (which require a nonce).
       styleSrcAttr: ["'unsafe-inline'"],
       imgSrc: ["'self'", 'https:', 'data:'],
       fontSrc: ["'self'", 'https:', 'data:'],
-      connectSrc: ["'self'", 'https://accounts.google.com', 'https://www.google.com'],
+      connectSrc,
       frameSrc: ["'self'", 'https://www.youtube.com', 'https://player.vimeo.com', 'https://www.google.com', 'https://maps.google.com', 'https://www.facebook.com', 'https://open.spotify.com'],
       formAction: ["'self'"],
     },

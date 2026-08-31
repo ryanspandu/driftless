@@ -2,6 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react'
 import { useEffect, useState } from 'react'
 import { useAuthPublicConfig } from '~/hooks/api/use-auth'
 import { cn } from '~/lib/utils'
+import { ThemeToggle } from '~/components/admin/theme-toggle'
 import type { Data } from '@generated/data'
 
 type GuestGateState = 'checking' | 'ready' | 'redirecting'
@@ -33,7 +34,6 @@ function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-const FALLBACK_BG = '/bg-login.webp'
 const FALLBACK_AUTH_LOGO = '/logo-text.svg'
 
 function AuthBackground({ src }: { src: string }) {
@@ -42,6 +42,27 @@ function AuthBackground({ src }: { src: string }) {
       src={src}
       alt=""
       className="absolute inset-0 size-full object-cover object-center"
+    />
+  )
+}
+
+/**
+ * Default auth panel backdrop: a brand-toned gradient derived from the primary
+ * color, so the panel matches the app's indigo tone instead of a stock photo.
+ * A custom image (settings → authBackgroundUrl) overrides this when present.
+ */
+function AuthGradient() {
+  return (
+    <div
+      className="absolute inset-0 size-full"
+      style={{
+        backgroundColor: 'var(--primary)',
+        backgroundImage: [
+          'radial-gradient(120% 90% at 15% 12%, color-mix(in oklch, var(--primary) 70%, white) 0%, transparent 55%)',
+          'radial-gradient(130% 120% at 85% 100%, color-mix(in oklch, var(--primary) 75%, black) 0%, transparent 60%)',
+          'linear-gradient(155deg, color-mix(in oklch, var(--primary) 88%, black) 0%, var(--primary) 55%, color-mix(in oklch, var(--primary) 80%, #6d5cff) 100%)',
+        ].join(', '),
+      }}
     />
   )
 }
@@ -66,15 +87,18 @@ export function AuthShell({
 }) {
   const authCfg = useAuthPublicConfig()
   const web = authCfg.data?.web
-  const bgSrc = web?.authBackgroundUrl?.trim() || FALLBACK_BG
+  const customBg = web?.authBackgroundUrl?.trim()
   const logoSrc = web?.authLogoUrl?.trim() || FALLBACK_AUTH_LOGO
   const siteTitle = web?.siteTitle?.trim() || 'Driftless'
 
   const layout = (
-    <div className="cms-shell flex min-h-screen items-center justify-center bg-ring/8 p-4 sm:p-6 md:p-8">
+    <div className="cms-shell relative flex min-h-screen items-center justify-center bg-card p-4 sm:p-6 md:p-8">
+      <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+        <ThemeToggle />
+      </div>
       <div className="flex w-full max-w-[56rem] overflow-hidden rounded-2xl border border-border bg-card">
         <aside className="relative hidden min-h-[32rem] w-[44%] shrink-0 flex-col justify-between overflow-hidden p-10 text-white lg:flex">
-          <AuthBackground src={bgSrc} />
+          {customBg ? <AuthBackground src={customBg} /> : <AuthGradient />}
           <div className="relative z-10">
             <AuthPanelLogo src={logoSrc} title={siteTitle} />
           </div>
