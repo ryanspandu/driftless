@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Head } from '@inertiajs/react'
+import { StorefrontLayout } from './_layout'
 import { shopApi, type OrderStatusDto } from './_api'
 
 function formatBytes(bytes: number | null): string {
@@ -22,7 +23,13 @@ function formatBytes(bytes: number | null): string {
  *   arrives before the webhook lands, so the page says "confirming" and polls
  *   briefly rather than implying something went wrong.
  */
-export default function OrderPage() {
+/**
+ * The order-status screen, reachable by its `?token=` link.
+ *
+ * Exported so the `OrderStatusBlock` can render it on a builder page that
+ * overrides `/shop/order`. `embedded` drops the `<Head>` (the page owns SEO).
+ */
+export function OrderStatusScreen({ embedded }: { embedded?: boolean } = {}) {
   const [order, setOrder] = useState<OrderStatusDto | null>(null)
   const [error, setError] = useState<string | null>(null)
   const attempts = useRef(0)
@@ -71,7 +78,7 @@ export default function OrderPage() {
   if (error) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <Head title="Order" />
+        {!embedded && <Head title="Order" />}
         <h1 className="text-2xl font-semibold tracking-tight">Order not found</h1>
         <p className="mt-2 text-muted-foreground">{error}</p>
         <a href="/" className="mt-6 inline-block text-sm underline">
@@ -84,7 +91,7 @@ export default function OrderPage() {
   if (!order) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <Head title="Order" />
+        {!embedded && <Head title="Order" />}
         <p className="text-sm text-muted-foreground">Loading your order…</p>
       </div>
     )
@@ -92,7 +99,7 @@ export default function OrderPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
-      <Head title={`Order ${order.number}`} />
+      {!embedded && <Head title={`Order ${order.number}`} />}
 
       <div className="text-center">
         {order.paid ? (
@@ -216,9 +223,18 @@ export default function OrderPage() {
       ) : null}
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        Keep this link — it is how you check your order{order.downloads.length > 0 ? ' and reach your files' : ''} without
-        an account.
+        Keep this link — it is how you check your order
+        {order.downloads.length > 0 ? ' and reach your files' : ''} without an account.
       </p>
     </div>
+  )
+}
+
+/** The fixed `/shop/order` screen (default when no override page is assigned). */
+export default function OrderPage() {
+  return (
+    <StorefrontLayout title="Order">
+      <OrderStatusScreen embedded />
+    </StorefrontLayout>
   )
 }

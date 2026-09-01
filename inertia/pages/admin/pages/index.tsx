@@ -1,17 +1,9 @@
 import { useMemo, useState } from 'react'
 import { router } from '@inertiajs/react'
 import type { ColumnDef } from '@tanstack/react-table'
-import {
-  Check,
-  ExternalLink,
-  Layers,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  SquarePen,
-  Trash2,
-} from 'lucide-react'
+import { ExternalLink, Layers, MoreHorizontal, Pencil, Plus, SquarePen, Trash2 } from 'lucide-react'
 import { PAGE_ROLE_SLOTS, type PageSummaryDto } from '~/types/api'
+import { modulePageRoles } from '~/lib/module-page-roles'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
@@ -344,25 +336,41 @@ function PageRoleMenu({ page }: { page: PageSummaryDto }) {
         <Layers className="size-4" />
         Use as page
       </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent>
+      {/* Capped height so a long list (core screens + a module's storefront
+          slots) scrolls inside the submenu instead of running off-screen; still
+          never taller than the space the popup actually has. */}
+      <DropdownMenuSubContent className="max-h-[min(24rem,var(--available-height))] overflow-y-auto">
         {!eligible ? (
           <DropdownMenuItem disabled className="text-xs text-muted-foreground">
             Publish this builder page to assign a role
           </DropdownMenuItem>
         ) : (
-          PAGE_ROLE_SLOTS.map((slot) => {
-            const current = sections?.[slot.section]?.[slot.key] === page.id
-            return (
-              <DropdownMenuItem
-                key={slot.key}
-                className="gap-2"
-                onClick={() => setRole(slot, current ? '' : page.id)}
-              >
-                <Check className={cn('size-4', current ? 'opacity-100' : 'opacity-0')} />
-                {current ? `${slot.label} — reset to default` : slot.label}
-              </DropdownMenuItem>
-            )
-          })
+          <>
+            {PAGE_ROLE_SLOTS.map((slot) => {
+              const current = sections?.[slot.section]?.[slot.key] === page.id
+              return (
+                <DropdownMenuItem
+                  key={slot.key}
+                  // The assigned slot is shown by a brand highlight (kept through
+                  // hover) rather than a checkmark. Clicking it again resets the
+                  // slot to its default screen.
+                  className={cn(
+                    current &&
+                      'bg-primary/10 font-medium text-primary focus:bg-primary/15 focus:text-primary'
+                  )}
+                  onClick={() => setRole(slot, current ? '' : page.id)}
+                >
+                  {slot.label}
+                </DropdownMenuItem>
+              )
+            })}
+            {/* Enabled modules add their own overridable screens (e.g. the
+                storefront's basket and checkout), stored in the module's own
+                settings — discovered by shape, so core never names them. */}
+            {modulePageRoles.map((Contribution, index) => (
+              <Contribution key={index} page={page} />
+            ))}
+          </>
         )}
       </DropdownMenuSubContent>
     </DropdownMenuSub>

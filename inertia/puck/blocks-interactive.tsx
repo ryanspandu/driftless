@@ -1,4 +1,5 @@
-import { useState, type ComponentType } from 'react'
+import { useState, type ComponentType, type CSSProperties } from 'react'
+import { Star } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { Box } from './style-fields'
 
@@ -12,7 +13,17 @@ import { Box } from './style-fields'
  * firing the control — interactions are fully testable on the published page.
  */
 
-type Slot = ComponentType
+/**
+ * A Puck slot render-component. The DropZone accepts an optional className/style
+ * (so a carousel can lay its slides in a custom track) and `collisionAxis` (for
+ * horizontal drag-reorder). All optional, so `<Content />` prop-less still works.
+ */
+type Slot = ComponentType<{
+  className?: string
+  style?: CSSProperties
+  collisionAxis?: 'dynamic' | 'x' | 'y'
+  minEmptyHeight?: number
+}>
 type StyleBag = Record<string, unknown>
 const placeholderCls =
   'flex min-h-40 w-full items-center justify-center rounded border border-dashed text-sm text-muted-foreground'
@@ -197,6 +208,172 @@ export function TabsView({ tabs, ...s }: { tabs?: unknown } & StyleBag) {
       </div>
       <div className="p-4 text-sm" style={{ whiteSpace: 'pre-line' }}>
         {items[idx].body || ''}
+      </div>
+    </Box>
+  )
+}
+
+/**
+ * Slot-based carousel. The slides are child blocks laid in a horizontal flex
+ * track; the auto-loop (slide-by-slide OR continuous marquee) is driven entirely
+ * on the PUBLISHED page by `initCarousels` (see `carousel.ts`), keyed off the
+ * `data-carousel*` attrs emitted here. In the editor those attrs are suppressed
+ * and the track WRAPS (overflow visible) so every slide stays visible + draggable.
+ */
+type CarouselProps = {
+  content?: Slot
+  mode?: string
+  interval?: string
+  speed?: string
+  perView?: string
+  gap?: string
+  arrows?: string
+  dots?: string
+  pauseOnHover?: string
+} & StyleBag
+
+export function CarouselView({
+  content: Content,
+  mode,
+  interval,
+  speed,
+  perView,
+  gap,
+  arrows,
+  dots,
+  pauseOnHover,
+  ...s
+}: CarouselProps) {
+  const editing = editingFlag(s)
+  const per = Math.max(1, Number(perView) || 1)
+  const g = typeof gap === 'string' && gap.trim() ? gap.trim() : '16px'
+
+  if (!Content) {
+    return (
+      <Box s={s}>
+        <div className={placeholderCls}>Add slides — drag blocks in</div>
+      </Box>
+    )
+  }
+
+  const runtimeAttrs: Record<string, string> = editing
+    ? {}
+    : {
+        'data-carousel': mode === 'marquee' ? 'marquee' : 'slide',
+        'data-ca-interval': String(Number(interval) || 4),
+        'data-ca-speed': String(Number(speed) || 20),
+        'data-ca-arrows': arrows === 'false' ? 'false' : 'true',
+        'data-ca-dots': dots === 'false' ? 'false' : 'true',
+        'data-ca-pause': pauseOnHover === 'false' ? 'false' : 'true',
+      }
+
+  return (
+    <Box
+      s={s}
+      className="ca-viewport"
+      style={{ position: 'relative', overflow: editing ? 'visible' : 'hidden' }}
+      {...runtimeAttrs}
+    >
+      <Content
+        className="carousel-track"
+        style={
+          {
+            display: 'flex',
+            flexWrap: editing ? 'wrap' : 'nowrap',
+            gap: 'var(--ca-gap)',
+            '--ca-per': String(per),
+            '--ca-gap': g,
+          } as CSSProperties
+        }
+        collisionAxis={editing ? 'dynamic' : 'x'}
+        minEmptyHeight={160}
+      />
+    </Box>
+  )
+}
+
+/** Row of 5 stars, `value` filled. */
+function Stars({ value }: { value: number }) {
+  return (
+    <div className="flex gap-0.5" aria-label={`${value} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          className={cn(
+            'size-4',
+            n <= value ? 'fill-amber-400 text-amber-400' : 'fill-transparent text-muted-foreground/40'
+          )}
+        />
+      ))}
+    </div>
+  )
+}
+
+/** Manual/curated reviews — a responsive grid of rating cards (no API needed). */
+type Review = { author?: string; rating?: string; text?: string; date?: string; avatar?: string }
+
+export function ReviewsView({
+  reviews,
+  columns,
+  heading,
+  showAggregate,
+  ...s
+}: {
+  reviews?: unknown
+  columns?: string
+  heading?: string
+  showAggregate?: string
+} & StyleBag) {
+  const items = (Array.isArray(reviews) ? reviews : []) as Review[]
+  if (!items.length) {
+    return (
+      <Box s={s}>
+        <div className={placeholderCls}>Add reviews</div>
+      </Box>
+    )
+  }
+  const cols = Math.max(1, Math.min(4, Number(columns) || 3))
+  const ratingOf = (r: Review) => Math.max(0, Math.min(5, Math.round(Number(r.rating) || 0)))
+  const avg = items.reduce((sum, r) => sum + ratingOf(r), 0) / items.length
+
+  return (
+    <Box s={s}>
+      {heading || showAggregate === 'true' ? (
+        <div className="mb-6 flex flex-col items-center gap-1.5 text-center">
+          {heading ? <h3 className="text-xl font-semibold">{heading}</h3> : null}
+          {showAggregate === 'true' ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Stars value={Math.round(avg)} />
+              <span>
+                {avg.toFixed(1)} · {items.length} review{items.length === 1 ? '' : 's'}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="reviews-grid" style={{ '--rv-cols': String(cols) } as CSSProperties}>
+        {items.map((r, i) => (
+          <div
+            key={i}
+            className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-card-foreground"
+          >
+            <Stars value={ratingOf(r)} />
+            <p className="text-sm leading-relaxed">{r.text || ''}</p>
+            <div className="mt-auto flex items-center gap-3 pt-1">
+              {r.avatar ? (
+                <img src={r.avatar} alt="" className="size-9 rounded-full object-cover" />
+              ) : (
+                <div className="flex size-9 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
+                  {(r.author || '?').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">{r.author || 'Anonymous'}</div>
+                {r.date ? <div className="text-xs text-muted-foreground">{r.date}</div> : null}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </Box>
   )

@@ -8,6 +8,7 @@ import { newUlid } from '#services/ulid_service'
 import { publicError } from '#exceptions/public_error'
 import Customer from '#modules/ecommerce/models/customer'
 import CustomerSession from '#modules/ecommerce/models/customer_session'
+import { Money, type MoneyDto } from '#modules/ecommerce/services/money'
 
 /**
  * Storefront authentication.
@@ -48,19 +49,32 @@ export interface CustomerDto {
   firstName: string | null
   lastName: string | null
   fullName: string
+  phone: string | null
   acceptsMarketing: boolean
   ordersCount: number
+  /** Whether the account can sign in (has a password) vs. a guest record. */
+  hasPassword: boolean
+  memberSince: string | null
+  /** Lifetime spend, only when a currency/locale is supplied (the account page). */
+  totalSpent: MoneyDto | null
 }
 
-export function toCustomerDto(customer: Customer): CustomerDto {
+export function toCustomerDto(
+  customer: Customer,
+  opts?: { currency: string; locale: string }
+): CustomerDto {
   return {
     id: customer.id,
     email: customer.email,
     firstName: customer.firstName,
     lastName: customer.lastName,
     fullName: customer.fullName,
+    phone: customer.phone,
     acceptsMarketing: customer.acceptsMarketing,
     ordersCount: customer.ordersCount,
+    hasPassword: Boolean(customer.passwordHash),
+    memberSince: customer.createdAt?.toISO() ?? null,
+    totalSpent: opts ? Money.toDto(customer.totalSpentAmount, opts.currency, opts.locale) : null,
   }
 }
 
@@ -156,6 +170,104 @@ export default class CustomerAuthService {
     })
 
     return { customer }
+  }
+
+  /**
+   * Create a customer from the admin.
+   *
+   * Unlike {@link register}, this is **not** enumeration-resistant: the admin is
+   * trusted, so a duplicate email is a plain error rather than a silent no-op.
+   * The password is optional — leaving it blank makes a record the admin can
+   * attach orders to (like a guest), and setting one lets the customer sign in.
+   */
+  async adminCreate(input: {
+    email: string
+    firstName?: string | null
+    lastName?: string | null
+    phone?: string | null
+    password?: string | null
+    acceptsMarketing?: boolean
+    status?: 'active' | 'blocked'
+  }): Promise<Customer> {
+    const email = normaliseEmail(input.email)
+
+    const existing = await Customer.query().where('email', email).whereNull('deleted_at').first()
+    if (existing) {
+      throw publicError.unprocessable('A customer with that email already exists.', 'email_taken')
+    }
+
+    const password = (input.password ?? '').trim()
+    if (password && password.length < 8) {
+      throw publicError.unprocessable(
+        'Password must be at least 8 characters.',
+        'password_too_short'
+      )
+    }
+
+    return Customer.create({
+      id: newUlid(),
+      email,
+      passwordHash: password ? await hash.make(password) : null,
+      firstName: input.firstName?.trim() || null,
+      lastName: input.lastName?.trim() || null,
+      phone: input.phone?.trim() || null,
+      status: input.status ?? 'active',
+      acceptsMarketing: input.acceptsMarketing ?? false,
+      ordersCount: 0,
+      totalSpentAmount: 0,
+    })
+  }
+
+  /** A signed-in customer edits their own profile. Email is intentionally not
+   *  editable here — it is the account key and changing it is a separate flow. */
+  async updateProfile(
+    customer: Customer,
+    input: {
+      firstName?: string | null
+      lastName?: string | null
+      phone?: string | null
+      acceptsMarketing?: boolean
+    }
+  ): Promise<Customer> {
+    if (input.firstName !== undefined) customer.firstName = input.firstName?.trim() || null
+    if (input.lastName !== undefined) customer.lastName = input.lastName?.trim() || null
+    if (input.phone !== undefined) customer.phone = input.phone?.trim() || null
+    if (input.acceptsMarketing !== undefined) customer.acceptsMarketing = input.acceptsMarketing
+    await customer.save()
+    return customer
+  }
+
+  /**
+   * Change a signed-in customer's password.
+   *
+   * The current password is required (a guest row has none and cannot use this),
+   * and **every** session is revoked so a stolen one dies the moment the password
+   * changes. The caller re-issues a session for the device that made the change.
+   */
+  async changePassword(
+    customer: Customer,
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
+    if (!customer.passwordHash) {
+      throw publicError.unprocessable(
+        'Set a password on your account before changing it.',
+        'no_password'
+      )
+    }
+    const ok = await hash.verify(customer.passwordHash, currentPassword)
+    if (!ok) {
+      throw publicError.unprocessable('Your current password is incorrect.', 'wrong_password')
+    }
+    if (newPassword.length < 8) {
+      throw publicError.unprocessable(
+        'Password must be at least 8 characters.',
+        'password_too_short'
+      )
+    }
+    customer.passwordHash = await hash.make(newPassword)
+    await customer.save()
+    await this.revokeAllSessions(customer.id)
   }
 
   /**

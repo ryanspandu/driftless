@@ -8,7 +8,9 @@ import { renderPage } from '#helpers/inertia_render'
 import { apiFail } from '#helpers/api_error_response'
 import AuditLogService from '#services/audit_log_service'
 import type User from '#models/user'
+import { readFile } from 'node:fs/promises'
 import CatalogService from '#modules/ecommerce/services/catalog_service'
+import ProductImportService from '#modules/ecommerce/services/import_service'
 
 /**
  * Amounts arrive as **integer minor units**, never as a decimal string or a
@@ -118,6 +120,7 @@ const updateVariantValidator = vine.compile(
 )
 
 const catalog = new CatalogService()
+const importer = new ProductImportService()
 const audit = new AuditLogService()
 
 const fail = (response: HttpContext['response'], error: unknown) =>
@@ -179,6 +182,48 @@ export default class ProductsController {
       })
 
       return response.status(201).json(product)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /**
+   * Bulk create/update products from an uploaded CSV.
+   *
+   * Best-effort: the service imports every valid row and reports the rest, so a
+   * partial file still lands what it can. The response is the summary
+   * (`created`/`updated`/`skipped` + per-row `errors`), not a 4xx — a file with
+   * some bad rows is a normal, expected outcome here, not a failed request.
+   */
+  async import(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const file = request.file('file', { size: '5mb', extnames: ['csv', 'txt'] })
+      if (!file) {
+        return response.status(422).json({ message: 'No file uploaded.' })
+      }
+      if (!file.isValid || !file.tmpPath) {
+        return response.status(422).json({ message: 'Invalid upload.', errors: file.errors })
+      }
+
+      const text = await readFile(file.tmpPath, 'utf8')
+      const result = await importer.import(text, (auth.user as User).id)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'ecommerce.products_imported',
+        subjectType: 'import',
+        subjectId: 'products',
+        changes: {
+          created: result.created,
+          updated: result.updated,
+          skipped: result.skipped,
+          errors: result.errors.length,
+        },
+        ctx,
+      })
+
+      return response.json(result)
     } catch (error) {
       return fail(response, error)
     }

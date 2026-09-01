@@ -44,6 +44,7 @@ export type ScannedRoutes = {
     'shop.cart.show': { paramsTuple?: []; params?: {} }
     'shop.me': { paramsTuple?: []; params?: {} }
     'shop.order.status': { paramsTuple?: []; params?: {} }
+    'shop.checkout.config': { paramsTuple?: []; params?: {} }
     'shop.cart.add': { paramsTuple?: []; params?: {} }
     'shop.cart.update': { paramsTuple?: []; params?: {} }
     'shop.cart.remove': { paramsTuple: [ParamValue]; params: {'variantId': ParamValue} }
@@ -53,6 +54,14 @@ export type ScannedRoutes = {
     'shop.account.login': { paramsTuple?: []; params?: {} }
     'shop.account.logout': { paramsTuple?: []; params?: {} }
     'shop.account.orders': { paramsTuple?: []; params?: {} }
+    'shop.account.order': { paramsTuple: [ParamValue]; params: {'number': ParamValue} }
+    'shop.account.order.download': { paramsTuple: [ParamValue,ParamValue]; params: {'number': ParamValue,'grantId': ParamValue} }
+    'shop.account.profile': { paramsTuple?: []; params?: {} }
+    'shop.account.password': { paramsTuple?: []; params?: {} }
+    'shop.account.addresses': { paramsTuple?: []; params?: {} }
+    'shop.account.addresses.create': { paramsTuple?: []; params?: {} }
+    'shop.account.addresses.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'shop.account.addresses.delete': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'shop.referral': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'shop.currencies': { paramsTuple?: []; params?: {} }
     'shop.shipping.options': { paramsTuple?: []; params?: {} }
@@ -93,6 +102,7 @@ export type ScannedRoutes = {
     'ecommerce.api.shipping.update': { paramsTuple?: []; params?: {} }
     'ecommerce.api.currencies.update': { paramsTuple?: []; params?: {} }
     'ecommerce.api.customers.index': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.customers.store': { paramsTuple?: []; params?: {} }
     'ecommerce.api.customers.status': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.exports.orders': { paramsTuple?: []; params?: {} }
     'ecommerce.api.exports.orderItems': { paramsTuple?: []; params?: {} }
@@ -107,6 +117,7 @@ export type ScannedRoutes = {
     'ecommerce.api.products.index': { paramsTuple?: []; params?: {} }
     'ecommerce.api.products.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.products.store': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.products.import': { paramsTuple?: []; params?: {} }
     'ecommerce.api.products.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.products.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.variants.store': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -169,7 +180,11 @@ export type ScannedRoutes = {
     'shop.cart.show': { paramsTuple?: []; params?: {} }
     'shop.me': { paramsTuple?: []; params?: {} }
     'shop.order.status': { paramsTuple?: []; params?: {} }
+    'shop.checkout.config': { paramsTuple?: []; params?: {} }
     'shop.account.orders': { paramsTuple?: []; params?: {} }
+    'shop.account.order': { paramsTuple: [ParamValue]; params: {'number': ParamValue} }
+    'shop.account.order.download': { paramsTuple: [ParamValue,ParamValue]; params: {'number': ParamValue,'grantId': ParamValue} }
+    'shop.account.addresses': { paramsTuple?: []; params?: {} }
     'shop.referral': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'shop.currencies': { paramsTuple?: []; params?: {} }
     'shop.front': { paramsTuple?: []; params?: {} }
@@ -246,7 +261,11 @@ export type ScannedRoutes = {
     'shop.cart.show': { paramsTuple?: []; params?: {} }
     'shop.me': { paramsTuple?: []; params?: {} }
     'shop.order.status': { paramsTuple?: []; params?: {} }
+    'shop.checkout.config': { paramsTuple?: []; params?: {} }
     'shop.account.orders': { paramsTuple?: []; params?: {} }
+    'shop.account.order': { paramsTuple: [ParamValue]; params: {'number': ParamValue} }
+    'shop.account.order.download': { paramsTuple: [ParamValue,ParamValue]; params: {'number': ParamValue,'grantId': ParamValue} }
+    'shop.account.addresses': { paramsTuple?: []; params?: {} }
     'shop.referral': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'shop.currencies': { paramsTuple?: []; params?: {} }
     'shop.front': { paramsTuple?: []; params?: {} }
@@ -318,6 +337,7 @@ export type ScannedRoutes = {
     'shop.account.register': { paramsTuple?: []; params?: {} }
     'shop.account.login': { paramsTuple?: []; params?: {} }
     'shop.account.logout': { paramsTuple?: []; params?: {} }
+    'shop.account.addresses.create': { paramsTuple?: []; params?: {} }
     'shop.shipping.options': { paramsTuple?: []; params?: {} }
     'shop.currency.set': { paramsTuple?: []; params?: {} }
     'shop.discount.check': { paramsTuple?: []; params?: {} }
@@ -325,10 +345,12 @@ export type ScannedRoutes = {
     'ecommerce.api.orders.ship': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.orders.store': { paramsTuple?: []; params?: {} }
     'ecommerce.api.storefront.seed': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.customers.store': { paramsTuple?: []; params?: {} }
     'ecommerce.api.grants.revoke': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.orders.refund': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.gateways.verify': { paramsTuple: [ParamValue,ParamValue]; params: {'gateway': ParamValue,'mode': ParamValue} }
     'ecommerce.api.products.store': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.products.import': { paramsTuple?: []; params?: {} }
     'ecommerce.api.variants.store': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.assets.store': { paramsTuple: [ParamValue]; params: {'variantId': ParamValue} }
     'ecommerce.api.categories.store': { paramsTuple?: []; params?: {} }
@@ -342,6 +364,9 @@ export type ScannedRoutes = {
     'v1.cms.update': { paramsTuple: [ParamValue,ParamValue]; params: {'key': ParamValue,'id': ParamValue} }
     'admin.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'shop.cart.update': { paramsTuple?: []; params?: {} }
+    'shop.account.profile': { paramsTuple?: []; params?: {} }
+    'shop.account.password': { paramsTuple?: []; params?: {} }
+    'shop.account.addresses.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.orders.status': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.orders.note': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.shipping.update': { paramsTuple?: []; params?: {} }
@@ -364,6 +389,7 @@ export type ScannedRoutes = {
     'admin.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'shop.cart.remove': { paramsTuple: [ParamValue]; params: {'variantId': ParamValue} }
     'shop.cart.clear': { paramsTuple?: []; params?: {} }
+    'shop.account.addresses.delete': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.products.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.variants.destroy': { paramsTuple: [ParamValue]; params: {'variantId': ParamValue} }
     'ecommerce.api.assets.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

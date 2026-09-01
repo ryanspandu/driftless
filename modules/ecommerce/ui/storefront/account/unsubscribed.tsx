@@ -13,8 +13,8 @@ export default function UnsubscribedPage() {
       <Head title="Unsubscribed" />
       <h1 className="text-2xl font-semibold tracking-tight">You're unsubscribed</h1>
       <p className="mt-3 text-sm text-muted-foreground">
-        We won't email you about offers or baskets again. You will still get receipts and
-        delivery updates for anything you buy — those are not marketing.
+        We won't email you about offers or baskets again. You will still get receipts and delivery
+        updates for anything you buy — those are not marketing.
       </p>
       <a href="/" className="mt-8 inline-block text-sm underline">
         Back to the shop

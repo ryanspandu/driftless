@@ -3,6 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { renderPage } from '#helpers/inertia_render'
 import Page from '#models/page'
 import PageRenderer from '#services/page_renderer'
+import SiteChromeService from '#services/site_chrome_service'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 import StorefrontCatalogService from '#modules/ecommerce/services/storefront_catalog_service'
 import CurrencyService from '#modules/ecommerce/services/currency_service'
@@ -15,6 +16,7 @@ const storeSettings = new StoreSettingsService()
 const catalog = new StorefrontCatalogService()
 const currencies = new CurrencyService()
 const renderer = new PageRenderer()
+const siteChrome = new SiteChromeService()
 
 /**
  * Where product pages live.
@@ -38,8 +40,47 @@ export const PRODUCT_PATH_PREFIX = '/shop/p'
  * blocks on ordinary pages and gets SSR/SSG for free.
  */
 export default class StorefrontPagesController {
-  async cart({ inertia }: HttpContext) {
-    return renderPage(inertia, 'modules/ecommerce/storefront/cart', {})
+  /**
+   * The builder page an operator has assigned to a storefront slot, or null.
+   *
+   * Only a live, published page counts — a draft or deleted one falls back to
+   * the built-in fixed screen rather than 404ing, since the fixed screen is the
+   * default the override merely stands in for. Mirrors the `shopFront` lookup.
+   */
+  private async overridePage(pageId: string | null): Promise<Page | null> {
+    if (!pageId) return null
+    return Page.query()
+      .where('id', pageId)
+      .where('status', 'PUBLISHED')
+      .whereNull('deleted_at')
+      .first()
+  }
+
+  /**
+   * Render a fixed storefront screen inside the site's header/footer.
+   *
+   * These pages are hand-written Inertia components, not builder pages, so they
+   * never went through `PageRenderer` and got no site chrome. Resolving it here
+   * and passing it as props gives them the same header/footer every other public
+   * page has (an override page, rendered via `renderer.render`, already gets it).
+   */
+  private async renderStorefront(
+    ctx: HttpContext,
+    component: string,
+    props: Record<string, unknown> = {}
+  ) {
+    const chrome = await siteChrome.resolve()
+    return renderPage(ctx.inertia, component, { ...chrome, ...props })
+  }
+
+  async cart(ctx: HttpContext) {
+    const store = await storeSettings.getOrCreate()
+    const page = await this.overridePage(store.cartPageId)
+    // `skipSnapshot`: a basket is per-visitor and must never be cached into a
+    // shared snapshot. The block that renders it fetches client-side, so the
+    // SSR shell holds nothing visitor-specific.
+    if (page) return renderer.render(page, ctx, { skipSnapshot: true })
+    return this.renderStorefront(ctx, 'modules/ecommerce/storefront/cart')
   }
 
   /**
@@ -47,9 +88,14 @@ export default class StorefrontPagesController {
    *
    * Which payment buttons to show is decided here, server-side, from the
    * gateways that actually have usable credentials — not from anything the
-   * client could assert.
+   * client could assert. An override page gets the same list from
+   * `GET /api/shop/checkout/config`, so the rule stays in one place.
    */
   async checkout(ctx: HttpContext) {
+    const store = await storeSettings.getOrCreate()
+    const page = await this.overridePage(store.checkoutPageId)
+    if (page) return renderer.render(page, ctx, { skipSnapshot: true })
+
     const [gateways, cart] = await Promise.all([
       credentials.enabledGateways(),
       carts.forRequest(ctx),
@@ -57,7 +103,7 @@ export default class StorefrontPagesController {
 
     const dto = cart ? await carts.toDto(cart) : null
 
-    return renderPage(ctx.inertia, 'modules/ecommerce/storefront/checkout', {
+    return this.renderStorefront(ctx, 'modules/ecommerce/storefront/checkout', {
       gateways,
       // Lets the form skip the address section entirely for a downloads-only
       // basket rather than asking for a delivery address it will never use.
@@ -65,8 +111,11 @@ export default class StorefrontPagesController {
     })
   }
 
-  async order({ inertia }: HttpContext) {
-    return renderPage(inertia, 'modules/ecommerce/storefront/order', {})
+  async order(ctx: HttpContext) {
+    const store = await storeSettings.getOrCreate()
+    const page = await this.overridePage(store.orderPageId)
+    if (page) return renderer.render(page, ctx, { skipSnapshot: true })
+    return this.renderStorefront(ctx, 'modules/ecommerce/storefront/order')
   }
 
   /**
@@ -194,15 +243,24 @@ export default class StorefrontPagesController {
    * itself would add a second place for the rule to live, and a second place
    * for it to be wrong.
    */
-  async accountLogin({ inertia }: HttpContext) {
-    return renderPage(inertia, 'modules/ecommerce/storefront/account/login', {})
+  async accountLogin(ctx: HttpContext) {
+    const store = await storeSettings.getOrCreate()
+    const page = await this.overridePage(store.loginPageId)
+    if (page) return renderer.render(page, ctx, { skipSnapshot: true })
+    return this.renderStorefront(ctx, 'modules/ecommerce/storefront/account/login')
   }
 
-  async accountRegister({ inertia }: HttpContext) {
-    return renderPage(inertia, 'modules/ecommerce/storefront/account/register', {})
+  async accountRegister(ctx: HttpContext) {
+    const store = await storeSettings.getOrCreate()
+    const page = await this.overridePage(store.registerPageId)
+    if (page) return renderer.render(page, ctx, { skipSnapshot: true })
+    return this.renderStorefront(ctx, 'modules/ecommerce/storefront/account/register')
   }
 
-  async account({ inertia }: HttpContext) {
-    return renderPage(inertia, 'modules/ecommerce/storefront/account/index', {})
+  async account(ctx: HttpContext) {
+    const store = await storeSettings.getOrCreate()
+    const page = await this.overridePage(store.accountPageId)
+    if (page) return renderer.render(page, ctx, { skipSnapshot: true })
+    return this.renderStorefront(ctx, 'modules/ecommerce/storefront/account/index')
   }
 }

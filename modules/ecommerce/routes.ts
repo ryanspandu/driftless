@@ -100,6 +100,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router.get('/api/shop/cart', [ShopCartCtrl, 'show']).as('shop.cart.show')
       router.get('/api/shop/me', [ShopAccountCtrl, 'me']).as('shop.me')
       router.get('/api/shop/order', [ShopCheckoutCtrl, 'status']).as('shop.order.status')
+      router
+        .get('/api/shop/checkout/config', [ShopCheckoutCtrl, 'config'])
+        .as('shop.checkout.config')
     })
     .use(throttle.storefront)
     .use(moduleEnabled)
@@ -141,6 +144,33 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
     .group(() => {
       router.post('/api/shop/account/logout', [ShopAccountCtrl, 'logout']).as('shop.account.logout')
       router.get('/api/shop/account/orders', [ShopAccountCtrl, 'orders']).as('shop.account.orders')
+      router
+        .get('/api/shop/account/orders/:number', [ShopAccountCtrl, 'orderDetail'])
+        .as('shop.account.order')
+      router
+        .get('/api/shop/account/orders/:number/downloads/:grantId', [
+          ShopAccountCtrl,
+          'downloadOrderFile',
+        ])
+        .as('shop.account.order.download')
+      router
+        .put('/api/shop/account/profile', [ShopAccountCtrl, 'updateProfile'])
+        .as('shop.account.profile')
+      router
+        .put('/api/shop/account/password', [ShopAccountCtrl, 'changePassword'])
+        .as('shop.account.password')
+      router
+        .get('/api/shop/account/addresses', [ShopAccountCtrl, 'addresses'])
+        .as('shop.account.addresses')
+      router
+        .post('/api/shop/account/addresses', [ShopAccountCtrl, 'createAddress'])
+        .as('shop.account.addresses.create')
+      router
+        .put('/api/shop/account/addresses/:id', [ShopAccountCtrl, 'updateAddress'])
+        .as('shop.account.addresses.update')
+      router
+        .delete('/api/shop/account/addresses/:id', [ShopAccountCtrl, 'deleteAddress'])
+        .as('shop.account.addresses.delete')
     })
     .use(throttle.storefront)
     .use(moduleEnabled)
@@ -231,7 +261,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
   router
     .group(() => {
       router.get('/shop/account', [ShopPagesCtrl, 'account']).as('shop.account')
-      router.get('/shop/account/login', [ShopPagesCtrl, 'accountLogin']).as('shop.account.page.login')
+      router
+        .get('/shop/account/login', [ShopPagesCtrl, 'accountLogin'])
+        .as('shop.account.page.login')
       router
         .get('/shop/account/register', [ShopPagesCtrl, 'accountRegister'])
         .as('shop.account.page.register')
@@ -447,6 +479,13 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
     .use(moduleEnabled)
 
   router
+    .post('/api/admin/ecommerce/customers', [CustomersCtrl, 'store'])
+    .as('ecommerce.api.customers.store')
+    .use(middleware.auth())
+    .use(middleware.permission({ permission: 'ecommerce:customers:manage' }))
+    .use(moduleEnabled)
+
+  router
     .put('/api/admin/ecommerce/customers/:id/status', [CustomersCtrl, 'updateStatus'])
     .as('ecommerce.api.customers.status')
     .use(middleware.auth())
@@ -552,6 +591,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .post('/api/admin/ecommerce/products', [ProductsCtrl, 'store'])
         .as('ecommerce.api.products.store')
+      router
+        .post('/api/admin/ecommerce/products/import', [ProductsCtrl, 'import'])
+        .as('ecommerce.api.products.import')
       router
         .put('/api/admin/ecommerce/products/:id', [ProductsCtrl, 'update'])
         .as('ecommerce.api.products.update')

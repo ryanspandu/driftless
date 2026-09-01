@@ -14,6 +14,7 @@ import IdempotencyService, {
 import { Money } from '#modules/ecommerce/services/money'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 import DigitalDeliveryService from '#modules/ecommerce/services/digital_delivery_service'
+import GatewayCredentialsService from '#modules/ecommerce/services/gateway_credentials_service'
 import { countryCode } from '#modules/ecommerce/validators/country'
 
 const addressSchema = vine.object({
@@ -72,11 +73,35 @@ const affiliates = new AffiliateService()
 const idempotency = new IdempotencyService()
 const settings = new StoreSettingsService()
 const delivery = new DigitalDeliveryService()
+const credentials = new GatewayCredentialsService()
 
 const fail = (response: HttpContext['response'], error: unknown) =>
   apiFail(response, error, 'ecommerce/checkout')
 
 export default class StorefrontCheckoutController {
+  /**
+   * The checkout configuration a page needs to render its payment section:
+   * which gateways have usable credentials, and whether the basket is
+   * downloads-only (so no delivery address is asked for).
+   *
+   * The fixed `/shop/checkout` page gets this as inertia props from
+   * `StorefrontPagesController.checkout`; this endpoint is the equivalent for a
+   * builder page overriding checkout via the `CheckoutBlock`, so the same
+   * server decision is used in both.
+   */
+  async config(ctx: HttpContext) {
+    try {
+      const [gateways, cart] = await Promise.all([
+        credentials.enabledGateways(),
+        carts.forRequest(ctx),
+      ])
+      const dto = cart ? await carts.toDto(cart) : null
+      return ctx.response.json({ gateways, digitalOnly: dto?.digitalOnly ?? false })
+    } catch (error) {
+      return fail(ctx.response, error)
+    }
+  }
+
   /**
    * Begin checkout.
    *
@@ -328,17 +353,15 @@ export default class StorefrontCheckoutController {
         throw publicError.unprocessable('Your basket is empty.', 'empty_basket')
       }
 
-      const { default: PricingService } = await import(
-        '#modules/ecommerce/services/pricing_service'
-      )
+      const { default: PricingService } =
+        await import('#modules/ecommerce/services/pricing_service')
       const priced = await new PricingService().price(lines, { currency: cart.currency })
 
       // A downloads-only basket is never shipped and never asked to choose.
       if (priced.digitalOnly) return response.json({ required: false, options: [] })
 
-      const { default: ShippingService } = await import(
-        '#modules/ecommerce/services/shipping_service'
-      )
+      const { default: ShippingService } =
+        await import('#modules/ecommerce/services/shipping_service')
       const shipping = new ShippingService()
 
       if (!(await shipping.isConfigured())) {

@@ -318,6 +318,7 @@ export interface ApiDefinition {
       }
       customers: {
         index: typeof routes['ecommerce.api.customers.index']
+        store: typeof routes['ecommerce.api.customers.store']
         status: typeof routes['ecommerce.api.customers.status']
       }
       exports: {
@@ -339,6 +340,7 @@ export interface ApiDefinition {
         index: typeof routes['ecommerce.api.products.index']
         show: typeof routes['ecommerce.api.products.show']
         store: typeof routes['ecommerce.api.products.store']
+        import: typeof routes['ecommerce.api.products.import']
         update: typeof routes['ecommerce.api.products.update']
         destroy: typeof routes['ecommerce.api.products.destroy']
       }
@@ -417,12 +419,24 @@ export interface ApiDefinition {
     order: {
       status: typeof routes['shop.order.status']
     }
-    checkout: typeof routes['shop.checkout']
+    checkout: typeof routes['shop.checkout'] & {
+      config: typeof routes['shop.checkout.config']
+    }
     account: typeof routes['shop.account'] & {
       register: typeof routes['shop.account.register']
       login: typeof routes['shop.account.login']
       logout: typeof routes['shop.account.logout']
       orders: typeof routes['shop.account.orders']
+      order: typeof routes['shop.account.order'] & {
+        download: typeof routes['shop.account.order.download']
+      }
+      profile: typeof routes['shop.account.profile']
+      password: typeof routes['shop.account.password']
+      addresses: typeof routes['shop.account.addresses'] & {
+        create: typeof routes['shop.account.addresses.create']
+        update: typeof routes['shop.account.addresses.update']
+        delete: typeof routes['shop.account.addresses.delete']
+      }
       page: {
         login: typeof routes['shop.account.page.login']
         register: typeof routes['shop.account.page.register']

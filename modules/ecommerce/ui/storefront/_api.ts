@@ -86,8 +86,12 @@ export interface CustomerDto {
   firstName: string | null
   lastName: string | null
   fullName: string
+  phone: string | null
   acceptsMarketing: boolean
   ordersCount: number
+  hasPassword: boolean
+  memberSince: string | null
+  totalSpent: MoneyDto | null
 }
 
 function csrfToken(): string | undefined {
@@ -192,11 +196,16 @@ export interface ShippingOptionDto {
   free: boolean
 }
 
+/** The three status axes collapsed to one operator bucket, for a single badge. */
+export type OrderStage = 'action' | 'open' | 'closed'
+
 /** One order in the signed-in buyer's history. */
 export interface AccountOrderDto {
   number: string
   status: string
   paymentStatus: string
+  fulfillmentStatus: string
+  stage: OrderStage
   placedAt: string
   total: MoneyDto
   itemCount: number
@@ -206,6 +215,94 @@ export interface AccountOrderDto {
     quantity: number
     imageUrl: string | null
   }[]
+}
+
+/** A single order in full, for the account detail view. */
+export interface OrderDetailDto {
+  number: string
+  status: string
+  paymentStatus: string
+  fulfillmentStatus: string
+  stage: OrderStage
+  paid: boolean
+  email: string
+  placedAt: string
+  shippedAt: string | null
+  carrier: string | null
+  trackingNumber: string | null
+  trackingUrl: string | null
+  customerNote: string | null
+  shippingAddress: OrderAddress | null
+  subtotal: MoneyDto
+  discount: MoneyDto | null
+  shipping: MoneyDto
+  tax: MoneyDto
+  total: MoneyDto
+  items: {
+    title: string
+    variantTitle: string | null
+    sku: string | null
+    quantity: number
+    unit: MoneyDto
+    total: MoneyDto
+    imageUrl: string | null
+  }[]
+  downloads: {
+    id: string
+    filename: string
+    sizeBytes: number
+    downloadsCount: number
+    maxDownloads: number
+    expiresAt: string | null
+    live: boolean
+    url: string | null
+  }[]
+}
+
+export interface OrderAddress {
+  firstName?: string | null
+  lastName?: string | null
+  company?: string | null
+  line1?: string | null
+  line2?: string | null
+  city?: string | null
+  state?: string | null
+  postalCode?: string | null
+  country?: string | null
+  phone?: string | null
+}
+
+export interface AddressDto {
+  id: string
+  label: string | null
+  firstName: string | null
+  lastName: string | null
+  company: string | null
+  line1: string
+  line2: string | null
+  city: string
+  state: string | null
+  postalCode: string | null
+  country: string
+  phone: string | null
+  isDefaultShipping: boolean
+  isDefaultBilling: boolean
+}
+
+export interface AddressInput {
+  label?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  company?: string | null
+  line1: string
+  line2?: string | null
+  city: string
+  state?: string | null
+  postalCode?: string | null
+  country: string
+  phone?: string | null
+  isDefaultShipping?: boolean
+  isDefaultBilling?: boolean
 }
 
 export const accountApi = {
@@ -230,4 +327,41 @@ export const accountApi = {
   logout: () => shopFetch<{ ok: true }>('/api/shop/account/logout', { method: 'POST' }),
 
   orders: () => shopFetch<{ orders: AccountOrderDto[] }>('/api/shop/account/orders'),
+
+  orderDetail: (number: string) =>
+    shopFetch<OrderDetailDto>(`/api/shop/account/orders/${encodeURIComponent(number)}`),
+
+  updateProfile: (input: {
+    firstName?: string | null
+    lastName?: string | null
+    phone?: string | null
+    acceptsMarketing?: boolean
+  }) =>
+    shopFetch<{ customer: CustomerDto }>('/api/shop/account/profile', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  changePassword: (input: { currentPassword: string; newPassword: string }) =>
+    shopFetch<{ ok: true }>('/api/shop/account/password', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  addresses: () => shopFetch<{ addresses: AddressDto[] }>('/api/shop/account/addresses'),
+
+  createAddress: (input: AddressInput) =>
+    shopFetch<AddressDto>('/api/shop/account/addresses', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateAddress: (id: string, input: Partial<AddressInput>) =>
+    shopFetch<AddressDto>(`/api/shop/account/addresses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  deleteAddress: (id: string) =>
+    shopFetch<void>(`/api/shop/account/addresses/${id}`, { method: 'DELETE' }),
 }

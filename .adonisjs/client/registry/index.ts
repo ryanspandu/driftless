@@ -1260,6 +1260,12 @@ const routes = {
     tokens: [{"old":"/api/shop/order","type":0,"val":"api","end":""},{"old":"/api/shop/order","type":0,"val":"shop","end":""},{"old":"/api/shop/order","type":0,"val":"order","end":""}],
     types: placeholder as Registry['shop.order.status']['types'],
   },
+  'shop.checkout.config': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/shop/checkout/config',
+    tokens: [{"old":"/api/shop/checkout/config","type":0,"val":"api","end":""},{"old":"/api/shop/checkout/config","type":0,"val":"shop","end":""},{"old":"/api/shop/checkout/config","type":0,"val":"checkout","end":""},{"old":"/api/shop/checkout/config","type":0,"val":"config","end":""}],
+    types: placeholder as Registry['shop.checkout.config']['types'],
+  },
   'shop.cart.add': {
     methods: ["POST"],
     pattern: '/api/shop/cart/items',
@@ -1313,6 +1319,54 @@ const routes = {
     pattern: '/api/shop/account/orders',
     tokens: [{"old":"/api/shop/account/orders","type":0,"val":"api","end":""},{"old":"/api/shop/account/orders","type":0,"val":"shop","end":""},{"old":"/api/shop/account/orders","type":0,"val":"account","end":""},{"old":"/api/shop/account/orders","type":0,"val":"orders","end":""}],
     types: placeholder as Registry['shop.account.orders']['types'],
+  },
+  'shop.account.order': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/shop/account/orders/:number',
+    tokens: [{"old":"/api/shop/account/orders/:number","type":0,"val":"api","end":""},{"old":"/api/shop/account/orders/:number","type":0,"val":"shop","end":""},{"old":"/api/shop/account/orders/:number","type":0,"val":"account","end":""},{"old":"/api/shop/account/orders/:number","type":0,"val":"orders","end":""},{"old":"/api/shop/account/orders/:number","type":1,"val":"number","end":""}],
+    types: placeholder as Registry['shop.account.order']['types'],
+  },
+  'shop.account.order.download': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/shop/account/orders/:number/downloads/:grantId',
+    tokens: [{"old":"/api/shop/account/orders/:number/downloads/:grantId","type":0,"val":"api","end":""},{"old":"/api/shop/account/orders/:number/downloads/:grantId","type":0,"val":"shop","end":""},{"old":"/api/shop/account/orders/:number/downloads/:grantId","type":0,"val":"account","end":""},{"old":"/api/shop/account/orders/:number/downloads/:grantId","type":0,"val":"orders","end":""},{"old":"/api/shop/account/orders/:number/downloads/:grantId","type":1,"val":"number","end":""},{"old":"/api/shop/account/orders/:number/downloads/:grantId","type":0,"val":"downloads","end":""},{"old":"/api/shop/account/orders/:number/downloads/:grantId","type":1,"val":"grantId","end":""}],
+    types: placeholder as Registry['shop.account.order.download']['types'],
+  },
+  'shop.account.profile': {
+    methods: ["PUT"],
+    pattern: '/api/shop/account/profile',
+    tokens: [{"old":"/api/shop/account/profile","type":0,"val":"api","end":""},{"old":"/api/shop/account/profile","type":0,"val":"shop","end":""},{"old":"/api/shop/account/profile","type":0,"val":"account","end":""},{"old":"/api/shop/account/profile","type":0,"val":"profile","end":""}],
+    types: placeholder as Registry['shop.account.profile']['types'],
+  },
+  'shop.account.password': {
+    methods: ["PUT"],
+    pattern: '/api/shop/account/password',
+    tokens: [{"old":"/api/shop/account/password","type":0,"val":"api","end":""},{"old":"/api/shop/account/password","type":0,"val":"shop","end":""},{"old":"/api/shop/account/password","type":0,"val":"account","end":""},{"old":"/api/shop/account/password","type":0,"val":"password","end":""}],
+    types: placeholder as Registry['shop.account.password']['types'],
+  },
+  'shop.account.addresses': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/shop/account/addresses',
+    tokens: [{"old":"/api/shop/account/addresses","type":0,"val":"api","end":""},{"old":"/api/shop/account/addresses","type":0,"val":"shop","end":""},{"old":"/api/shop/account/addresses","type":0,"val":"account","end":""},{"old":"/api/shop/account/addresses","type":0,"val":"addresses","end":""}],
+    types: placeholder as Registry['shop.account.addresses']['types'],
+  },
+  'shop.account.addresses.create': {
+    methods: ["POST"],
+    pattern: '/api/shop/account/addresses',
+    tokens: [{"old":"/api/shop/account/addresses","type":0,"val":"api","end":""},{"old":"/api/shop/account/addresses","type":0,"val":"shop","end":""},{"old":"/api/shop/account/addresses","type":0,"val":"account","end":""},{"old":"/api/shop/account/addresses","type":0,"val":"addresses","end":""}],
+    types: placeholder as Registry['shop.account.addresses.create']['types'],
+  },
+  'shop.account.addresses.update': {
+    methods: ["PUT"],
+    pattern: '/api/shop/account/addresses/:id',
+    tokens: [{"old":"/api/shop/account/addresses/:id","type":0,"val":"api","end":""},{"old":"/api/shop/account/addresses/:id","type":0,"val":"shop","end":""},{"old":"/api/shop/account/addresses/:id","type":0,"val":"account","end":""},{"old":"/api/shop/account/addresses/:id","type":0,"val":"addresses","end":""},{"old":"/api/shop/account/addresses/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['shop.account.addresses.update']['types'],
+  },
+  'shop.account.addresses.delete': {
+    methods: ["DELETE"],
+    pattern: '/api/shop/account/addresses/:id',
+    tokens: [{"old":"/api/shop/account/addresses/:id","type":0,"val":"api","end":""},{"old":"/api/shop/account/addresses/:id","type":0,"val":"shop","end":""},{"old":"/api/shop/account/addresses/:id","type":0,"val":"account","end":""},{"old":"/api/shop/account/addresses/:id","type":0,"val":"addresses","end":""},{"old":"/api/shop/account/addresses/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['shop.account.addresses.delete']['types'],
   },
   'shop.referral': {
     methods: ["GET","HEAD"],
@@ -1554,6 +1608,12 @@ const routes = {
     tokens: [{"old":"/api/admin/ecommerce/customers","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/customers","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/customers","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/customers","type":0,"val":"customers","end":""}],
     types: placeholder as Registry['ecommerce.api.customers.index']['types'],
   },
+  'ecommerce.api.customers.store': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/customers',
+    tokens: [{"old":"/api/admin/ecommerce/customers","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/customers","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/customers","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/customers","type":0,"val":"customers","end":""}],
+    types: placeholder as Registry['ecommerce.api.customers.store']['types'],
+  },
   'ecommerce.api.customers.status': {
     methods: ["PUT"],
     pattern: '/api/admin/ecommerce/customers/:id/status',
@@ -1637,6 +1697,12 @@ const routes = {
     pattern: '/api/admin/ecommerce/products',
     tokens: [{"old":"/api/admin/ecommerce/products","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products","type":0,"val":"products","end":""}],
     types: placeholder as Registry['ecommerce.api.products.store']['types'],
+  },
+  'ecommerce.api.products.import': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/products/import',
+    tokens: [{"old":"/api/admin/ecommerce/products/import","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products/import","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products/import","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products/import","type":0,"val":"products","end":""},{"old":"/api/admin/ecommerce/products/import","type":0,"val":"import","end":""}],
+    types: placeholder as Registry['ecommerce.api.products.import']['types'],
   },
   'ecommerce.api.products.update': {
     methods: ["PUT"],

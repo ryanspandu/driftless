@@ -26,6 +26,13 @@ export interface StoreSettingsDto {
   orderNumberPrefix: string
   productPageId: string | null
   shopPageId: string | null
+  /** Optional builder-page overrides for the storefront app screens. */
+  cartPageId: string | null
+  checkoutPageId: string | null
+  orderPageId: string | null
+  accountPageId: string | null
+  loginPageId: string | null
+  registerPageId: string | null
 }
 
 export interface UpdateStoreSettingsDto extends Partial<Omit<StoreSettingsDto, 'taxRatePercent'>> {
@@ -65,6 +72,12 @@ export default class StoreSettingsService {
       orderNumberPrefix: 'ORD-',
       productPageId: null,
       shopPageId: null,
+      cartPageId: null,
+      checkoutPageId: null,
+      orderPageId: null,
+      accountPageId: null,
+      loginPageId: null,
+      registerPageId: null,
     })
   }
 
@@ -91,6 +104,12 @@ export default class StoreSettingsService {
       orderNumberPrefix: row.orderNumberPrefix,
       productPageId: row.productPageId,
       shopPageId: row.shopPageId,
+      cartPageId: row.cartPageId,
+      checkoutPageId: row.checkoutPageId,
+      orderPageId: row.orderPageId,
+      accountPageId: row.accountPageId,
+      loginPageId: row.loginPageId,
+      registerPageId: row.registerPageId,
     }
   }
 
@@ -204,6 +223,24 @@ export default class StoreSettingsService {
     }
     if (dto.shopPageId !== undefined) {
       row.shopPageId = dto.shopPageId || null
+    }
+    if (dto.cartPageId !== undefined) {
+      row.cartPageId = dto.cartPageId || null
+    }
+    if (dto.checkoutPageId !== undefined) {
+      row.checkoutPageId = dto.checkoutPageId || null
+    }
+    if (dto.orderPageId !== undefined) {
+      row.orderPageId = dto.orderPageId || null
+    }
+    if (dto.accountPageId !== undefined) {
+      row.accountPageId = dto.accountPageId || null
+    }
+    if (dto.loginPageId !== undefined) {
+      row.loginPageId = dto.loginPageId || null
+    }
+    if (dto.registerPageId !== undefined) {
+      row.registerPageId = dto.registerPageId || null
     }
     if (dto.orderNumberPrefix !== undefined) {
       row.orderNumberPrefix = (dto.orderNumberPrefix || 'ORD-').slice(0, 16)

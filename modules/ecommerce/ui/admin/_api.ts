@@ -8,6 +8,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '~/lib/api-client'
+import api, { ApiError } from '~/lib/api'
 import type { MoneyDto } from '../lib/money'
 
 export type ProductType = 'physical' | 'digital'
@@ -113,6 +114,16 @@ export interface StoreSettingsDto {
   productPageId: string | null
   /** Builder page served at `/shop`. Null = no shop front. */
   shopPageId: string | null
+  /**
+   * Optional builder-page overrides for the storefront app screens. Null serves
+   * the built-in fixed screen; a page id renders that page at the screen's URL.
+   */
+  cartPageId: string | null
+  checkoutPageId: string | null
+  orderPageId: string | null
+  accountPageId: string | null
+  loginPageId: string | null
+  registerPageId: string | null
 }
 
 export interface StoreStatsDto {
@@ -404,6 +415,46 @@ export function useDeleteProduct() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`${BASE}/products/${id}`, { method: 'DELETE' }),
+    onSuccess: () => invalidateProducts(qc),
+  })
+}
+
+/** The per-row outcome of a CSV import (mirrors `ProductImportService.ImportResult`). */
+export interface ProductImportResult {
+  created: number
+  updated: number
+  skipped: number
+  errors: { row: number; message: string }[]
+}
+
+/**
+ * Bulk product import. A multipart upload, so it goes through the axios instance
+ * directly rather than `apiFetch` (which is JSON-only). A best-effort import is
+ * still a 200 with a summary — the per-row `errors` live in the payload, not in
+ * a thrown status — so success here means "the file was processed", and the
+ * dialog reads the counts to tell the operator what actually happened.
+ */
+export function useImportProducts() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      try {
+        const res = await api.post<ProductImportResult>(`${BASE}/products/import`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        return res.data
+      } catch (err: unknown) {
+        const ax = err as {
+          response?: { status?: number; data?: { message?: string | string[] } }
+        }
+        const status = ax.response?.status ?? 500
+        const raw = ax.response?.data?.message
+        const msg = Array.isArray(raw) ? raw.join(', ') : raw
+        throw new ApiError(status, msg ?? 'Import failed', ax.response?.data)
+      }
+    },
     onSuccess: () => invalidateProducts(qc),
   })
 }
@@ -1007,6 +1058,28 @@ export function useSetCustomerStatus() {
       apiFetch<CustomerDto>(`${BASE}/customers/${id}/status`, {
         method: 'PUT',
         body: JSON.stringify({ status }),
+      }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'customers'] }),
+  })
+}
+
+export interface CreateCustomerInput {
+  email: string
+  firstName?: string | null
+  lastName?: string | null
+  phone?: string | null
+  /** Blank/omitted = a record-only customer (no sign-in); a value lets them sign in. */
+  password?: string
+  acceptsMarketing?: boolean
+}
+
+export function useCreateCustomer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateCustomerInput) =>
+      apiFetch<CustomerDto>(`${BASE}/customers`, {
+        method: 'POST',
+        body: JSON.stringify(input),
       }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'customers'] }),
   })

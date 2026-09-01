@@ -6,6 +6,7 @@ import { PuckConfigContext, TemplateContext } from '~/puck/template-ref'
 import { BlockBindingsContext, BlockDataContext } from '~/puck/block-data'
 import { cssFromSnippets, jsSnippets, readSnippets, type CodeSnippet } from '~/puck/custom-code'
 import { initScrollAnimations } from '~/puck/scroll-animation'
+import { initCarousels } from '~/puck/carousel'
 import { PublicPageHead, type MetaTag } from '~/components/public-page-head'
 
 /**
@@ -92,6 +93,10 @@ export function PublicPageFrame({
    * so an Inertia navigation re-arms the observers for the new block tree.
    */
   useEffect(() => initScrollAnimations(document.body), [page.url])
+
+  /** Carousel auto-loop (slide/marquee). Same public-only, reduced-motion-safe
+   * contract as the scroll reveals; re-keyed on the page URL. */
+  useEffect(() => initCarousels(document.body), [page.url])
 
   return (
     <>

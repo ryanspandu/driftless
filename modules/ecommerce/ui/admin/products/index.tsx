@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, router } from '@inertiajs/react'
 import type { ColumnDef } from '@tanstack/react-table'
 import {
@@ -9,6 +9,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  Upload,
 } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -26,6 +27,7 @@ import { useUrlState } from '~/hooks/use-url-state'
 import { cn } from '~/lib/utils'
 import { useDeleteProduct, useProducts, type ProductDto, type ProductStatus } from '../_api'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
+import { ImportProductsDialog } from './import-dialog'
 
 const STATUS_FILTERS: { value: ProductStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -81,6 +83,7 @@ export default function ProductsPage() {
   const query = useProducts({ page, pageSize, search, status })
   const deleteProduct = useDeleteProduct()
   const confirmDelete = useConfirmDelete()
+  const [importOpen, setImportOpen] = useState(false)
 
   const products = query.data?.items ?? []
   const total = query.data?.total ?? 0
@@ -240,6 +243,10 @@ export default function ProductsPage() {
               <Download className="size-4" aria-hidden />
               Export CSV
             </Button>
+            <Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+              <Upload className="size-4" aria-hidden />
+              Import CSV
+            </Button>
             <Button
               variant="outline"
               className="gap-2"
@@ -294,6 +301,8 @@ export default function ProductsPage() {
           </div>
         }
       />
+
+      <ImportProductsDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   )
 }

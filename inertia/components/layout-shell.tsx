@@ -44,7 +44,12 @@ export function LayoutShell({
     pageName === 'public/page' ||
     pageName === 'public/page_ssr' ||
     pageName === 'public/code' ||
-    pageName === 'public/code_ssr'
+    pageName === 'public/code_ssr' ||
+    // A module's storefront pages (`modules/<name>/storefront/*`) own their own
+    // shell too: they render the site header/footer through `<SiteChrome>`
+    // (see the ecommerce `StorefrontLayout`), so wrapping them in `PublicLayout`
+    // would draw the marketing header a second time.
+    /^modules\/[^/]+\/storefront\//.test(pageName)
   ) {
     return <div className="contents theme-light">{page}</div>
   }

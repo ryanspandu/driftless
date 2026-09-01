@@ -1,16 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Head, usePage } from '@inertiajs/react'
+import { StorefrontLayout } from './_layout'
+import { EmptyBasket } from './_empty-basket'
 import { CityInput } from '../components/city-input'
 import { CountrySelect } from '../components/country-select'
-import {
-  newIdempotencyKey,
-  shopApi,
-  shopFetch,
-  type CartDto,
-  type ShippingOptionDto,
-} from './_api'
+import { newIdempotencyKey, shopApi, shopFetch, type CartDto, type ShippingOptionDto } from './_api'
 
-interface PageProps {
+export interface CheckoutConfig {
   /** Which gateways the store actually has credentials for. */
   gateways: ('stripe' | 'paypal')[]
   digitalOnly: boolean
@@ -27,13 +23,40 @@ const GATEWAY_LABEL: Record<string, string> = {
  * The form collects an address and an email; it never sends a price. The server
  * prices the basket from the database, and the response is a redirect to the
  * gateway's own hosted page — card details never touch this application.
+ *
+ * Which gateways to show and whether an address is needed is a server decision.
+ * The fixed `/shop/checkout` page passes it in as props; an override page (the
+ * `CheckoutBlock`) has no page props, so it fetches the same decision from
+ * `GET /api/shop/checkout/config`. `embedded` also drops the `<Head>`.
  */
-export default function CheckoutPage() {
-  const { gateways, digitalOnly } = usePage<{ props: PageProps }>().props as unknown as PageProps
+export function CheckoutScreen(props: { embedded?: boolean } & Partial<CheckoutConfig> = {}) {
+  const { embedded } = props
+
+  const [config, setConfig] = useState<CheckoutConfig | null>(
+    props.gateways ? { gateways: props.gateways, digitalOnly: props.digitalOnly ?? false } : null
+  )
+  useEffect(() => {
+    if (props.gateways) return
+    let alive = true
+    shopFetch<CheckoutConfig>('/api/shop/checkout/config')
+      .then((data) => alive && setConfig(data))
+      .catch(() => alive && setConfig({ gateways: [], digitalOnly: false }))
+    return () => {
+      alive = false
+    }
+  }, [props.gateways])
+
+  const gateways = config?.gateways ?? []
+  const digitalOnly = config?.digitalOnly ?? false
 
   const [cart, setCart] = useState<CartDto | null>(null)
   const [email, setEmail] = useState('')
-  const [gateway, setGateway] = useState<'stripe' | 'paypal'>(gateways[0] ?? 'stripe')
+  const [gateway, setGateway] = useState<'stripe' | 'paypal'>('stripe')
+  // Default to the first available gateway once the config resolves.
+  useEffect(() => {
+    if (gateways[0]) setGateway(gateways[0])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config])
   const [address, setAddress] = useState({
     firstName: '',
     lastName: '',
@@ -176,10 +199,10 @@ export default function CheckoutPage() {
 
     let alive = true
     const timer = window.setTimeout(() => {
-      shopFetch<{ required: boolean; options: ShippingOptionDto[] }>(
-        '/api/shop/shipping/options',
-        { method: 'POST', body: JSON.stringify({ country, state: address.state.trim() || null }) }
-      )
+      shopFetch<{ required: boolean; options: ShippingOptionDto[] }>('/api/shop/shipping/options', {
+        method: 'POST',
+        body: JSON.stringify({ country, state: address.state.trim() || null }),
+      })
         .then((data) => {
           if (!alive) return
           setShipping(data)
@@ -197,64 +220,25 @@ export default function CheckoutPage() {
     }
   }, [address.country, address.state])
 
-  if (!cart) {
+  if (!cart || !config) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16">
-        <Head title="Checkout" />
+        {!embedded && <Head title="Checkout" />}
         <p className="text-sm text-muted-foreground">{error ?? 'Loading…'}</p>
       </div>
     )
   }
 
   if (cart.lines.length === 0) {
-    /**
-     * Reached by opening checkout directly, or by going back after paying —
-     * checkout empties the basket, so the second case is the common one. The
-     * copy covers both without guessing which happened.
-     */
+    // Reached by opening checkout directly, or by going back after paying —
+    // checkout empties the basket. The shared empty-basket state (identical to
+    // `/shop/cart`) covers both: its note points a just-paid shopper to the
+    // order link in their email.
     return (
-      <div className="mx-auto max-w-lg px-4 py-24 text-center">
-        <Head title="Checkout" />
-
-        <div className="mx-auto flex size-20 items-center justify-center rounded-2xl border border-border bg-card shadow-sm">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.25}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="size-9 text-muted-foreground"
-            aria-hidden
-          >
-            <path d="M5 8h14l-1.2 10.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z" />
-            <path d="M9 8V6.5a3 3 0 0 1 6 0V8" />
-          </svg>
-        </div>
-
-        <h1 className="mt-7 text-3xl font-semibold tracking-tight text-balance">
-          There is nothing to check out
-        </h1>
-        <p className="mx-auto mt-3 max-w-sm text-base leading-relaxed text-pretty text-muted-foreground">
-          Your basket is empty. If you have just paid, your order is confirmed — the link in
-          your email opens it.
-        </p>
-
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <a
-            href="/shop"
-            className="inline-flex h-11 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Browse the shop
-          </a>
-          <a
-            href="/shop/cart"
-            className="inline-flex h-11 items-center rounded-lg border border-border px-5 text-sm font-medium transition-colors hover:bg-accent/40"
-          >
-            View basket
-          </a>
-        </div>
-      </div>
+      <>
+        {!embedded && <Head title="Checkout" />}
+        <EmptyBasket />
+      </>
     )
   }
 
@@ -268,7 +252,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12">
-      <Head title="Checkout" />
+      {!embedded && <Head title="Checkout" />}
       <h1 className="text-2xl font-semibold tracking-tight">Checkout</h1>
 
       <div className="mt-8 grid gap-10 lg:grid-cols-5">
@@ -282,8 +266,8 @@ export default function CheckoutPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               // h-9 rather than py-2: this input shares grid rows with CityInput
-        // and CountrySelect, which are both 36px, and py-2 made it 38.
-        className="h-9 w-full rounded-lg border border-border px-3 py-1 text-sm"
+              // and CountrySelect, which are both 36px, and py-2 made it 38.
+              className="h-9 w-full rounded-lg border border-border px-3 py-1 text-sm"
               aria-label="Email"
             />
             <p className="text-xs text-muted-foreground">Your receipt and order updates go here.</p>
@@ -351,7 +335,6 @@ export default function CheckoutPage() {
                   onChange={(v) => setAddress((a) => ({ ...a, postalCode: v }))}
                 />
               </div>
-
             </section>
           ) : null}
 
@@ -433,7 +416,10 @@ export default function CheckoutPage() {
           </section>
 
           {error ? (
-            <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+            <p
+              className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -551,5 +537,21 @@ function FieldShell({
       </label>
       {children}
     </div>
+  )
+}
+
+/**
+ * The fixed `/shop/checkout` screen (default when no override page is assigned).
+ * The gateway list and downloads-only flag are decided server-side and arrive as
+ * inertia props; the screen renders them without asking the client to assert
+ * anything.
+ */
+export default function CheckoutPage() {
+  const { gateways, digitalOnly } = usePage<{ props: CheckoutConfig }>()
+    .props as unknown as CheckoutConfig
+  return (
+    <StorefrontLayout title="Checkout">
+      <CheckoutScreen embedded gateways={gateways} digitalOnly={digitalOnly} />
+    </StorefrontLayout>
   )
 }

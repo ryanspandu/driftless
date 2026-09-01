@@ -297,11 +297,59 @@ export default class DigitalDeliveryService {
    * the identical 404, because a link that fails distinguishably is an oracle
    * for whichever condition it distinguishes.
    */
+  /**
+   * Redeem via the order's access token — the guest / order-page path.
+   */
   async redeem(grantId: string, orderToken: string, ctx: HttpContext): Promise<ResolvedDownload> {
+    if (!orderToken || orderToken.length > 128) {
+      throw publicError.notFound('This download link is no longer valid.', 'download_unavailable')
+    }
+    const orders = db
+      .from('ecommerce_orders')
+      .select('id')
+      .where('access_token_hash', hashToken(orderToken))
+      .whereIn('payment_status', ['paid', 'partially_refunded'])
+      .whereNull('deleted_at')
+    return this.claimAndServe(grantId, ctx, orders)
+  }
+
+  /**
+   * Redeem via the signed-in customer who owns the order — the account path.
+   *
+   * Same grant-validity and paid-order guards as {@link redeem}; only the order
+   * ownership check differs (session customer instead of the access token), so
+   * one path can never be looser than the other.
+   */
+  async redeemForCustomer(
+    grantId: string,
+    customerId: string,
+    ctx: HttpContext
+  ): Promise<ResolvedDownload> {
+    const orders = db
+      .from('ecommerce_orders')
+      .select('id')
+      .where('customer_id', customerId)
+      .whereIn('payment_status', ['paid', 'partially_refunded'])
+      .whereNull('deleted_at')
+    return this.claimAndServe(grantId, ctx, orders)
+  }
+
+  /**
+   * Atomically claim a download against a scoped set of orders, then stream it.
+   *
+   * The claim is a single conditional UPDATE — grant not revoked, not expired,
+   * quota left, and belonging to one of the given (paid) orders — so a concurrent
+   * request can never both pass the check.
+   */
+  private async claimAndServe(
+    grantId: string,
+    ctx: HttpContext,
+    orderSubquery: ReturnType<typeof db.from>
+  ): Promise<ResolvedDownload> {
     const denied = () =>
       publicError.notFound('This download link is no longer valid.', 'download_unavailable')
 
-    if (!grantId || !orderToken || grantId.length > 40 || orderToken.length > 128) throw denied()
+    if (!grantId || grantId.length > 40) throw denied()
 
     const now = DateTime.now()
     const claimed = await db
@@ -314,20 +362,7 @@ export default class DigitalDeliveryService {
       .where((query) => {
         query.where('max_downloads', 0).orWhereRaw('downloads_count < max_downloads')
       })
-      /**
-       * The order must both match the presented token and still be paid. A
-       * refunded order stops downloading here even if `revokeForOrder` never
-       * ran, so the two guards cannot drift apart.
-       */
-      .whereIn(
-        'order_id',
-        db
-          .from('ecommerce_orders')
-          .select('id')
-          .where('access_token_hash', hashToken(orderToken))
-          .whereIn('payment_status', ['paid', 'partially_refunded'])
-          .whereNull('deleted_at')
-      )
+      .whereIn('order_id', orderSubquery)
       .update({
         downloads_count: db.raw('downloads_count + 1'),
         last_downloaded_at: now.toSQL(),

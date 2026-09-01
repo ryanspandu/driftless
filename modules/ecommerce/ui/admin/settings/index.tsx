@@ -17,6 +17,7 @@ import { useStoreSettings, useUpdateStoreSettings, type StoreSettingsDto } from 
 import GatewaysPage from './gateways'
 import CurrenciesPanel from './currencies'
 import ProductPagePanel from './product-page'
+import StorefrontScreensPanel from './storefront-screens'
 import ShippingPanel from './shipping'
 
 function StoreDetailsPanel() {
@@ -310,6 +311,7 @@ export default function StoreSettingsPage() {
         <TabsContent value="store" className="pt-4 space-y-6">
           <StoreDetailsPanel />
           <ProductPagePanel />
+          <StorefrontScreensPanel />
         </TabsContent>
 
         <TabsContent value="shipping" className="pt-4">

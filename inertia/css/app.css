@@ -77,7 +77,7 @@ html {
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #2f2fc6;
+  --primary: #5225e6;
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -97,7 +97,7 @@ html {
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #2f2fc6;
+  --sidebar-primary: #5225e6;
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
@@ -116,7 +116,7 @@ html {
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: #2f2fc6;
+  --primary: #5225e6;
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -135,7 +135,7 @@ html {
   --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: #2f2fc6;
+  --sidebar-primary: #5225e6;
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
@@ -170,6 +170,44 @@ html {
   button:disabled {
     cursor: not-allowed;
   }
+}
+
+/**
+ * Thin, self-hiding scrollbar.
+ *
+ * The browser default is a chunky, always-on bar — especially loud on a narrow
+ * rail like the collapsed sidebar. This keeps the track at a constant slim width
+ * (so revealing the thumb never shifts content sideways) and only paints the
+ * thumb while the user is actually scrolling (`.is-scrolling`, toggled by
+ * `useAutoHideScrollbar`) or hovering the area. The thumb colour derives from
+ * `--foreground`, so it stays legible on both light and dark surfaces.
+ */
+.scrollbar-overlay {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.scrollbar-overlay:hover,
+.scrollbar-overlay.is-scrolling {
+  scrollbar-color: color-mix(in oklch, var(--foreground) 22%, transparent) transparent;
+}
+.scrollbar-overlay::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-overlay::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-overlay::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+.scrollbar-overlay:hover::-webkit-scrollbar-thumb,
+.scrollbar-overlay.is-scrolling::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--foreground) 22%, transparent);
+}
+.scrollbar-overlay::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--foreground) 40%, transparent);
 }
 
 .tiptap-content {
@@ -662,5 +700,75 @@ html.dark [class*='_Button_']:not([class*='--secondary']) {
   }
   to {
     transform: rotateY(64deg) rotateZ(360deg);
+  }
+}
+
+/* ── Carousel block ─────────────────────────────────────────────────────────
+ * Slides (the slot's child blocks) are sized to `--ca-per` per view; the track
+ * scroll + arrows/dots are driven by the publish-only runtime (`carousel.ts`).
+ * No-JS: the track is just a flex row, everything visible. */
+.carousel-track > * {
+  flex: 0 0 calc((100% - (var(--ca-per, 1) - 1) * var(--ca-gap, 0px)) / var(--ca-per, 1));
+  min-width: 0;
+}
+.ca-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.ca-arrow:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+.ca-arrow-prev {
+  left: 0.5rem;
+}
+.ca-arrow-next {
+  right: 0.5rem;
+}
+.ca-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.75rem;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.ca-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+.ca-dot[data-active='true'] {
+  background: #fff;
+}
+
+/* ── Reviews block — responsive grid (collapses to one column on mobile) ──── */
+.reviews-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(var(--rv-cols, 3), minmax(0, 1fr));
+}
+@media (max-width: 768px) {
+  .reviews-grid {
+    grid-template-columns: 1fr;
   }
 }

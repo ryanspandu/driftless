@@ -82,6 +82,29 @@ export default class EcommerceSetting extends BaseModel {
   @column()
   declare shopPageId: string | null
 
+  /**
+   * Optional builder-page overrides for the storefront application screens. Null
+   * (the default) serves the built-in fixed screen; a published page id makes
+   * that page render at the screen's URL instead.
+   */
+  @column()
+  declare cartPageId: string | null
+
+  @column()
+  declare checkoutPageId: string | null
+
+  @column()
+  declare orderPageId: string | null
+
+  @column()
+  declare accountPageId: string | null
+
+  @column()
+  declare loginPageId: string | null
+
+  @column()
+  declare registerPageId: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

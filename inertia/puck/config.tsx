@@ -10,9 +10,11 @@ import { styleFields, Box } from '~/puck/style-fields'
 import { MediaField } from '~/puck/media-field'
 import { LottieAnimationView, SplineSceneView, RiveView } from '~/puck/media-embeds'
 import {
+  CarouselView,
   DropdownView,
   LightboxView,
   NavbarView,
+  ReviewsView,
   SliderView,
   TabsView,
 } from '~/puck/blocks-interactive'
@@ -125,8 +127,10 @@ const baseConfig: Config = {
         'Lightbox',
         'Navbar',
         'Slider',
+        'Carousel',
         'Tabs',
         'Map',
+        'Reviews',
         'Facebook',
         'XTwitter',
         'CustomElement',
@@ -1216,21 +1220,47 @@ const baseConfig: Config = {
       ),
     },
 
-    // Map — Google Maps embed (no API key needed).
+    // Map — Google Maps embed (no API key needed). Accepts a plain address, a
+    // pasted "Share → Embed a map" URL, or a full <iframe …> snippet.
     Map: {
       label: 'Map',
-      fields: { query: { type: 'text', label: 'Address or place' }, ...styleFields },
-      defaultProps: { query: 'New York' },
-      render: ({ query, ...s }) => (
-        <Box s={s}>
-          <iframe
-            title="Map"
-            src={`https://maps.google.com/maps?q=${encodeURIComponent(typeof query === 'string' ? query : '')}&output=embed`}
-            loading="lazy"
-            style={{ width: '100%', height: '100%', minHeight: 300, border: 0 }}
-          />
-        </Box>
-      ),
+      fields: {
+        query: { type: 'text', label: 'Address, or paste a Google Maps embed URL' },
+        height: { type: 'text', label: 'Height' },
+        ...styleFields,
+      },
+      defaultProps: { query: 'New York', height: '320px' },
+      render: ({ query, height, ...s }) => {
+        const raw = typeof query === 'string' ? query.trim() : ''
+        // Pull the src out of a pasted <iframe …>, else use the value as-is.
+        const candidate = raw.match(/src=["']([^"']+)["']/i)?.[1] ?? raw
+        // A Google Maps URL is used verbatim (keeps Google's exact framing/zoom);
+        // anything else is treated as an address for the keyless embed.
+        const isMapUrl = /^https:\/\/(www\.google\.com|maps\.google\.com)\//i.test(candidate)
+        const src = !raw
+          ? ''
+          : isMapUrl
+            ? candidate
+            : `https://maps.google.com/maps?q=${encodeURIComponent(raw)}&output=embed`
+        const minHeight = typeof height === 'string' && height.trim() ? height.trim() : '320px'
+        return (
+          <Box s={s}>
+            {src ? (
+              <iframe
+                title="Map"
+                src={src}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                style={{ width: '100%', height: '100%', minHeight, border: 0 }}
+              />
+            ) : (
+              <div className="flex min-h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
+                Add an address or a Google Maps embed URL
+              </div>
+            )}
+          </Box>
+        )
+      },
     },
 
     // Facebook — page plugin embed.
@@ -1369,6 +1399,65 @@ const baseConfig: Config = {
       render: (props) => <SliderView {...props} />,
     },
 
+    // Carousel — slot-based slideshow; slides are child blocks. Auto-loop (slide
+    // or continuous marquee) runs only on the published page via `initCarousels`.
+    Carousel: {
+      label: 'Carousel',
+      inline: true,
+      fields: {
+        mode: {
+          type: 'select',
+          label: 'Mode',
+          options: [
+            { label: 'Slideshow (auto-advance)', value: 'slide' },
+            { label: 'Marquee (continuous scroll)', value: 'marquee' },
+          ],
+        },
+        perView: { type: 'number', label: 'Slides visible', min: 1 },
+        gap: { type: 'text', label: 'Gap' },
+        interval: { type: 'number', label: 'Auto-advance every (s)', min: 1 },
+        speed: { type: 'number', label: 'Marquee speed (s per loop)', min: 1 },
+        arrows: {
+          type: 'radio',
+          label: 'Arrows',
+          options: [
+            { label: 'Show', value: 'true' },
+            { label: 'Hide', value: 'false' },
+          ],
+        },
+        dots: {
+          type: 'radio',
+          label: 'Dots',
+          options: [
+            { label: 'Show', value: 'true' },
+            { label: 'Hide', value: 'false' },
+          ],
+        },
+        pauseOnHover: {
+          type: 'radio',
+          label: 'Pause on hover',
+          options: [
+            { label: 'Yes', value: 'true' },
+            { label: 'No', value: 'false' },
+          ],
+        },
+        content: { type: 'slot' },
+        ...styleFields,
+      },
+      defaultProps: {
+        mode: 'slide',
+        perView: 1,
+        gap: '16px',
+        interval: 4,
+        speed: 20,
+        arrows: 'true',
+        dots: 'true',
+        pauseOnHover: 'true',
+        content: [],
+      },
+      render: (props) => <CarouselView {...props} />,
+    },
+
     Tabs: {
       label: 'Tabs',
       fields: {
@@ -1390,6 +1479,60 @@ const baseConfig: Config = {
         ],
       },
       render: (props) => <TabsView {...props} />,
+    },
+
+    // Reviews — a curated grid of rating cards (manual entry; no Google API).
+    Reviews: {
+      label: 'Reviews',
+      fields: {
+        heading: { type: 'text', label: 'Heading' },
+        columns: {
+          type: 'select',
+          label: 'Columns',
+          options: [
+            { label: '1', value: '1' },
+            { label: '2', value: '2' },
+            { label: '3', value: '3' },
+            { label: '4', value: '4' },
+          ],
+        },
+        showAggregate: {
+          type: 'radio',
+          label: 'Show average',
+          options: [
+            { label: 'Yes', value: 'true' },
+            { label: 'No', value: 'false' },
+          ],
+        },
+        reviews: {
+          type: 'array',
+          label: 'Reviews',
+          arrayFields: {
+            author: { type: 'text', label: 'Name' },
+            rating: {
+              type: 'select',
+              label: 'Rating',
+              options: [1, 2, 3, 4, 5].map((n) => ({ label: `${n} star${n === 1 ? '' : 's'}`, value: String(n) })),
+            },
+            text: { type: 'textarea', label: 'Review' },
+            date: { type: 'text', label: 'Date' },
+            avatar: { type: 'text', label: 'Avatar URL' },
+          },
+          defaultItemProps: { author: '', rating: '5', text: '', date: '', avatar: '' },
+        },
+        ...styleFields,
+      },
+      defaultProps: {
+        heading: 'What our customers say',
+        columns: '3',
+        showAggregate: 'true',
+        reviews: [
+          { author: 'Alex Doe', rating: '5', text: 'Fantastic experience — highly recommend!', date: '2 weeks ago', avatar: '' },
+          { author: 'Sam Lee', rating: '5', text: 'Great service and support.', date: '1 month ago', avatar: '' },
+          { author: 'Jordan Park', rating: '4', text: 'Really solid, would use again.', date: '1 month ago', avatar: '' },
+        ],
+      },
+      render: (props) => <ReviewsView {...props} />,
     },
 
     Spacer: {

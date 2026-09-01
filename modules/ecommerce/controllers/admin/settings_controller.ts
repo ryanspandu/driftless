@@ -44,6 +44,20 @@ const updateValidator = vine.compile(
     refundWindowDays: vine.number().min(0).max(365).withoutDecimals().optional(),
     affiliateCookieDays: vine.number().min(1).max(365).withoutDecimals().optional(),
     orderNumberPrefix: vine.string().trim().maxLength(16).optional(),
+    /**
+     * Which builder page fills each storefront slot. A blank string clears the
+     * override (the service coerces `'' -> null`), so they are nullable too.
+     * Listed explicitly because the validator drops keys it does not name — an
+     * unlisted `shopPageId` would never reach the service.
+     */
+    productPageId: vine.string().trim().nullable().optional(),
+    shopPageId: vine.string().trim().nullable().optional(),
+    cartPageId: vine.string().trim().nullable().optional(),
+    checkoutPageId: vine.string().trim().nullable().optional(),
+    orderPageId: vine.string().trim().nullable().optional(),
+    accountPageId: vine.string().trim().nullable().optional(),
+    loginPageId: vine.string().trim().nullable().optional(),
+    registerPageId: vine.string().trim().nullable().optional(),
   })
 )
 
@@ -151,9 +165,7 @@ export default class EcommerceSettingsController {
   /** Zones with their methods and any non-base rates, ready to edit. */
   async shipping({ response }: HttpContext) {
     const zones = await ShippingZone.query().whereNull('deleted_at').orderBy('position', 'asc')
-    const methods = await ShippingMethod.query()
-      .whereNull('deleted_at')
-      .orderBy('position', 'asc')
+    const methods = await ShippingMethod.query().whereNull('deleted_at').orderBy('position', 'asc')
     const rates = await ShippingRate.all()
 
     const ratesByMethod = new Map<string, ShippingRate[]>()
@@ -223,9 +235,7 @@ export default class EcommerceSettingsController {
       /** States only — there is no list of subdivisions to check them against. */
       const codes = (value: unknown): string[] =>
         Array.isArray(value)
-          ? value
-              .map((code) => String(code).trim().toUpperCase())
-              .filter((code) => code.length > 0)
+          ? value.map((code) => String(code).trim().toUpperCase()).filter((code) => code.length > 0)
           : []
 
       /**
@@ -349,9 +359,8 @@ export default class EcommerceSettingsController {
   async seedStorefront(ctx: HttpContext) {
     const { response, auth } = ctx
     try {
-      const { default: StorefrontSeederService } = await import(
-        '#modules/ecommerce/services/storefront_seeder_service'
-      )
+      const { default: StorefrontSeederService } =
+        await import('#modules/ecommerce/services/storefront_seeder_service')
       const result = await new StorefrontSeederService().seed()
 
       await audit.record({

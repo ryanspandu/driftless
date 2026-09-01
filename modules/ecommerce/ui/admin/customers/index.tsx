@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Download, MoreHorizontal, ShieldOff, ShieldCheck, Users } from 'lucide-react'
+import { Download, MoreHorizontal, Plus, ShieldOff, ShieldCheck, Users } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
@@ -16,6 +16,7 @@ import { useUrlState } from '~/hooks/use-url-state'
 import { formatAdminTableDateTime } from '~/lib/utils'
 import { useCustomers, useSetCustomerStatus, type CustomerDto } from '../_api'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
+import { CreateCustomerDialog } from './create-dialog'
 
 const STATUS_VALUES = ['all', 'active', 'blocked'] as const
 type StatusFilter = (typeof STATUS_VALUES)[number]
@@ -42,6 +43,7 @@ export default function CustomersPage() {
 
   const query = useCustomers({ page, pageSize, search, status })
   const setStatusMutation = useSetCustomerStatus()
+  const [createOpen, setCreateOpen] = useState(false)
 
   const customers = query.data?.items ?? []
   const total = query.data?.total ?? 0
@@ -192,14 +194,22 @@ export default function CustomersPage() {
         subtitle="Everyone who has bought from you, guests included."
         count={total}
         actions={
-          <Button
-            variant="outline"
-            className="gap-2"
-            render={<a href="/api/admin/ecommerce/exports/customers" />}
-          >
-            <Download className="size-4" aria-hidden />
-            Export CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              render={<a href="/api/admin/ecommerce/exports/customers" />}
+            >
+              <Download className="size-4" aria-hidden />
+              Export CSV
+            </Button>
+            <Can permission="ecommerce:customers:manage">
+              <Button className="gap-2" onClick={() => setCreateOpen(true)}>
+                <Plus className="size-4" aria-hidden />
+                New customer
+              </Button>
+            </Can>
+          </div>
         }
       />
 
@@ -239,6 +249,8 @@ export default function CustomersPage() {
           </div>
         }
       />
+
+      <CreateCustomerDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   )
 }

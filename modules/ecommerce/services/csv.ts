@@ -49,3 +49,62 @@ export function csvDocument(header: string[], rows: unknown[][]): string {
   const body = [csvRow(header), ...rows.map(csvRow)].join('\r\n')
   return `﻿${body}\r\n`
 }
+
+/**
+ * Read a CSV document into rows of cells — the symmetric counterpart of the
+ * writer above, hand-rolled for the same reasons (a `split(',')` mishandles the
+ * exact quoting the writer produces).
+ *
+ * RFC-4180: quoted fields may contain commas, `\n`/`\r\n`, and `""`-escaped
+ * quotes. Tolerates both `\r\n` and bare `\n`, strips a leading UTF-8 BOM, and
+ * drops fully blank lines. Note the writer's formula-injection guard (a leading
+ * `'`) is intentionally NOT reversed — callers match cells by column, so a value
+ * that legitimately starts with `'` is left as the author typed it.
+ */
+export function csvParse(text: string): string[][] {
+  const src = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
+  const rows: string[][] = []
+  let row: string[] = []
+  let field = ''
+  let quoted = false
+
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i]
+
+    if (quoted) {
+      if (ch === '"') {
+        if (src[i + 1] === '"') {
+          field += '"'
+          i++
+        } else {
+          quoted = false
+        }
+      } else {
+        field += ch
+      }
+      continue
+    }
+
+    if (ch === '"') {
+      quoted = true
+    } else if (ch === ',') {
+      row.push(field)
+      field = ''
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && src[i + 1] === '\n') i++
+      row.push(field)
+      rows.push(row)
+      row = []
+      field = ''
+    } else {
+      field += ch
+    }
+  }
+  // Flush the final field/row when the file doesn't end in a newline.
+  if (field.length > 0 || row.length > 0) {
+    row.push(field)
+    rows.push(row)
+  }
+
+  return rows.filter((r) => !(r.length === 1 && r[0] === ''))
+}

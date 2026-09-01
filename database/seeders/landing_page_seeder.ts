@@ -174,12 +174,12 @@ function skel(width: string, height = '8px') {
 
 /**
  * Minimal line icons, rendered as an inline-SVG data URI on an Image block —
- * crisp and on-brand (stroke = the primary indigo), unlike emoji. Stroke colour
+ * crisp and on-brand (stroke = the primary violet), unlike emoji. Stroke colour
  * is a literal hex because a data-URI SVG is its own document and can't read
  * `currentColor`/theme tokens.
  */
 const IA =
-  'xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2f2fc6" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"'
+  'xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5225e6" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"'
 
 const ICONS = {
   collections: `<svg ${IA}><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></svg>`,

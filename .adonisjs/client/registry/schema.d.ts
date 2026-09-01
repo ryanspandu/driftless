@@ -2515,6 +2515,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/checkout_controller').default['status']>>>
     }
   }
+  'shop.checkout.config': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/checkout/config'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/checkout_controller').default['config']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/checkout_controller').default['config']>>>
+    }
+  }
   'shop.cart.add': {
     methods: ["POST"]
     pattern: '/api/shop/cart/items'
@@ -2621,6 +2633,102 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['orders']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['orders']>>>
+    }
+  }
+  'shop.account.order': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/account/orders/:number'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { number: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['orderDetail']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['orderDetail']>>>
+    }
+  }
+  'shop.account.order.download': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/account/orders/:number/downloads/:grantId'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { number: ParamValue; grantId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['downloadOrderFile']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['downloadOrderFile']>>>
+    }
+  }
+  'shop.account.profile': {
+    methods: ["PUT"]
+    pattern: '/api/shop/account/profile'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['updateProfile']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['updateProfile']>>>
+    }
+  }
+  'shop.account.password': {
+    methods: ["PUT"]
+    pattern: '/api/shop/account/password'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['changePassword']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['changePassword']>>>
+    }
+  }
+  'shop.account.addresses': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/account/addresses'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['addresses']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['addresses']>>>
+    }
+  }
+  'shop.account.addresses.create': {
+    methods: ["POST"]
+    pattern: '/api/shop/account/addresses'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['createAddress']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['createAddress']>>>
+    }
+  }
+  'shop.account.addresses.update': {
+    methods: ["PUT"]
+    pattern: '/api/shop/account/addresses/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['updateAddress']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['updateAddress']>>>
+    }
+  }
+  'shop.account.addresses.delete': {
+    methods: ["DELETE"]
+    pattern: '/api/shop/account/addresses/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['deleteAddress']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['deleteAddress']>>>
     }
   }
   'shop.referral': {
@@ -3103,6 +3211,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['index']>>>
     }
   }
+  'ecommerce.api.customers.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/customers'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['store']>>>
+    }
+  }
   'ecommerce.api.customers.status': {
     methods: ["PUT"]
     pattern: '/api/admin/ecommerce/customers/:id/status'
@@ -3269,6 +3389,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['store']>>>
+    }
+  }
+  'ecommerce.api.products.import': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/products/import'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['import']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['import']>>>
     }
   }
   'ecommerce.api.products.update': {

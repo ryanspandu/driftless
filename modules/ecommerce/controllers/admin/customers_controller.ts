@@ -16,6 +16,21 @@ const statusValidator = vine.compile(
   })
 )
 
+const createValidator = vine.compile(
+  vine.object({
+    email: vine.string().trim().email().maxLength(254),
+    firstName: vine.string().trim().maxLength(80).nullable().optional(),
+    lastName: vine.string().trim().maxLength(80).nullable().optional(),
+    phone: vine.string().trim().maxLength(32).nullable().optional(),
+    /**
+     * Optional: blank makes a record-only customer (like a guest — no sign-in),
+     * a value lets them sign in. Enforced to 8+ only when actually given.
+     */
+    password: vine.string().minLength(8).maxLength(200).optional(),
+    acceptsMarketing: vine.boolean().optional(),
+  })
+)
+
 const settings = new StoreSettingsService()
 const customerAuth = new CustomerAuthService()
 const audit = new AuditLogService()
@@ -52,6 +67,34 @@ function toDto(customer: Customer, currency: string, locale: string) {
 export default class CustomersController {
   async page({ inertia }: HttpContext) {
     return renderPage(inertia, 'modules/ecommerce/admin/customers/index', {})
+  }
+
+  /**
+   * Create a customer by hand.
+   *
+   * Normally a record appears on first checkout; this lets staff add one ahead
+   * of that — with or without a password (see `adminCreate`).
+   */
+  async store(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const payload = await request.validateUsing(createValidator)
+      const customer = await customerAuth.adminCreate(payload)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'customer.created',
+        subjectType: 'customer',
+        subjectId: customer.id,
+        changes: { email: customer.email, isGuest: !customer.passwordHash },
+        ctx,
+      })
+
+      const store = await settings.getOrCreate()
+      return response.status(201).json(toDto(customer, store.currency, store.locale))
+    } catch (error) {
+      return fail(response, error)
+    }
   }
 
   async index({ request, response }: HttpContext) {

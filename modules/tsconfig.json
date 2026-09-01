@@ -13,5 +13,8 @@
       "@generated/*": ["../.adonisjs/client/*"]
     }
   },
-  "include": ["./*/ui/**/*.ts", "./*/ui/**/*.tsx"]
+  // Module UI resolves `~/*` into the Inertia codebase, so it depends on that
+  // codebase's ambient declarations (e.g. `declare module 'react-google-recaptcha'`
+  // in inertia/types) once an import chain reaches a module that needs them.
+  "include": ["./*/ui/**/*.ts", "./*/ui/**/*.tsx", "../inertia/types/**/*.d.ts"]
 }

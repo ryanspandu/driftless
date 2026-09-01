@@ -9,7 +9,7 @@ import {
   House,
   Image as ImageIcon,
   Key,
-  Shapes,
+  Layout,
   ShieldCheck,
   SidebarSimple,
   SignOut,
@@ -24,6 +24,7 @@ import {
 import { Boxes } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { useAdminBranding } from '~/hooks/use-admin-branding'
+import { useAutoHideScrollbar } from '~/hooks/use-auto-hide-scrollbar'
 import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
 import { useModulesMenu } from '~/hooks/api/use-modules'
 import { useNavConfig } from '~/hooks/api/use-nav-config'
@@ -58,7 +59,7 @@ const navEntries: NavEntry[] = [
     children: [
       { title: 'Content', href: '/admin/content', icon: FileText, activeMatch: 'prefix' },
       { title: 'Pages', href: '/admin/pages', icon: Browsers, activeMatch: 'prefix' },
-      { title: 'Templates', href: '/admin/templates', icon: Shapes, activeMatch: 'prefix' },
+      { title: 'Templates', href: '/admin/templates', icon: Layout, activeMatch: 'prefix' },
       {
         title: 'Website settings',
         href: '/admin/website-settings',
@@ -118,10 +119,18 @@ function mostSpecificMatch(pathname: string, hrefs: string[]): string | null {
   return best
 }
 
-/** Shared classes for a nav row in its active vs. resting state. */
-function rowClasses(active: boolean): string {
+/**
+ * Shared classes for a nav row in its active vs. resting state.
+ *
+ * When collapsed the row is an icon-only pill, so the icon is centred and the
+ * left `ActiveBar` is dropped (see the call sites) — on the narrow rail that bar
+ * detaches from the pill and reads as a stray floating line. The tinted rounded
+ * background carries the active state on its own there.
+ */
+function rowClasses(active: boolean, collapsed = false): string {
   return cn(
     'group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-colors',
+    collapsed && 'justify-center',
     active
       ? 'bg-sidebar-active font-medium text-sidebar-active-foreground'
       : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
@@ -160,6 +169,7 @@ export function AppSidebar({ pathname }: { pathname: string }) {
     : 'U'
 
   const branding = useAdminBranding()
+  const navRef = useAutoHideScrollbar<HTMLElement>()
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -246,10 +256,10 @@ export function AppSidebar({ pathname }: { pathname: string }) {
       <Link
         key={item.href}
         href={item.href}
-        className={rowClasses(active)}
+        className={rowClasses(active, collapsed)}
         title={collapsed ? item.title : undefined}
       >
-        {active && <ActiveBar />}
+        {active && !collapsed && <ActiveBar />}
         <item.icon
           weight={active ? 'duotone' : 'regular'}
           className="size-[18px] shrink-0 transition-transform duration-150 group-hover:scale-110"
@@ -269,10 +279,10 @@ export function AppSidebar({ pathname }: { pathname: string }) {
       <Link
         key={href}
         href={href}
-        className={rowClasses(active)}
+        className={rowClasses(active, collapsed)}
         title={collapsed ? label : undefined}
       >
-        {active && <ActiveBar />}
+        {active && !collapsed && <ActiveBar />}
         <Icon
           weight={active ? 'duotone' : 'regular'}
           className="size-[18px] shrink-0 transition-transform duration-150 group-hover:scale-110"
@@ -358,7 +368,7 @@ export function AppSidebar({ pathname }: { pathname: string }) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+      <nav ref={navRef} className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 scrollbar-overlay">
         {collapsed
           ? // Icon-only sidebar: flatten parent children to plain icon links.
             visibleNavEntries
@@ -486,10 +496,10 @@ export function AppSidebar({ pathname }: { pathname: string }) {
                 <Link
                   key={col.id}
                   href={href}
-                  className={rowClasses(active)}
+                  className={rowClasses(active, collapsed)}
                   title={collapsed ? col.label : undefined}
                 >
-                  {active && <ActiveBar />}
+                  {active && !collapsed && <ActiveBar />}
                   {col.icon?.trim() ? (
                     <CollectionMenuIcon icon={col.icon} className="size-[18px] shrink-0" />
                   ) : (
