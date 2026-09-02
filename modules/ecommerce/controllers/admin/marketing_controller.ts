@@ -4,6 +4,7 @@ import { renderPage } from '#helpers/inertia_render'
 import { apiFail } from '#helpers/api_error_response'
 import AuditLogService from '#services/audit_log_service'
 import type User from '#models/user'
+import Account from '#modules/ecommerce/models/account'
 import DiscountService from '#modules/ecommerce/services/discount_service'
 import AffiliateService from '#modules/ecommerce/services/affiliate_service'
 
@@ -42,26 +43,38 @@ const discountUpdateValidator = vine.compile(
   })
 )
 
-const affiliateValidator = vine.compile(
+/** Admin adds an affiliate directly for an existing storefront account. */
+const affiliateAddValidator = vine.compile(
   vine.object({
-    code: vine.string().trim().minLength(1).maxLength(64),
-    name: vine.string().trim().minLength(1).maxLength(160),
     email: vine.string().trim().email().maxLength(254),
-    commissionPercent: vine.number().min(0).max(100),
-    payoutDetails: vine.string().trim().maxLength(2_000).nullable().optional(),
-    notes: vine.string().trim().maxLength(2_000).nullable().optional(),
+    commissionPercent: vine.number().min(0).max(100).optional(),
+  })
+)
+
+const affiliateApproveValidator = vine.compile(
+  vine.object({
+    commissionPercent: vine.number().min(0).max(100).optional(),
+  })
+)
+
+const affiliateRejectValidator = vine.compile(
+  vine.object({
+    reason: vine.string().trim().maxLength(500).nullable().optional(),
   })
 )
 
 const affiliateUpdateValidator = vine.compile(
   vine.object({
-    name: vine.string().trim().minLength(1).maxLength(160).optional(),
-    email: vine.string().trim().email().maxLength(254).optional(),
     commissionPercent: vine.number().min(0).max(100).optional(),
-    status: vine.enum(['active', 'paused', 'blocked'] as const).optional(),
-    /** Omit to keep the stored details; empty string clears them. */
-    payoutDetails: vine.string().maxLength(2_000).nullable().optional(),
+    status: vine.enum(['pending', 'active', 'paused', 'blocked', 'rejected'] as const).optional(),
     notes: vine.string().trim().maxLength(2_000).nullable().optional(),
+  })
+)
+
+const withdrawalProcessValidator = vine.compile(
+  vine.object({
+    action: vine.enum(['paid', 'reject'] as const),
+    reason: vine.string().trim().maxLength(500).nullable().optional(),
   })
 )
 
@@ -91,6 +104,10 @@ export default class MarketingController {
 
   async commissionsPage({ inertia }: HttpContext) {
     return renderPage(inertia, 'modules/ecommerce/admin/marketing/commissions', {})
+  }
+
+  async withdrawalsPage({ inertia }: HttpContext) {
+    return renderPage(inertia, 'modules/ecommerce/admin/marketing/withdrawals', {})
   }
 
   // ── Discounts ────────────────────────────────────────────────────────────
@@ -166,28 +183,101 @@ export default class MarketingController {
 
   // ── Affiliates ───────────────────────────────────────────────────────────
 
-  async listAffiliates({ response }: HttpContext) {
-    return response.json(await affiliates.list())
+  async listAffiliates({ request, response }: HttpContext) {
+    const status = request.input('status')
+    return response.json(await affiliates.list(status ? { status } : {}))
   }
 
-  async createAffiliate(ctx: HttpContext) {
+  /** Type-ahead search over storefront accounts, for the "add affiliate" picker. */
+  async searchAccounts({ request, response }: HttpContext) {
+    const q = String(request.input('q') ?? '').trim()
+    const builder = Account.query().whereNull('deleted_at')
+    if (q) {
+      const term = `%${q.toLowerCase()}%`
+      builder.where((query) => {
+        query
+          .whereRaw('LOWER(email) LIKE ?', [term])
+          .orWhereRaw("LOWER(COALESCE(first_name, '')) LIKE ?", [term])
+          .orWhereRaw("LOWER(COALESCE(last_name, '')) LIKE ?", [term])
+      })
+    }
+    const rows = await builder.orderBy('created_at', 'desc').limit(20)
+    return response.json(
+      rows.map((a) => ({ id: a.id, email: a.email, name: a.fullName || a.email }))
+    )
+  }
+
+  /** Add an affiliate directly for an existing account (activated immediately). */
+  async addAffiliate(ctx: HttpContext) {
     const { request, response, auth } = ctx
     try {
-      const payload = await request.validateUsing(affiliateValidator)
-      const affiliate = await affiliates.create(payload)
+      const { email, commissionPercent } = await request.validateUsing(affiliateAddValidator)
+      const account = await Account.query()
+        .whereRaw('LOWER(email) = ?', [email.toLowerCase()])
+        .whereNull('deleted_at')
+        .first()
+      if (!account) {
+        return response
+          .status(422)
+          .json({ message: 'No storefront account has that email.', reason: 'account_not_found' })
+      }
+
+      const existing = await affiliates.findByAccountId(account.id)
+      const affiliateRow = existing ?? (await affiliates.apply(account))
+      const affiliate = await affiliates.approve(affiliateRow.id, { commissionPercent })
 
       await audit.record({
         actor: { type: 'user', user: auth.user as User },
         action: 'affiliate.created',
         subjectType: 'affiliate',
         subjectId: affiliate.id,
-        // The sanitiser would redact payout details anyway; the DTO does not
-        // carry them in the first place.
         changes: { code: affiliate.code, commissionPercent: affiliate.commissionPercent },
         ctx,
       })
 
       return response.status(201).json(affiliate)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  async approveAffiliate(ctx: HttpContext) {
+    const { params, request, response, auth } = ctx
+    try {
+      const { commissionPercent } = await request.validateUsing(affiliateApproveValidator)
+      const affiliate = await affiliates.approve(String(params.id), { commissionPercent })
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'affiliate.updated',
+        subjectType: 'affiliate',
+        subjectId: affiliate.id,
+        changes: { status: affiliate.status, commissionPercent: affiliate.commissionPercent },
+        ctx,
+      })
+
+      return response.json(affiliate)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  async rejectAffiliate(ctx: HttpContext) {
+    const { params, request, response, auth } = ctx
+    try {
+      const { reason } = await request.validateUsing(affiliateRejectValidator)
+      const affiliate = await affiliates.reject(String(params.id), reason)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'affiliate.updated',
+        subjectType: 'affiliate',
+        subjectId: affiliate.id,
+        changes: { status: affiliate.status },
+        ctx,
+      })
+
+      return response.json(affiliate)
     } catch (error) {
       return fail(response, error)
     }
@@ -204,15 +294,40 @@ export default class MarketingController {
         action: 'affiliate.updated',
         subjectType: 'affiliate',
         subjectId: affiliate.id,
-        changes: {
-          status: affiliate.status,
-          commissionPercent: affiliate.commissionPercent,
-          payoutDetailsChanged: payload.payoutDetails !== undefined,
-        },
+        changes: { status: affiliate.status, commissionPercent: affiliate.commissionPercent },
         ctx,
       })
 
       return response.json(affiliate)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  // ── Withdrawals ────────────────────────────────────────────────────────────
+
+  async listWithdrawals({ request, response }: HttpContext) {
+    const status = request.input('status')
+    return response.json(await affiliates.listWithdrawals(status ? { status } : {}))
+  }
+
+  /** Mark a withdrawal paid (its commissions become paid) or reject it. */
+  async processWithdrawal(ctx: HttpContext) {
+    const { params, request, response, auth } = ctx
+    try {
+      const { action, reason } = await request.validateUsing(withdrawalProcessValidator)
+      await affiliates.processWithdrawal(String(params.id), (auth.user as User).id, action, reason)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: action === 'paid' ? 'commission.paid' : 'affiliate.updated',
+        subjectType: 'affiliate_withdrawal',
+        subjectId: String(params.id),
+        changes: { action },
+        ctx,
+      })
+
+      return response.json({ ok: true })
     } catch (error) {
       return fail(response, error)
     }

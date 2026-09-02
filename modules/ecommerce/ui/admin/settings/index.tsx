@@ -20,6 +20,24 @@ import ProductPagePanel from './product-page'
 import StorefrontScreensPanel from './storefront-screens'
 import ShippingPanel from './shipping'
 
+/** The number of fraction digits the store currency uses (e.g. 2 for USD, 0 for JPY). */
+function currencyExponent(currency: string, locale: string): number {
+  try {
+    return (
+      new Intl.NumberFormat(locale || 'en-US', { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
+    )
+  } catch {
+    return 2
+  }
+}
+function minorToMajor(minor: number, currency: string, locale: string): number {
+  return minor / 10 ** currencyExponent(currency, locale)
+}
+function majorToMinor(major: number, currency: string, locale: string): number {
+  return Math.round(major * 10 ** currencyExponent(currency, locale))
+}
+
 function StoreDetailsPanel() {
   const query = useStoreSettings()
   const update = useUpdateStoreSettings()
@@ -245,6 +263,37 @@ function StoreDetailsPanel() {
               value={form.orderNumberPrefix}
               onChange={(e) => set('orderNumberPrefix', e.target.value)}
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="store-aff-commission">Default affiliate commission (%)</Label>
+            <Input
+              id="store-aff-commission"
+              inputMode="decimal"
+              value={String(form.affiliateDefaultCommissionPercent)}
+              onChange={(e) =>
+                set('affiliateDefaultCommissionPercent', Number(e.target.value) || 0)
+              }
+            />
+            <p className="text-xs text-muted-foreground">Applied to new affiliate approvals.</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="store-aff-min">Minimum withdrawal ({form.currency})</Label>
+            <Input
+              id="store-aff-min"
+              inputMode="decimal"
+              value={String(
+                minorToMajor(form.affiliateMinWithdrawalAmount, form.currency, form.locale)
+              )}
+              onChange={(e) =>
+                set(
+                  'affiliateMinWithdrawalAmount',
+                  majorToMinor(Number(e.target.value) || 0, form.currency, form.locale)
+                )
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Affiliates can only request a payout once their available balance reaches this.
+            </p>
           </div>
         </CardContent>
       </Card>

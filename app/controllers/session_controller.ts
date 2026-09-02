@@ -12,7 +12,11 @@ const captchaService = new CaptchaService()
 const overrides = new AuthPageOverrideService()
 const renderer = new PageRenderer()
 
-function authFailure(response: HttpContext['response'], session: HttpContext['session'], message: string) {
+function authFailure(
+  response: HttpContext['response'],
+  session: HttpContext['session'],
+  message: string
+) {
   session.flash('error', message)
   return response.redirect().back()
 }
@@ -66,6 +70,13 @@ export default class SessionController {
       if (user.status === 'INACTIVE') {
         return authFailure(response, session, 'Account inactive')
       }
+      // Password was correct, but if 2FA is on we must not open a real session
+      // yet — stash a pending id and hand off to the code challenge.
+      if (user.twoFactorEnabledAt) {
+        session.put('pending_2fa_user_id', user.id)
+        session.forget('pending_2fa_attempts')
+        return response.redirect('/login/2fa')
+      }
       await auth.use('web').login(user)
       return response.redirect('/admin/dashboard')
     } catch {
@@ -94,6 +105,7 @@ export default class SessionController {
       status: user.status,
       roles: user.roles?.map((r) => r.name) ?? [],
       permissions: collectUserPermissions(user),
+      twoFactorEnabled: user.twoFactorEnabledAt != null,
     })
   }
 

@@ -211,8 +211,10 @@ export const WEBSITE_SETTING_SECTIONS = {
   ADMIN_BRANDING: 'admin_branding',
   AUTH_PAGES: 'auth_pages',
   ERROR_PAGES: 'error_pages',
+  FORMS: 'forms',
   HOME_PAGE: 'home_page',
   SITE_META: 'site_meta',
+  THEME: 'theme',
 } as const
 
 /**
@@ -349,6 +351,11 @@ export interface PageSummaryDto {
   hideFooter: boolean
   authorId: number | null
   publishedAt: string | null
+  scheduledPublishAt: string | null
+  scheduledUnpublishAt: string | null
+  /** True when unpublished (staged) edits exist. */
+  hasDraft: boolean
+  draftUpdatedAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -356,6 +363,8 @@ export interface PageSummaryDto {
 export interface PageDto extends PageSummaryDto {
   content: Record<string, unknown>
   seo: Record<string, unknown>
+  draftContent: Record<string, unknown> | null
+  draftSeo: Record<string, unknown> | null
 }
 
 export interface CreatePageRequest {
@@ -388,15 +397,19 @@ export interface UpdatePageRequest {
   hideFooter?: boolean
   content?: Record<string, unknown>
   seo?: Record<string, unknown>
+  scheduledPublishAt?: string | null
+  scheduledUnpublishAt?: string | null
 }
 
-export type TemplateType = 'HEADER' | 'FOOTER' | 'COMPONENT' | 'LAYOUT' | 'EMAIL'
+export type TemplateType = 'HEADER' | 'FOOTER' | 'COMPONENT' | 'LAYOUT' | 'EMAIL' | 'COLLECTION'
 
 export interface TemplateSummaryDto {
   id: string
   name: string
   type: TemplateType
   isDefault: boolean
+  /** The CMS collection a COLLECTION template is the item card for; null otherwise. */
+  collectionKey: string | null
   createdAt: string
   updatedAt: string
 }
@@ -412,12 +425,14 @@ export interface CreateTemplateRequest {
   type: TemplateType
   content?: Record<string, unknown>
   isDefault?: boolean
+  collectionKey?: string | null
 }
 
 export interface UpdateTemplateRequest {
   name?: string
   content?: Record<string, unknown>
   isDefault?: boolean
+  collectionKey?: string | null
   /** Rendered in the builder on publish; ignored for non-EMAIL templates. */
   renderedHtml?: string | null
 }
@@ -628,6 +643,13 @@ export interface CmsRevisionDto {
   createdAt: string
 }
 
+export interface MediaVariantDto {
+  width: number
+  height: number | null
+  format: string
+  url: string
+}
+
 export interface MediaDto {
   id: string
   filename: string
@@ -640,6 +662,8 @@ export interface MediaDto {
   width: number | null
   height: number | null
   authorId: number | null
+  /** Responsive webp derivatives, ascending by width. */
+  variants: MediaVariantDto[]
   createdAt: string
   updatedAt: string | null
 }

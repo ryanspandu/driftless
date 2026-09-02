@@ -192,14 +192,14 @@ export default class OrderService {
           updated_at: DateTime.now().toSQL(),
         })
 
-      if (order.customerId) {
+      if (order.accountId) {
         await trx
-          .from('ecommerce_customers')
-          .where('id', order.customerId)
+          .from('ecommerce_accounts')
+          .where('id', order.accountId)
           .increment('orders_count', 1)
         await trx
-          .from('ecommerce_customers')
-          .where('id', order.customerId)
+          .from('ecommerce_accounts')
+          .where('id', order.accountId)
           .increment('total_spent_amount', order.totalAmount)
       }
 

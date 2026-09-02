@@ -302,6 +302,25 @@ function isHex(v: string): boolean {
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v.trim())
 }
 
+/**
+ * Theme swatches. These insert a CSS variable reference, not a fixed hex — so a
+ * block coloured "Primary" follows whatever the operator sets in Website
+ * Settings → Appearance (and the light/dark scope) instead of freezing a value.
+ * Plain hex/keywords stay available in the text field + native picker.
+ */
+const THEME_SWATCHES: { label: string; value: string }[] = [
+  { label: 'Primary', value: 'var(--primary)' },
+  { label: 'Secondary', value: 'var(--secondary)' },
+  { label: 'Accent', value: 'var(--accent)' },
+  { label: 'Text', value: 'var(--foreground)' },
+  { label: 'Muted', value: 'var(--muted-foreground)' },
+  { label: 'Surface', value: 'var(--background)' },
+  { label: 'Border', value: 'var(--border)' },
+  { label: 'White', value: '#ffffff' },
+  { label: 'Black', value: '#000000' },
+  { label: 'None', value: 'transparent' },
+]
+
 export function ColorControl({
   value,
   onChange,
@@ -311,27 +330,46 @@ export function ColorControl({
 }) {
   const v = value ?? ''
   return (
-    <div className="flex items-center gap-2">
-      <label
-        className="size-7 shrink-0 cursor-pointer rounded-md border border-input"
-        style={{ background: v || 'transparent' }}
-        title="Pick a colour"
-      >
-        <input
-          type="color"
-          value={isHex(v) ? v : '#000000'}
-          onChange={(e) => onChange(e.target.value)}
-          className="size-0 opacity-0"
-          aria-label="Pick colour"
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <label
+          className="size-7 shrink-0 cursor-pointer rounded-md border border-input"
+          style={{ background: v || 'transparent' }}
+          title="Pick a colour"
+        >
+          <input
+            type="color"
+            value={isHex(v) ? v : '#000000'}
+            onChange={(e) => onChange(e.target.value)}
+            className="size-0 opacity-0"
+            aria-label="Pick colour"
+          />
+        </label>
+        <CommitInput
+          type="text"
+          value={v}
+          placeholder="—"
+          onCommit={onChange}
+          className={cn(inputCls, 'tabular-nums')}
         />
-      </label>
-      <CommitInput
-        type="text"
-        value={v}
-        placeholder="—"
-        onCommit={onChange}
-        className={cn(inputCls, 'tabular-nums')}
-      />
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {THEME_SWATCHES.map((s) => (
+          <button
+            key={s.value}
+            type="button"
+            title={s.label}
+            onClick={() => onChange(s.value)}
+            className={cn(
+              'size-5 rounded border transition-transform hover:scale-110',
+              v === s.value ? 'border-ring ring-1 ring-ring' : 'border-input',
+              s.value === 'transparent' &&
+                'bg-[linear-gradient(45deg,#ccc_25%,transparent_25%,transparent_75%,#ccc_75%),linear-gradient(45deg,#ccc_25%,transparent_25%,transparent_75%,#ccc_75%)] bg-[length:8px_8px] bg-[position:0_0,4px_4px]'
+            )}
+            style={s.value === 'transparent' ? undefined : { background: s.value }}
+          />
+        ))}
+      </div>
     </div>
   )
 }
@@ -443,10 +481,12 @@ export function NumberUnitControl({
         className="h-7 w-full min-w-0 bg-transparent px-1.5 text-xs tabular-nums outline-none disabled:cursor-not-allowed disabled:opacity-60"
       />
       {/*
-        `appearance-none` drops the native dropdown arrow — roughly 18px of
-        chrome the number field pays for out of the same line, and enough on its
-        own to collapse the input to nothing in the narrower columns. The unit
-        text is the affordance.
+        The one native select element left in the builder, on purpose (allow-listed in
+        tests/unit/builder_ui_conventions.spec.ts). `appearance-none` drops the
+        native dropdown arrow — roughly 18px of chrome the number field pays for
+        out of the same line, and enough on its own to collapse the input to
+        nothing in the narrower columns. The unit text is the affordance, and a
+        bordered dropdown control would not fit this slot.
       */}
       <select
         value={unit}

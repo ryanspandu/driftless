@@ -76,6 +76,8 @@ export default defineConfig({
     // before any module's `boot()` runs.
     () => import('#providers/mail_events_provider'),
     () => import('#providers/modules_provider'),
+    // Runs the analytics write-buffer flush loop (+ a final flush on shutdown).
+    () => import('#providers/analytics_provider'),
   ],
 
   /*

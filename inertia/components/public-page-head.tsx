@@ -17,6 +17,10 @@ export interface PageSeo {
   canonical?: string
   noindex?: boolean
   meta?: MetaTag[]
+  /** Server-built, script-safe JSON-LD string (structured_data_service). */
+  jsonLd?: string
+  /** Operator-authored raw JSON-LD that overrides the auto graph. */
+  jsonLdCustom?: string
 }
 
 export interface MetaTag {
@@ -58,6 +62,8 @@ export function PublicPageHead({
   const canonical = str('canonical')
   const noindex = bag.noindex === true
   const metaTags: MetaTag[] = Array.isArray(bag.meta) ? (bag.meta as MetaTag[]) : []
+  // Pre-serialised, script-safe JSON-LD built server-side (structured_data_service).
+  const jsonLd = str('jsonLd')
 
   return (
     <Head title={seoTitle}>
@@ -69,6 +75,9 @@ export function PublicPageHead({
       {noindex ? <meta name="robots" content="noindex,nofollow" /> : null}
       {renderMeta(metaTags, '')}
       {renderMeta(globalMeta ?? [], 'g')}
+      {jsonLd ? (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
+      ) : null}
     </Head>
   )
 }

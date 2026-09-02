@@ -14,7 +14,7 @@ import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { Can } from '~/components/providers/ability-provider'
 import { useUrlState } from '~/hooks/use-url-state'
 import { formatAdminTableDateTime } from '~/lib/utils'
-import { useCustomers, useSetCustomerStatus, type CustomerDto } from '../_api'
+import { useCustomers, useSetCustomerStatus, type AccountDto } from '../_api'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 import { CreateCustomerDialog } from './create-dialog'
 
@@ -48,11 +48,11 @@ export default function CustomersPage() {
   const customers = query.data?.items ?? []
   const total = query.data?.total ?? 0
 
-  const columns = useMemo<ColumnDef<CustomerDto>[]>(
+  const columns = useMemo<ColumnDef<AccountDto>[]>(
     () => [
       {
         accessorKey: 'email',
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Customer" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Account" />,
         cell: ({ row }) => {
           const name = [row.original.firstName, row.original.lastName].filter(Boolean).join(' ')
           return (

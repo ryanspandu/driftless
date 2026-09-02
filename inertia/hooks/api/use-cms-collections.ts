@@ -9,6 +9,7 @@ import type {
 } from '~/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cmsCollections } from '~/lib/cms/client'
+import { apiFetch } from '~/lib/api-client'
 
 const qk = {
   list: ['cms-collections', 'list'] as const,
@@ -20,6 +21,20 @@ export function useCmsCollectionsList() {
   return useQuery({
     queryKey: qk.list,
     queryFn: () => cmsCollections.list(),
+    staleTime: 60_000,
+  })
+}
+
+/**
+ * Collections the page builder can bind to: built-ins (posts, products while
+ * the store is on) plus the dynamic CMS collections. Same endpoint the
+ * builder's own pickers use, so a Collection Template can be made for
+ * anything a Collection List can show.
+ */
+export function useBindableCollections() {
+  return useQuery({
+    queryKey: ['cms-collections', 'bindable'] as const,
+    queryFn: () => apiFetch<CmsCollectionDto[]>('/api/admin/pages/collections'),
     staleTime: 60_000,
   })
 }
@@ -174,9 +189,7 @@ export function useReorderCmsFields(key: string) {
     },
     onSuccess: (fields) => {
       // Reconcile with the server's authoritative field order/shape.
-      qc.setQueryData<CmsCollectionDto>(qk.one(key), (prev) =>
-        prev ? { ...prev, fields } : prev
-      )
+      qc.setQueryData<CmsCollectionDto>(qk.one(key), (prev) => (prev ? { ...prev, fields } : prev))
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: qk.list })

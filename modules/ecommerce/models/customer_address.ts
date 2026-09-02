@@ -20,7 +20,7 @@ export default class CustomerAddress extends BaseModel {
 
   /** Null for a guest-captured address; a saved address always has an owner. */
   @column()
-  declare customerId: string | null
+  declare accountId: string | null
 
   @column()
   declare label: string | null

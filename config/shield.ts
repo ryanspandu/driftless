@@ -14,13 +14,38 @@ import { defineConfig } from '@adonisjs/shield'
 const isDev = env.get('NODE_ENV') === 'development'
 
 const scriptSrc = isDev
-  ? ["'self'", "'unsafe-inline'", 'https://accounts.google.com', 'https://www.google.com', 'https://hcaptcha.com', 'https://js.hcaptcha.com']
-  : ["'self'", '@nonce', 'https://accounts.google.com', 'https://www.google.com', 'https://hcaptcha.com', 'https://js.hcaptcha.com']
+  ? [
+      "'self'",
+      "'unsafe-inline'",
+      'https://accounts.google.com',
+      'https://www.google.com',
+      'https://hcaptcha.com',
+      'https://js.hcaptcha.com',
+    ]
+  : [
+      "'self'",
+      '@nonce',
+      'https://accounts.google.com',
+      'https://www.google.com',
+      'https://hcaptcha.com',
+      'https://js.hcaptcha.com',
+    ]
 
-const styleSrc = isDev ? ["'self'", "'unsafe-inline'"] : ["'self'", '@nonce']
+// `fonts.googleapis.com` lets the operator-selected Google Font stylesheet load
+// on public pages; the font files it references come from `fonts.gstatic.com`,
+// already covered by the `https:` in `fontSrc` below.
+const styleSrc = isDev
+  ? ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com']
+  : ["'self'", '@nonce', 'https://fonts.googleapis.com']
 
 const connectSrc = isDev
-  ? ["'self'", 'ws://localhost:*', 'http://localhost:*', 'https://accounts.google.com', 'https://www.google.com']
+  ? [
+      "'self'",
+      'ws://localhost:*',
+      'http://localhost:*',
+      'https://accounts.google.com',
+      'https://www.google.com',
+    ]
   : ["'self'", 'https://accounts.google.com', 'https://www.google.com']
 
 const shieldConfig = defineConfig({
@@ -51,7 +76,15 @@ const shieldConfig = defineConfig({
       imgSrc: ["'self'", 'https:', 'data:'],
       fontSrc: ["'self'", 'https:', 'data:'],
       connectSrc,
-      frameSrc: ["'self'", 'https://www.youtube.com', 'https://player.vimeo.com', 'https://www.google.com', 'https://maps.google.com', 'https://www.facebook.com', 'https://open.spotify.com'],
+      frameSrc: [
+        "'self'",
+        'https://www.youtube.com',
+        'https://player.vimeo.com',
+        'https://www.google.com',
+        'https://maps.google.com',
+        'https://www.facebook.com',
+        'https://open.spotify.com',
+      ],
       formAction: ["'self'"],
     },
 
@@ -83,7 +116,13 @@ const shieldConfig = defineConfig({
      */
     exceptRoutes: (ctx: HttpContext) => {
       const url = ctx.request.url()
-      return url.startsWith('/api/v1/') || url.startsWith('/api/webhooks/')
+      return (
+        url.startsWith('/api/v1/') ||
+        url.startsWith('/api/webhooks/') ||
+        // The analytics beacon is fired by anonymous visitors (often via
+        // sendBeacon, which can't set headers) and only ever inserts one row.
+        url.startsWith('/api/analytics/')
+      )
     },
 
     /**

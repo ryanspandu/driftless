@@ -245,7 +245,7 @@ test.group('E-commerce | orders admin', (group) => {
     await client
       .post(`/api/admin/ecommerce/orders/${orderId}/cancel`)
       .loginAs(admin)
-      .json({ reason: 'Customer changed their mind' })
+      .json({ reason: 'Account changed their mind' })
 
     // A cancelled order is terminal — it cannot be fulfilled afterwards.
     const res = await client

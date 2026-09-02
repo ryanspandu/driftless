@@ -25,12 +25,14 @@ export default class TemplatesController {
   }
 
   async store({ request, auth, response }: HttpContext) {
-    const { name, type, content } = request.all()
+    const { name, type, content, collectionKey } = request.all()
     if (!(await this.canManageExecutableContent(auth.user as User, content))) {
-      return response.status(403).json({ message: 'settings:manage is required for executable template content' })
+      return response
+        .status(403)
+        .json({ message: 'settings:manage is required for executable template content' })
     }
     try {
-      const item = await templatesService.create({ name, type, content })
+      const item = await templatesService.create({ name, type, content, collectionKey })
       return response.status(201).json(item)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
@@ -38,9 +40,11 @@ export default class TemplatesController {
   }
 
   async update({ params, request, auth, response }: HttpContext) {
-    const { name, content, isDefault, renderedHtml } = request.all()
+    const { name, content, isDefault, renderedHtml, collectionKey } = request.all()
     if (!(await this.canManageExecutableContent(auth.user as User, content))) {
-      return response.status(403).json({ message: 'settings:manage is required for executable template content' })
+      return response
+        .status(403)
+        .json({ message: 'settings:manage is required for executable template content' })
     }
     try {
       const item = await templatesService.update(params.id, {
@@ -48,6 +52,7 @@ export default class TemplatesController {
         content,
         isDefault,
         renderedHtml,
+        collectionKey,
       })
       return response.json(item)
     } catch (e) {

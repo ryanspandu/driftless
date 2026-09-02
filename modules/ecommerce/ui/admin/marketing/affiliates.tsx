@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from '@inertiajs/react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Copy, MoreHorizontal, Pencil, Plus, Users } from 'lucide-react'
+import { Check, Copy, MessageSquare, MoreHorizontal, Pencil, Plus, Users, X } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
@@ -19,116 +19,96 @@ import {
 } from '~/components/ui/dropdown_menu'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
-import { AppSelect } from '~/components/ui/app-select'
+import { AppSelect, type AppSelectOption } from '~/components/ui/app-select'
+import { AppAsyncSelect } from '~/components/ui/app-async-select'
 import { Textarea } from '~/components/ui/textarea'
 import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { Can } from '~/components/providers/ability-provider'
 import { useUrlState } from '~/hooks/use-url-state'
 import { apiErrorMessage } from '~/lib/api-client'
-import { cn } from '~/lib/utils'
-import { useAffiliates, useSaveAffiliate, type AffiliateDto } from '../_api'
+import {
+  useAffiliates,
+  useAddAffiliate,
+  useApproveAffiliate,
+  useRejectAffiliate,
+  useUpdateAffiliate,
+  searchAffiliateAccounts,
+  type AffiliateDto,
+} from '../_api'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'paused', label: 'Paused' },
   { value: 'blocked', label: 'Blocked' },
+  { value: 'rejected', label: 'Rejected' },
 ]
 
 const FILTERS: { value: 'all' | AffiliateDto['status']; label: string }[] = [
   { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Applications' },
   { value: 'active', label: 'Active' },
   { value: 'paused', label: 'Paused' },
   { value: 'blocked', label: 'Blocked' },
+  { value: 'rejected', label: 'Rejected' },
 ]
 
-/** The values `?filter=` accepts; anything else falls back to `all`. */
 const FILTER_VALUES = FILTERS.map((f) => f.value)
-
 type FilterValue = (typeof FILTER_VALUES)[number]
 
-function emptyForm() {
-  return {
-    id: null as string | null,
-    code: '',
-    name: '',
-    email: '',
-    commissionPercent: 10,
-    status: 'active' as AffiliateDto['status'],
-    /**
-     * Empty means "leave whatever is stored alone" on edit — the plaintext is
-     * never sent back to the browser, so an empty box cannot mean "clear it".
-     * Clearing is a separate, explicit intent, tracked by `clearPayout`.
-     */
-    payoutDetails: '',
-    clearPayout: false,
-    notes: '',
-    hasPayoutDetails: false,
-  }
-}
-
-type FormState = ReturnType<typeof emptyForm>
-
-function toForm(affiliate: AffiliateDto): FormState {
-  return {
-    id: affiliate.id,
-    code: affiliate.code,
-    name: affiliate.name,
-    email: affiliate.email,
-    commissionPercent: affiliate.commissionPercent,
-    status: affiliate.status,
-    payoutDetails: '',
-    clearPayout: false,
-    notes: affiliate.notes ?? '',
-    hasPayoutDetails: affiliate.hasPayoutDetails,
-  }
+/** Date + time in the operator's locale, e.g. "2 Sep 2026, 15:45". */
+function formatDateTime(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 function StatusBadge({ status }: { status: AffiliateDto['status'] }) {
+  if (status === 'pending') return <Badge variant="warning">Pending</Badge>
   if (status === 'active') return <Badge variant="success">Active</Badge>
   if (status === 'paused') return <Badge variant="warning">Paused</Badge>
+  if (status === 'rejected') return <Badge variant="secondary">Rejected</Badge>
   return <Badge variant="destructive">Blocked</Badge>
+}
+
+interface EditForm {
+  id: string
+  commissionPercent: number
+  status: AffiliateDto['status']
+  notes: string
 }
 
 export default function AffiliatesPage() {
   const query = useAffiliates()
-  const save = useSaveAffiliate()
+  const addAffiliate = useAddAffiliate()
+  const approve = useApproveAffiliate()
+  const reject = useRejectAffiliate()
+  const update = useUpdateAffiliate()
 
-  /**
-   * The toolbar state lives in the URL, not in React: this view should survive a
-   * reload, be linkable, and come back with the browser's back button.
-   */
   const url = useUrlState()
   const search = url.get('q')
   const filter = url.one('filter', FILTER_VALUES, 'all')
 
-  /**
-   * Both writers clear `aff_page` — the paging key DataTable's `urlSync` writes
-   * for this table (see the `paramPrefix` below). Narrowing the list has to send
-   * you back to page 1: otherwise you keep whatever page number you were on and
-   * land in the middle of the new results, having never seen the first ones.
-   */
   function setSearch(value: string) {
     url.set({ q: value, aff_page: undefined })
   }
-
   function setFilter(value: FilterValue) {
     url.set({ filter: value === 'all' ? undefined : value, aff_page: undefined })
   }
 
-  const [form, setForm] = useState<FormState | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
+  const [addAccount, setAddAccount] = useState<AppSelectOption | null>(null)
+  const [addPercent, setAddPercent] = useState<number | ''>('')
+  const [edit, setEdit] = useState<EditForm | null>(null)
+  const [notesOf, setNotesOf] = useState<AffiliateDto | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
 
-  function set<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((prev) => (prev ? { ...prev, [key]: value } : prev))
-  }
-
-  const affiliates = useMemo(() => {
-    const rows = query.data ?? []
+  const rows = useMemo(() => {
+    const all = query.data ?? []
     const needle = search.trim().toLowerCase()
-    return rows.filter((row) => {
+    return all.filter((row) => {
       if (filter !== 'all' && row.status !== filter) return false
       if (!needle) return true
       return (
@@ -139,53 +119,57 @@ export default function AffiliatesPage() {
     })
   }, [query.data, search, filter])
 
+  const pendingCount = (query.data ?? []).filter((a) => a.status === 'pending').length
+
   async function copyLink(code: string) {
-    const url = `${window.location.origin}/ref/${code}`
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(`${window.location.origin}/ref/${code}`)
       setCopied(code)
       window.setTimeout(() => setCopied(null), 2_000)
     } catch {
-      // Clipboard access can be denied; the code is visible in the row anyway.
+      // clipboard denied; the code is visible in the row.
     }
   }
 
-  async function onSubmit(e: FormEvent) {
+  async function submitAdd(e: FormEvent) {
     e.preventDefault()
-    if (!form) return
     setError(null)
-
+    if (!addAccount) {
+      setError('Pick an account first.')
+      return
+    }
     try {
-      await save.mutateAsync({
-        id: form.id,
-        input: form.id
-          ? {
-              name: form.name.trim(),
-              email: form.email.trim(),
-              commissionPercent: Number(form.commissionPercent),
-              status: form.status,
-              notes: form.notes.trim() || null,
-              /**
-               * Three distinct intents, and the API distinguishes all three:
-               * omitted keeps what is stored, an empty string clears it, and
-               * text replaces it.
-               */
-              ...(form.clearPayout
-                ? { payoutDetails: '' }
-                : form.payoutDetails === ''
-                  ? {}
-                  : { payoutDetails: form.payoutDetails }),
-            }
-          : {
-              code: form.code.trim(),
-              name: form.name.trim(),
-              email: form.email.trim(),
-              commissionPercent: Number(form.commissionPercent),
-              payoutDetails: form.payoutDetails.trim() || null,
-              notes: form.notes.trim() || null,
-            },
+      await addAffiliate.mutateAsync({
+        email: addAccount.value,
+        commissionPercent: addPercent === '' ? undefined : Number(addPercent),
       })
-      setForm(null)
+      setAddOpen(false)
+      setAddAccount(null)
+      setAddPercent('')
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    }
+  }
+
+  async function loadAccounts(input: string): Promise<AppSelectOption[]> {
+    const rows = await searchAffiliateAccounts(input)
+    return rows.map((a) => ({ value: a.email, label: a.name ? `${a.name} · ${a.email}` : a.email }))
+  }
+
+  async function submitEdit(e: FormEvent) {
+    e.preventDefault()
+    if (!edit) return
+    setError(null)
+    try {
+      await update.mutateAsync({
+        id: edit.id,
+        input: {
+          commissionPercent: Number(edit.commissionPercent),
+          status: edit.status,
+          notes: edit.notes.trim() || null,
+        },
+      })
+      setEdit(null)
     } catch (err) {
       setError(apiErrorMessage(err))
     }
@@ -205,21 +189,24 @@ export default function AffiliatesPage() {
       },
       {
         accessorKey: 'code',
+        enableSorting: false,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Referral link" />,
-        cell: ({ row }) => (
-          <button
-            type="button"
-            onClick={() => copyLink(row.original.code)}
-            className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            /ref/{row.original.code}
-            <Copy className="size-3" aria-hidden />
-            <span className="sr-only">Copy referral link</span>
-            {copied === row.original.code ? (
-              <span className="font-sans text-[11px] text-emerald-600">Copied</span>
-            ) : null}
-          </button>
-        ),
+        cell: ({ row }) =>
+          row.original.status === 'pending' ? (
+            <span className="text-xs text-muted-foreground">—</span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => copyLink(row.original.code)}
+              className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              /ref/{row.original.code}
+              <Copy className="size-3" aria-hidden />
+              {copied === row.original.code ? (
+                <span className="font-sans text-[11px] text-emerald-600">Copied</span>
+              ) : null}
+            </button>
+          ),
       },
       {
         accessorKey: 'commissionPercent',
@@ -239,42 +226,19 @@ export default function AffiliatesPage() {
         ),
       },
       {
-        id: 'earned',
+        id: 'available',
         header: ({ column }) => (
           <DataTableColumnHeader
             column={column}
-            title="Earned"
+            title="Available"
             className="ml-auto w-full justify-end"
           />
         ),
         cell: ({ row }) => (
           <div className="text-right text-sm tabular-nums">
-            {row.original.totalCommission.formatted}
+            {row.original.availableCommission.formatted}
           </div>
         ),
-      },
-      {
-        id: 'outstanding',
-        header: ({ column }) => (
-          <DataTableColumnHeader
-            column={column}
-            title="Owed"
-            className="ml-auto w-full justify-end"
-          />
-        ),
-        cell: ({ row }) => {
-          const owed = row.original.outstanding
-          return (
-            <div
-              className={cn(
-                'text-right text-sm tabular-nums',
-                owed.amount > 0 && 'font-medium text-amber-600'
-              )}
-            >
-              {owed.formatted}
-            </div>
-          )
-        },
       },
       {
         accessorKey: 'status',
@@ -285,50 +249,94 @@ export default function AffiliatesPage() {
         id: 'actions',
         enableSorting: false,
         header: () => <span className="sr-only">Actions</span>,
-        cell: ({ row }) => (
-          <Can permission="ecommerce:affiliates:manage">
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={<Button variant="ghost" size="icon" className="size-8" />}
+        cell: ({ row }) => {
+          const noteCount = (row.original.applicantMessage ? 1 : 0) + (row.original.notes ? 1 : 0)
+          const notesBtn =
+            noteCount > 0 ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 gap-1 text-muted-foreground"
+                onClick={() => setNotesOf(row.original)}
               >
-                <MoreHorizontal className="size-4" aria-hidden />
-                <span className="sr-only">Actions for {row.original.name}</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => {
-                    setError(null)
-                    setForm(toForm(row.original))
-                  }}
-                >
-                  <Pencil className="mr-2 size-4" aria-hidden />
-                  Edit
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </Can>
-        ),
+                <MessageSquare className="size-3.5" aria-hidden />
+                {noteCount} {noteCount === 1 ? 'note' : 'notes'}
+              </Button>
+            ) : null
+          return (
+            <Can permission="ecommerce:affiliates:manage">
+              {row.original.status === 'pending' ? (
+                <div className="flex justify-end gap-1.5">
+                  {notesBtn}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1"
+                    disabled={approve.isPending}
+                    onClick={() => approve.mutate({ id: row.original.id })}
+                  >
+                    <Check className="size-3.5" aria-hidden />
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 gap-1 text-muted-foreground"
+                    disabled={reject.isPending}
+                    onClick={() => reject.mutate({ id: row.original.id })}
+                  >
+                    <X className="size-3.5" aria-hidden />
+                    Reject
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-end gap-1.5">
+                  {notesBtn}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={<Button variant="ghost" size="icon" className="size-8" />}
+                    >
+                      <MoreHorizontal className="size-4" aria-hidden />
+                      <span className="sr-only">Actions for {row.original.name}</span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setError(null)
+                          setEdit({
+                            id: row.original.id,
+                            commissionPercent: row.original.commissionPercent,
+                            status: row.original.status,
+                            notes: row.original.notes ?? '',
+                          })
+                        }}
+                      >
+                        <Pencil className="mr-2 size-4" aria-hidden />
+                        Edit
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+            </Can>
+          )
+        },
       },
     ],
-    [copied]
-  )
-
-  const statusFilter = (
-    <TableFilterTabs
-      value={filter}
-      options={FILTERS}
-      onChange={setFilter}
-    />
+    [copied, approve, reject]
   )
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Affiliates"
-        subtitle="Partners who earn a share of what they refer."
+        subtitle="Account holders who earn a share of what they refer."
         count={query.data?.length ?? 0}
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="outline" render={<Link href="/admin/marketing/withdrawals" />}>
+              Withdrawals
+            </Button>
             <Button variant="outline" render={<Link href="/admin/marketing/commissions" />}>
               Commissions
             </Button>
@@ -337,184 +345,201 @@ export default function AffiliatesPage() {
                 className="gap-2"
                 onClick={() => {
                   setError(null)
-                  setForm(emptyForm())
+                  setAddOpen(true)
                 }}
               >
                 <Plus className="size-4" aria-hidden />
-                New affiliate
+                Add affiliate
               </Button>
             </Can>
           </div>
         }
       />
 
+      {pendingCount > 0 && filter !== 'pending' ? (
+        <button
+          onClick={() => setFilter('pending')}
+          className="flex w-full items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-left text-sm text-amber-700 hover:bg-amber-500/10"
+        >
+          <span className="font-medium">{pendingCount}</span> affiliate application
+          {pendingCount === 1 ? '' : 's'} awaiting review — click to review.
+        </button>
+      ) : null}
+
       <DataTable
         columns={columns}
-        data={affiliates}
+        data={rows}
         getRowId={(row) => row.id}
         hideSyncColumn
         enableBulkSelect={false}
         searchPlaceholder="Search affiliates…"
         searchValue={search}
         onSearchChange={setSearch}
-        filters={statusFilter}
-        /**
-         * Puts paging and sorting in the URL too, so the whole view is linkable
-         * and survives a reload. The `aff` prefix keeps the table's own keys
-         * (`aff_page`, `aff_size`, `aff_sort`) clear of the page-level `q` and
-         * `filter` above — sharing the bare `q` key would make the table
-         * re-filter rows this page has already filtered.
-         */
+        filters={<TableFilterTabs value={filter} options={FILTERS} onChange={setFilter} />}
         urlSync={{ paramPrefix: 'aff' }}
         emptyMessage={
           <div className="flex flex-col items-center gap-2 py-8">
             <span className="flex size-10 items-center justify-center rounded-full bg-muted">
               <Users className="size-5 text-muted-foreground" aria-hidden />
             </span>
-            <p className="text-sm font-medium">No affiliates yet</p>
+            <p className="text-sm font-medium">No affiliates here</p>
             <p className="text-xs text-muted-foreground">
-              Add a partner to give them a referral link.
+              Customers apply from their account, or add one by email.
             </p>
           </div>
         }
       />
 
-      <Dialog open={form !== null} onOpenChange={(open) => !open && setForm(null)}>
-        <DialogContent className="max-w-xl">
+      {/* Add affiliate by account email */}
+      <Dialog open={addOpen} onOpenChange={(open) => !open && setAddOpen(false)}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{form?.id ? 'Edit affiliate' : 'New affiliate'}</DialogTitle>
+            <DialogTitle>Add affiliate</DialogTitle>
           </DialogHeader>
+          <form onSubmit={submitAdd} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Account</Label>
+              <AppAsyncSelect
+                value={addAccount}
+                onChange={setAddAccount}
+                loadOptions={loadAccounts}
+                placeholder="Search by name or email…"
+                noOptionsMessage="No accounts found"
+              />
+              <p className="text-xs text-muted-foreground">
+                Search an existing storefront account. They become an active affiliate immediately.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="add-rate">Commission rate (%)</Label>
+              <Input
+                id="add-rate"
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={addPercent}
+                onChange={(e) => setAddPercent(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder="Store default"
+              />
+            </div>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={addAffiliate.isPending}>
+                {addAffiliate.isPending ? 'Adding…' : 'Add affiliate'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-          {form ? (
-            <form onSubmit={onSubmit} className="space-y-4">
+      {/* Edit affiliate */}
+      <Dialog open={edit !== null} onOpenChange={(open) => !open && setEdit(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit affiliate</DialogTitle>
+          </DialogHeader>
+          {edit ? (
+            <form onSubmit={submitEdit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="name">Name</Label>
+                  <Label htmlFor="edit-rate">Commission rate (%)</Label>
                   <Input
-                    id="name"
-                    value={form.name}
-                    onChange={(e) => set('name', e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => set('email', e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                {form.id ? (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="status">Status</Label>
-                    <AppSelect
-                      id="status"
-                      value={form.status}
-                      onChange={(value) => set('status', value as AffiliateDto['status'])}
-                      options={STATUS_OPTIONS}
-                      isSearchable={false}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Paused and blocked links still redirect, they just stop earning.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="code">Referral code</Label>
-                    <Input
-                      id="code"
-                      value={form.code}
-                      onChange={(e) => set('code', e.target.value)}
-                      placeholder="jane"
-                      className="font-mono"
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Their link becomes /ref/{form.code || '…'}. It cannot be changed later.
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="rate">Commission rate (%)</Label>
-                  <Input
-                    id="rate"
+                    id="edit-rate"
                     type="number"
                     min={0}
                     max={100}
                     step="0.01"
-                    value={form.commissionPercent}
-                    onChange={(e) => set('commissionPercent', Number(e.target.value))}
+                    value={edit.commissionPercent}
+                    onChange={(e) =>
+                      setEdit({ ...edit, commissionPercent: Number(e.target.value) })
+                    }
                     required
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Taken from the order subtotal, before tax and shipping.
-                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-status">Status</Label>
+                  <AppSelect
+                    id="edit-status"
+                    value={edit.status}
+                    onChange={(value) =>
+                      setEdit({ ...edit, status: value as AffiliateDto['status'] })
+                    }
+                    options={STATUS_OPTIONS}
+                    isSearchable={false}
+                  />
                 </div>
               </div>
-
               <div className="space-y-1.5">
-                <Label htmlFor="payout">Payout details</Label>
+                <Label htmlFor="edit-notes">Notes</Label>
                 <Textarea
-                  id="payout"
+                  id="edit-notes"
                   rows={2}
-                  value={form.payoutDetails}
-                  disabled={form.clearPayout}
-                  onChange={(e) => set('payoutDetails', e.target.value)}
-                  placeholder={
-                    form.clearPayout
-                      ? 'Will be removed on save'
-                      : form.hasPayoutDetails
-                        ? 'Stored — leave blank to keep it unchanged'
-                        : 'Bank account, PayPal address, whatever you pay them with'
-                  }
-                />
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">
-                    Encrypted at rest and never sent back to the browser.
-                  </p>
-                  {form.hasPayoutDetails ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        set('clearPayout', !form.clearPayout)
-                        set('payoutDetails', '')
-                      }}
-                      className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                    >
-                      {form.clearPayout ? 'Keep stored details' : 'Remove stored details'}
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  rows={2}
-                  value={form.notes}
-                  onChange={(e) => set('notes', e.target.value)}
+                  value={edit.notes}
+                  onChange={(e) => setEdit({ ...edit, notes: e.target.value })}
                 />
               </div>
-
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
               <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setForm(null)}>
+                <Button type="button" variant="ghost" onClick={() => setEdit(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? 'Saving…' : 'Save affiliate'}
+                <Button type="submit" disabled={update.isPending}>
+                  {update.isPending ? 'Saving…' : 'Save'}
                 </Button>
               </DialogFooter>
             </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* Notes / applicant message */}
+      <Dialog open={notesOf !== null} onOpenChange={(open) => !open && setNotesOf(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Notes — {notesOf?.name}</DialogTitle>
+          </DialogHeader>
+          {notesOf ? (
+            <div className="space-y-4">
+              {notesOf.applicantMessage ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Applicant’s message
+                    </p>
+                    {notesOf.appliedAt ? (
+                      <span className="text-xs text-muted-foreground">
+                        {formatDateTime(notesOf.appliedAt)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                    {notesOf.applicantMessage}
+                  </p>
+                </div>
+              ) : null}
+              {notesOf.notes ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Admin note
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      Updated {formatDateTime(notesOf.updatedAt)}
+                    </span>
+                  </div>
+                  <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                    {notesOf.notes}
+                  </p>
+                </div>
+              ) : null}
+              {!notesOf.applicantMessage && !notesOf.notes ? (
+                <p className="text-sm text-muted-foreground">No notes.</p>
+              ) : null}
+            </div>
           ) : null}
         </DialogContent>
       </Dialog>

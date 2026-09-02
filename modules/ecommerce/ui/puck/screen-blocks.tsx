@@ -4,6 +4,7 @@ import { OrderStatusScreen } from '../storefront/order'
 import { AccountScreen } from '../storefront/account/index'
 import { LoginScreen } from '../storefront/account/login'
 import { RegisterScreen } from '../storefront/account/register'
+import { AffiliateScreen } from '../storefront/account/affiliate'
 
 /**
  * Page-builder blocks for the storefront application screens.
@@ -36,3 +37,4 @@ export const OrderStatusBlockView = () => <OrderStatusScreen embedded />
 export const AccountBlockView = () => <AccountScreen embedded />
 export const LoginBlockView = () => <LoginScreen embedded />
 export const RegisterBlockView = () => <RegisterScreen embedded />
+export const AffiliateBlockView = () => <AffiliateScreen embedded />

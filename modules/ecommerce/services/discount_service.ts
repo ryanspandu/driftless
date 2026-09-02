@@ -171,7 +171,7 @@ export default class DiscountService {
     discountId: string,
     orderId: string,
     amount: number,
-    context: { email: string | null; customerId: string | null },
+    context: { email: string | null; accountId: string | null },
     trx: TransactionClientContract
   ): Promise<void> {
     const claimed = await trx
@@ -188,7 +188,7 @@ export default class DiscountService {
       id: newUlid(),
       discount_id: discountId,
       order_id: orderId,
-      customer_id: context.customerId,
+      account_id: context.accountId,
       email_hash: context.email ? emailHash(context.email) : null,
       amount,
       created_at: DateTime.now().toSQL(),

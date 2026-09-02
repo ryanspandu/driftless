@@ -6,6 +6,7 @@ import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import { BaseModel, column, manyToMany } from '@adonisjs/lucid/orm'
 import type { ManyToMany } from '@adonisjs/lucid/types/relations'
 import Role from '#models/role'
+import { recoveryCodesColumn, type RecoveryCode } from '#services/totp_service'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -48,6 +49,21 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @column.dateTime()
   declare emailVerifiedAt: DateTime | null
+
+  /**
+   * Authenticator-app (TOTP) two-factor. The secret is encrypted at rest and
+   * the recovery codes are hashed, so neither is ever exposed — both
+   * `serializeAs: null`. `twoFactorEnabledAt` is null while enrolment is pending
+   * and set once a first valid code confirms it.
+   */
+  @column({ serializeAs: null })
+  declare twoFactorSecretEnc: string | null
+
+  @column.dateTime()
+  declare twoFactorEnabledAt: DateTime | null
+
+  @column({ ...recoveryCodesColumn, serializeAs: null })
+  declare twoFactorRecoveryCodes: RecoveryCode[]
 
   @column.dateTime()
   declare deletedAt: DateTime | null

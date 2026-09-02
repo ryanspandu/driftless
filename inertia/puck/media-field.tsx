@@ -233,9 +233,12 @@ export function MediaPickerDialog({
 export function MediaField({
   value,
   onChange,
+  onPick,
 }: {
   value?: string
   onChange: (url: string) => void
+  /** Fires with the full media record (incl. responsive variants) on library pick. */
+  onPick?: (item: MediaDto) => void
 }) {
   const [open, setOpen] = useState(false)
 
@@ -262,7 +265,13 @@ export function MediaField({
         </Button>
       )}
 
-      <MediaPickerDialog open={open} onOpenChange={setOpen} value={value} onChange={onChange} />
+      <MediaPickerDialog
+        open={open}
+        onOpenChange={setOpen}
+        value={value}
+        onChange={onChange}
+        onPick={onPick}
+      />
     </div>
   )
 }

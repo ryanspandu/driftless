@@ -19,7 +19,7 @@ export default class Cart extends BaseModel {
   declare tokenHash: string
 
   @column()
-  declare customerId: string | null
+  declare accountId: string | null
 
   @column()
   declare currency: string

@@ -26,6 +26,8 @@ const PAGE_LABELS: Record<string, string> = {
   "/admin/users": "Users",
   "/admin/roles": "Roles & Permissions",
   "/admin/analytics": "Analytics",
+  "/admin/forms": "Forms",
+  "/admin/redirects": "Redirects",
   "/admin/settings": "Website settings",
   "/admin/profile": "Profile",
   "/admin/integrations": "Integrations",

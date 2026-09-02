@@ -1,16 +1,16 @@
-import { type AccountOrderDto, type CustomerDto } from '../_api'
+import { type AccountOrderDto, type AccountDto } from '../_api'
 import { OrderCard } from './orders'
 import { formatMonth } from './_format'
 
 type Tab = 'overview' | 'orders' | 'profile' | 'addresses'
 
 export function OverviewSection({
-  customer,
+  account,
   orders,
   onOpenOrder,
   onGoTo,
 }: {
-  customer: CustomerDto
+  account: AccountDto
   orders: AccountOrderDto[]
   onOpenOrder: (number: string) => void
   onGoTo: (tab: Tab) => void
@@ -20,9 +20,9 @@ export function OverviewSection({
   return (
     <div className="space-y-8">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Orders" value={String(customer.ordersCount)} />
-        <Stat label="Total spent" value={customer.totalSpent?.formatted ?? '—'} />
-        <Stat label="Member since" value={formatMonth(customer.memberSince)} />
+        <Stat label="Orders" value={String(account.ordersCount)} />
+        <Stat label="Total spent" value={account.totalSpent?.formatted ?? '—'} />
+        <Stat label="Member since" value={formatMonth(account.memberSince)} />
       </div>
 
       <section>

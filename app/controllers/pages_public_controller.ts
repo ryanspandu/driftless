@@ -5,8 +5,12 @@ import PageRenderer, { SSG_CACHE } from '#services/page_renderer'
 import { currentBuildId } from '#services/release'
 import { allReservedSegments } from '#modules/registry'
 import { mediaUrlSegment } from '#services/media_url'
+import RedirectsService from '#services/redirects_service'
+import PagesService from '#services/pages_service'
 
 const renderer = new PageRenderer()
+const redirects = new RedirectsService()
+const pagesService = new PagesService()
 
 /**
  * Route prefixes that must never be treated as a builder page path.
@@ -41,6 +45,8 @@ const RESERVED_FIRST_SEGMENT = new Set([
   'robots.txt',
   'sitemap.xml',
   'favicon.ico',
+  /** Shareable draft-preview links (`/preview/:token`). */
+  'preview',
   /** Affiliate referral links (`/ref/:code`), registered by the same module. */
   'ref',
 ])
@@ -77,6 +83,16 @@ export default class PagesPublicController {
       .first()
 
     if (!page) {
+      // Before giving up, honour a configured redirect (e.g. a moved page's old
+      // URL). Keeps inbound links and ranking alive instead of 404-ing.
+      const hit = await redirects.resolve(path).catch(() => null)
+      if (hit) {
+        void redirects.recordHit(hit.id)
+        return response
+          .redirect()
+          .status(hit.status === 302 ? 302 : 301)
+          .toPath(hit.toPath)
+      }
       pageNotFound()
     }
 
@@ -102,6 +118,27 @@ export default class PagesPublicController {
     }
 
     return this.composeAndRender(page, ctx, false)
+  }
+
+  /**
+   * Public **share preview** by unguessable token: renders the page (draft
+   * included, staged draft content if present) at any status, uncached and
+   * never indexed. Lets a stakeholder without a login see work in progress.
+   */
+  async previewByToken(ctx: HttpContext) {
+    const { params, response } = ctx
+    const token = String((params as Record<string, unknown>).token ?? '')
+    const page = await pagesService.findByPreviewToken(token)
+    if (!page) {
+      pageNotFound()
+    }
+    // Show the staged draft when there is one, so the link previews unpublished work.
+    if (page.draftContent != null) {
+      page.content = page.draftContent
+      if (page.draftSeo != null) page.seo = page.draftSeo
+    }
+    response.header('X-Robots-Tag', 'noindex, nofollow')
+    return renderer.render(page, ctx, { preview: true })
   }
 
   /**

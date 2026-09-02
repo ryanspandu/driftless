@@ -43,6 +43,42 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/public_controller').default['offline']>>>
     }
   }
+  'analytics.collect': {
+    methods: ["POST"]
+    pattern: '/api/analytics/collect'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/analytics_controller').default['collect']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/analytics_controller').default['collect']>>>
+    }
+  }
+  'forms.submit': {
+    methods: ["POST"]
+    pattern: '/api/forms/submit'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['submit']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['submit']>>>
+    }
+  }
+  'pages_public.preview_by_token': {
+    methods: ["GET","HEAD"]
+    pattern: '/preview/:token'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { token: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/pages_public_controller').default['previewByToken']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/pages_public_controller').default['previewByToken']>>>
+    }
+  }
   'public_content.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/public/content'
@@ -259,6 +295,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>>
     }
   }
+  'session.two_factor.challenge': {
+    methods: ["GET","HEAD"]
+    pattern: '/login/2fa'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/two_factor_controller').default['challenge']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/two_factor_controller').default['challenge']>>>
+    }
+  }
+  'session.two_factor.verify': {
+    methods: ["POST"]
+    pattern: '/login/2fa'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/two_factor_controller').default['verifyChallenge']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/two_factor_controller').default['verifyChallenge']>>>
+    }
+  }
   'password_reset.create': {
     methods: ["GET","HEAD"]
     pattern: '/forgot-password'
@@ -355,6 +415,42 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/session_controller').default['updateProfile']>>>
     }
   }
+  'two_factor.enroll': {
+    methods: ["POST"]
+    pattern: '/api/me/2fa/enroll'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/two_factor_controller').default['enroll']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/two_factor_controller').default['enroll']>>>
+    }
+  }
+  'two_factor.confirm': {
+    methods: ["POST"]
+    pattern: '/api/me/2fa/confirm'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/two_factor_controller').default['confirm']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/two_factor_controller').default['confirm']>>>
+    }
+  }
+  'two_factor.disable': {
+    methods: ["POST"]
+    pattern: '/api/me/2fa/disable'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/two_factor_controller').default['disable']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/two_factor_controller').default['disable']>>>
+    }
+  }
   'dashboard.index': {
     methods: ["GET","HEAD"]
     pattern: '/admin/dashboard'
@@ -377,6 +473,126 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/dashboard_controller').default['analyticsPage']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/dashboard_controller').default['analyticsPage']>>>
+    }
+  }
+  'analytics.report': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/analytics/report'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/analytics_controller').default['report']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/analytics_controller').default['report']>>>
+    }
+  }
+  'forms.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/forms'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['page']>>>
+    }
+  }
+  'forms.list': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/forms'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['list']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['list']>>>
+    }
+  }
+  'forms.update_status': {
+    methods: ["PUT"]
+    pattern: '/api/admin/forms/:id/status'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['updateStatus']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['updateStatus']>>>
+    }
+  }
+  'forms.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/forms/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['destroy']>>>
+    }
+  }
+  'redirects.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/redirects'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/redirects_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/redirects_controller').default['page']>>>
+    }
+  }
+  'redirects.list': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/redirects'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/redirects_controller').default['list']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/redirects_controller').default['list']>>>
+    }
+  }
+  'redirects.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/redirects'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/redirects_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/redirects_controller').default['store']>>>
+    }
+  }
+  'redirects.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/redirects/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/redirects_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/redirects_controller').default['update']>>>
+    }
+  }
+  'redirects.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/redirects/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/redirects_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/redirects_controller').default['destroy']>>>
     }
   }
   'dashboard.profile_page': {
@@ -979,6 +1195,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['codeComponents']>>>
     }
   }
+  'pages.import_one': {
+    methods: ["POST"]
+    pattern: '/api/admin/pages/import'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['importOne']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['importOne']>>>
+    }
+  }
+  'pages.bulk': {
+    methods: ["POST"]
+    pattern: '/api/admin/pages/bulk'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['bulk']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['bulk']>>>
+    }
+  }
   'pages.store': {
     methods: ["POST"]
     pattern: '/api/admin/pages'
@@ -1037,6 +1277,90 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['restoreRevision']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['restoreRevision']>>>
+    }
+  }
+  'pages.save_draft': {
+    methods: ["PUT"]
+    pattern: '/api/admin/pages/:id/draft'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['saveDraft']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['saveDraft']>>>
+    }
+  }
+  'pages.publish': {
+    methods: ["POST"]
+    pattern: '/api/admin/pages/:id/publish'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['publish']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['publish']>>>
+    }
+  }
+  'pages.discard_draft': {
+    methods: ["POST"]
+    pattern: '/api/admin/pages/:id/discard-draft'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['discardDraft']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['discardDraft']>>>
+    }
+  }
+  'pages.preview_token': {
+    methods: ["POST"]
+    pattern: '/api/admin/pages/:id/preview-token'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['previewToken']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['previewToken']>>>
+    }
+  }
+  'pages.clear_preview_token': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/pages/:id/preview-token'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['clearPreviewToken']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['clearPreviewToken']>>>
+    }
+  }
+  'pages.duplicate': {
+    methods: ["POST"]
+    pattern: '/api/admin/pages/:id/duplicate'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['duplicate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['duplicate']>>>
+    }
+  }
+  'pages.export_one': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/pages/:id/export'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['exportOne']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['exportOne']>>>
     }
   }
   'pages.show': {
@@ -2575,6 +2899,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['clear']>>>
     }
   }
+  'shop.cart.discount.apply': {
+    methods: ["POST"]
+    pattern: '/api/shop/cart/discount'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['applyDiscount']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['applyDiscount']>>>
+    }
+  }
+  'shop.cart.discount.remove': {
+    methods: ["DELETE"]
+    pattern: '/api/shop/cart/discount'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['removeDiscount']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/cart_controller').default['removeDiscount']>>>
+    }
+  }
   'shop.checkout': {
     methods: ["POST"]
     pattern: '/api/shop/checkout'
@@ -2609,6 +2957,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['login']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['login']>>>
+    }
+  }
+  'shop.account.two_factor.verify': {
+    methods: ["POST"]
+    pattern: '/api/shop/account/2fa/verify'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['verify2fa']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['verify2fa']>>>
     }
   }
   'shop.account.logout': {
@@ -2729,6 +3089,90 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['deleteAddress']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['deleteAddress']>>>
+    }
+  }
+  'shop.account.affiliate.overview': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/shop/account/affiliate'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['affiliateOverview']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['affiliateOverview']>>>
+    }
+  }
+  'shop.account.affiliate.apply': {
+    methods: ["POST"]
+    pattern: '/api/shop/account/affiliate/apply'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['applyAffiliate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['applyAffiliate']>>>
+    }
+  }
+  'shop.account.affiliate.payout': {
+    methods: ["PUT"]
+    pattern: '/api/shop/account/affiliate/payout-method'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['updatePayoutMethod']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['updatePayoutMethod']>>>
+    }
+  }
+  'shop.account.affiliate.withdraw': {
+    methods: ["POST"]
+    pattern: '/api/shop/account/affiliate/withdrawals'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['requestWithdrawal']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['requestWithdrawal']>>>
+    }
+  }
+  'shop.account.two_factor.enroll': {
+    methods: ["POST"]
+    pattern: '/api/shop/account/2fa/enroll'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['enroll2fa']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['enroll2fa']>>>
+    }
+  }
+  'shop.account.two_factor.confirm': {
+    methods: ["POST"]
+    pattern: '/api/shop/account/2fa/confirm'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['confirm2fa']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['confirm2fa']>>>
+    }
+  }
+  'shop.account.two_factor.disable': {
+    methods: ["POST"]
+    pattern: '/api/shop/account/2fa/disable'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['disable2fa']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/account_controller').default['disable2fa']>>>
     }
   }
   'shop.referral': {
@@ -3643,6 +4087,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['commissionsPage']>>>
     }
   }
+  'ecommerce.withdrawals.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/marketing/withdrawals'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['withdrawalsPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['withdrawalsPage']>>>
+    }
+  }
   'ecommerce.api.discounts.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/ecommerce/discounts'
@@ -3703,6 +4159,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listAffiliates']>>>
     }
   }
+  'ecommerce.api.affiliates.accounts': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/affiliate-accounts'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['searchAccounts']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['searchAccounts']>>>
+    }
+  }
   'ecommerce.api.affiliates.store': {
     methods: ["POST"]
     pattern: '/api/admin/ecommerce/affiliates'
@@ -3711,8 +4179,32 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['createAffiliate']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['createAffiliate']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['addAffiliate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['addAffiliate']>>>
+    }
+  }
+  'ecommerce.api.affiliates.approve': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/affiliates/:id/approve'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['approveAffiliate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['approveAffiliate']>>>
+    }
+  }
+  'ecommerce.api.affiliates.reject': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/affiliates/:id/reject'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['rejectAffiliate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['rejectAffiliate']>>>
     }
   }
   'ecommerce.api.affiliates.update': {
@@ -3739,6 +4231,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listCommissions']>>>
     }
   }
+  'ecommerce.api.withdrawals.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/withdrawals'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listWithdrawals']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listWithdrawals']>>>
+    }
+  }
   'ecommerce.api.commissions.pay': {
     methods: ["POST"]
     pattern: '/api/admin/ecommerce/commissions/pay'
@@ -3761,6 +4265,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['exportPayouts']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['exportPayouts']>>>
+    }
+  }
+  'ecommerce.api.withdrawals.process': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/withdrawals/:id/process'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['processWithdrawal']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['processWithdrawal']>>>
     }
   }
   'ecommerce.api.stats': {

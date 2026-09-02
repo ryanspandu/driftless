@@ -309,6 +309,39 @@ export default function EcommerceDashboardPage() {
             />
           </div>
 
+          {(data?.activeAffiliatesCount ?? 0) > 0 ||
+          (data?.pendingAffiliatesCount ?? 0) > 0 ||
+          (data?.affiliatePayable.amount ?? 0) > 0 ||
+          (data?.affiliatePaid.amount ?? 0) > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <StatTile
+                icon={Users}
+                label="Active affiliates"
+                value={String(data?.activeAffiliatesCount ?? 0)}
+                hint={
+                  (data?.pendingAffiliatesCount ?? 0) > 0
+                    ? `${data?.pendingAffiliatesCount} application(s) pending`
+                    : undefined
+                }
+                tone={(data?.pendingAffiliatesCount ?? 0) > 0 ? 'warning' : undefined}
+                href="/admin/marketing/affiliates"
+              />
+              <StatTile
+                icon={Receipt}
+                label="Commission payable"
+                value={data?.affiliatePayable.formatted ?? '—'}
+                hint="Approved, awaiting payout"
+                href="/admin/marketing/withdrawals"
+              />
+              <StatTile
+                icon={TrendingUp}
+                label="Paid to affiliates"
+                value={data?.affiliatePaid.formatted ?? '—'}
+                hint="Lifetime commission paid"
+              />
+            </div>
+          ) : null}
+
           {(data?.pendingOrdersCount ?? 0) > 0 || (data?.lowStockCount ?? 0) > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {(data?.pendingOrdersCount ?? 0) > 0 ? (

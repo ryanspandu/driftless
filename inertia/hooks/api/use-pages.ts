@@ -69,6 +69,87 @@ export function useDeletePage() {
   })
 }
 
+/** Stage edits (autosave) — writes the draft columns, never the live page. */
+export function useSaveDraft() {
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string } & UpdatePageRequest) =>
+      apiFetch<PageDto>(`/api/admin/pages/${id}/draft`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+  })
+}
+
+/** Promote the editor state to live and clear the draft. */
+export function usePublishPage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string } & UpdatePageRequest) =>
+      apiFetch<PageDto>(`/api/admin/pages/${id}/publish`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: qk.list })
+      qc.invalidateQueries({ queryKey: qk.one(vars.id) })
+    },
+  })
+}
+
+export function useDiscardDraft() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<PageDto>(`/api/admin/pages/${id}/discard-draft`, { method: 'POST' }),
+    onSuccess: (_data, id) => qc.invalidateQueries({ queryKey: qk.one(id) }),
+  })
+}
+
+export function useDuplicatePage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<PageDto>(`/api/admin/pages/${id}/duplicate`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.list }),
+  })
+}
+
+export function usePreviewToken() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ token: string; url: string }>(`/api/admin/pages/${id}/preview-token`, {
+        method: 'POST',
+      }),
+  })
+}
+
+export function useImportPage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (page: unknown) =>
+      apiFetch<PageDto>('/api/admin/pages/import', {
+        method: 'POST',
+        body: JSON.stringify({ page }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.list }),
+  })
+}
+
+export function useBulkPages() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { ids: string[]; action: 'publish' | 'unpublish' | 'trash' | 'delete' }) =>
+      apiFetch<{ count: number }>('/api/admin/pages/bulk', {
+        method: 'POST',
+        body: JSON.stringify(vars),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.list })
+      qc.invalidateQueries({ queryKey: qk.trash })
+    },
+  })
+}
+
 /** Soft-deleted pages (the Trash). */
 export function useTrashedPages(enabled = true) {
   return useQuery({

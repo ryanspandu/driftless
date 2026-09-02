@@ -11,11 +11,16 @@ import { BuilderShell } from '~/puck/builder-shell'
 import { BuilderLoadState } from '~/puck/builder-load-state'
 import { customPageHasRegion } from '~/custom/registry'
 import type { PageMeta } from '~/puck/settings-dialog'
-import { usePage as usePageRecord, useUpdatePage } from '~/hooks/api/use-pages'
+import {
+  usePage as usePageRecord,
+  usePublishPage,
+  useSaveDraft,
+  useDiscardDraft,
+} from '~/hooks/api/use-pages'
 import { useBreakpoints, useUpdateBreakpoints } from '~/hooks/api/use-breakpoints'
 import { readBreakpoints, type Breakpoint } from '~/puck/breakpoints'
 import type { PageDto } from '~/types/api'
-import { Button, buttonVariants } from '~/components/ui/button'
+import { buttonVariants } from '~/components/ui/button'
 import { PageRevisionsPanel } from '~/components/admin/page-revisions-panel'
 import { cn } from '~/lib/utils'
 
@@ -121,7 +126,9 @@ function BuilderInner({
   /** Slug of the code page this region belongs to, when editing one. */
   regionOf?: string | null
 }) {
-  const updateMut = useUpdatePage()
+  const publishMut = usePublishPage()
+  const saveDraftMut = useSaveDraft()
+  const discardMut = useDiscardDraft()
   const bpQuery = useBreakpoints()
   const updateBp = useUpdateBreakpoints()
   // Site-wide tiers, normalised client-side (falls back to the standard set while
@@ -138,35 +145,60 @@ function BuilderInner({
     footerTemplateId: page.footerTemplateId,
     hideHeader: Boolean(page.hideHeader),
     hideFooter: Boolean(page.hideFooter),
-    seo: (page.seo ?? {}) as Record<string, unknown>,
+    // Edit the staged draft SEO when one exists, else the live SEO.
+    seo: (page.draftSeo ?? page.seo ?? {}) as Record<string, unknown>,
+    scheduledPublishAt: page.scheduledPublishAt,
+    scheduledUnpublishAt: page.scheduledUnpublishAt,
   }))
 
-  const initial =
-    page.content && Object.keys(page.content).length ? (page.content as unknown as Data) : EMPTY_DOC
+  // Open the staged draft design when there is one, so autosaved work resumes.
+  const openDoc = (page.draftContent ?? page.content) as Record<string, unknown> | null
+  const initial = openDoc && Object.keys(openDoc).length ? (openDoc as unknown as Data) : EMPTY_DOC
+
+  const metaFields = () => ({
+    title: meta.title,
+    path: meta.path,
+    renderMode: meta.renderMode,
+    layoutId: meta.layoutId,
+    headerTemplateId: meta.headerTemplateId,
+    footerTemplateId: meta.footerTemplateId,
+    hideHeader: meta.hideHeader,
+    hideFooter: meta.hideFooter,
+    seo: meta.seo,
+    scheduledPublishAt: meta.scheduledPublishAt ?? null,
+    scheduledUnpublishAt: meta.scheduledUnpublishAt ?? null,
+  })
 
   const save = async (data: Data) => {
     try {
-      await updateMut.mutateAsync({
+      await publishMut.mutateAsync({
         id,
         content: data as unknown as Record<string, unknown>,
-        title: meta.title,
-        path: meta.path,
-        status: meta.status,
-        renderMode: meta.renderMode,
-        layoutId: meta.layoutId,
-        headerTemplateId: meta.headerTemplateId,
-        footerTemplateId: meta.footerTemplateId,
-        hideHeader: meta.hideHeader,
-        hideFooter: meta.hideFooter,
-        seo: meta.seo,
+        ...metaFields(),
       })
-      toast.success('Page saved')
+      setMeta((m) => ({ ...m, status: 'PUBLISHED' }))
+      toast.success('Page published')
     } catch (error) {
-      toast.error('Failed to save')
+      toast.error('Failed to publish')
       // Rethrown so BuilderShell keeps the page marked unsaved — a failed save
       // that clears the guard is how you lose the work you thought was safe.
       throw error
     }
+  }
+
+  // Autosave stages content + SEO to the draft; the live page is untouched.
+  const autosave = async (data: Data, seo: Record<string, unknown>) => {
+    await saveDraftMut.mutateAsync({
+      id,
+      content: data as unknown as Record<string, unknown>,
+      seo,
+    })
+  }
+
+  const discardDraft = async () => {
+    await discardMut.mutateAsync(id)
+    // Reload to reopen the builder on the live design.
+    window.location.reload()
   }
 
   return (
@@ -180,6 +212,9 @@ function BuilderInner({
     >
       <BuilderShell
         onPublish={save}
+        onAutosave={autosave}
+        hasDraft={Boolean(page.draftContent)}
+        onDiscardDraft={discardDraft}
         pageMeta={meta}
         onPageMetaChange={setMeta}
         breakpoints={breakpoints}
@@ -190,12 +225,12 @@ function BuilderInner({
           <>
             <Link
               href="/admin/pages"
-              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}
+              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'shrink-0 gap-1.5')}
             >
               <ArrowLeft className="size-4" />
               Pages
             </Link>
-            <span className="truncate text-sm font-medium">{meta.title}</span>
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">{meta.title}</span>
             <span className="shrink-0 text-xs text-muted-foreground">/{meta.path}</span>
             {/*
               Says what is being edited. Without it the canvas looks like a whole
@@ -211,33 +246,32 @@ function BuilderInner({
         }
         topbarEnd={
           <>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5"
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted"
               onClick={() => setHistoryOpen(true)}
             >
               <History className="size-4" />
-              History
-            </Button>
+              Version history
+            </button>
             <a
               href={`/admin/pages/${id}/preview`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted"
             >
               <Eye className="size-4" />
-              Preview
+              Preview draft
             </a>
             {meta.status === 'PUBLISHED' ? (
               <a
                 href={`/${meta.path}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted"
               >
                 <ExternalLink className="size-4" />
-                View live
+                View live page
               </a>
             ) : null}
           </>

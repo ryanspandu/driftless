@@ -12,7 +12,7 @@ import OrderConfirmationMail from '#modules/ecommerce/mails/order_confirmation_m
 import OrderShippedMail from '#modules/ecommerce/mails/order_shipped_mail'
 import BasketReminderMail from '#modules/ecommerce/mails/basket_reminder_mail'
 import Cart from '#modules/ecommerce/models/cart'
-import Customer from '#modules/ecommerce/models/customer'
+import Account from '#modules/ecommerce/models/account'
 import CartService from '#modules/ecommerce/services/cart_service'
 import PricingService from '#modules/ecommerce/services/pricing_service'
 import MarketingConsentService from '#modules/ecommerce/services/marketing_consent_service'
@@ -276,7 +276,7 @@ export default class OrderNotifierService {
     const cutoff = Luxon.now().minus({ minutes: store.checkoutTtlMinutes })
 
     const candidates = await Cart.query()
-      .whereNotNull('customer_id')
+      .whereNotNull('account_id')
       .whereNull('reminded_at')
       .where('updated_at', '<', cutoff.toSQL()!)
       .orderBy('updated_at', 'asc')
@@ -286,7 +286,7 @@ export default class OrderNotifierService {
 
     for (const cart of candidates) {
       try {
-        const customer = cart.customerId ? await Customer.find(cart.customerId) : null
+        const customer = cart.accountId ? await Account.find(cart.accountId) : null
         if (!customer || !consent.mayEmail(customer)) {
           /**
            * Stamped anyway. Without this, a basket belonging to someone who

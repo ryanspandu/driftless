@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { booleanColumn } from '#models/_columns'
+import { booleanColumn, moneyColumn } from '#models/_columns'
 
 /** Single-row store configuration. Always id `default`. */
 export default class EcommerceSetting extends BaseModel {
@@ -70,6 +70,14 @@ export default class EcommerceSetting extends BaseModel {
   /** Last-click attribution window for affiliate referrals. */
   @column()
   declare affiliateCookieDays: number
+
+  /** Smallest balance (minor units) an affiliate may request a withdrawal for. */
+  @column(moneyColumn)
+  declare affiliateMinWithdrawalAmount: number
+
+  /** Default commission rate (millipercent) applied when an affiliate is approved. */
+  @column()
+  declare affiliateDefaultCommissionMilli: number
 
   @column()
   declare orderNumberPrefix: string

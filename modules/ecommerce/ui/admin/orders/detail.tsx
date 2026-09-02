@@ -406,7 +406,7 @@ export default function OrderDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Customer</CardTitle>
+              <CardTitle>Account</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <p>{order.email}</p>
@@ -424,7 +424,7 @@ export default function OrderDetailPage() {
 
               {order.customerNote ? (
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Customer note</p>
+                  <p className="text-xs font-medium text-muted-foreground">Account note</p>
                   <p className="text-sm">{order.customerNote}</p>
                 </div>
               ) : null}

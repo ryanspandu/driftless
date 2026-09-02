@@ -7,10 +7,24 @@ import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import { extname, isAbsolute, join, relative } from 'node:path'
 import { fileTypeFromFile } from 'file-type'
+import sharp from 'sharp'
 import Media from '#models/media'
+import MediaVariant from '#models/media_variant'
 import { mediaUrlPrefix } from '#services/media_url'
 import { newUlid } from '#services/ulid_service'
 import { sanitizeSvg } from '#services/html_sanitizer_service'
+
+/** Widths (px) generated for responsive `srcset`; never upscales past the original. */
+const VARIANT_WIDTHS = [480, 960, 1440]
+/** Mime types we run through sharp (animated GIF + SVG are left as-is). */
+const RASTER_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+export interface MediaVariantDto {
+  width: number
+  height: number | null
+  format: string
+  url: string
+}
 
 export interface MediaDto {
   id: string
@@ -24,6 +38,8 @@ export interface MediaDto {
   width: number | null
   height: number | null
   authorId: number | null
+  /** Responsive webp derivatives, ascending by width (empty for non-raster). */
+  variants: MediaVariantDto[]
   createdAt: string
   updatedAt: string | null
 }
@@ -130,6 +146,7 @@ export default class MediaService {
       if (to.isValid) query.where('created_at', '<', to.plus({ days: 1 }).toSQLDate()!)
     }
 
+    query.preload('variants')
     const paginated = await query.orderBy('created_at', 'desc').paginate(page, pageSize)
 
     return {
@@ -142,7 +159,11 @@ export default class MediaService {
   }
 
   async findOne(id: string): Promise<MediaDto> {
-    const media = await Media.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    const media = await Media.query()
+      .where('id', id)
+      .whereNull('deleted_at')
+      .preload('variants')
+      .firstOrFail()
     return this.toDto(media)
   }
 
@@ -181,6 +202,78 @@ export default class MediaService {
   }
 
   /**
+   * Generate responsive webp derivatives for a raster image and record the
+   * real intrinsic size on the media row (more trustworthy than the client's).
+   *
+   * Each derivative is a fresh ULID-named file so it has a stable, immutable URL
+   * — required because media is served with a one-year immutable cache, so a
+   * re-processed image (crop/replace) must never reuse a derivative URL. Old
+   * derivatives are removed first. Failures are swallowed: a page that can't be
+   * optimised must still upload.
+   */
+  private async generateVariants(media: Media, sourceAbsPath: string): Promise<void> {
+    try {
+      // Clear any prior derivatives (replace/crop path).
+      const old = await MediaVariant.query().where('media_id', media.id)
+      for (const v of old) {
+        const name = v.url.split('/').pop()
+        const p = name ? this.resolveFilePath(name) : null
+        if (p) rmSync(p, { force: true })
+      }
+      await MediaVariant.query().where('media_id', media.id).delete()
+
+      const meta = await sharp(sourceAbsPath).metadata()
+      const origWidth = meta.width ?? null
+      const origHeight = meta.height ?? null
+      if (origWidth) media.width = origWidth
+      if (origHeight) media.height = origHeight
+      await media.save()
+
+      if (!origWidth) return
+      // Target widths: the presets that fit, plus the original width itself
+      // (capped), so `srcset` covers every device up to full resolution.
+      const widths = Array.from(
+        new Set([...VARIANT_WIDTHS.filter((w) => w < origWidth), origWidth])
+      ).sort((a, b) => a - b)
+
+      for (const w of widths) {
+        const filename = `${newUlid()}.webp`
+        const outPath = join(this.uploadDir, filename)
+        const info = await sharp(sourceAbsPath)
+          .resize({ width: w, withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toFile(outPath)
+        await MediaVariant.create({
+          id: newUlid(),
+          mediaId: media.id,
+          width: info.width,
+          height: info.height,
+          format: 'webp',
+          url: `${this.urlPrefix}/${filename}`,
+          bytes: info.size,
+        })
+      }
+    } catch {
+      // Optimisation is best-effort; the original upload already succeeded.
+    }
+  }
+
+  /** Serve a webp derivative by its filename. Returns false when it is unknown. */
+  async serveVariant(response: HttpContext['response'], filename: string): Promise<boolean> {
+    const variant = await MediaVariant.query().where('url', `${this.urlPrefix}/${filename}`).first()
+    if (!variant) return false
+    const path = this.resolveFilePath(filename)
+    if (!path) return false
+    response.header('Cache-Control', 'public, max-age=31536000, immutable')
+    response.header('X-Content-Type-Options', 'nosniff')
+    response.header('Content-Security-Policy', "default-src 'none'; sandbox")
+    response.header('Content-Type', 'image/webp')
+    response.header('Content-Disposition', `inline; filename="${filename}"`)
+    response.send(await readFile(path))
+    return true
+  }
+
+  /**
    * `dimensions` come from the client, which has already decoded the image to
    * preview it — the same arrangement `replaceFile` uses. They were previously
    * left null on every upload, so nothing that needs an image's intrinsic size
@@ -197,10 +290,23 @@ export default class MediaService {
       mkdirSync(this.uploadDir, { recursive: true })
     }
 
-    const inspected = await this.inspectUpload(file, new Set([
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'application/pdf',
-      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    ]))
+    const inspected = await this.inspectUpload(
+      file,
+      new Set([
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'font/woff',
+        'font/woff2',
+        'font/ttf',
+        'font/otf',
+      ])
+    )
     const id = newUlid()
     const filename = `${id}.${inspected.ext}`
     const size = await this.persistUpload(file, join(this.uploadDir, filename), inspected.svg)
@@ -215,6 +321,12 @@ export default class MediaService {
       height: dimensions?.height ?? null,
       authorId,
     })
+
+    // Optimise raster images into responsive webp derivatives (best-effort).
+    if (RASTER_MIMES.has(inspected.mimeType)) {
+      await this.generateVariants(media, join(this.uploadDir, filename))
+    }
+    await media.load('variants')
 
     return this.toDto(media)
   }
@@ -248,9 +360,13 @@ export default class MediaService {
       mkdirSync(this.uploadDir, { recursive: true })
     }
 
-    const inspected = await this.inspectUpload(file, new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']))
+    const inspected = await this.inspectUpload(
+      file,
+      new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+    )
     const currentExt = extname(media.filename).slice(1).toLowerCase()
-    if (currentExt !== inspected.ext) throw new Error('Replacement file type must match the existing media type')
+    if (currentExt !== inspected.ext)
+      throw new Error('Replacement file type must match the existing media type')
     if (inspected.svg !== undefined) throw new Error('SVG replacement is not supported')
     await file.move(this.uploadDir, { name: media.filename, overwrite: true })
 
@@ -263,6 +379,11 @@ export default class MediaService {
       media.height = Math.round(dims.height)
     }
     await media.save()
+    // Regenerate derivatives from the new bytes (old ones are removed inside).
+    if (RASTER_MIMES.has(media.mimeType)) {
+      await this.generateVariants(media, join(this.uploadDir, media.filename))
+    }
+    await media.load('variants')
     return this.toDto(media)
   }
 
@@ -285,14 +406,23 @@ export default class MediaService {
     return this.toDto(media)
   }
 
-  /** Permanently delete a trashed media row and its file on disk. */
+  /** Permanently delete a trashed media row and its files (original + variants). */
   async forceDelete(id: string): Promise<void> {
-    const media = await Media.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    const media = await Media.query()
+      .where('id', id)
+      .whereNotNull('deleted_at')
+      .preload('variants')
+      .firstOrFail()
     const filePath = join(this.uploadDir, media.filename)
     if (existsSync(filePath)) {
       rmSync(filePath, { force: true })
     }
-    await media.delete()
+    for (const v of media.variants ?? []) {
+      const name = v.url.split('/').pop()
+      const p = name ? this.resolveFilePath(name) : null
+      if (p) rmSync(p, { force: true })
+    }
+    await media.delete() // media_variants rows cascade via FK
   }
 
   async serve(response: HttpContext['response'], path: string, media: Media) {
@@ -301,7 +431,10 @@ export default class MediaService {
     response.header('X-Content-Type-Options', 'nosniff')
     response.header('Content-Security-Policy', "default-src 'none'; sandbox")
     response.header('Content-Type', media.mimeType)
-    response.header('Content-Disposition', `${inline.has(media.mimeType) ? 'inline' : 'attachment'}; filename=\"${media.filename}\"`)
+    response.header(
+      'Content-Disposition',
+      `${inline.has(media.mimeType) ? 'inline' : 'attachment'}; filename=\"${media.filename}\"`
+    )
     if (media.mimeType === 'image/svg+xml') {
       const safe = sanitizeSvg(await readFile(path, 'utf8'))
       if (!safe) return response.notFound({ message: 'Not found' })
@@ -311,6 +444,17 @@ export default class MediaService {
   }
 
   private toDto(media: Media): MediaDto {
+    let variants: MediaVariantDto[] = []
+    try {
+      const vs = media.variants
+      if (Array.isArray(vs)) {
+        variants = vs
+          .map((v) => ({ width: v.width, height: v.height, format: v.format, url: v.url }))
+          .sort((a, b) => a.width - b.width)
+      }
+    } catch {
+      // Relation not preloaded on this path; treat as no variants.
+    }
     return {
       id: media.id,
       filename: media.filename,
@@ -323,6 +467,7 @@ export default class MediaService {
       width: media.width,
       height: media.height,
       authorId: media.authorId,
+      variants,
       createdAt: media.createdAt.toISO()!,
       updatedAt: media.updatedAt?.toISO() ?? null,
     }

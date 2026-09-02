@@ -16,6 +16,7 @@ import {
 } from '~/puck/style-controls'
 import { backgroundsToCss, readLayers } from '~/puck/background-layers'
 import { scrollAnimationAttrs } from '~/puck/scroll-animation'
+import { readConditions, useConditionallyHidden } from '~/puck/record-binding'
 import {
   BreakpointContext,
   cascadeStyleBag,
@@ -359,6 +360,53 @@ function responsiveCss(s: StyleBag, breakpoints: Breakpoint[], id: string): stri
   return out
 }
 
+// ─────────────── Interaction states (hover / focus / active) ───────────────
+
+/**
+ * Pseudo-class per editable state. `:focus-visible` (not `:focus`) so a focus
+ * style shows for keyboard users without flashing on every mouse click.
+ */
+export const STATE_PSEUDO: Record<string, string> = {
+  hover: ':hover',
+  focus: ':focus-visible',
+  active: ':active',
+}
+
+/** The per-state style overrides stored on a block (`props.states.hover`, …). */
+export function readStates(s: StyleBag): Record<string, StyleBag> {
+  const raw = s.states
+  if (!raw || typeof raw !== 'object') return {}
+  const out: Record<string, StyleBag> = {}
+  for (const name of Object.keys(STATE_PSEUDO)) {
+    const layer = (raw as Record<string, unknown>)[name]
+    if (layer && typeof layer === 'object' && Object.keys(layer as object).length) {
+      out[name] = layer as StyleBag
+    }
+  }
+  return out
+}
+
+/**
+ * One `[data-b="id"]:hover{…}` rule per defined state. Because a state change
+ * looks abrupt without one, a default `transition` is emitted on the base
+ * selector when the author has not set their own.
+ */
+function statesCss(s: StyleBag, id: string): string {
+  const states = readStates(s)
+  const names = Object.keys(states)
+  if (!names.length) return ''
+
+  let out = ''
+  if (!str(s, 'transition')) {
+    out += `[data-b="${id}"]{transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease,opacity .18s ease;}`
+  }
+  for (const name of names) {
+    const delta = styleObjectToCssText(styleToCss(states[name]!))
+    if (delta) out += `[data-b="${id}"]${STATE_PSEUDO[name]}{${delta}}`
+  }
+  return out
+}
+
 export function Box({
   s = {},
   as = 'div',
@@ -382,7 +430,11 @@ export function Box({
   const puck = s.puck as { isEditing?: boolean; dragRef?: (el: Element | null) => void } | undefined
   const hidden = s._hidden === true
   const isEditing = !!puck?.isEditing
-  if (hidden && !isEditing) return null
+  // Conditional visibility (Webflow-style): inside a repeater, hide the element
+  // when its field conditions fail. Published only — the editor keeps it visible
+  // (and dimmed) so it stays selectable.
+  const condHidden = useConditionallyHidden(readConditions(s.conditions))
+  if ((hidden || condHidden) && !isEditing) return null
 
   // Scroll-into-view reveal: data-attrs + inert CSS custom properties, applied
   // only on the published page (suppressed while editing). The hidden start
@@ -402,7 +454,11 @@ export function Box({
    */
   const { breakpoints, activeBp } = useContext(BreakpointContext)
   const hasResponsive = Object.keys(readResponsive(s)).length > 0
-  const bId = hasResponsive ? safeBlockId(s) : null
+  // Interaction states (`:hover`/`:focus`/`:active`) can only be expressed in a
+  // stylesheet, never inline — so a block with any defined state joins the same
+  // generated-`<style>` path that responsive blocks use.
+  const hasStates = Object.keys(readStates(s)).length > 0
+  const bId = hasResponsive || hasStates ? safeBlockId(s) : null
   const useStylesheet = !isEditing && !!bId
   const styleBag = isEditing && hasResponsive ? cascadeStyleBag(s, breakpoints, activeBp) : s
 
@@ -410,6 +466,31 @@ export function Box({
   // hands us a `dragRef` to put on the real element instead — so the block is
   // itself the flex/grid item (matching the published DOM) while Puck still
   // tracks/selects/drags it. `null` for non-inline blocks (React ignores it).
+  const inlineStyle: CSSProperties = {
+    ...(useStylesheet ? null : styleToCss(styleBag)),
+    ...anim.vars,
+    ...style,
+    ...(hidden ? { opacity: 0.4 } : null),
+  }
+
+  /*
+   * Opt-in lazy background: move the (inline-path) background image into a
+   * `data-bg-lazy` attribute so the client observer paints it on scroll. Only
+   * on the published page (never editing) and only when the image is inline —
+   * the stylesheet path (responsive/state blocks) keeps loading eagerly.
+   */
+  let lazyBgAttr: Record<string, string> | null = null
+  if (
+    s.bgLazy === true &&
+    !isEditing &&
+    !useStylesheet &&
+    typeof inlineStyle.backgroundImage === 'string' &&
+    inlineStyle.backgroundImage !== 'none'
+  ) {
+    lazyBgAttr = { 'data-bg-lazy': inlineStyle.backgroundImage }
+    inlineStyle.backgroundImage = undefined
+  }
+
   const el = createElement(
     as,
     {
@@ -417,23 +498,16 @@ export function Box({
       ...anim.attrs,
       ...customAttributes(s),
       ...(useStylesheet ? { 'data-b': bId } : null),
+      ...lazyBgAttr,
       ref: puck?.dragRef,
       className: cn(className, str(s, 'className')),
-      style: {
-        // When the stylesheet owns the style props, keep only the non-style
-        // inline bits (scroll-anim vars, a block's own hardcoded `style`, the
-        // editor's dimmed-hidden marker).
-        ...(useStylesheet ? null : styleToCss(styleBag)),
-        ...anim.vars,
-        ...style,
-        ...(hidden ? { opacity: 0.4 } : null),
-      },
+      style: inlineStyle,
     },
     children
   )
 
   if (useStylesheet && bId) {
-    const css = responsiveCss(s, breakpoints, bId)
+    const css = responsiveCss(s, breakpoints, bId) + statesCss(s, bId)
     if (css) {
       // A `<style>` in the body is `display:none` (inert, no layout impact); it
       // is server-rendered so it lands in the SSG snapshot and works with no JS.

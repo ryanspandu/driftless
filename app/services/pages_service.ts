@@ -5,6 +5,7 @@ import { currentBuildId } from '#services/release'
 import { CODE_PAGES } from '#services/code_pages.generated'
 import { DateTime } from 'luxon'
 import { sanitizePuckDocument } from '#services/html_sanitizer_service'
+import RedirectsService from '#services/redirects_service'
 
 export type PageStatus = 'DRAFT' | 'PUBLISHED'
 export type PageRenderMode = 'SSR' | 'SSG' | 'CSR'
@@ -28,6 +29,11 @@ export interface PageSummaryDto {
   hideFooter: boolean
   authorId: number | null
   publishedAt: string | null
+  scheduledPublishAt: string | null
+  scheduledUnpublishAt: string | null
+  /** True when unpublished (staged) edits exist. */
+  hasDraft: boolean
+  draftUpdatedAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -35,6 +41,9 @@ export interface PageSummaryDto {
 export interface PageDto extends PageSummaryDto {
   content: Record<string, unknown>
   seo: Record<string, unknown>
+  /** The staged design, when a draft exists (else null). */
+  draftContent: Record<string, unknown> | null
+  draftSeo: Record<string, unknown> | null
 }
 
 export interface PageRevisionDto {
@@ -75,6 +84,9 @@ interface UpdatePageInput {
   hideFooter?: boolean
   content?: Record<string, unknown>
   seo?: Record<string, unknown>
+  /** ISO strings or null to clear; applied verbatim to the schedule columns. */
+  scheduledPublishAt?: string | null
+  scheduledUnpublishAt?: string | null
 }
 
 /** Lowercase, collapse to a slug that may contain `/` for nested paths. */
@@ -129,8 +141,109 @@ export default class PagesService {
     return this.toDto(row)
   }
 
+  /** A path derived from `base` that is not already taken (`base`, `base-2`, …). */
+  private async freePath(base: string): Promise<string> {
+    const root = normalizePath(base) || 'page'
+    let candidate = root
+    let n = 2
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const taken = await Page.query().where('path', candidate).whereNull('deleted_at').first()
+      if (!taken) return candidate
+      candidate = normalizePath(`${root}-${n++}`)
+    }
+  }
+
+  /** Copy a page into a new DRAFT with a free path. */
+  async duplicate(id: string, authorId: number | null): Promise<PageDto> {
+    const src = await Page.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    const row = await Page.create({
+      id: newUlid(),
+      title: `${src.title} (copy)`,
+      path: await this.freePath(`${src.path}-copy`),
+      status: 'DRAFT',
+      renderMode: src.renderMode,
+      kind: src.kind,
+      component: src.component,
+      content: src.content,
+      seo: src.seo,
+      layoutId: src.layoutId,
+      headerTemplateId: src.headerTemplateId,
+      footerTemplateId: src.footerTemplateId,
+      hideHeader: src.hideHeader,
+      hideFooter: src.hideFooter,
+      authorId,
+      publishedAt: null,
+    })
+    return this.toDto(row)
+  }
+
+  /** Serialisable page bundle (no ids/timestamps) for export → import. */
+  async exportPage(id: string): Promise<Record<string, unknown>> {
+    const p = await Page.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    return {
+      _type: 'driftless.page',
+      version: 1,
+      title: p.title,
+      path: p.path,
+      renderMode: p.renderMode,
+      kind: p.kind,
+      component: p.component,
+      hideHeader: p.hideHeader,
+      hideFooter: p.hideFooter,
+      content: p.content,
+      seo: p.seo,
+    }
+  }
+
+  /** Create a DRAFT page from an exported bundle. */
+  async importPage(authorId: number | null, payload: unknown): Promise<PageDto> {
+    if (!payload || typeof payload !== 'object') throw new Error('Invalid page file.')
+    const p = payload as Record<string, unknown>
+    const title = typeof p.title === 'string' && p.title ? p.title : 'Imported page'
+    const kind: PageKind = p.kind === 'CODE' ? 'CODE' : 'BUILDER'
+    const row = await Page.create({
+      id: newUlid(),
+      title,
+      path: await this.freePath(typeof p.path === 'string' ? p.path : title),
+      status: 'DRAFT',
+      renderMode: (p.renderMode as PageRenderMode) ?? 'SSR',
+      kind,
+      component: kind === 'CODE' && typeof p.component === 'string' ? p.component : null,
+      content: sanitizePuckDocument((p.content as Record<string, unknown>) ?? EMPTY_DOC),
+      seo: (p.seo as Record<string, unknown>) ?? {},
+      hideHeader: Boolean(p.hideHeader),
+      hideFooter: Boolean(p.hideFooter),
+      authorId,
+      publishedAt: null,
+    })
+    return this.toDto(row)
+  }
+
+  /** Apply an action to many pages at once. Returns how many were affected. */
+  async bulk(ids: string[], action: string, authorId: number | null): Promise<number> {
+    let count = 0
+    for (const id of ids) {
+      try {
+        if (action === 'publish') await this.publish(id, authorId, {})
+        else if (action === 'unpublish') await this.update(id, authorId, { status: 'DRAFT' })
+        else if (action === 'trash') await this.remove(id)
+        else if (action === 'delete') await this.forceDelete(id)
+        else throw new Error(`Unknown bulk action: ${action}`)
+        count++
+      } catch {
+        // Skip a page that can't take the action (e.g. already gone) rather than
+        // failing the whole batch.
+      }
+    }
+    return count
+  }
+
   async update(id: string, authorId: number | null, dto: UpdatePageInput): Promise<PageDto> {
     const row = await Page.query().where('id', id).whereNull('deleted_at').firstOrFail()
+
+    const previousPath = row.path
+    const wasPublished = row.status === 'PUBLISHED'
 
     if (dto.path !== undefined) {
       const path = normalizePath(dto.path)
@@ -157,6 +270,16 @@ export default class PagesService {
     if (dto.hideFooter !== undefined) row.hideFooter = dto.hideFooter
     if (dto.content !== undefined) row.content = sanitizePuckDocument(dto.content)
     if (dto.seo !== undefined) row.seo = dto.seo
+    if (dto.scheduledPublishAt !== undefined) {
+      row.scheduledPublishAt = dto.scheduledPublishAt
+        ? DateTime.fromISO(dto.scheduledPublishAt)
+        : null
+    }
+    if (dto.scheduledUnpublishAt !== undefined) {
+      row.scheduledUnpublishAt = dto.scheduledUnpublishAt
+        ? DateTime.fromISO(dto.scheduledUnpublishAt)
+        : null
+    }
     if (dto.status !== undefined) {
       if (dto.status === 'PUBLISHED' && row.status !== 'PUBLISHED') row.publishedAt = DateTime.now()
       row.status = dto.status
@@ -167,12 +290,116 @@ export default class PagesService {
 
     await row.save()
 
+    // Moving a page that was already live: capture a 301 so its old URL keeps
+    // working. Best-effort — a redirect failure must not fail the page save.
+    if (wasPublished && row.path !== previousPath) {
+      await new RedirectsService().capturePathChange(previousPath, row.path).catch(() => {})
+    }
+
     // Snapshot a revision whenever the page's design (content/seo) changes.
     if (dto.content !== undefined || dto.seo !== undefined) {
       await this.snapshotRevision(row, authorId)
     }
 
     return this.toDto(row)
+  }
+
+  /**
+   * Stage edits without touching the live page. Autosave calls this: it writes
+   * only the draft columns, so a published page keeps serving its current HTML
+   * (and its SSG snapshot) until Publish promotes the draft.
+   */
+  async saveDraft(
+    id: string,
+    dto: { content?: Record<string, unknown>; seo?: Record<string, unknown> }
+  ): Promise<PageDto> {
+    const row = await Page.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    if (dto.content !== undefined) row.draftContent = sanitizePuckDocument(dto.content)
+    if (dto.seo !== undefined) row.draftSeo = dto.seo
+    row.draftUpdatedAt = DateTime.now()
+    await row.save()
+    return this.toDto(row)
+  }
+
+  /**
+   * Publish the editor's current state: write it to the live `content`/`seo`
+   * (plus any page-setting changes), flip to PUBLISHED, and clear the draft.
+   * Reuses `update` so redirect capture, revisioning and snapshot invalidation
+   * all happen exactly as before.
+   */
+  async publish(id: string, authorId: number | null, dto: UpdatePageInput): Promise<PageDto> {
+    const row = await Page.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    // The editor sends the design explicitly; a scheduled publish sends nothing,
+    // so fall back to promoting whatever was staged as a draft.
+    const content = dto.content !== undefined ? dto.content : (row.draftContent ?? undefined)
+    const seo = dto.seo !== undefined ? dto.seo : (row.draftSeo ?? undefined)
+    await this.update(id, authorId, { ...dto, content, seo, status: 'PUBLISHED' })
+    // Draft has been promoted; drop it so the editor reopens on the live design.
+    await Page.query()
+      .where('id', id)
+      .update({ draft_content: null, draft_seo: null, draft_updated_at: null })
+    return this.findOne(id)
+  }
+
+  /** Throw away staged edits; the editor falls back to the live design. */
+  async discardDraft(id: string): Promise<PageDto> {
+    await Page.query()
+      .where('id', id)
+      .whereNull('deleted_at')
+      .update({ draft_content: null, draft_seo: null, draft_updated_at: null })
+    return this.findOne(id)
+  }
+
+  /** Get (minting if absent) the shareable preview token for a page. */
+  async ensurePreviewToken(id: string): Promise<string> {
+    const row = await Page.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    if (!row.previewToken) {
+      row.previewToken = newUlid()
+      await row.save()
+    }
+    return row.previewToken
+  }
+
+  /** Revoke the current preview token (old links stop working). */
+  async clearPreviewToken(id: string): Promise<void> {
+    await Page.query().where('id', id).update({ preview_token: null })
+  }
+
+  async findByPreviewToken(token: string): Promise<Page | null> {
+    if (!token) return null
+    return Page.query().where('preview_token', token).whereNull('deleted_at').first()
+  }
+
+  /**
+   * Apply due scheduled transitions. Returns how many pages were published /
+   * unpublished. Invoked by the `pages:run-schedule` command (OS cron).
+   */
+  async runScheduled(
+    now: DateTime = DateTime.now()
+  ): Promise<{ published: number; unpublished: number }> {
+    const iso = now.toISO()!
+
+    const toPublish = await Page.query()
+      .whereNull('deleted_at')
+      .where('status', 'DRAFT')
+      .whereNotNull('scheduled_publish_at')
+      .where('scheduled_publish_at', '<=', iso)
+    for (const row of toPublish) {
+      await this.publish(row.id, row.authorId, {})
+      await Page.query().where('id', row.id).update({ scheduled_publish_at: null })
+    }
+
+    const toUnpublish = await Page.query()
+      .whereNull('deleted_at')
+      .where('status', 'PUBLISHED')
+      .whereNotNull('scheduled_unpublish_at')
+      .where('scheduled_unpublish_at', '<=', iso)
+    for (const row of toUnpublish) {
+      await this.update(row.id, row.authorId, { status: 'DRAFT' })
+      await Page.query().where('id', row.id).update({ scheduled_unpublish_at: null })
+    }
+
+    return { published: toPublish.length, unpublished: toUnpublish.length }
   }
 
   async listRevisions(pageId: string): Promise<PageRevisionDto[]> {
@@ -268,6 +495,9 @@ export default class PagesService {
     await Page.query().update({ rendered_html: null, rendered_build: null })
   }
 
+  /** How many revisions to keep per page. Older ones are pruned on each save. */
+  private static readonly REVISION_RETENTION = 50
+
   private async snapshotRevision(row: Page, authorId: number | null): Promise<void> {
     await PageRevision.create({
       id: newUlid(),
@@ -277,6 +507,31 @@ export default class PagesService {
       status: row.status,
       authorId,
     })
+    await this.pruneRevisions(row.id)
+  }
+
+  /**
+   * Keep only the newest N revisions of a page.
+   *
+   * Revisions are snapshotted on every content/SEO change, so a page edited for
+   * months would otherwise accumulate an unbounded history (each row carries a
+   * full Puck document). Pruning here keeps the table bounded without a cron.
+   */
+  private async pruneRevisions(pageId: string): Promise<void> {
+    const keep = await PageRevision.query()
+      .where('page_id', pageId)
+      .orderBy('created_at', 'desc')
+      .select('id')
+      .limit(PagesService.REVISION_RETENTION)
+    if (keep.length < PagesService.REVISION_RETENTION) return
+
+    await PageRevision.query()
+      .where('page_id', pageId)
+      .whereNotIn(
+        'id',
+        keep.map((r) => r.id)
+      )
+      .delete()
   }
 
   /**
@@ -329,6 +584,10 @@ export default class PagesService {
       hideFooter: Boolean(row.hideFooter),
       authorId: row.authorId,
       publishedAt: row.publishedAt ? row.publishedAt.toISO() : null,
+      scheduledPublishAt: row.scheduledPublishAt ? row.scheduledPublishAt.toISO() : null,
+      scheduledUnpublishAt: row.scheduledUnpublishAt ? row.scheduledUnpublishAt.toISO() : null,
+      hasDraft: row.draftContent != null,
+      draftUpdatedAt: row.draftUpdatedAt ? row.draftUpdatedAt.toISO() : null,
       createdAt: row.createdAt.toISO()!,
       updatedAt: row.updatedAt.toISO()!,
     }
@@ -339,6 +598,8 @@ export default class PagesService {
       ...this.toSummary(row),
       content: row.content,
       seo: row.seo,
+      draftContent: row.draftContent ?? null,
+      draftSeo: row.draftSeo ?? null,
     }
   }
 

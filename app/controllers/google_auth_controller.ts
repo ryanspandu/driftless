@@ -73,6 +73,12 @@ export default class GoogleAuthController {
       // linking key, so an unverified Google claim must never create or bind it.
       const user = await this.findOrCreateUser(profile)
       if (user.status !== 'ACTIVE') return redirectLogin('account_inactive')
+      // 2FA is not bypassable via Google: challenge before opening a session.
+      if (user.twoFactorEnabledAt) {
+        session.put('pending_2fa_user_id', user.id)
+        session.forget('pending_2fa_attempts')
+        return response.redirect('/login/2fa')
+      }
       await auth.use('web').login(user)
       return response.redirect('/admin/dashboard')
     } catch (e) {
@@ -133,10 +139,7 @@ export default class GoogleAuthController {
 
     if (!profile.emailVerified) throw new Error('google_email_not_verified')
 
-    const byEmail = await User.query()
-      .where('email', profile.email)
-      .whereNull('deleted_at')
-      .first()
+    const byEmail = await User.query().where('email', profile.email).whereNull('deleted_at').first()
 
     if (byEmail) {
       byEmail.googleSub = profile.googleSub
@@ -145,7 +148,10 @@ export default class GoogleAuthController {
       return byEmail
     }
 
-    const baseUsername = profile.email.split('@')[0]!.replace(/[^a-z0-9_]/gi, '_').slice(0, 32)
+    const baseUsername = profile.email
+      .split('@')[0]!
+      .replace(/[^a-z0-9_]/gi, '_')
+      .slice(0, 32)
     let username = baseUsername
     let n = 0
     while (await User.query().where('username', username).whereNull('deleted_at').first()) {

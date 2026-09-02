@@ -41,7 +41,7 @@ export interface CheckoutInput {
   discountCode?: string | null
   affiliateCode?: string | null
   customerNote?: string | null
-  customerId?: string | null
+  accountId?: string | null
   /**
    * Price in this currency. Comes from the **cart**, which fixed it at
    * creation — not from the request body, and not re-read from a cookie here.
@@ -206,7 +206,7 @@ export default class CheckoutService {
           status: 'pending',
           paymentStatus: 'unpaid',
           fulfillmentStatus: 'unfulfilled',
-          customerId: input.customerId ?? null,
+          accountId: input.accountId ?? null,
           email: input.email.trim().toLowerCase(),
           accessTokenHash: token.hash,
           accessTokenEnc: token.enc,
@@ -263,7 +263,7 @@ export default class CheckoutService {
           discount.discount.id,
           created.id,
           priced.discountAmount,
-          { email: input.email, customerId: input.customerId ?? null },
+          { email: input.email, accountId: input.accountId ?? null },
           trx
         )
       }
@@ -291,7 +291,7 @@ export default class CheckoutService {
             message: 'Free checkout — nothing to pay.',
             meta: { free: true, discountCode: discount?.discount.code ?? null },
           },
-          { type: input.customerId ? 'customer' : 'system', id: input.customerId }
+          { type: input.accountId ? 'customer' : 'system', id: input.accountId }
         )
 
         return {
@@ -350,7 +350,7 @@ export default class CheckoutService {
           message: `Checkout opened with ${driver.name}.`,
           meta: { gateway: driver.name, gatewayPaymentId: session.gatewayPaymentId },
         },
-        { type: input.customerId ? 'customer' : 'system', id: input.customerId }
+        { type: input.accountId ? 'customer' : 'system', id: input.accountId }
       )
 
       return {
@@ -365,8 +365,8 @@ export default class CheckoutService {
      * able to roll back the thing it is describing.
      */
     await audit.record({
-      actor: input.customerId
-        ? { type: 'customer', id: input.customerId, label: input.email }
+      actor: input.accountId
+        ? { type: 'customer', id: input.accountId, label: input.email }
         : { type: 'system', label: 'guest checkout' },
       action: 'order.checkout_started',
       subjectType: 'order',
@@ -406,8 +406,8 @@ export default class CheckoutService {
           currency: result.order.currency,
           source: 'free',
         },
-        input.customerId
-          ? { type: 'customer', id: input.customerId, label: input.email }
+        input.accountId
+          ? { type: 'customer', id: input.accountId, label: input.email }
           : { type: 'system', label: 'free checkout' }
       )
       paid = settled.changed

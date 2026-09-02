@@ -14,6 +14,8 @@ import { modulePageLabel } from '~/lib/module-labels'
 const PAGE_LABELS: Record<string, string> = {
   '/admin/dashboard': 'Dashboard',
   '/admin/analytics': 'Analytics',
+  '/admin/forms': 'Forms',
+  '/admin/redirects': 'Redirects',
   '/admin/content': 'Content',
   '/admin/media': 'Media',
   '/admin/users': 'Users',

@@ -6,7 +6,7 @@ import { publicError } from '#exceptions/public_error'
 import Order from '#modules/ecommerce/models/order'
 import CartService, { CART_COOKIE } from '#modules/ecommerce/services/cart_service'
 import CheckoutService from '#modules/ecommerce/services/checkout_service'
-import CustomerAuthService from '#modules/ecommerce/services/customer_auth_service'
+import AccountAuthService from '#modules/ecommerce/services/account_auth_service'
 import AffiliateService from '#modules/ecommerce/services/affiliate_service'
 import IdempotencyService, {
   actorFingerprint,
@@ -68,7 +68,7 @@ const shippingOptionsValidator = vine.compile(
 
 const carts = new CartService()
 const checkout = new CheckoutService()
-const customers = new CustomerAuthService()
+const customers = new AccountAuthService()
 const affiliates = new AffiliateService()
 const idempotency = new IdempotencyService()
 const settings = new StoreSettingsService()
@@ -185,7 +185,9 @@ export default class StorefrontCheckoutController {
           shippingAddress: payload.shippingAddress,
           billingAddress: payload.billingAddress,
           customerNote: payload.customerNote ?? null,
-          discountCode: payload.discountCode ?? null,
+          // The coupon the shopper applied to their basket is authoritative;
+          // the body is only a fallback. Re-validated inside `CheckoutService`.
+          discountCode: cart.discountCode ?? payload.discountCode ?? null,
           /**
            * Attribution comes from the referral cookie, never from the request
            * body. A client-supplied code would let anyone credit any affiliate
@@ -193,7 +195,7 @@ export default class StorefrontCheckoutController {
            */
           affiliateCode: affiliates.referralCode(ctx),
           shippingMethodId: payload.shippingMethodId ?? null,
-          customerId: buyer.id,
+          accountId: buyer.id,
           /**
            * Built from the request's own host rather than anything the client
            * sent. A caller-supplied return URL would let someone point the

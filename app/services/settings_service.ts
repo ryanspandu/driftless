@@ -83,6 +83,30 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
     snippets: '[]',
   },
 
+  /** Builder-form (contact/lead) handling. */
+  forms: {
+    // Where submissions are also POSTed as JSON (Zapier/Make/Slack/etc). Empty = none.
+    webhook_url: '',
+    // Address notified of each submission (wired when email is configured). Empty = none.
+    notify_email: '',
+  },
+
+  /**
+   * Public theme — the default font and colour palette for the public site and
+   * storefront (NOT the dashboard, which keeps its own theme). Empty means "use
+   * the built-in default from app.css". A per-block Puck `font` still overrides
+   * this. Values are re-sanitised at read time before they are injected as CSS.
+   */
+  theme: {
+    font_family: '', // active font name; '' = system default
+    font_css_url: '', // Google Fonts stylesheet href for the active font; '' = none
+    font_face_url: '', // uploaded custom font file (same-origin); persists as an option
+    font_custom_name: '', // display name of the uploaded custom font
+    primary_color: '', // e.g. '#5225e6'; '' = app.css default
+    secondary_color: '',
+    accent_color: '',
+  },
+
   /**
    * Site-wide responsive breakpoints (Webflow-style). The widest tier
    * (`maxWidth: null`) is the base; narrower tiers become `@media (max-width)`
@@ -252,6 +276,47 @@ export interface PublicWebAppearance {
   metaTags: SiteMetaTag[]
 }
 
+/** The public font + colour theme, already sanitised for direct CSS injection. */
+export interface PublicTheme {
+  fontFamily: string
+  fontCssUrl: string
+  /** A same-origin uploaded font file, used to build an @font-face. */
+  fontFaceUrl: string
+  /** The display name of the uploaded custom font (the @font-face family). */
+  fontCustomName: string
+  primaryColor: string
+  secondaryColor: string
+  accentColor: string
+}
+
+/** A CSS colour we are willing to inject: hex, or a short safe keyword/rgb(). */
+function safeColor(value: string | undefined): string {
+  const v = (value ?? '').trim()
+  if (!v) return ''
+  if (/^#[0-9a-fA-F]{3,8}$/.test(v)) return v
+  if (/^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/.test(v)) return v
+  if (/^[a-zA-Z]{3,20}$/.test(v)) return v // a colour keyword like "rebeccapurple"
+  return ''
+}
+
+/** A font-family name safe to drop into a CSS declaration. */
+function safeFontFamily(value: string | undefined): string {
+  const v = (value ?? '').trim()
+  return /^[a-zA-Z0-9 _-]{1,60}$/.test(v) ? v : ''
+}
+
+/** Only a Google Fonts stylesheet href is allowed (matches the CSP allowlist). */
+function safeFontUrl(value: string | undefined): string {
+  const v = (value ?? '').trim()
+  return /^https:\/\/fonts\.googleapis\.com\/[^\s"'<>]*$/.test(v) ? v : ''
+}
+
+/** A same-origin uploaded font file (relative path, font extension). */
+function safeFontFaceUrl(value: string | undefined): string {
+  const v = (value ?? '').trim()
+  return /^\/[^\s"'<>]*\.(woff2?|ttf|otf)(\?[^\s"'<>]*)?$/i.test(v) ? v : ''
+}
+
 export interface IntegrationSettingsAdmin {
   googleAuthEnabled: boolean
   googleClientId: string | null
@@ -337,6 +402,37 @@ export class WebSettingsService {
       siteDescription: meta['site_description']?.trim() || '',
       faviconUrl: meta['favicon_url']?.trim() || '/logo.svg',
       metaTags: parseMetaTags(meta['meta']),
+    }
+  }
+
+  /** Builder-form config: submission webhook + notification email. */
+  async getFormsConfig(): Promise<{ webhookUrl: string; notifyEmail: string }> {
+    const sections = await this.getMergedSections()
+    const f = sections['forms'] ?? WEB_DEFAULTS['forms'] ?? {}
+    const url = (f['webhook_url'] ?? '').trim()
+    const email = (f['notify_email'] ?? '').trim()
+    return {
+      webhookUrl: /^https:\/\/[^\s]+$/.test(url) ? url : '',
+      notifyEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '',
+    }
+  }
+
+  /** The public theme, sanitised and ready for injection (empty = use defaults). */
+  async getPublicTheme(): Promise<PublicTheme> {
+    const sections = await this.getMergedSections()
+    return this.mapPublicTheme(sections)
+  }
+
+  mapPublicTheme(sections: Record<string, Record<string, string>>): PublicTheme {
+    const t = sections['theme'] ?? WEB_DEFAULTS['theme'] ?? {}
+    return {
+      fontFamily: safeFontFamily(t['font_family']),
+      fontCssUrl: safeFontUrl(t['font_css_url']),
+      fontFaceUrl: safeFontFaceUrl(t['font_face_url']),
+      fontCustomName: safeFontFamily(t['font_custom_name']),
+      primaryColor: safeColor(t['primary_color']),
+      secondaryColor: safeColor(t['secondary_color']),
+      accentColor: safeColor(t['accent_color']),
     }
   }
 

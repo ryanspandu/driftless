@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from 'react'
 import { Link, router } from '@inertiajs/react'
 import {
+  ArrowBendDoubleUpRight,
   Browsers,
   CaretDown,
   ChartBar,
@@ -16,6 +17,7 @@ import {
   SlidersHorizontal,
   Stack,
   SquaresFour,
+  Tray,
   Users,
   type Icon,
 } from '@phosphor-icons/react'
@@ -38,12 +40,15 @@ interface MenuItem {
   href: string
   icon: Icon
   activeMatch?: 'exact' | 'prefix'
+  /** Hide this item unless the signed-in user holds this permission. */
+  permission?: string
 }
 
 interface NavParent {
   title: string
   icon: Icon
   children: MenuItem[]
+  permission?: string
 }
 
 /** A nav entry is either a flat link or a collapsible parent (with sub-items). */
@@ -52,7 +57,14 @@ const isParent = (entry: NavEntry): entry is NavParent => 'children' in entry
 
 const navEntries: NavEntry[] = [
   { title: 'Dashboard', href: '/admin/dashboard', icon: House },
-  { title: 'Analytics', href: '/admin/analytics', icon: ChartBar },
+  { title: 'Analytics', href: '/admin/analytics', icon: ChartBar, permission: 'analytics:read' },
+  {
+    title: 'Forms',
+    href: '/admin/forms',
+    icon: Tray,
+    activeMatch: 'prefix',
+    permission: 'forms:read',
+  },
   {
     title: 'UI',
     icon: SquaresFour,
@@ -65,6 +77,13 @@ const navEntries: NavEntry[] = [
         href: '/admin/website-settings',
         icon: Globe,
         activeMatch: 'prefix',
+      },
+      {
+        title: 'Redirects',
+        href: '/admin/redirects',
+        icon: ArrowBendDoubleUpRight,
+        activeMatch: 'prefix',
+        permission: 'redirects:manage',
       },
     ],
   },
@@ -293,7 +312,11 @@ export function AppSidebar({ pathname }: { pathname: string }) {
   }
 
   // Core nav entries the user hasn't hidden from Settings → Application.
-  const visibleNavEntries = navEntries.filter((e) => !hiddenNav.includes(e.title))
+  // Core nav filtered by the nav-visibility toggle AND (where set) permission.
+  const canSee = (perm?: string) => !perm || permissions.has(perm)
+  const visibleNavEntries = navEntries.filter(
+    (e) => !hiddenNav.includes(e.title) && canSee('permission' in e ? e.permission : undefined)
+  )
 
   // Enabled modules' nav, filtered by the current user's permissions.
   const canSeeModule = (perm?: string) => !perm || permissions.has(perm)

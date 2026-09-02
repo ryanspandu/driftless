@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
 import { DateTime } from 'luxon'
-import Customer from '#modules/ecommerce/models/customer'
+import Account from '#modules/ecommerce/models/account'
 import env from '#start/env'
 
 /**
@@ -19,7 +19,7 @@ export default class MarketingConsentService {
    * Both conditions, not one: `acceptsMarketing` can be flipped back by an
    * admin editing a profile, and an unsubscribe must survive that.
    */
-  mayEmail(customer: Customer): boolean {
+  mayEmail(customer: Account): boolean {
     if (!customer.acceptsMarketing) return false
     if (customer.unsubscribedAt) return false
     if (customer.status !== 'active') return false
@@ -32,7 +32,7 @@ export default class MarketingConsentService {
    * Lazy rather than at signup so existing customers get one the moment they
    * are first emailed, with no backfill.
    */
-  async unsubscribeToken(customer: Customer): Promise<string> {
+  async unsubscribeToken(customer: Account): Promise<string> {
     if (customer.unsubscribeToken) return customer.unsubscribeToken
 
     const token = crypto.randomBytes(24).toString('base64url')
@@ -64,7 +64,7 @@ export default class MarketingConsentService {
   async unsubscribe(token: string): Promise<void> {
     if (!token || token.length > 128) return
 
-    const customer = await Customer.query().where('unsubscribe_token', token).first()
+    const customer = await Account.query().where('unsubscribe_token', token).first()
     if (!customer) return
 
     customer.acceptsMarketing = false

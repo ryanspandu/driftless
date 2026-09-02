@@ -1,4 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type ComponentType, type DragEvent } from 'react'
+import {
+  memo,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type DragEvent,
+} from 'react'
 import { createUsePuck, type ComponentData, type Config } from '@measured/puck'
 import {
   ChevronDown,
@@ -32,6 +41,8 @@ interface TreeNode {
   label: string
   hidden: boolean
   locked: boolean
+  /** True when the block is bound to a CMS field (Webflow's purple = dynamic). */
+  bound: boolean
   /** True when the component type has a slot — i.e. it can hold children. */
   isContainer: boolean
   children: TreeNode[]
@@ -68,6 +79,10 @@ function buildTree(items: RawItem[] | undefined, config: Config): TreeNode[] {
       label: custom || configLabel || LABELS[item.type] || item.type,
       hidden: props._hidden === true,
       locked: props._locked === true,
+      bound:
+        !!props.binding &&
+        typeof props.binding === 'object' &&
+        Object.values(props.binding as Record<string, unknown>).some(Boolean),
       isContainer: slots.length > 0,
       children,
     })
@@ -112,12 +127,13 @@ function buildAncestors(tree: TreeNode[]): Map<string, string[]> {
 /** Selector-scoped store hook — see builder-shell for the rationale. */
 const usePuckStore = createUsePuck()
 
-export function LayersTree() {
+/** Memoised with no props — see DetailPanel for the drag-frame cascade rationale. */
+export const LayersTree = memo(LayersTreeImpl)
+
+function LayersTreeImpl() {
   // Narrow selectors: the tree re-renders on content or selection change, NOT on
   // hover or other ui-only store ticks. `config`/`dispatch`/getters are stable.
-  const content = usePuckStore((s) => s.appState.data.content) as unknown as
-    | RawItem[]
-    | undefined
+  const content = usePuckStore((s) => s.appState.data.content) as unknown as RawItem[] | undefined
   const config = usePuckStore((s) => s.config)
   const dispatch = usePuckStore((s) => s.dispatch)
   const getSelectorForId = usePuckStore((s) => s.getSelectorForId)
@@ -126,7 +142,11 @@ export function LayersTree() {
     (s) => (s.selectedItem?.props as { id?: string } | undefined)?.id ?? null
   )
 
-  const tree = useMemo(() => buildTree(content, config), [content, config])
+  // Deferred: Puck replaces `content` on every drag-over frame. Rebuilding the
+  // tree synchronously per frame competes with the drag itself; deferring lets
+  // the canvas render first and the tree catch up a beat later.
+  const deferredContent = useDeferredValue(content)
+  const tree = useMemo(() => buildTree(deferredContent, config), [deferredContent, config])
   const descendants = useMemo(() => buildDescendants(tree), [tree])
 
   const ancestors = useMemo(() => buildAncestors(tree), [tree])
@@ -544,16 +564,16 @@ function TreeRow({
         className={cn(
           'group relative flex items-center gap-1.5 rounded-md py-1 pr-1.5 text-sm transition-colors',
           isSelected
-            ? 'bg-primary/15 text-foreground'
+            ? 'bg-builder-selected-bg text-foreground'
             : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
         )}
       >
         {isDropTarget && dropTarget?.pos === 'inside' ? (
-          <span className="pointer-events-none absolute inset-0 rounded-md ring-2 ring-inset ring-primary" />
+          <span className="pointer-events-none absolute inset-0 rounded-md ring-2 ring-inset ring-builder-selected" />
         ) : isDropTarget ? (
           <span
             className={cn(
-              'pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-primary',
+              'pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-builder-selected',
               dropTarget?.pos === 'before' ? 'top-0' : 'bottom-0'
             )}
           />
@@ -577,7 +597,16 @@ function TreeRow({
         ) : (
           <span className="size-4 shrink-0" />
         )}
-        <Icon className={cn('size-3.5 shrink-0', node.hidden ? 'opacity-30' : 'opacity-70')} />
+        <Icon
+          className={cn(
+            'size-3.5 shrink-0',
+            node.bound
+              ? 'text-builder-bound opacity-100'
+              : node.hidden
+                ? 'opacity-30'
+                : 'opacity-70'
+          )}
+        />
         {editing ? (
           <input
             autoFocus

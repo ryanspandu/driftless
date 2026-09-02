@@ -5,9 +5,9 @@ import { apiFail } from '#helpers/api_error_response'
 import { publicError } from '#exceptions/public_error'
 import AuditLogService from '#services/audit_log_service'
 import type User from '#models/user'
-import Customer from '#modules/ecommerce/models/customer'
+import Account from '#modules/ecommerce/models/account'
 import { Money } from '#modules/ecommerce/services/money'
-import CustomerAuthService from '#modules/ecommerce/services/customer_auth_service'
+import AccountAuthService from '#modules/ecommerce/services/account_auth_service'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 
 const statusValidator = vine.compile(
@@ -32,7 +32,7 @@ const createValidator = vine.compile(
 )
 
 const settings = new StoreSettingsService()
-const customerAuth = new CustomerAuthService()
+const customerAuth = new AccountAuthService()
 const audit = new AuditLogService()
 
 const fail = (response: HttpContext['response'], error: unknown) =>
@@ -46,7 +46,7 @@ const fail = (response: HttpContext['response'], error: unknown) =>
  * `serialize()` away from an admin API response, and from there one careless
  * screenshot away from a support ticket.
  */
-function toDto(customer: Customer, currency: string, locale: string) {
+function toDto(customer: Account, currency: string, locale: string) {
   return {
     id: customer.id,
     email: customer.email,
@@ -102,7 +102,7 @@ export default class CustomersController {
     const pageSize = Math.min(Math.max(Number(request.input('pageSize', 20)) || 20, 1), 100)
     const store = await settings.getOrCreate()
 
-    const builder = Customer.query().whereNull('deleted_at')
+    const builder = Account.query().whereNull('deleted_at')
 
     const status = request.input('status')
     if (status && status !== 'all') builder.where('status', status)
@@ -139,12 +139,12 @@ export default class CustomersController {
     const { params, request, response, auth } = ctx
     try {
       const { status } = await request.validateUsing(statusValidator)
-      const customer = await Customer.query()
+      const customer = await Account.query()
         .where('id', String(params.id))
         .whereNull('deleted_at')
         .first()
 
-      if (!customer) throw publicError.notFound('Customer not found.', 'customer_not_found')
+      if (!customer) throw publicError.notFound('Account not found.', 'customer_not_found')
 
       customer.status = status
       await customer.save()

@@ -9,15 +9,15 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
  * signed, httpOnly cookie named `dl_shop`, which shares nothing with the admin
  * session cookie.
  */
-export default class CustomerSession extends BaseModel {
-  static table = 'ecommerce_customer_sessions'
+export default class AccountSession extends BaseModel {
+  static table = 'ecommerce_account_sessions'
   static selfAssignPrimaryKey = true
 
   @column({ isPrimary: true })
   declare id: string
 
   @column()
-  declare customerId: string
+  declare accountId: string
 
   @column({ serializeAs: null })
   declare tokenHash: string

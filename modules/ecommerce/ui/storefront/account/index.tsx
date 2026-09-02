@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react'
 import { Head } from '@inertiajs/react'
-import { accountApi, shopApi, type AccountOrderDto, type CustomerDto } from '../_api'
+import { accountApi, shopApi, type AccountOrderDto, type AccountDto } from '../_api'
 import { StorefrontLayout } from '../_layout'
 import { OverviewSection } from './overview'
 import { OrdersSection } from './orders'
 import { OrderDetailSection } from './order-detail'
 import { ProfileSection } from './profile'
 import { AddressesSection } from './addresses'
+import { AffiliateSection } from './affiliate'
 
-type Tab = 'overview' | 'orders' | 'profile' | 'addresses'
-const TABS: Tab[] = ['overview', 'orders', 'profile', 'addresses']
+type Tab = 'overview' | 'orders' | 'profile' | 'addresses' | 'affiliate'
+const TABS: Tab[] = ['overview', 'orders', 'profile', 'addresses', 'affiliate']
 const TAB_LABEL: Record<Tab, string> = {
   overview: 'Overview',
   orders: 'Orders',
   profile: 'Profile',
   addresses: 'Addresses',
+  affiliate: 'Affiliate',
 }
 
 function readNav(): { tab: Tab; order: string | null } {
@@ -25,7 +27,7 @@ function readNav(): { tab: Tab; order: string | null } {
 }
 
 /**
- * The customer account portal.
+ * The account portal.
  *
  * A tabbed "My Account": Overview, Orders (+ a detail view), Profile and saved
  * Addresses. The active section is kept in the `?tab=` (and `?order=`) query so
@@ -36,14 +38,14 @@ function readNav(): { tab: Tab; order: string | null } {
  * `/shop/account`; `embedded` drops the `<Head>` (the page owns SEO).
  */
 export function AccountScreen({ embedded }: { embedded?: boolean } = {}) {
-  const [customer, setCustomer] = useState<CustomerDto | null>(null)
+  const [account, setAccount] = useState<AccountDto | null>(null)
   const [orders, setOrders] = useState<AccountOrderDto[]>([])
   const [loading, setLoading] = useState(true)
   const [nav, setNav] = useState(readNav)
 
-  const loadCustomer = async () => {
-    const { customer: me } = await shopApi.me()
-    setCustomer(me)
+  const loadAccount = async () => {
+    const { account: me } = await shopApi.me()
+    setAccount(me)
     return me
   }
 
@@ -51,9 +53,9 @@ export function AccountScreen({ embedded }: { embedded?: boolean } = {}) {
     let alive = true
     shopApi
       .me()
-      .then(async ({ customer: me }) => {
+      .then(async ({ account: me }) => {
         if (!alive) return
-        setCustomer(me)
+        setAccount(me)
         if (!me) return
         const { orders: list } = await accountApi.orders()
         if (alive) setOrders(list)
@@ -99,7 +101,7 @@ export function AccountScreen({ embedded }: { embedded?: boolean } = {}) {
     )
   }
 
-  if (!customer) {
+  if (!account) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-4 py-16">
         {!embedded && <Head title="Your account" />}
@@ -124,7 +126,7 @@ export function AccountScreen({ embedded }: { embedded?: boolean } = {}) {
   }
 
   const activeDetail = nav.tab === 'orders' && nav.order
-  const initial = (customer.fullName || customer.email || '?').trim().charAt(0).toUpperCase()
+  const initial = (account.fullName || account.email || '?').trim().charAt(0).toUpperCase()
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
@@ -136,9 +138,9 @@ export function AccountScreen({ embedded }: { embedded?: boolean } = {}) {
         </span>
         <div className="min-w-0">
           <h1 className="truncate text-xl font-semibold tracking-tight">
-            {customer.firstName ? `Hi, ${customer.firstName}` : 'Your account'}
+            {account.firstName ? `Hi, ${account.firstName}` : 'Your account'}
           </h1>
-          <p className="truncate text-sm text-muted-foreground">{customer.email}</p>
+          <p className="truncate text-sm text-muted-foreground">{account.email}</p>
         </div>
       </div>
 
@@ -179,7 +181,7 @@ export function AccountScreen({ embedded }: { embedded?: boolean } = {}) {
             <OrderDetailSection number={nav.order!} onBack={() => navigate('orders')} />
           ) : nav.tab === 'overview' ? (
             <OverviewSection
-              customer={customer}
+              account={account}
               orders={orders}
               onOpenOrder={(number) => navigate('orders', number)}
               onGoTo={(tab) => navigate(tab)}
@@ -187,9 +189,11 @@ export function AccountScreen({ embedded }: { embedded?: boolean } = {}) {
           ) : nav.tab === 'orders' ? (
             <OrdersSection orders={orders} onOpenOrder={(number) => navigate('orders', number)} />
           ) : nav.tab === 'profile' ? (
-            <ProfileSection customer={customer} onUpdated={loadCustomer} />
-          ) : (
+            <ProfileSection account={account} onUpdated={loadAccount} />
+          ) : nav.tab === 'addresses' ? (
             <AddressesSection />
+          ) : (
+            <AffiliateSection />
           )}
         </div>
       </div>
@@ -224,6 +228,14 @@ function TabIcon({ tab }: { tab: Tab }) {
       <>
         <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
         <circle cx="12" cy="10" r="3" />
+      </>
+    ),
+    affiliate: (
+      <>
+        <circle cx="18" cy="5" r="3" />
+        <circle cx="6" cy="12" r="3" />
+        <circle cx="18" cy="19" r="3" />
+        <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
       </>
     ),
   }

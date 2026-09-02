@@ -23,6 +23,7 @@ declare module '@adonisjs/inertia/types' {
     'admin/content/edit': ExtractProps<(typeof import('../../inertia/pages/admin/content/edit.tsx'))['default']>
     'admin/content/new': ExtractProps<(typeof import('../../inertia/pages/admin/content/new.tsx'))['default']>
     'admin/dashboard': ExtractProps<(typeof import('../../inertia/pages/admin/dashboard.tsx'))['default']>
+    'admin/forms': ExtractProps<(typeof import('../../inertia/pages/admin/forms.tsx'))['default']>
     'admin/integrations': ExtractProps<(typeof import('../../inertia/pages/admin/integrations.tsx'))['default']>
     'admin/integrations/captcha': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/captcha.tsx'))['default']>
     'admin/integrations/clarity': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/clarity.tsx'))['default']>
@@ -36,6 +37,7 @@ declare module '@adonisjs/inertia/types' {
     'admin/permissions/new': ExtractProps<(typeof import('../../inertia/pages/admin/permissions/new.tsx'))['default']>
     'admin/permissions/show': ExtractProps<(typeof import('../../inertia/pages/admin/permissions/show.tsx'))['default']>
     'admin/profile': ExtractProps<(typeof import('../../inertia/pages/admin/profile.tsx'))['default']>
+    'admin/redirects': ExtractProps<(typeof import('../../inertia/pages/admin/redirects.tsx'))['default']>
     'admin/roles': ExtractProps<(typeof import('../../inertia/pages/admin/roles.tsx'))['default']>
     'admin/roles/new': ExtractProps<(typeof import('../../inertia/pages/admin/roles/new.tsx'))['default']>
     'admin/roles/show': ExtractProps<(typeof import('../../inertia/pages/admin/roles/show.tsx'))['default']>
@@ -53,6 +55,7 @@ declare module '@adonisjs/inertia/types' {
     'auth/login': ExtractProps<(typeof import('../../inertia/pages/auth/login.tsx'))['default']>
     'auth/reset-password': ExtractProps<(typeof import('../../inertia/pages/auth/reset-password.tsx'))['default']>
     'auth/signup': ExtractProps<(typeof import('../../inertia/pages/auth/signup.tsx'))['default']>
+    'auth/two-factor': ExtractProps<(typeof import('../../inertia/pages/auth/two-factor.tsx'))['default']>
     'errors/not_found': ExtractProps<(typeof import('../../inertia/pages/errors/not_found.tsx'))['default']>
     'errors/server_error': ExtractProps<(typeof import('../../inertia/pages/errors/server_error.tsx'))['default']>
     'home': ExtractProps<(typeof import('../../inertia/pages/home.tsx'))['default']>

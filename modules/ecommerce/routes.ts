@@ -115,6 +115,12 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
         .delete('/api/shop/cart/items/:variantId', [ShopCartCtrl, 'destroy'])
         .as('shop.cart.remove')
       router.delete('/api/shop/cart', [ShopCartCtrl, 'clear']).as('shop.cart.clear')
+      router
+        .post('/api/shop/cart/discount', [ShopCartCtrl, 'applyDiscount'])
+        .as('shop.cart.discount.apply')
+      router
+        .delete('/api/shop/cart/discount', [ShopCartCtrl, 'removeDiscount'])
+        .as('shop.cart.discount.remove')
     })
     .use(throttle.cartWrite)
     .use(moduleEnabled)
@@ -136,6 +142,10 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
         .post('/api/shop/account/register', [ShopAccountCtrl, 'register'])
         .as('shop.account.register')
       router.post('/api/shop/account/login', [ShopAccountCtrl, 'login']).as('shop.account.login')
+      // Second factor of login — same IP limit as the password step.
+      router
+        .post('/api/shop/account/2fa/verify', [ShopAccountCtrl, 'verify2fa'])
+        .as('shop.account.two_factor.verify')
     })
     .use(throttle.accountAuth)
     .use(moduleEnabled)
@@ -171,6 +181,30 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .delete('/api/shop/account/addresses/:id', [ShopAccountCtrl, 'deleteAddress'])
         .as('shop.account.addresses.delete')
+      // Affiliate program (apply, analytics, payout method, withdrawals).
+      router
+        .get('/api/shop/account/affiliate', [ShopAccountCtrl, 'affiliateOverview'])
+        .as('shop.account.affiliate.overview')
+      router
+        .post('/api/shop/account/affiliate/apply', [ShopAccountCtrl, 'applyAffiliate'])
+        .as('shop.account.affiliate.apply')
+      router
+        .put('/api/shop/account/affiliate/payout-method', [ShopAccountCtrl, 'updatePayoutMethod'])
+        .as('shop.account.affiliate.payout')
+      router
+        .post('/api/shop/account/affiliate/withdrawals', [ShopAccountCtrl, 'requestWithdrawal'])
+        .as('shop.account.affiliate.withdraw')
+
+      // Self-service 2FA management for the signed-in customer.
+      router
+        .post('/api/shop/account/2fa/enroll', [ShopAccountCtrl, 'enroll2fa'])
+        .as('shop.account.two_factor.enroll')
+      router
+        .post('/api/shop/account/2fa/confirm', [ShopAccountCtrl, 'confirm2fa'])
+        .as('shop.account.two_factor.confirm')
+      router
+        .post('/api/shop/account/2fa/disable', [ShopAccountCtrl, 'disable2fa'])
+        .as('shop.account.two_factor.disable')
     })
     .use(throttle.storefront)
     .use(moduleEnabled)
@@ -711,6 +745,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .get('/admin/marketing/commissions', [MarketingCtrl, 'commissionsPage'])
         .as('ecommerce.commissions.page')
+      router
+        .get('/admin/marketing/withdrawals', [MarketingCtrl, 'withdrawalsPage'])
+        .as('ecommerce.withdrawals.page')
     })
     .use(middleware.auth())
     .use(middleware.pagePermission({ permission: 'ecommerce:commissions:read' }))
@@ -747,6 +784,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .get('/api/admin/ecommerce/affiliates', [MarketingCtrl, 'listAffiliates'])
         .as('ecommerce.api.affiliates.index')
+      router
+        .get('/api/admin/ecommerce/affiliate-accounts', [MarketingCtrl, 'searchAccounts'])
+        .as('ecommerce.api.affiliates.accounts')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:affiliates:read' }))
@@ -755,8 +795,14 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
   router
     .group(() => {
       router
-        .post('/api/admin/ecommerce/affiliates', [MarketingCtrl, 'createAffiliate'])
+        .post('/api/admin/ecommerce/affiliates', [MarketingCtrl, 'addAffiliate'])
         .as('ecommerce.api.affiliates.store')
+      router
+        .post('/api/admin/ecommerce/affiliates/:id/approve', [MarketingCtrl, 'approveAffiliate'])
+        .as('ecommerce.api.affiliates.approve')
+      router
+        .post('/api/admin/ecommerce/affiliates/:id/reject', [MarketingCtrl, 'rejectAffiliate'])
+        .as('ecommerce.api.affiliates.reject')
       router
         .put('/api/admin/ecommerce/affiliates/:id', [MarketingCtrl, 'updateAffiliate'])
         .as('ecommerce.api.affiliates.update')
@@ -770,6 +816,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .get('/api/admin/ecommerce/commissions', [MarketingCtrl, 'listCommissions'])
         .as('ecommerce.api.commissions.index')
+      router
+        .get('/api/admin/ecommerce/withdrawals', [MarketingCtrl, 'listWithdrawals'])
+        .as('ecommerce.api.withdrawals.index')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:commissions:read' }))
@@ -787,6 +836,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .get('/api/admin/ecommerce/commissions/export', [MarketingCtrl, 'exportPayouts'])
         .as('ecommerce.api.commissions.export')
+      router
+        .post('/api/admin/ecommerce/withdrawals/:id/process', [MarketingCtrl, 'processWithdrawal'])
+        .as('ecommerce.api.withdrawals.process')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:commissions:approve' }))

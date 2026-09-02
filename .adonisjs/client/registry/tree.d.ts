@@ -8,6 +8,22 @@ export interface ApiDefinition {
     offline: typeof routes['public.offline']
     page: typeof routes['public.page']
   }
+  analytics: {
+    collect: typeof routes['analytics.collect']
+    report: typeof routes['analytics.report']
+  }
+  forms: {
+    submit: typeof routes['forms.submit']
+    page: typeof routes['forms.page']
+    list: typeof routes['forms.list']
+    updateStatus: typeof routes['forms.update_status']
+    destroy: typeof routes['forms.destroy']
+  }
+  pagesPublic: {
+    previewByToken: typeof routes['pages_public.preview_by_token']
+    preview: typeof routes['pages_public.preview']
+    show: typeof routes['pages_public.show']
+  }
   publicContent: {
     index: typeof routes['public_content.index']
     show: typeof routes['public_content.show']
@@ -75,6 +91,10 @@ export interface ApiDefinition {
   session: {
     create: typeof routes['session.create']
     store: typeof routes['session.store']
+    twoFactor: {
+      challenge: typeof routes['session.two_factor.challenge']
+      verify: typeof routes['session.two_factor.verify']
+    }
     destroy: typeof routes['session.destroy']
     me: typeof routes['session.me']
     updateProfile: typeof routes['session.update_profile']
@@ -90,10 +110,22 @@ export interface ApiDefinition {
       store: typeof routes['legacy.signup.store']
     }
   }
+  twoFactor: {
+    enroll: typeof routes['two_factor.enroll']
+    confirm: typeof routes['two_factor.confirm']
+    disable: typeof routes['two_factor.disable']
+  }
   dashboard: {
     index: typeof routes['dashboard.index']
     analyticsPage: typeof routes['dashboard.analytics_page']
     profilePage: typeof routes['dashboard.profile_page']
+  }
+  redirects: {
+    page: typeof routes['redirects.page']
+    list: typeof routes['redirects.list']
+    store: typeof routes['redirects.store']
+    update: typeof routes['redirects.update']
+    destroy: typeof routes['redirects.destroy']
   }
   users: {
     page: typeof routes['users.page']
@@ -152,18 +184,23 @@ export interface ApiDefinition {
     trash: typeof routes['pages.trash']
     collections: typeof routes['pages.collections']
     codeComponents: typeof routes['pages.code_components']
+    importOne: typeof routes['pages.import_one']
+    bulk: typeof routes['pages.bulk']
     store: typeof routes['pages.store']
     restore: typeof routes['pages.restore']
     forceDestroy: typeof routes['pages.force_destroy']
     revisions: typeof routes['pages.revisions']
     restoreRevision: typeof routes['pages.restore_revision']
+    saveDraft: typeof routes['pages.save_draft']
+    publish: typeof routes['pages.publish']
+    discardDraft: typeof routes['pages.discard_draft']
+    previewToken: typeof routes['pages.preview_token']
+    clearPreviewToken: typeof routes['pages.clear_preview_token']
+    duplicate: typeof routes['pages.duplicate']
+    exportOne: typeof routes['pages.export_one']
     show: typeof routes['pages.show']
     update: typeof routes['pages.update']
     destroy: typeof routes['pages.destroy']
-  }
-  pagesPublic: {
-    preview: typeof routes['pages_public.preview']
-    show: typeof routes['pages_public.show']
   }
   templates: {
     page: typeof routes['templates.page']
@@ -377,13 +414,20 @@ export interface ApiDefinition {
       }
       affiliates: {
         index: typeof routes['ecommerce.api.affiliates.index']
+        accounts: typeof routes['ecommerce.api.affiliates.accounts']
         store: typeof routes['ecommerce.api.affiliates.store']
+        approve: typeof routes['ecommerce.api.affiliates.approve']
+        reject: typeof routes['ecommerce.api.affiliates.reject']
         update: typeof routes['ecommerce.api.affiliates.update']
       }
       commissions: {
         index: typeof routes['ecommerce.api.commissions.index']
         pay: typeof routes['ecommerce.api.commissions.pay']
         export: typeof routes['ecommerce.api.commissions.export']
+      }
+      withdrawals: {
+        index: typeof routes['ecommerce.api.withdrawals.index']
+        process: typeof routes['ecommerce.api.withdrawals.process']
       }
       stats: typeof routes['ecommerce.api.stats']
     }
@@ -395,6 +439,9 @@ export interface ApiDefinition {
     }
     commissions: {
       page: typeof routes['ecommerce.commissions.page']
+    }
+    withdrawals: {
+      page: typeof routes['ecommerce.withdrawals.page']
     }
   }
   shop: {
@@ -414,6 +461,10 @@ export interface ApiDefinition {
       update: typeof routes['shop.cart.update']
       remove: typeof routes['shop.cart.remove']
       clear: typeof routes['shop.cart.clear']
+      discount: {
+        apply: typeof routes['shop.cart.discount.apply']
+        remove: typeof routes['shop.cart.discount.remove']
+      }
     }
     me: typeof routes['shop.me']
     order: {
@@ -425,6 +476,12 @@ export interface ApiDefinition {
     account: typeof routes['shop.account'] & {
       register: typeof routes['shop.account.register']
       login: typeof routes['shop.account.login']
+      twoFactor: {
+        verify: typeof routes['shop.account.two_factor.verify']
+        enroll: typeof routes['shop.account.two_factor.enroll']
+        confirm: typeof routes['shop.account.two_factor.confirm']
+        disable: typeof routes['shop.account.two_factor.disable']
+      }
       logout: typeof routes['shop.account.logout']
       orders: typeof routes['shop.account.orders']
       order: typeof routes['shop.account.order'] & {
@@ -436,6 +493,12 @@ export interface ApiDefinition {
         create: typeof routes['shop.account.addresses.create']
         update: typeof routes['shop.account.addresses.update']
         delete: typeof routes['shop.account.addresses.delete']
+      }
+      affiliate: {
+        overview: typeof routes['shop.account.affiliate.overview']
+        apply: typeof routes['shop.account.affiliate.apply']
+        payout: typeof routes['shop.account.affiliate.payout']
+        withdraw: typeof routes['shop.account.affiliate.withdraw']
       }
       page: {
         login: typeof routes['shop.account.page.login']

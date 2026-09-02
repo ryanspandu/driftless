@@ -202,7 +202,10 @@ export function LoginFormView({
               {passwordLabel || 'Password'}
             </label>
             {flag(showForgotLink) ? (
-              <Link href="/forgot-password" className="mb-1 text-xs text-muted-foreground hover:underline">
+              <Link
+                href="/forgot-password"
+                className="mb-1 text-xs text-muted-foreground hover:underline"
+              >
                 Forgot password?
               </Link>
             ) : null}
@@ -295,8 +298,8 @@ export function RegisterFormView({
     return (
       <Box s={s}>
         <EditorNote>
-          Public sign-up is turned off, so this form renders nothing on the live site. Turn it on
-          in Settings → Application.
+          Public sign-up is turned off, so this form renders nothing on the live site. Turn it on in
+          Settings → Application.
         </EditorNote>
       </Box>
     )
@@ -555,8 +558,8 @@ export function ResetPasswordFormView({
       {editing ? (
         <div className="mb-4">
           <EditorNote>
-            The reset token comes from the emailed link. On a real visit this form submits it;
-            here it is empty.
+            The reset token comes from the emailed link. On a real visit this form submits it; here
+            it is empty.
           </EditorNote>
         </div>
       ) : null}
@@ -623,20 +626,34 @@ export const FORM_HANDLERS: Record<string, { action: string; fields: string[] }>
   },
 }
 
+/** Hidden field a bot fills in; a real visitor never sees it. Must match the server. */
+const FORM_HONEYPOT_FIELD = '_hp_url'
+
+function readXsrfCookie(): string | undefined {
+  if (typeof document === 'undefined') return undefined
+  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
+  return match ? decodeURIComponent(match[1]!) : undefined
+}
+
 export function FormBlockView({
   content: Content,
   action,
   method,
   handler,
+  formName,
+  successMessage,
   ...s
 }: {
   content?: React.ComponentType
   action?: string
   method?: string
   handler?: string
+  formName?: string
+  successMessage?: string
 } & StyleBag) {
   const editing = editingFlag(s)
   const [loading, setLoading] = useState(false)
+  const [done, setDone] = useState(false)
   const target = handler && handler !== 'none' ? FORM_HANDLERS[handler] : undefined
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -654,6 +671,59 @@ export function FormBlockView({
     router.post(target.action, data as Record<string, string>, {
       onFinish: () => setLoading(false),
     })
+  }
+
+  // Collect: post the raw fields to the submissions inbox via fetch (no page
+  // navigation), then swap the form for a success message.
+  function onCollect(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (editing) return
+    const form = e.currentTarget
+    const fields = Object.fromEntries(new FormData(form).entries())
+    setLoading(true)
+    fetch('/api/forms/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(readXsrfCookie() ? { 'X-XSRF-TOKEN': readXsrfCookie()! } : {}),
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        form: formName || 'Form',
+        page: typeof window !== 'undefined' ? window.location.pathname : null,
+        fields,
+      }),
+    })
+      .then(() => {
+        setDone(true)
+        form.reset()
+      })
+      .catch(() => setDone(true))
+      .finally(() => setLoading(false))
+  }
+
+  if (handler === 'collect') {
+    if (done) {
+      return (
+        <Box s={s} data-form-success="">
+          {successMessage || 'Thanks — we’ve received your message.'}
+        </Box>
+      )
+    }
+    return (
+      <Box as="form" s={s} onSubmit={onCollect} data-loading={loading ? '' : undefined}>
+        {Content ? <Content /> : null}
+        {/* Honeypot: hidden from real users, catches naive bots. */}
+        <input
+          type="text"
+          name={FORM_HONEYPOT_FIELD}
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+        />
+      </Box>
+    )
   }
 
   if (target) {

@@ -140,7 +140,7 @@ export default class ManualOrderService {
           status: 'pending',
           paymentStatus: 'unpaid',
           fulfillmentStatus: 'unfulfilled',
-          customerId: null,
+          accountId: null,
           email: input.email.trim().toLowerCase(),
           accessTokenHash: token.hash,
           accessTokenEnc: token.enc,

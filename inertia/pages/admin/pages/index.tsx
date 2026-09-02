@@ -1,7 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { router } from '@inertiajs/react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { ExternalLink, Layers, MoreHorizontal, Pencil, Plus, SquarePen, Trash2 } from 'lucide-react'
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
+import { toast } from 'sonner'
+import {
+  Copy,
+  Download,
+  ExternalLink,
+  Layers,
+  Link2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  SquarePen,
+  Trash2,
+  Upload,
+} from 'lucide-react'
 import { PAGE_ROLE_SLOTS, type PageSummaryDto } from '~/types/api'
 import { modulePageRoles } from '~/lib/module-page-roles'
 import { Badge } from '~/components/ui/badge'
@@ -27,6 +40,10 @@ import {
   useTrashedPages,
   useRestorePage,
   useForceDeletePage,
+  useDuplicatePage,
+  useImportPage,
+  useBulkPages,
+  usePreviewToken,
 } from '~/hooks/api/use-pages'
 import { useUpdateWebsiteSettings, useWebsiteSettings } from '~/hooks/api/use-website-settings'
 import { cn, formatAdminTableDateTime } from '~/lib/utils'
@@ -51,8 +68,72 @@ export default function PagesPage() {
   const trashedQuery = useTrashedPages()
   const restoreMut = useRestorePage()
   const forceDeleteMut = useForceDeletePage()
+  const duplicateMut = useDuplicatePage()
+  const importMut = useImportPage()
+  const bulkMut = useBulkPages()
+  const previewTokenMut = usePreviewToken()
   const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data])
   const [trashOpen, setTrashOpen] = useState(false)
+  const [selection, setSelection] = useState<RowSelectionState>({})
+  const selectedIds = useMemo(() => Object.keys(selection).filter((k) => selection[k]), [selection])
+  const importInputRef = useRef<HTMLInputElement>(null)
+
+  const onDuplicate = async (id: string) => {
+    try {
+      await duplicateMut.mutateAsync(id)
+      toast.success('Page duplicated')
+    } catch {
+      toast.error('Could not duplicate')
+    }
+  }
+
+  const onExport = async (id: string, title: string) => {
+    try {
+      const data = await (
+        await import('~/lib/api')
+      ).apiGet<Record<string, unknown>>(`/api/admin/pages/${id}/export`)
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'page'}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Could not export')
+    }
+  }
+
+  const onImportFile = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text())
+      await importMut.mutateAsync(parsed)
+      toast.success('Page imported as a draft')
+    } catch {
+      toast.error('Invalid page file')
+    }
+  }
+
+  const onCopyPreviewLink = async (id: string) => {
+    try {
+      const { url } = await previewTokenMut.mutateAsync(id)
+      const full = `${window.location.origin}${url}`
+      await navigator.clipboard.writeText(full)
+      toast.success('Preview link copied')
+    } catch {
+      toast.error('Could not create preview link')
+    }
+  }
+
+  const onBulk = async (action: 'publish' | 'unpublish' | 'trash') => {
+    try {
+      const { count } = await bulkMut.mutateAsync({ ids: selectedIds, action })
+      setSelection({})
+      toast.success(`${count} page(s) updated`)
+    } catch {
+      toast.error('Bulk action failed')
+    }
+  }
   const [dialog, setDialog] = useState<{ open: boolean; mode: DialogMode }>({
     open: false,
     mode: { kind: 'create' },
@@ -92,9 +173,21 @@ export default function PagesPage() {
         accessorFn: (r) => r.status,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
         cell: ({ row }) => (
-          <Badge variant={row.original.status === 'PUBLISHED' ? 'success' : 'secondary'}>
-            {row.original.status === 'PUBLISHED' ? 'Published' : 'Draft'}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant={row.original.status === 'PUBLISHED' ? 'success' : 'secondary'}>
+              {row.original.status === 'PUBLISHED' ? 'Published' : 'Draft'}
+            </Badge>
+            {row.original.hasDraft ? (
+              <Badge variant="warning" title="Has unpublished draft edits">
+                Draft edits
+              </Badge>
+            ) : null}
+            {row.original.scheduledPublishAt || row.original.scheduledUnpublishAt ? (
+              <Badge variant="outline" title="Scheduled">
+                Scheduled
+              </Badge>
+            ) : null}
+          </div>
         ),
       },
       {
@@ -187,6 +280,24 @@ export default function PagesPage() {
                 <Pencil className="size-4" />
                 Edit settings
               </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2" onClick={() => void onDuplicate(row.original.id)}>
+                <Copy className="size-4" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => void onExport(row.original.id, row.original.title)}
+              >
+                <Download className="size-4" />
+                Export JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => void onCopyPreviewLink(row.original.id)}
+              >
+                <Link2 className="size-4" />
+                Copy preview link
+              </DropdownMenuItem>
               <PageRoleMenu page={row.original} />
               <DropdownMenuItem
                 variant="destructive"
@@ -205,6 +316,7 @@ export default function PagesPage() {
         ),
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [confirmDelete, deleteMut]
   )
 
@@ -235,15 +347,58 @@ export default function PagesPage() {
         subtitle="Build landing & marketing pages with the visual builder"
         count={listQuery.isLoading ? undefined : rows.length}
         actions={
-          <Button
-            className="gap-2"
-            onClick={() => setDialog({ open: true, mode: { kind: 'create' } })}
-          >
-            <Plus className="size-4" />
-            New page
-          </Button>
+          <div className="flex items-center gap-2">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) void onImportFile(file)
+                e.target.value = ''
+              }}
+            />
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => importInputRef.current?.click()}
+            >
+              <Upload className="size-4" />
+              Import
+            </Button>
+            <Button
+              className="gap-2"
+              onClick={() => setDialog({ open: true, mode: { kind: 'create' } })}
+            >
+              <Plus className="size-4" />
+              New page
+            </Button>
+          </div>
         }
       />
+
+      {selectedIds.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
+          <span className="font-medium">{selectedIds.length} selected</span>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => void onBulk('publish')}>
+              Publish
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => void onBulk('unpublish')}>
+              Unpublish
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-destructive"
+              onClick={() => void onBulk('trash')}
+            >
+              Move to trash
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <DataTable
         columns={columns}
@@ -252,6 +407,7 @@ export default function PagesPage() {
         hideSyncColumn
         searchPlaceholder="Search by title or path…"
         toolbarActions={trashButton}
+        onRowSelectionChange={setSelection}
         emptyMessage={listQuery.isLoading ? 'Loading…' : 'No pages yet — create your first page.'}
       />
 

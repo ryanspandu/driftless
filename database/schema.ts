@@ -7,6 +7,37 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
+export class AnalyticsEventSchema extends BaseModel {
+  static $columns = ['browser', 'createdAt', 'deviceType', 'id', 'ipHash', 'os', 'path', 'referrer', 'referrerHost', 'sessionId', 'source', 'title', 'visitorId'] as const
+  $columns = AnalyticsEventSchema.$columns
+  @column()
+  declare browser: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deviceType: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare ipHash: string | null
+  @column()
+  declare os: string | null
+  @column()
+  declare path: string
+  @column()
+  declare referrer: string | null
+  @column()
+  declare referrerHost: string | null
+  @column()
+  declare sessionId: string
+  @column()
+  declare source: string
+  @column()
+  declare title: string | null
+  @column()
+  declare visitorId: string
+}
+
 export class AnnouncementSchema extends BaseModel {
   static $columns = ['body', 'createdAt', 'createdByUserId', 'deletedAt', 'id', 'published', 'title', 'updatedAt'] as const
   $columns = AnnouncementSchema.$columns
@@ -84,6 +115,29 @@ export class AuthAccessTokenSchema extends BaseModel {
   declare type: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+}
+
+export class CmsAbcSchema extends BaseModel {
+  static $columns = ['authorId', 'content', 'createdAt', 'deletedAt', 'id', 'slug', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsAbcSchema.$columns
+  @column()
+  declare authorId: string | null
+  @column()
+  declare content: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare slug: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class CmsCollectionSchema extends BaseModel {
@@ -215,9 +269,77 @@ export class ContentSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class EcommerceAccountSessionSchema extends BaseModel {
+  static $columns = ['accountId', 'createdAt', 'expiresAt', 'id', 'ipHash', 'lastUsedAt', 'revokedAt', 'tokenHash', 'userAgent'] as const
+  $columns = EcommerceAccountSessionSchema.$columns
+  @column()
+  declare accountId: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare ipHash: string | null
+  @column.dateTime()
+  declare lastUsedAt: DateTime | null
+  @column.dateTime()
+  declare revokedAt: DateTime | null
+  @column()
+  declare tokenHash: string
+  @column()
+  declare userAgent: string | null
+}
+
+export class EcommerceAccountSchema extends BaseModel {
+  static $columns = ['acceptsMarketing', 'createdAt', 'deletedAt', 'email', 'emailVerifiedAt', 'firstName', 'id', 'lastName', 'ordersCount', 'passwordHash', 'phone', 'status', 'totalSpentAmount', 'twoFactorEnabledAt', 'twoFactorRecoveryCodes', 'twoFactorSecretEnc', 'unsubscribeToken', 'unsubscribedAt', 'updatedAt'] as const
+  $columns = EcommerceAccountSchema.$columns
+  @column()
+  declare acceptsMarketing: boolean
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare email: string
+  @column.dateTime()
+  declare emailVerifiedAt: DateTime | null
+  @column()
+  declare firstName: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare lastName: string | null
+  @column()
+  declare ordersCount: number
+  @column()
+  declare passwordHash: string | null
+  @column()
+  declare phone: string | null
+  @column()
+  declare status: string
+  @column()
+  declare totalSpentAmount: bigint | number
+  @column.dateTime()
+  declare twoFactorEnabledAt: DateTime | null
+  @column()
+  declare twoFactorRecoveryCodes: any | null
+  @column()
+  declare twoFactorSecretEnc: string | null
+  @column()
+  declare unsubscribeToken: string | null
+  @column.dateTime()
+  declare unsubscribedAt: DateTime | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class EcommerceAddressSchema extends BaseModel {
-  static $columns = ['city', 'company', 'country', 'createdAt', 'customerId', 'deletedAt', 'firstName', 'id', 'isDefaultBilling', 'isDefaultShipping', 'label', 'lastName', 'line1', 'line2', 'phone', 'postalCode', 'state', 'updatedAt'] as const
+  static $columns = ['accountId', 'city', 'company', 'country', 'createdAt', 'deletedAt', 'firstName', 'id', 'isDefaultBilling', 'isDefaultShipping', 'label', 'lastName', 'line1', 'line2', 'phone', 'postalCode', 'state', 'updatedAt'] as const
   $columns = EcommerceAddressSchema.$columns
+  @column()
+  declare accountId: string | null
   @column()
   declare city: string
   @column()
@@ -226,8 +348,6 @@ export class EcommerceAddressSchema extends BaseModel {
   declare country: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
-  @column()
-  declare customerId: string | null
   @column.dateTime()
   declare deletedAt: DateTime | null
   @column()
@@ -275,9 +395,44 @@ export class EcommerceAffiliateClickSchema extends BaseModel {
   declare userAgent: string | null
 }
 
+export class EcommerceAffiliateWithdrawalSchema extends BaseModel {
+  static $columns = ['affiliateId', 'amount', 'createdAt', 'currency', 'id', 'payoutMethodSnapshotEnc', 'processedAt', 'processedByUserId', 'rejectionReason', 'requestedAt', 'status', 'updatedAt'] as const
+  $columns = EcommerceAffiliateWithdrawalSchema.$columns
+  @column()
+  declare affiliateId: string
+  @column()
+  declare amount: bigint | number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare payoutMethodSnapshotEnc: string | null
+  @column.dateTime()
+  declare processedAt: DateTime | null
+  @column()
+  declare processedByUserId: number | null
+  @column()
+  declare rejectionReason: string | null
+  @column.dateTime()
+  declare requestedAt: DateTime
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class EcommerceAffiliateSchema extends BaseModel {
-  static $columns = ['clicksCount', 'code', 'commissionPercentMilli', 'createdAt', 'customerId', 'deletedAt', 'email', 'id', 'name', 'notes', 'ordersCount', 'paidCommissionAmount', 'payoutDetailsEnc', 'status', 'totalCommissionAmount', 'updatedAt'] as const
+  static $columns = ['accountId', 'applicantMessage', 'appliedAt', 'clicksCount', 'code', 'commissionPercentMilli', 'createdAt', 'deletedAt', 'email', 'id', 'name', 'notes', 'ordersCount', 'paidCommissionAmount', 'payoutDetailsEnc', 'payoutMethodEnc', 'status', 'totalCommissionAmount', 'updatedAt'] as const
   $columns = EcommerceAffiliateSchema.$columns
+  @column()
+  declare accountId: string | null
+  @column()
+  declare applicantMessage: string | null
+  @column.dateTime()
+  declare appliedAt: DateTime | null
   @column()
   declare clicksCount: number
   @column()
@@ -286,8 +441,6 @@ export class EcommerceAffiliateSchema extends BaseModel {
   declare commissionPercentMilli: number
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
-  @column()
-  declare customerId: string | null
   @column.dateTime()
   declare deletedAt: DateTime | null
   @column()
@@ -304,6 +457,8 @@ export class EcommerceAffiliateSchema extends BaseModel {
   declare paidCommissionAmount: bigint | number
   @column()
   declare payoutDetailsEnc: string | null
+  @column()
+  declare payoutMethodEnc: string | null
   @column()
   declare status: string
   @column()
@@ -330,16 +485,16 @@ export class EcommerceCartItemSchema extends BaseModel {
 }
 
 export class EcommerceCartSchema extends BaseModel {
-  static $columns = ['affiliateCode', 'createdAt', 'currency', 'customerId', 'discountCode', 'email', 'expiresAt', 'id', 'remindedAt', 'tokenHash', 'updatedAt'] as const
+  static $columns = ['accountId', 'affiliateCode', 'createdAt', 'currency', 'discountCode', 'email', 'expiresAt', 'id', 'remindedAt', 'tokenHash', 'updatedAt'] as const
   $columns = EcommerceCartSchema.$columns
+  @column()
+  declare accountId: string | null
   @column()
   declare affiliateCode: string | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()
   declare currency: string
-  @column()
-  declare customerId: string | null
   @column()
   declare discountCode: string | null
   @column()
@@ -382,7 +537,7 @@ export class EcommerceCategorySchema extends BaseModel {
 }
 
 export class EcommerceCommissionSchema extends BaseModel {
-  static $columns = ['affiliateId', 'amount', 'approvedAt', 'createdAt', 'currency', 'id', 'orderId', 'orderSubtotalAmount', 'paidAt', 'paidByUserId', 'ratePercentMilli', 'status', 'updatedAt', 'voidReason'] as const
+  static $columns = ['affiliateId', 'amount', 'approvedAt', 'createdAt', 'currency', 'id', 'orderId', 'orderSubtotalAmount', 'paidAt', 'paidByUserId', 'ratePercentMilli', 'status', 'updatedAt', 'voidReason', 'withdrawalId'] as const
   $columns = EcommerceCommissionSchema.$columns
   @column()
   declare affiliateId: string
@@ -412,6 +567,8 @@ export class EcommerceCommissionSchema extends BaseModel {
   declare updatedAt: DateTime
   @column()
   declare voidReason: string | null
+  @column()
+  declare withdrawalId: string | null
 }
 
 export class EcommerceCurrencySchema extends BaseModel {
@@ -427,66 +584,6 @@ export class EcommerceCurrencySchema extends BaseModel {
   declare id: string
   @column()
   declare position: number
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
-}
-
-export class EcommerceCustomerSessionSchema extends BaseModel {
-  static $columns = ['createdAt', 'customerId', 'expiresAt', 'id', 'ipHash', 'lastUsedAt', 'revokedAt', 'tokenHash', 'userAgent'] as const
-  $columns = EcommerceCustomerSessionSchema.$columns
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column()
-  declare customerId: string
-  @column.dateTime()
-  declare expiresAt: DateTime
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare ipHash: string | null
-  @column.dateTime()
-  declare lastUsedAt: DateTime | null
-  @column.dateTime()
-  declare revokedAt: DateTime | null
-  @column()
-  declare tokenHash: string
-  @column()
-  declare userAgent: string | null
-}
-
-export class EcommerceCustomerSchema extends BaseModel {
-  static $columns = ['acceptsMarketing', 'createdAt', 'deletedAt', 'email', 'emailVerifiedAt', 'firstName', 'id', 'lastName', 'ordersCount', 'passwordHash', 'phone', 'status', 'totalSpentAmount', 'unsubscribeToken', 'unsubscribedAt', 'updatedAt'] as const
-  $columns = EcommerceCustomerSchema.$columns
-  @column()
-  declare acceptsMarketing: boolean
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column.dateTime()
-  declare deletedAt: DateTime | null
-  @column()
-  declare email: string
-  @column.dateTime()
-  declare emailVerifiedAt: DateTime | null
-  @column()
-  declare firstName: string | null
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare lastName: string | null
-  @column()
-  declare ordersCount: number
-  @column()
-  declare passwordHash: string | null
-  @column()
-  declare phone: string | null
-  @column()
-  declare status: string
-  @column()
-  declare totalSpentAmount: bigint | number
-  @column()
-  declare unsubscribeToken: string | null
-  @column.dateTime()
-  declare unsubscribedAt: DateTime | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }
@@ -519,14 +616,14 @@ export class EcommerceDigitalAssetSchema extends BaseModel {
 }
 
 export class EcommerceDiscountRedemptionSchema extends BaseModel {
-  static $columns = ['amount', 'createdAt', 'customerId', 'discountId', 'emailHash', 'id', 'orderId'] as const
+  static $columns = ['accountId', 'amount', 'createdAt', 'discountId', 'emailHash', 'id', 'orderId'] as const
   $columns = EcommerceDiscountRedemptionSchema.$columns
+  @column()
+  declare accountId: string | null
   @column()
   declare amount: bigint | number
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
-  @column()
-  declare customerId: string | null
   @column()
   declare discountId: string
   @column()
@@ -732,12 +829,14 @@ export class EcommerceOrderItemSchema extends BaseModel {
 }
 
 export class EcommerceOrderSchema extends BaseModel {
-  static $columns = ['accessTokenEnc', 'accessTokenHash', 'affiliateCode', 'billingAddress', 'cancelledAt', 'carrier', 'createdAt', 'currency', 'customerId', 'customerNote', 'deletedAt', 'discountAmount', 'discountCode', 'email', 'fulfilledAt', 'fulfillmentStatus', 'id', 'idempotencyKey', 'internalNote', 'number', 'paidAt', 'paymentStatus', 'refundedAmount', 'reservationExpiresAt', 'shippedAt', 'shippingAddress', 'shippingAmount', 'shippingMethodId', 'shippingMethodLabel', 'status', 'subtotalAmount', 'taxAmount', 'totalAmount', 'trackingNumber', 'trackingUrl', 'updatedAt'] as const
+  static $columns = ['accessTokenEnc', 'accessTokenHash', 'accountId', 'affiliateCode', 'billingAddress', 'cancelledAt', 'carrier', 'createdAt', 'currency', 'customerNote', 'deletedAt', 'discountAmount', 'discountCode', 'email', 'fulfilledAt', 'fulfillmentStatus', 'id', 'idempotencyKey', 'internalNote', 'number', 'paidAt', 'paymentStatus', 'refundedAmount', 'reservationExpiresAt', 'shippedAt', 'shippingAddress', 'shippingAmount', 'shippingMethodId', 'shippingMethodLabel', 'status', 'subtotalAmount', 'taxAmount', 'totalAmount', 'trackingNumber', 'trackingUrl', 'updatedAt'] as const
   $columns = EcommerceOrderSchema.$columns
   @column()
   declare accessTokenEnc: string | null
   @column()
   declare accessTokenHash: string | null
+  @column()
+  declare accountId: string | null
   @column()
   declare affiliateCode: string | null
   @column()
@@ -750,8 +849,6 @@ export class EcommerceOrderSchema extends BaseModel {
   declare createdAt: DateTime
   @column()
   declare currency: string
-  @column()
-  declare customerId: string | null
   @column()
   declare customerNote: string | null
   @column.dateTime()
@@ -987,14 +1084,24 @@ export class EcommerceRefundSchema extends BaseModel {
 }
 
 export class EcommerceSettingSchema extends BaseModel {
-  static $columns = ['addressLine1', 'addressLine2', 'affiliateCookieDays', 'checkoutTtlMinutes', 'city', 'country', 'createdAt', 'currency', 'id', 'locale', 'orderNumberPrefix', 'postalCode', 'productPageId', 'refundWindowDays', 'shopPageId', 'state', 'storeEmail', 'storeName', 'supportEmail', 'taxInclusive', 'taxLabel', 'taxRateMicro', 'updatedAt'] as const
+  static $columns = ['accountPageId', 'addressLine1', 'addressLine2', 'affiliateCookieDays', 'affiliateDefaultCommissionMilli', 'affiliateMinWithdrawalAmount', 'cartPageId', 'checkoutPageId', 'checkoutTtlMinutes', 'city', 'country', 'createdAt', 'currency', 'id', 'locale', 'loginPageId', 'orderNumberPrefix', 'orderPageId', 'postalCode', 'productPageId', 'refundWindowDays', 'registerPageId', 'shopPageId', 'state', 'storeEmail', 'storeName', 'supportEmail', 'taxInclusive', 'taxLabel', 'taxRateMicro', 'updatedAt'] as const
   $columns = EcommerceSettingSchema.$columns
+  @column()
+  declare accountPageId: string | null
   @column()
   declare addressLine1: string | null
   @column()
   declare addressLine2: string | null
   @column()
   declare affiliateCookieDays: number
+  @column()
+  declare affiliateDefaultCommissionMilli: number
+  @column()
+  declare affiliateMinWithdrawalAmount: bigint | number
+  @column()
+  declare cartPageId: string | null
+  @column()
+  declare checkoutPageId: string | null
   @column()
   declare checkoutTtlMinutes: number
   @column()
@@ -1010,13 +1117,19 @@ export class EcommerceSettingSchema extends BaseModel {
   @column()
   declare locale: string
   @column()
+  declare loginPageId: string | null
+  @column()
   declare orderNumberPrefix: string
+  @column()
+  declare orderPageId: string | null
   @column()
   declare postalCode: string | null
   @column()
   declare productPageId: string | null
   @column()
   declare refundWindowDays: number
+  @column()
+  declare registerPageId: string | null
   @column()
   declare shopPageId: string | null
   @column()
@@ -1154,6 +1267,29 @@ export class EcommerceWebhookEventSchema extends BaseModel {
   declare status: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+}
+
+export class FormSubmissionSchema extends BaseModel {
+  static $columns = ['createdAt', 'data', 'email', 'formName', 'id', 'ipHash', 'pagePath', 'status', 'userAgent'] as const
+  $columns = FormSubmissionSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare data: any
+  @column()
+  declare email: string | null
+  @column()
+  declare formName: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare ipHash: string | null
+  @column()
+  declare pagePath: string | null
+  @column()
+  declare status: string
+  @column()
+  declare userAgent: string | null
 }
 
 export class IntegrationSettingSchema extends BaseModel {
@@ -1305,6 +1441,27 @@ export class MediaSchema extends BaseModel {
   declare width: number | null
 }
 
+export class MediaVariantSchema extends BaseModel {
+  static $columns = ['bytes', 'createdAt', 'format', 'height', 'id', 'mediaId', 'url', 'width'] as const
+  $columns = MediaVariantSchema.$columns
+  @column()
+  declare bytes: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare format: string
+  @column()
+  declare height: number | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare mediaId: string
+  @column()
+  declare url: string
+  @column()
+  declare width: number
+}
+
 export class ModuleInstallJobSchema extends BaseModel {
   static $columns = ['activeLock', 'appliedMigrations', 'createdAt', 'errorMessage', 'errorReason', 'finishedAt', 'heartbeatAt', 'id', 'logTail', 'moduleName', 'pid', 'releaseStamp', 'requestId', 'requestedByUserId', 'requiresBuild', 'requiresRestart', 'restartKind', 'startedAt', 'state', 'step', 'updatedAt'] as const
   $columns = ModuleInstallJobSchema.$columns
@@ -1397,7 +1554,7 @@ export class PageRevisionSchema extends BaseModel {
 }
 
 export class PageSchema extends BaseModel {
-  static $columns = ['authorId', 'component', 'content', 'createdAt', 'deletedAt', 'footerTemplateId', 'headerTemplateId', 'hideFooter', 'hideHeader', 'id', 'kind', 'layoutId', 'path', 'publishedAt', 'renderMode', 'renderedBuild', 'renderedHtml', 'seo', 'status', 'title', 'updatedAt'] as const
+  static $columns = ['authorId', 'component', 'content', 'createdAt', 'deletedAt', 'draftContent', 'draftSeo', 'draftUpdatedAt', 'footerTemplateId', 'headerTemplateId', 'hideFooter', 'hideHeader', 'id', 'kind', 'layoutId', 'path', 'previewToken', 'publishedAt', 'renderMode', 'renderedBuild', 'renderedHtml', 'scheduledPublishAt', 'scheduledUnpublishAt', 'seo', 'status', 'title', 'updatedAt'] as const
   $columns = PageSchema.$columns
   @column()
   declare authorId: number | null
@@ -1409,6 +1566,12 @@ export class PageSchema extends BaseModel {
   declare createdAt: DateTime
   @column.dateTime()
   declare deletedAt: DateTime | null
+  @column()
+  declare draftContent: any | null
+  @column()
+  declare draftSeo: any | null
+  @column.dateTime()
+  declare draftUpdatedAt: DateTime | null
   @column()
   declare footerTemplateId: string | null
   @column()
@@ -1425,6 +1588,8 @@ export class PageSchema extends BaseModel {
   declare layoutId: string | null
   @column()
   declare path: string
+  @column()
+  declare previewToken: string | null
   @column.dateTime()
   declare publishedAt: DateTime | null
   @column()
@@ -1433,6 +1598,10 @@ export class PageSchema extends BaseModel {
   declare renderedBuild: string | null
   @column()
   declare renderedHtml: string | null
+  @column.dateTime()
+  declare scheduledPublishAt: DateTime | null
+  @column.dateTime()
+  declare scheduledUnpublishAt: DateTime | null
   @column()
   declare seo: any
   @column()
@@ -1486,6 +1655,25 @@ export class PermissionSchema extends BaseModel {
   declare isSystem: boolean
   @column()
   declare name: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class RedirectSchema extends BaseModel {
+  static $columns = ['createdAt', 'fromPath', 'hits', 'id', 'status', 'toPath', 'updatedAt'] as const
+  $columns = RedirectSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare fromPath: string
+  @column()
+  declare hits: number
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: number
+  @column()
+  declare toPath: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }
@@ -1548,8 +1736,10 @@ export class TaskSchema extends BaseModel {
 }
 
 export class TemplateSchema extends BaseModel {
-  static $columns = ['content', 'createdAt', 'deletedAt', 'id', 'isDefault', 'name', 'renderedHtml', 'type', 'updatedAt'] as const
+  static $columns = ['collectionKey', 'content', 'createdAt', 'deletedAt', 'id', 'isDefault', 'name', 'renderedHtml', 'type', 'updatedAt'] as const
   $columns = TemplateSchema.$columns
+  @column()
+  declare collectionKey: string | null
   @column()
   declare content: any
   @column.dateTime({ autoCreate: true })
@@ -1571,7 +1761,7 @@ export class TemplateSchema extends BaseModel {
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['address', 'createdAt', 'deletedAt', 'email', 'emailVerifiedAt', 'firstName', 'fullName', 'googleSub', 'id', 'lastName', 'password', 'phone', 'status', 'updatedAt', 'username'] as const
+  static $columns = ['address', 'createdAt', 'deletedAt', 'email', 'emailVerifiedAt', 'firstName', 'fullName', 'googleSub', 'id', 'lastName', 'password', 'phone', 'status', 'twoFactorEnabledAt', 'twoFactorRecoveryCodes', 'twoFactorSecretEnc', 'updatedAt', 'username'] as const
   $columns = UserSchema.$columns
   @column()
   declare address: string | null
@@ -1599,6 +1789,12 @@ export class UserSchema extends BaseModel {
   declare phone: string | null
   @column()
   declare status: string
+  @column.dateTime()
+  declare twoFactorEnabledAt: DateTime | null
+  @column()
+  declare twoFactorRecoveryCodes: any | null
+  @column()
+  declare twoFactorSecretEnc: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
   @column()

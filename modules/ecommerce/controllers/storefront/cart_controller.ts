@@ -17,6 +17,8 @@ const setValidator = vine.compile(
   })
 )
 
+const discountValidator = vine.compile(vine.object({ code: vine.string().trim().maxLength(64) }))
+
 const carts = new CartService()
 
 const fail = (response: HttpContext['response'], error: unknown) =>
@@ -89,6 +91,31 @@ export default class CartController {
     if (!cart) return response.status(404).json({ message: 'No basket.', reason: 'no_cart' })
 
     await carts.clear(cart)
+    return response.json(await carts.toDto(cart))
+  }
+
+  /** Apply a coupon code to the basket. */
+  async applyDiscount(ctx: HttpContext) {
+    const { request, response } = ctx
+    try {
+      const { code } = await request.validateUsing(discountValidator)
+      const cart = await carts.forRequest(ctx)
+      if (!cart) return response.status(404).json({ message: 'No basket.', reason: 'no_cart' })
+
+      await carts.setDiscount(cart, code)
+      return response.json(await carts.toDto(cart))
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /** Remove the applied coupon. */
+  async removeDiscount(ctx: HttpContext) {
+    const { response } = ctx
+    const cart = await carts.forRequest(ctx)
+    if (!cart) return response.status(404).json({ message: 'No basket.', reason: 'no_cart' })
+
+    await carts.clearDiscount(cart)
     return response.json(await carts.toDto(cart))
   }
 }

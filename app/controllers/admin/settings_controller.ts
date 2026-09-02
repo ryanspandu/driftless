@@ -21,6 +21,11 @@ export default class SettingsController {
     }
     try {
       const settings = await webSettingsService.applyPatches(patches)
+      // The theme (font/colours) is baked into SSG snapshots via shared props →
+      // re-render cached HTML when it changes.
+      if (patches.some((p) => p && typeof p === 'object' && p.section === 'theme')) {
+        await pagesService.invalidateAllSnapshots()
+      }
       return response.json(settings)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })

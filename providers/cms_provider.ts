@@ -5,6 +5,7 @@ import CmsField from '#models/cms_field'
 import { newUlid } from '#services/ulid_service'
 import CmsPermissionsService from '#services/cms_permissions_service'
 import { NATIVE_COLLECTIONS, nativeTableName } from '#cms/native_registry'
+import { registerPostsCollection } from '#cms/builtin/posts_collection'
 import { LOCK_KEYS, withAdvisoryLock } from '#services/advisory_lock'
 
 export default class CmsProvider {
@@ -13,6 +14,10 @@ export default class CmsProvider {
   register() {}
 
   async boot() {
+    // In-memory only, no DB needed: blog posts become a bindable collection for
+    // the page builder in every environment.
+    registerPostsCollection()
+
     const environment = this.app.getEnvironment()
     if (environment !== 'web' && environment !== 'console' && environment !== 'test') {
       return

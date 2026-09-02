@@ -55,6 +55,14 @@ export default class Commission extends BaseModel {
   @column()
   declare paidByUserId: number | null
 
+  /**
+   * The withdrawal this commission is attached to, if any. An `approved`
+   * commission with no `withdrawalId` is *available* to withdraw; once attached
+   * it is reserved, and becomes `paid` when the withdrawal is paid out.
+   */
+  @column()
+  declare withdrawalId: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

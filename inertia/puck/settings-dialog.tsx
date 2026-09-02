@@ -41,6 +41,9 @@ export interface PageMeta {
   hideHeader: boolean
   hideFooter: boolean
   seo: Record<string, unknown>
+  /** ISO timestamps for scheduled publish / unpublish (null = none). */
+  scheduledPublishAt?: string | null
+  scheduledUnpublishAt?: string | null
 }
 
 /** Sentinel for "none" in the header/footer selects. Never sent as an id. */
@@ -48,12 +51,13 @@ const NONE = '__none__'
 
 type SectionKey = 'general' | 'seo' | 'page-code' | 'global-code'
 
-const SECTIONS: { key: SectionKey; label: string; icon: ComponentType<{ className?: string }> }[] = [
-  { key: 'general', label: 'General', icon: Settings2 },
-  { key: 'seo', label: 'SEO & Meta', icon: Search },
-  { key: 'page-code', label: 'Page code', icon: Code2 },
-  { key: 'global-code', label: 'Global code', icon: Globe },
-]
+const SECTIONS: { key: SectionKey; label: string; icon: ComponentType<{ className?: string }> }[] =
+  [
+    { key: 'general', label: 'General', icon: Settings2 },
+    { key: 'seo', label: 'SEO & Meta', icon: Search },
+    { key: 'page-code', label: 'Page code', icon: Code2 },
+    { key: 'global-code', label: 'Global code', icon: Globe },
+  ]
 
 export function SettingsDialog({
   open,
@@ -78,7 +82,10 @@ export function SettingsDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => onOpenChange(false)} />
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={() => onOpenChange(false)}
+      />
       <div
         className="relative z-10 flex h-[640px] max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl border border-border bg-card shadow-xl"
         onClick={(e) => e.stopPropagation()}
@@ -96,7 +103,9 @@ export function SettingsDialog({
                 onClick={() => setSection(s.key)}
                 className={cn(
                   'flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-                  active ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/60 hover:text-foreground'
+                  active
+                    ? 'bg-background font-medium text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-background/60 hover:text-foreground'
                 )}
               >
                 <Icon className="size-4 shrink-0" />
@@ -200,9 +209,17 @@ function GeneralSection({ meta, onChange }: { meta: PageMeta; onChange: (m: Page
   return (
     <SectionBody title="General" description="Page basics, render mode, and template overrides.">
       <Row label="Title" htmlFor="set-title">
-        <Input id="set-title" value={meta.title} onChange={(e) => patch({ title: e.target.value })} />
+        <Input
+          id="set-title"
+          value={meta.title}
+          onChange={(e) => patch({ title: e.target.value })}
+        />
       </Row>
-      <Row label="Path" htmlFor="set-path" hint="URL slug for the public page. Changing it changes the page's URL.">
+      <Row
+        label="Path"
+        htmlFor="set-path"
+        hint="URL slug for the public page. Changing it changes the page's URL."
+      >
         <div className="flex items-center gap-1">
           <span className="text-sm text-muted-foreground">/</span>
           <Input
@@ -273,11 +290,56 @@ function GeneralSection({ meta, onChange }: { meta: PageMeta; onChange: (m: Page
           />
         </Row>
       </div>
+
+      <div className="grid grid-cols-2 gap-4 border-t pt-4">
+        <Row
+          label="Publish at"
+          htmlFor="set-sched-pub"
+          hint="Auto-publish this draft at a future time (optional)."
+        >
+          <input
+            id="set-sched-pub"
+            type="datetime-local"
+            className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm"
+            value={toLocalInput(meta.scheduledPublishAt)}
+            onChange={(e) => patch({ scheduledPublishAt: fromLocalInput(e.target.value) })}
+          />
+        </Row>
+        <Row
+          label="Unpublish at"
+          htmlFor="set-sched-unpub"
+          hint="Auto-revert to draft at this time (e.g. a promo ends)."
+        >
+          <input
+            id="set-sched-unpub"
+            type="datetime-local"
+            className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm"
+            value={toLocalInput(meta.scheduledUnpublishAt)}
+            onChange={(e) => patch({ scheduledUnpublishAt: fromLocalInput(e.target.value) })}
+          />
+        </Row>
+      </div>
+
       <p className="text-xs text-muted-foreground">
-        Changes apply when you press <strong>Publish</strong>.
+        Changes apply when you press <strong>Publish</strong>. Scheduled times are checked by a
+        background job.
       </p>
     </SectionBody>
   )
+}
+
+/** ISO ↔ `datetime-local` (`YYYY-MM-DDTHH:mm`) helpers for the schedule inputs. */
+function toLocalInput(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+function fromLocalInput(v: string): string | null {
+  if (!v) return null
+  const d = new Date(v)
+  return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
 // ── SEO & Meta ─────────────────────────────────────────────────────────────
@@ -288,10 +350,21 @@ function SeoSection({ meta, onChange }: { meta: PageMeta; onChange: (m: PageMeta
   const patchSeo = (p: Record<string, unknown>) => onChange({ ...meta, seo: { ...seo, ...p } })
   const metaTags: MetaTag[] = Array.isArray(seo.meta) ? (seo.meta as MetaTag[]) : []
 
+  const effTitle = str('title') || meta.title || 'Untitled page'
+  const effDesc = str('description')
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const displayUrl = `${origin}/${(meta.path || '').replace(/^\/+/, '')}`.replace(/\/$/, '')
+
   return (
     <SectionBody title="SEO & Meta" description="Search and social metadata for this page.">
+      <SeoPreview title={effTitle} description={effDesc} url={displayUrl} image={str('ogImage')} />
+
       <Row label="Meta title" htmlFor="seo-title" hint="Falls back to the page title if empty.">
-        <Input id="seo-title" value={str('title')} onChange={(e) => patchSeo({ title: e.target.value })} />
+        <Input
+          id="seo-title"
+          value={str('title')}
+          onChange={(e) => patchSeo({ title: e.target.value })}
+        />
       </Row>
       <Row label="Meta description" htmlFor="seo-desc">
         <Textarea
@@ -324,10 +397,96 @@ function SeoSection({ meta, onChange }: { meta: PageMeta; onChange: (m: PageMeta
 
       <MetaTagsEditor tags={metaTags} onChange={(next) => patchSeo({ meta: next })} />
 
+      <JsonLdField value={str('jsonLdCustom')} onChange={(v) => patchSeo({ jsonLdCustom: v })} />
+
       <p className="text-xs text-muted-foreground">
         Changes apply when you press <strong>Publish</strong>.
       </p>
     </SectionBody>
+  )
+}
+
+/** Live Google-result + social-card preview for the SEO fields being edited. */
+function SeoPreview({
+  title,
+  description,
+  url,
+  image,
+}: {
+  title: string
+  description: string
+  url: string
+  image: string
+}) {
+  const clampedTitle = title.length > 60 ? `${title.slice(0, 60)}…` : title
+  const clampedDesc = description.length > 160 ? `${description.slice(0, 160)}…` : description
+  return (
+    <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+      <p className="text-xs font-medium text-muted-foreground">Search result preview</p>
+      <div className="rounded-md bg-background p-3">
+        <p className="truncate text-xs text-muted-foreground">{url || 'example.com/page'}</p>
+        <p className="text-[15px] leading-snug text-blue-700 dark:text-blue-400">{clampedTitle}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {clampedDesc || 'Add a meta description to control the snippet shown here.'}
+        </p>
+      </div>
+      <p className="text-xs font-medium text-muted-foreground">Social share card</p>
+      <div className="overflow-hidden rounded-md border bg-background">
+        {image ? (
+          <img src={image} alt="" className="aspect-[1.91/1] w-full object-cover" />
+        ) : (
+          <div className="flex aspect-[1.91/1] w-full items-center justify-center bg-muted text-xs text-muted-foreground">
+            No Open Graph image
+          </div>
+        )}
+        <div className="space-y-0.5 p-2">
+          <p className="truncate text-[11px] uppercase text-muted-foreground">
+            {(url || 'example.com').replace(/^https?:\/\//, '').split('/')[0]}
+          </p>
+          <p className="truncate text-sm font-medium">{clampedTitle}</p>
+          {clampedDesc ? (
+            <p className="line-clamp-2 text-xs text-muted-foreground">{clampedDesc}</p>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Custom JSON-LD editor with inline validity feedback. Overrides the auto graph. */
+function JsonLdField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const trimmed = value.trim()
+  let error: string | null = null
+  if (trimmed) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (!parsed || typeof parsed !== 'object') error = 'Must be a JSON object or array.'
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Invalid JSON.'
+    }
+  }
+  return (
+    <Row
+      label="JSON-LD (advanced)"
+      htmlFor="seo-jsonld"
+      hint="Custom schema.org structured data. Overrides the auto-generated markup. Leave empty to use defaults."
+    >
+      <div className="space-y-1">
+        <Textarea
+          id="seo-jsonld"
+          rows={5}
+          className="font-mono text-xs"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={'{\n  "@context": "https://schema.org",\n  "@type": "FAQPage"\n}'}
+        />
+        {error ? (
+          <p className="text-xs text-destructive">Invalid JSON — {error}</p>
+        ) : trimmed ? (
+          <p className="text-xs text-green-600 dark:text-green-500">Valid JSON-LD.</p>
+        ) : null}
+      </div>
+    </Row>
   )
 }
 
@@ -360,8 +519,8 @@ function PageCodeSection() {
       title="Page code"
       description={
         <>
-          Custom CSS &amp; vanilla JS for <strong>this page only</strong> — not site-wide. JS runs on
-          the live published page, never in the editor.
+          Custom CSS &amp; vanilla JS for <strong>this page only</strong> — not site-wide. JS runs
+          on the live published page, never in the editor.
         </>
       }
     />

@@ -10,6 +10,7 @@ import ProductVariant from '#modules/ecommerce/models/product_variant'
 import PricingService, { type PricedOrder } from '#modules/ecommerce/services/pricing_service'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 import CurrencyService from '#modules/ecommerce/services/currency_service'
+import DiscountService from '#modules/ecommerce/services/discount_service'
 import { Money, type MoneyDto } from '#modules/ecommerce/services/money'
 
 /**
@@ -29,6 +30,7 @@ const MAX_LINES = 50
 
 const pricing = new PricingService()
 const settings = new StoreSettingsService()
+const discounts = new DiscountService()
 
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -66,6 +68,8 @@ export interface CartDto {
   itemCount: number
   digitalOnly: boolean
   email: string | null
+  /** The applied coupon code, if one is valid for the current basket. */
+  discountCode: string | null
 }
 
 export default class CartService {
@@ -244,6 +248,7 @@ export default class CartService {
       itemCount: 0,
       digitalOnly: false,
       email: cart.email,
+      discountCode: null,
     }
 
     if (lines.length === 0) return empty
@@ -262,17 +267,65 @@ export default class CartService {
       priced = await pricing.price(survivors, { currency })
     }
 
+    // Apply the persisted coupon, if any. A code that has since become invalid
+    // (expired, over its limit, basket no longer qualifies) is dropped silently
+    // rather than blocking the basket.
+    let discountAmount = 0
+    let appliedCode: string | null = null
+    if (cart.discountCode) {
+      try {
+        const evaluated = await discounts.validate(cart.discountCode, priced, cart.email)
+        discountAmount = evaluated.amount
+        appliedCode = evaluated.discount.code
+      } catch {
+        cart.discountCode = null
+        await cart.save()
+      }
+    }
+
+    const total = Math.max(priced.totalAmount - discountAmount, 0)
+
     return {
       lines: await this.decorateLines(priced, store.locale),
       currency: priced.currency,
       subtotal: Money.toDto(priced.subtotalAmount, priced.currency, store.locale),
-      discount: Money.toDto(priced.discountAmount, priced.currency, store.locale),
+      discount: Money.toDto(discountAmount, priced.currency, store.locale),
       tax: Money.toDto(priced.taxAmount, priced.currency, store.locale),
-      total: Money.toDto(priced.totalAmount, priced.currency, store.locale),
+      total: Money.toDto(total, priced.currency, store.locale),
       itemCount: priced.lines.reduce((sum, line) => sum + line.quantity, 0),
       digitalOnly: priced.digitalOnly,
       email: cart.email,
+      discountCode: appliedCode,
     }
+  }
+
+  /**
+   * Apply a coupon to the basket. Validates it against the current lines first
+   * so the shopper gets immediate feedback; the code is re-validated on every
+   * `toDto` and at checkout, so a later change can still drop it.
+   */
+  async setDiscount(cart: Cart, code: string, email?: string | null): Promise<void> {
+    const trimmed = code.trim()
+    if (!trimmed) {
+      cart.discountCode = null
+      await cart.save()
+      return
+    }
+    const lines = await this.lines(cart)
+    if (lines.length === 0) {
+      throw publicError.unprocessable('Add something to your basket first.', 'empty_basket')
+    }
+    const priced = await pricing.price(lines, { currency: (cart.currency || undefined) as string })
+    // Throws a client-safe reason if the code is not usable.
+    const evaluated = await discounts.validate(trimmed, priced, email ?? cart.email)
+    cart.discountCode = evaluated.discount.code
+    await cart.save()
+  }
+
+  /** Remove any applied coupon. */
+  async clearDiscount(cart: Cart): Promise<void> {
+    cart.discountCode = null
+    await cart.save()
   }
 
   /**

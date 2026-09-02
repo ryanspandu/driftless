@@ -400,13 +400,27 @@ test.group('E-commerce | discounts', (group) => {
 test.group('E-commerce | affiliates', (group) => {
   group.each.setup(async () => resetDatabase())
 
-  async function seedAffiliate(percent = 10) {
-    return new AffiliateService().create({
-      code: 'PARTNER',
-      name: 'A Partner',
-      email: 'partner@example.com',
-      commissionPercent: percent,
+  function seedAffiliateRow(code: string, percent: number) {
+    return Affiliate.create({
+      id: newUlid(),
+      code,
+      name: `Partner ${code}`,
+      email: `${code.toLowerCase()}@example.com`,
+      accountId: null,
+      commissionPercentMilli: Math.round(percent * 1_000),
+      status: 'active',
+      payoutMethodEnc: null,
+      appliedAt: null,
+      notes: null,
+      clicksCount: 0,
+      ordersCount: 0,
+      totalCommissionAmount: 0,
+      paidCommissionAmount: 0,
     })
+  }
+
+  async function seedAffiliate(percent = 10) {
+    return seedAffiliateRow('PARTNER', percent)
   }
 
   test('a referral link redirects and sets the attribution cookie', async ({ client, assert }) => {
@@ -449,12 +463,7 @@ test.group('E-commerce | affiliates', (group) => {
     assert,
   }) => {
     const earner = await seedAffiliate()
-    const impostor = await new AffiliateService().create({
-      code: 'IMPOSTOR',
-      name: 'Someone Else',
-      email: 'impostor@example.com',
-      commissionPercent: 50,
-    })
+    const impostor = await seedAffiliateRow('IMPOSTOR', 50)
     const { variant } = await seedProduct(10_000)
 
     // The click is what earns — this is the only legitimate way to be credited.
@@ -645,25 +654,23 @@ test.group('E-commerce | affiliates', (group) => {
     assert.equal(affiliate.outstandingAmount, 0)
   })
 
-  test('payout details never leave the server', async ({ client, assert }) => {
-    const SECRET = 'IBAN GB29 NWBK 6016 1331 9268 19'
-    await new AffiliateService().create({
-      code: 'BANKED',
-      name: 'Banked',
-      email: 'banked@example.com',
-      commissionPercent: 5,
-      payoutDetails: SECRET,
+  test('payout method never leaves the server', async ({ assert }) => {
+    const SECRET = '6016133192681900'
+    const affiliate = await seedAffiliateRow('BANKED', 5)
+    await new AffiliateService().setPayoutMethod(affiliate, {
+      type: 'bank',
+      bankName: 'NatWest',
+      accountNumber: SECRET,
+      accountHolder: 'A Banked Partner',
     })
 
-    const admin = await superadmin()
-    const res = await client.get('/api/admin/ecommerce/affiliates').loginAs(admin)
-
-    assert.notInclude(JSON.stringify(res.body()), SECRET)
-    assert.isTrue(res.body()[0].hasPayoutDetails)
+    const dtos = await new AffiliateService().list()
+    assert.notInclude(JSON.stringify(dtos), SECRET)
+    assert.isTrue(dtos.find((d) => d.code === 'BANKED')!.hasPayoutMethod)
 
     // …and it is genuinely encrypted at rest.
     const row = await db.from('ecommerce_affiliates').where('code', 'BANKED').first()
-    assert.notInclude(String(row.payout_details_enc), SECRET)
+    assert.notInclude(String(row.payout_method_enc), SECRET)
   })
 
   test('managing affiliates does not permit recording payouts', async ({ client }) => {

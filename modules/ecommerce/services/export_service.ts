@@ -241,14 +241,14 @@ export default class ExportService {
   async customers(range: ExportRange = {}): Promise<string> {
     const { from, to } = boundaries(range)
 
-    const counted = db.from('ecommerce_customers').whereNull('deleted_at')
+    const counted = db.from('ecommerce_accounts').whereNull('deleted_at')
     if (from) counted.where('created_at', '>=', from)
     if (to) counted.where('created_at', '<=', to)
     guardSize(rowCount(await counted.count('* as total')), 'customers')
 
     const store = await settings.getOrCreate()
     const query = db
-      .from('ecommerce_customers')
+      .from('ecommerce_accounts')
       .whereNull('deleted_at')
       .orderBy('created_at', 'desc')
       .select(

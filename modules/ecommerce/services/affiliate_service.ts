@@ -10,6 +10,8 @@ import { newUlid } from '#services/ulid_service'
 import { publicError } from '#exceptions/public_error'
 import Affiliate from '#modules/ecommerce/models/affiliate'
 import Commission from '#modules/ecommerce/models/commission'
+import AffiliateWithdrawal from '#modules/ecommerce/models/affiliate_withdrawal'
+import type Account from '#modules/ecommerce/models/account'
 import type Order from '#modules/ecommerce/models/order'
 import { Money } from '#modules/ecommerce/services/money'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
@@ -18,10 +20,30 @@ import { csvDocument } from '#modules/ecommerce/services/csv'
 /** Cookie holding the last-click referral code. */
 export const AFFILIATE_COOKIE = 'dl_ref'
 
-/** Purpose tag so payout details cannot be decrypted as some other secret. */
-const PAYOUT_PURPOSE = 'ecommerce_affiliate_payout'
+/** Purpose tag so the payout method cannot be decrypted as some other secret. */
+const PAYOUT_METHOD_PURPOSE = 'ecommerce_affiliate_payout_method'
 
 const settings = new StoreSettingsService()
+
+/** A structured, self-service payout instrument. Stored encrypted as JSON. */
+export type PayoutMethod =
+  | { type: 'bank'; bankName: string; accountNumber: string; accountHolder: string }
+  | { type: 'ewallet'; provider: string; accountNumber: string; accountHolder: string }
+  | { type: 'paypal'; email: string }
+
+/** The non-earning + earning states an affiliate can be in. */
+export type AffiliateState = Affiliate['status'] | 'none'
+
+interface Balances {
+  /** Earned but still inside the refund window. */
+  pending: number
+  /** Approved and not yet attached to a withdrawal — withdrawable now. */
+  available: number
+  /** Approved and reserved by an open withdrawal request. */
+  inWithdrawal: number
+  /** Paid out. */
+  paid: number
+}
 
 function hashIp(ip: string | null | undefined): string | null {
   if (!ip) return null
@@ -32,23 +54,67 @@ function normaliseCode(code: string): string {
   return code.trim().toUpperCase().slice(0, 64)
 }
 
+interface Money2 {
+  amount: number
+  formatted: string
+}
+
 export interface AffiliateDto {
   id: string
   code: string
+  accountId: string | null
   name: string
   email: string
   commissionPercent: number
-  status: 'active' | 'paused' | 'blocked'
-  /** Masked. The plaintext never leaves the server. */
-  payoutDetailsMasked: string | null
-  hasPayoutDetails: boolean
+  status: Affiliate['status']
+  /** A short, non-sensitive label for the saved payout method (never the details). */
+  payoutMethodSummary: string | null
+  hasPayoutMethod: boolean
   notes: string | null
+  /** The applicant's own note (why they want in). Shown in the admin queue. */
+  applicantMessage: string | null
   clicksCount: number
   ordersCount: number
-  totalCommission: { amount: number; formatted: string }
-  paidCommission: { amount: number; formatted: string }
-  outstanding: { amount: number; formatted: string }
+  /** Computed from the commission ledger, so refund-voids can't leave it stale. */
+  pendingCommission: Money2
+  availableCommission: Money2
+  paidCommission: Money2
+  appliedAt: string | null
   createdAt: string
+  updatedAt: string
+}
+
+/** What an affiliate sees in their own account portal. */
+export interface AffiliateOverviewDto {
+  state: AffiliateState
+  code: string | null
+  /** The path to share, e.g. `/ref/ABC123`. The client prefixes the origin. */
+  referralPath: string | null
+  commissionPercent: number
+  clicksCount: number
+  ordersCount: number
+  pending: Money2
+  available: Money2
+  inWithdrawal: Money2
+  paid: Money2
+  minWithdrawal: Money2
+  canWithdraw: boolean
+  payoutMethod: { type: PayoutMethod['type']; summary: string } | null
+  recentCommissions: CommissionDto[]
+  withdrawals: WithdrawalDto[]
+}
+
+export interface WithdrawalDto {
+  id: string
+  affiliateId: string
+  affiliateName: string
+  amount: Money2
+  status: AffiliateWithdrawal['status']
+  requestedAt: string
+  processedAt: string | null
+  rejectionReason: string | null
+  /** Admin-only: a label for the payout instrument to send money to. */
+  payoutMethodSummary: string | null
 }
 
 export interface CommissionDto {
@@ -66,10 +132,52 @@ export interface CommissionDto {
   createdAt: string
 }
 
-function maskPayout(value: string | null): string | null {
-  if (!value) return null
-  if (value.length <= 6) return '••••••'
-  return `${'•'.repeat(Math.max(value.length - 4, 4))}${value.slice(-4)}`
+function maskTail(value: string): string {
+  const cleaned = value.trim()
+  if (cleaned.length <= 4) return `••${cleaned.slice(-2)}`
+  return `••••${cleaned.slice(-4)}`
+}
+
+/** A short, non-sensitive label for a payout method — safe to show and log. */
+function summarisePayoutMethod(method: PayoutMethod): string {
+  switch (method.type) {
+    case 'bank':
+      return `${method.bankName} ${maskTail(method.accountNumber)}`
+    case 'ewallet':
+      return `${method.provider} ${maskTail(method.accountNumber)}`
+    case 'paypal':
+      return `PayPal ${method.email}`
+  }
+}
+
+function normalisePayoutMethod(input: PayoutMethod): PayoutMethod {
+  const t = (s: unknown) => String(s ?? '').trim()
+  if (input.type === 'bank') {
+    return {
+      type: 'bank',
+      bankName: t(input.bankName),
+      accountNumber: t(input.accountNumber),
+      accountHolder: t(input.accountHolder),
+    }
+  }
+  if (input.type === 'ewallet') {
+    return {
+      type: 'ewallet',
+      provider: t(input.provider),
+      accountNumber: t(input.accountNumber),
+      accountHolder: t(input.accountHolder),
+    }
+  }
+  return { type: 'paypal', email: t(input.email).toLowerCase() }
+}
+
+/** Validate a payout method has its required fields filled. */
+function payoutMethodComplete(method: PayoutMethod): boolean {
+  if (method.type === 'paypal') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(method.email)
+  if (method.type === 'bank') {
+    return Boolean(method.bankName && method.accountNumber && method.accountHolder)
+  }
+  return Boolean(method.provider && method.accountNumber && method.accountHolder)
 }
 
 export default class AffiliateService {
@@ -266,82 +374,440 @@ export default class AffiliateService {
     })
   }
 
-  // ── Admin ────────────────────────────────────────────────────────────────
+  // ── Account-based enrolment ────────────────────────────────────────────────
 
-  async list(): Promise<AffiliateDto[]> {
-    const rows = await Affiliate.query().whereNull('deleted_at').orderBy('created_at', 'desc')
-    const store = await settings.getOrCreate()
-    return rows.map((row) => this.toDto(row, store.currency, store.locale))
+  /** The affiliate row for an account, if one exists (any status). */
+  async findByAccountId(accountId: string): Promise<Affiliate | null> {
+    return Affiliate.query().where('account_id', accountId).whereNull('deleted_at').first()
   }
 
-  async create(input: {
-    code: string
-    name: string
-    email: string
-    commissionPercent: number
-    payoutDetails?: string | null
-    notes?: string | null
-  }): Promise<AffiliateDto> {
-    const code = normaliseCode(input.code)
-    if (!code) throw publicError.unprocessable('An affiliate needs a code.', 'code_required')
+  /**
+   * An account applies to become an affiliate (one per account).
+   *
+   * A first application creates a `pending` row. A **re-application** is allowed
+   * only from `rejected` or `blocked` — it returns the row to `pending` with the
+   * new message so the admin can reconsider. An already-pending or active account
+   * cannot re-apply.
+   */
+  async apply(account: Account, message?: string | null): Promise<Affiliate> {
+    const note = (message ?? '').trim().slice(0, 1_000) || null
+    const existing = await this.findByAccountId(account.id)
 
-    const existing = await Affiliate.query().where('code', code).whereNull('deleted_at').first()
     if (existing) {
-      throw publicError.conflict(`The code "${code}" is already in use.`, 'code_taken')
+      if (existing.status !== 'rejected' && existing.status !== 'blocked') {
+        throw publicError.conflict(
+          'You have already applied to the affiliate program.',
+          'already_applied'
+        )
+      }
+      existing.status = 'pending'
+      existing.applicantMessage = note
+      existing.appliedAt = DateTime.now()
+      await existing.save()
+      return existing
     }
 
-    const row = await Affiliate.create({
+    const store = await settings.getOrCreate()
+    return Affiliate.create({
       id: newUlid(),
-      code,
-      name: input.name.trim(),
-      email: input.email.trim().toLowerCase(),
-      commissionPercentMilli: this.encodePercent(input.commissionPercent),
-      status: 'active',
-      payoutDetailsEnc: input.payoutDetails
-        ? encryption.encrypt(input.payoutDetails, undefined, PAYOUT_PURPOSE)
-        : null,
-      notes: input.notes ?? null,
+      code: await this.generateUniqueCode(account),
+      name: account.fullName || account.email,
+      email: account.email,
+      accountId: account.id,
+      commissionPercentMilli: store.affiliateDefaultCommissionMilli,
+      status: 'pending',
+      payoutMethodEnc: null,
+      appliedAt: DateTime.now(),
+      applicantMessage: note,
+      notes: null,
       clicksCount: 0,
       ordersCount: 0,
       totalCommissionAmount: 0,
       paidCommissionAmount: 0,
     })
+  }
+
+  /** An affiliate (usually one they own) sets or replaces their payout method. */
+  async setPayoutMethod(affiliate: Affiliate, method: PayoutMethod): Promise<void> {
+    const normalised = normalisePayoutMethod(method)
+    if (!payoutMethodComplete(normalised)) {
+      throw publicError.unprocessable('Please fill in every payout field.', 'payout_incomplete')
+    }
+    affiliate.payoutMethodEnc = encryption.encrypt(
+      JSON.stringify(normalised),
+      undefined,
+      PAYOUT_METHOD_PURPOSE
+    )
+    await affiliate.save()
+  }
+
+  private decodePayoutMethod(enc: string | null): PayoutMethod | null {
+    if (!enc) return null
+    const raw = encryption.decrypt<string>(enc, PAYOUT_METHOD_PURPOSE)
+    if (!raw) return null
+    try {
+      return JSON.parse(raw) as PayoutMethod
+    } catch {
+      return null
+    }
+  }
+
+  // ── Admin ────────────────────────────────────────────────────────────────
+
+  /** All affiliates (optionally filtered by status), newest first. */
+  async list(filter: { status?: Affiliate['status'] } = {}): Promise<AffiliateDto[]> {
+    const query = Affiliate.query().whereNull('deleted_at').orderBy('created_at', 'desc')
+    if (filter.status) query.where('status', filter.status)
+    const rows = await query
+    const store = await settings.getOrCreate()
+    return Promise.all(rows.map((row) => this.toDto(row, store.currency, store.locale)))
+  }
+
+  /** Approve a pending application (or re-activate). Sets the earning rate. */
+  async approve(id: string, input: { commissionPercent?: number } = {}): Promise<AffiliateDto> {
+    const row = await Affiliate.query().where('id', id).whereNull('deleted_at').first()
+    if (!row) throw publicError.notFound('Affiliate not found.', 'affiliate_not_found')
+
+    if (input.commissionPercent !== undefined) {
+      row.commissionPercentMilli = this.encodePercent(input.commissionPercent)
+    }
+    if (!row.code) row.code = normaliseCode(newUlid().slice(-8))
+    row.status = 'active'
+    await row.save()
 
     const store = await settings.getOrCreate()
     return this.toDto(row, store.currency, store.locale)
   }
 
+  /** Reject a pending application. */
+  async reject(id: string, reason?: string | null): Promise<AffiliateDto> {
+    const row = await Affiliate.query().where('id', id).whereNull('deleted_at').first()
+    if (!row) throw publicError.notFound('Affiliate not found.', 'affiliate_not_found')
+    row.status = 'rejected'
+    if (reason) row.notes = reason
+    await row.save()
+    const store = await settings.getOrCreate()
+    return this.toDto(row, store.currency, store.locale)
+  }
+
+  /** Edit an affiliate's rate / status / notes (not their payout method). */
   async update(
     id: string,
     input: Partial<{
-      name: string
-      email: string
       commissionPercent: number
-      status: 'active' | 'paused' | 'blocked'
-      /** Omit to keep the stored details; empty string clears them. */
-      payoutDetails: string | null
+      status: Affiliate['status']
       notes: string | null
     }>
   ): Promise<AffiliateDto> {
     const row = await Affiliate.query().where('id', id).whereNull('deleted_at').first()
     if (!row) throw publicError.notFound('Affiliate not found.', 'affiliate_not_found')
 
-    if (input.name !== undefined) row.name = input.name.trim()
-    if (input.email !== undefined) row.email = input.email.trim().toLowerCase()
     if (input.commissionPercent !== undefined) {
       row.commissionPercentMilli = this.encodePercent(input.commissionPercent)
     }
     if (input.status !== undefined) row.status = input.status
     if (input.notes !== undefined) row.notes = input.notes
-    if (input.payoutDetails !== undefined) {
-      row.payoutDetailsEnc = input.payoutDetails
-        ? encryption.encrypt(input.payoutDetails, undefined, PAYOUT_PURPOSE)
-        : null
-    }
 
     await row.save()
     const store = await settings.getOrCreate()
     return this.toDto(row, store.currency, store.locale)
+  }
+
+  // ── Balances & withdrawals ──────────────────────────────────────────────────
+
+  /**
+   * Balances computed from the commission ledger (the source of truth), so a
+   * refund-void can never leave a stale "owed" total — the bug the old
+   * denormalised columns had.
+   */
+  async computeBalances(affiliateId: string): Promise<Balances> {
+    const rows = await db
+      .from('ecommerce_commissions')
+      .where('affiliate_id', affiliateId)
+      .select('status')
+      .select(db.raw('(withdrawal_id IS NULL) as unlinked'))
+      .sum('amount as total')
+      .groupByRaw('status, (withdrawal_id IS NULL)')
+
+    const balances: Balances = { pending: 0, available: 0, inWithdrawal: 0, paid: 0 }
+    for (const row of rows as Array<Record<string, unknown>>) {
+      const total = Number(row.total ?? 0)
+      const status = String(row.status)
+      const unlinked = row.unlinked === true || row.unlinked === 't' || row.unlinked === 1
+      if (status === 'pending') balances.pending += total
+      else if (status === 'paid') balances.paid += total
+      else if (status === 'approved') {
+        if (unlinked) balances.available += total
+        else balances.inWithdrawal += total
+      }
+    }
+    return balances
+  }
+
+  /**
+   * Request a payout of the entire available balance.
+   *
+   * Bundles every approved, unlinked commission into one withdrawal (avoids
+   * splitting individual commissions), gated by the store minimum. Requires a
+   * saved payout method.
+   */
+  async requestWithdrawal(affiliate: Affiliate): Promise<AffiliateWithdrawal> {
+    const method = this.decodePayoutMethod(affiliate.payoutMethodEnc)
+    if (!method) {
+      throw publicError.unprocessable('Add a payout method first.', 'no_payout_method')
+    }
+    const store = await settings.getOrCreate()
+
+    return db.transaction(async (trx) => {
+      const commissions = await Commission.query({ client: trx })
+        .where('affiliate_id', affiliate.id)
+        .where('status', 'approved')
+        .whereNull('withdrawal_id')
+        .forUpdate()
+
+      const amount = commissions.reduce((sum, c) => sum + c.amount, 0)
+      if (amount <= 0) {
+        throw publicError.unprocessable(
+          'You have nothing available to withdraw.',
+          'nothing_available'
+        )
+      }
+      if (amount < store.affiliateMinWithdrawalAmount) {
+        throw publicError.unprocessable(
+          `The minimum withdrawal is ${Money.format(store.affiliateMinWithdrawalAmount, store.currency, store.locale)}.`,
+          'below_minimum'
+        )
+      }
+
+      const now = DateTime.now()
+      const withdrawal = await AffiliateWithdrawal.create(
+        {
+          id: newUlid(),
+          affiliateId: affiliate.id,
+          amount,
+          currency: store.currency,
+          status: 'requested',
+          payoutMethodSnapshotEnc: encryption.encrypt(
+            JSON.stringify(method),
+            undefined,
+            PAYOUT_METHOD_PURPOSE
+          ),
+          requestedAt: now,
+          processedAt: null,
+          processedByUserId: null,
+          rejectionReason: null,
+        },
+        { client: trx }
+      )
+
+      await Commission.query({ client: trx })
+        .whereIn(
+          'id',
+          commissions.map((c) => c.id)
+        )
+        .update({ withdrawal_id: withdrawal.id })
+
+      return withdrawal
+    })
+  }
+
+  /** Withdrawals for one affiliate (their own history). */
+  async withdrawalsForAffiliate(affiliateId: string): Promise<WithdrawalDto[]> {
+    const rows = await AffiliateWithdrawal.query()
+      .where('affiliate_id', affiliateId)
+      .orderBy('requested_at', 'desc')
+      .limit(50)
+    const store = await settings.getOrCreate()
+    return rows.map((row) => this.withdrawalToDto(row, null, store.locale, false))
+  }
+
+  /** All withdrawals for the admin queue (optionally filtered by status). */
+  async listWithdrawals(
+    filter: { status?: AffiliateWithdrawal['status'] } = {}
+  ): Promise<WithdrawalDto[]> {
+    const query = db
+      .from('ecommerce_affiliate_withdrawals as w')
+      .leftJoin('ecommerce_affiliates as a', 'a.id', 'w.affiliate_id')
+      .select('w.*', 'a.name as affiliate_name')
+      .orderBy('w.requested_at', 'desc')
+      .limit(500)
+    if (filter.status) query.where('w.status', filter.status)
+    const rows = await query
+    const store = await settings.getOrCreate()
+
+    return (rows as Array<Record<string, unknown>>).map((row) => {
+      const amount = Number(row.amount ?? 0)
+      const method = this.decodePayoutMethod((row.payout_method_snapshot_enc as string) ?? null)
+      return {
+        id: String(row.id),
+        affiliateId: String(row.affiliate_id),
+        affiliateName: String(row.affiliate_name ?? 'Unknown'),
+        amount: {
+          amount,
+          formatted: Money.format(amount, String(row.currency ?? store.currency), store.locale),
+        },
+        status: row.status as AffiliateWithdrawal['status'],
+        requestedAt: String(row.requested_at),
+        processedAt: row.processed_at ? String(row.processed_at) : null,
+        rejectionReason: row.rejection_reason ? String(row.rejection_reason) : null,
+        payoutMethodSummary: method ? summarisePayoutMethod(method) : null,
+      }
+    })
+  }
+
+  /**
+   * Process a withdrawal: mark it paid (its commissions become `paid`) or reject
+   * it (its commissions are unlinked and become available again).
+   */
+  async processWithdrawal(
+    id: string,
+    userId: number,
+    action: 'paid' | 'reject',
+    reason?: string | null
+  ): Promise<void> {
+    await db.transaction(async (trx) => {
+      const withdrawal = await AffiliateWithdrawal.query({ client: trx })
+        .where('id', id)
+        .where('status', 'requested')
+        .forUpdate()
+        .first()
+      if (!withdrawal) {
+        throw publicError.unprocessable(
+          'This withdrawal has already been processed.',
+          'already_processed'
+        )
+      }
+
+      const now = DateTime.now()
+      if (action === 'paid') {
+        await Commission.query({ client: trx })
+          .where('withdrawal_id', id)
+          .where('status', 'approved')
+          .update({
+            status: 'paid',
+            paid_at: now.toSQL(),
+            paid_by_user_id: userId,
+            updated_at: now.toSQL(),
+          })
+        await trx
+          .from('ecommerce_affiliates')
+          .where('id', withdrawal.affiliateId)
+          .increment('paid_commission_amount', withdrawal.amount)
+        withdrawal.status = 'paid'
+      } else {
+        // Unlink the commissions so the balance returns to available.
+        await Commission.query({ client: trx })
+          .where('withdrawal_id', id)
+          .update({ withdrawal_id: null })
+        withdrawal.status = 'rejected'
+        withdrawal.rejectionReason = reason ?? null
+      }
+      withdrawal.processedAt = now
+      withdrawal.processedByUserId = userId
+      await withdrawal.useTransaction(trx).save()
+    })
+  }
+
+  // ── Storefront overview ─────────────────────────────────────────────────────
+
+  /** Everything an account needs to render its affiliate tab. */
+  async overviewForAccount(account: Account): Promise<AffiliateOverviewDto> {
+    const store = await settings.getOrCreate()
+    const money = (amount: number): Money2 => ({
+      amount,
+      formatted: Money.format(amount, store.currency, store.locale),
+    })
+
+    const affiliate = await this.findByAccountId(account.id)
+    if (!affiliate) {
+      return {
+        state: 'none',
+        code: null,
+        referralPath: null,
+        commissionPercent: store.affiliateDefaultCommissionMilli / 1_000,
+        clicksCount: 0,
+        ordersCount: 0,
+        pending: money(0),
+        available: money(0),
+        inWithdrawal: money(0),
+        paid: money(0),
+        minWithdrawal: money(store.affiliateMinWithdrawalAmount),
+        canWithdraw: false,
+        payoutMethod: null,
+        recentCommissions: [],
+        withdrawals: [],
+      }
+    }
+
+    const balances = await this.computeBalances(affiliate.id)
+    const method = this.decodePayoutMethod(affiliate.payoutMethodEnc)
+    const recentCommissions =
+      affiliate.status === 'active' ? await this.commissions({ affiliateId: affiliate.id }) : []
+    const withdrawals =
+      affiliate.status === 'active' ? await this.withdrawalsForAffiliate(affiliate.id) : []
+
+    const canWithdraw =
+      affiliate.status === 'active' &&
+      Boolean(method) &&
+      balances.available > 0 &&
+      balances.available >= store.affiliateMinWithdrawalAmount
+
+    return {
+      state: affiliate.status,
+      code: affiliate.code,
+      referralPath: `/ref/${affiliate.code}`,
+      commissionPercent: affiliate.commissionPercent,
+      clicksCount: affiliate.clicksCount,
+      ordersCount: affiliate.ordersCount,
+      pending: money(balances.pending),
+      available: money(balances.available),
+      inWithdrawal: money(balances.inWithdrawal),
+      paid: money(balances.paid),
+      minWithdrawal: money(store.affiliateMinWithdrawalAmount),
+      canWithdraw,
+      payoutMethod: method ? { type: method.type, summary: summarisePayoutMethod(method) } : null,
+      recentCommissions: recentCommissions.slice(0, 20),
+      withdrawals,
+    }
+  }
+
+  /** Auto-generate a short, unique referral code from an account. */
+  private async generateUniqueCode(account: Account): Promise<string> {
+    const base = normaliseCode(
+      (account.firstName || account.email.split('@')[0] || 'REF').replace(/[^A-Za-z0-9]/g, '')
+    ).slice(0, 8)
+    for (let i = 0; i < 6; i++) {
+      const suffix = crypto.randomBytes(2).toString('hex').toUpperCase()
+      const code = normaliseCode(`${base || 'REF'}${suffix}`)
+      const taken = await Affiliate.query().where('code', code).whereNull('deleted_at').first()
+      if (!taken) return code
+    }
+    // Extremely unlikely; fall back to a longer random code.
+    return normaliseCode(newUlid().slice(-12))
+  }
+
+  private withdrawalToDto(
+    row: AffiliateWithdrawal,
+    affiliateName: string | null,
+    locale: string,
+    includePayout: boolean
+  ): WithdrawalDto {
+    return {
+      id: row.id,
+      affiliateId: row.affiliateId,
+      affiliateName: affiliateName ?? '',
+      amount: { amount: row.amount, formatted: Money.format(row.amount, row.currency, locale) },
+      status: row.status,
+      requestedAt: row.requestedAt.toISO()!,
+      processedAt: row.processedAt?.toISO() ?? null,
+      rejectionReason: row.rejectionReason,
+      payoutMethodSummary: includePayout
+        ? (() => {
+            const m = this.decodePayoutMethod(row.payoutMethodSnapshotEnc)
+            return m ? summarisePayoutMethod(m) : null
+          })()
+        : null,
+    }
   }
 
   async commissions(
@@ -437,12 +903,11 @@ export default class AffiliateService {
     return Math.round(percent * 1_000)
   }
 
-  private toDto(row: Affiliate, currency: string, locale: string): AffiliateDto {
-    const payout = row.payoutDetailsEnc
-      ? encryption.decrypt<string>(row.payoutDetailsEnc, PAYOUT_PURPOSE)
-      : null
+  private async toDto(row: Affiliate, currency: string, locale: string): Promise<AffiliateDto> {
+    const method = this.decodePayoutMethod(row.payoutMethodEnc)
+    const balances = await this.computeBalances(row.id)
 
-    const money = (amount: number) => ({
+    const money = (amount: number): Money2 => ({
       amount,
       formatted: Money.format(amount, currency, locale),
     })
@@ -450,19 +915,23 @@ export default class AffiliateService {
     return {
       id: row.id,
       code: row.code,
+      accountId: row.accountId,
       name: row.name,
       email: row.email,
       commissionPercent: row.commissionPercent,
       status: row.status,
-      payoutDetailsMasked: maskPayout(payout),
-      hasPayoutDetails: Boolean(row.payoutDetailsEnc),
+      payoutMethodSummary: method ? summarisePayoutMethod(method) : null,
+      hasPayoutMethod: Boolean(row.payoutMethodEnc),
       notes: row.notes,
+      applicantMessage: row.applicantMessage,
       clicksCount: row.clicksCount,
       ordersCount: row.ordersCount,
-      totalCommission: money(row.totalCommissionAmount),
-      paidCommission: money(row.paidCommissionAmount),
-      outstanding: money(row.outstandingAmount),
+      pendingCommission: money(balances.pending),
+      availableCommission: money(balances.available),
+      paidCommission: money(balances.paid),
+      appliedAt: row.appliedAt?.toISO() ?? null,
       createdAt: row.createdAt.toISO()!,
+      updatedAt: row.updatedAt.toISO()!,
     }
   }
 }

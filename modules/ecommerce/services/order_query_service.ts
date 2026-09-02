@@ -80,7 +80,7 @@ export interface OrderListItemDto {
   fulfillmentStatus: FulfillmentStatus
   stage: OrderStage
   email: string
-  customerId: string | null
+  accountId: string | null
   total: MoneyDto
   refunded: MoneyDto
   itemCount: number
@@ -292,7 +292,7 @@ export default class OrderQueryService {
       // Derived here so the row badge and the tab filter cannot disagree.
       stage: stageOf(order),
       email: order.email,
-      customerId: order.customerId,
+      accountId: order.accountId,
       total: Money.toDto(order.totalAmount, order.currency, locale),
       refunded: Money.toDto(order.refundedAmount, order.currency, locale),
       itemCount: (order.items ?? []).reduce((sum, item) => sum + item.quantity, 0),

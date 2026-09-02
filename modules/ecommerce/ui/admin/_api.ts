@@ -109,6 +109,10 @@ export interface StoreSettingsDto {
   checkoutTtlMinutes: number
   refundWindowDays: number
   affiliateCookieDays: number
+  /** Smallest balance (minor units) an affiliate may withdraw. */
+  affiliateMinWithdrawalAmount: number
+  /** Default commission percent applied when approving an affiliate. */
+  affiliateDefaultCommissionPercent: number
   orderNumberPrefix: string
   /** Builder page used as the product-detail template. Null = no product pages. */
   productPageId: string | null
@@ -137,6 +141,10 @@ export interface StoreStatsDto {
   activeProductsCount: number
   lowStockCount: number
   customersCount: number
+  affiliatePayable: MoneyDto
+  affiliatePaid: MoneyDto
+  activeAffiliatesCount: number
+  pendingAffiliatesCount: number
 }
 
 export interface ProductListResult {
@@ -189,7 +197,7 @@ export interface OrderListItemDto {
   fulfillmentStatus: string
   stage: OrderStage
   email: string
-  customerId: string | null
+  accountId: string | null
   total: MoneyDto
   refunded: MoneyDto
   itemCount: number
@@ -735,19 +743,35 @@ export interface DiscountDto {
 export interface AffiliateDto {
   id: string
   code: string
+  accountId: string | null
   name: string
   email: string
   commissionPercent: number
-  status: 'active' | 'paused' | 'blocked'
-  payoutDetailsMasked: string | null
-  hasPayoutDetails: boolean
+  status: 'pending' | 'active' | 'paused' | 'blocked' | 'rejected'
+  payoutMethodSummary: string | null
+  hasPayoutMethod: boolean
   notes: string | null
+  applicantMessage: string | null
   clicksCount: number
   ordersCount: number
-  totalCommission: MarketingMoney
+  pendingCommission: MarketingMoney
+  availableCommission: MarketingMoney
   paidCommission: MarketingMoney
-  outstanding: MarketingMoney
+  appliedAt: string | null
   createdAt: string
+  updatedAt: string
+}
+
+export interface WithdrawalDto {
+  id: string
+  affiliateId: string
+  affiliateName: string
+  amount: MarketingMoney
+  status: 'requested' | 'paid' | 'rejected'
+  requestedAt: string
+  processedAt: string | null
+  rejectionReason: string | null
+  payoutMethodSummary: string | null
 }
 
 export interface CommissionDto {
@@ -797,27 +821,100 @@ export function useDeleteDiscount() {
   })
 }
 
-export function useAffiliates() {
+export function useAffiliates(status?: string) {
+  const path = status ? `${BASE}/affiliates?status=${status}` : `${BASE}/affiliates`
   return useQuery({
-    queryKey: ['ecommerce', 'affiliates'] as const,
-    queryFn: () => apiFetch<AffiliateDto[]>(`${BASE}/affiliates`),
+    queryKey: ['ecommerce', 'affiliates', status ?? 'all'] as const,
+    queryFn: () => apiFetch<AffiliateDto[]>(path),
   })
 }
 
-export function useSaveAffiliate() {
+export interface AffiliateAccountOption {
+  id: string
+  email: string
+  name: string
+}
+
+/** Type-ahead search over storefront accounts, for the affiliate picker. */
+export function searchAffiliateAccounts(q: string): Promise<AffiliateAccountOption[]> {
+  return apiFetch<AffiliateAccountOption[]>(`${BASE}/affiliate-accounts?q=${encodeURIComponent(q)}`)
+}
+
+/** Add an affiliate directly for an existing account (activated immediately). */
+export function useAddAffiliate() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, input }: { id: string | null; input: Record<string, unknown> }) =>
-      id
-        ? apiFetch<AffiliateDto>(`${BASE}/affiliates/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(input),
-          })
-        : apiFetch<AffiliateDto>(`${BASE}/affiliates`, {
-            method: 'POST',
-            body: JSON.stringify(input),
-          }),
+    mutationFn: (input: { email: string; commissionPercent?: number }) =>
+      apiFetch<AffiliateDto>(`${BASE}/affiliates`, { method: 'POST', body: JSON.stringify(input) }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'affiliates'] }),
+  })
+}
+
+export function useApproveAffiliate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, commissionPercent }: { id: string; commissionPercent?: number }) =>
+      apiFetch<AffiliateDto>(`${BASE}/affiliates/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ commissionPercent }),
+      }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'affiliates'] }),
+  })
+}
+
+export function useRejectAffiliate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      apiFetch<AffiliateDto>(`${BASE}/affiliates/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'affiliates'] }),
+  })
+}
+
+/** Edit an affiliate's rate / status / notes. */
+export function useUpdateAffiliate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Record<string, unknown> }) =>
+      apiFetch<AffiliateDto>(`${BASE}/affiliates/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'affiliates'] }),
+  })
+}
+
+export function useWithdrawals(status?: string) {
+  const path = status ? `${BASE}/withdrawals?status=${status}` : `${BASE}/withdrawals`
+  return useQuery({
+    queryKey: ['ecommerce', 'withdrawals', status ?? 'all'] as const,
+    queryFn: () => apiFetch<WithdrawalDto[]>(path),
+  })
+}
+
+export function useProcessWithdrawal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      action,
+      reason,
+    }: {
+      id: string
+      action: 'paid' | 'reject'
+      reason?: string
+    }) =>
+      apiFetch<{ ok: true }>(`${BASE}/withdrawals/${id}/process`, {
+        method: 'POST',
+        body: JSON.stringify({ action, reason }),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'withdrawals'] })
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'affiliates'] })
+    },
   })
 }
 
@@ -1006,7 +1103,7 @@ export function useCreateManualOrder() {
 
 // ── Customers ──────────────────────────────────────────────────────────────
 
-export interface CustomerDto {
+export interface AccountDto {
   id: string
   email: string
   firstName: string | null
@@ -1023,7 +1120,7 @@ export interface CustomerDto {
 }
 
 export interface CustomerListResult {
-  items: CustomerDto[]
+  items: AccountDto[]
   total: number
   page: number
   pageSize: number
@@ -1055,7 +1152,7 @@ export function useSetCustomerStatus() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'active' | 'blocked' }) =>
-      apiFetch<CustomerDto>(`${BASE}/customers/${id}/status`, {
+      apiFetch<AccountDto>(`${BASE}/customers/${id}/status`, {
         method: 'PUT',
         body: JSON.stringify({ status }),
       }),
@@ -1077,7 +1174,7 @@ export function useCreateCustomer() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: CreateCustomerInput) =>
-      apiFetch<CustomerDto>(`${BASE}/customers`, {
+      apiFetch<AccountDto>(`${BASE}/customers`, {
         method: 'POST',
         body: JSON.stringify(input),
       }),

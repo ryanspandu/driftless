@@ -1,4 +1,4 @@
-import { useContext, useState, type ReactNode } from 'react'
+import { memo, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createUsePuck, type ComponentData, type Field } from '@measured/puck'
 import { BreakpointContext, baseBreakpoint, cascadeStyleBag, readResponsive } from './breakpoints'
 import {
@@ -13,6 +13,7 @@ import {
   Eye,
   EyeOff,
   Italic,
+  Link2,
   MousePointer2,
   Plus,
   Strikethrough,
@@ -35,6 +36,69 @@ import {
 import { BackgroundLayersControl } from './background-controls'
 import type { ScrollAnimationPreset } from './scroll-animation'
 import { ICONS, LABELS } from './overrides'
+import { useCollections } from './collection-list'
+import {
+  readConditions,
+  useCollectionScope,
+  type Binding,
+  type VisibilityCondition,
+} from './record-binding'
+import { PanelSelect } from './panel-select'
+import type { AppSelectOption } from '~/components/ui/app-select'
+
+/**
+ * Which block props can be bound to a CMS field, and the label each shows in the
+ * Settings tab (Webflow-style "Get … from"). Only offered when the block sits
+ * inside a Collection List item.
+ */
+const BINDABLE_SLOTS: Record<
+  string,
+  Array<{ slot: string; label: string; kind: 'text' | 'image' | 'link' }>
+> = {
+  Text: [{ slot: 'text', label: 'Get text from', kind: 'text' }],
+  Paragraph: [{ slot: 'text', label: 'Get text from', kind: 'text' }],
+  Heading: [{ slot: 'text', label: 'Get text from', kind: 'text' }],
+  Image: [{ slot: 'src', label: 'Get image from', kind: 'image' }],
+  Button: [
+    { slot: 'label', label: 'Get label from', kind: 'text' },
+    { slot: 'href', label: 'Get link from', kind: 'link' },
+  ],
+}
+
+/**
+ * Walk the Puck doc to find the collection key of the nearest ancestor
+ * CollectionList that contains `targetId`. Returns the key string when the block
+ * lives inside a bound Collection List item, `null` when it's inside one with no
+ * source yet, or `undefined` when it isn't inside a Collection List at all.
+ */
+function findCollectionKeyFor(
+  node: unknown,
+  targetId: string,
+  currentKey: string | null
+): string | null | undefined {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const r = findCollectionKeyFor(child, targetId, currentKey)
+      if (r !== undefined) return r
+    }
+    return undefined
+  }
+  if (!node || typeof node !== 'object') return undefined
+  const block = node as { type?: string; props?: Record<string, unknown> }
+  if (block.props && block.props.id === targetId) {
+    return currentKey === null ? undefined : currentKey
+  }
+  let keyForChildren = currentKey
+  if (block.type === 'CollectionList') {
+    const src = block.props?.source as { collectionKey?: string } | undefined
+    keyForChildren = src?.collectionKey ? src.collectionKey : null
+  }
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    const r = findCollectionKeyFor(value, targetId, keyForChildren)
+    if (r !== undefined) return r
+  }
+  return undefined
+}
 
 /**
  * Webflow-style Detail panel — replaces Puck's flat `Puck.Fields` with a dense,
@@ -304,14 +368,47 @@ const RESPONSIVE_KEYS = new Set([
  * (hover, other-block edits). `config`/`dispatch`/`getSelectorForId` are stable
  * references, so those subscriptions never trigger a re-render.
  */
+type StyleState = 'base' | 'hover' | 'focus' | 'active'
+
+const STATE_OPTIONS: SegmentedOption[] = [
+  { value: 'base', label: 'Base' },
+  { value: 'hover', label: 'Hover' },
+  { value: 'focus', label: 'Focus' },
+  { value: 'active', label: 'Active' },
+]
+
 const usePuckStore = createUsePuck()
 
-export function DetailPanel() {
+/**
+ * Memoised with no props: the builder shell re-renders on every drag-over frame
+ * (it subscribes to the doc for the unsaved-changes guard), and without memo
+ * that cascaded into this whole panel — dozens of controls — per frame. Memo
+ * confines this panel to its own store subscriptions (selection, breakpoint).
+ */
+export const DetailPanel = memo(DetailPanelImpl)
+
+function DetailPanelImpl() {
   const selectedItem = usePuckStore((s) => s.selectedItem)
   const config = usePuckStore((s) => s.config)
   const dispatch = usePuckStore((s) => s.dispatch)
   const getSelectorForId = usePuckStore((s) => s.getSelectorForId)
   const { breakpoints, activeBp } = useContext(BreakpointContext)
+
+  // Which interaction state is being styled. 'base' is the normal element; the
+  // others write to `props.states.<state>` and render as `:hover`/`:focus`/
+  // `:active` on the published page. Reset when the selected element changes.
+  const [styleState, setStyleState] = useState<StyleState>('base')
+  useEffect(() => setStyleState('base'), [selectedItem?.props?.id])
+
+  // Element panel tab: Content / Style / Settings (Webflow-style). Reset per element.
+  const [panelTab, setPanelTab] = useState<'content' | 'style' | 'settings'>('content')
+  useEffect(() => setPanelTab('content'), [selectedItem?.props?.id])
+
+  // NOTE: this panel deliberately does NOT subscribe to `appState.data`. Puck
+  // replaces the doc on every drag-over frame, so a data subscription here
+  // would re-render every control in the panel per frame and make drags lag.
+  // The collection context (which needs the doc) lives in `SettingsTab`, which
+  // only mounts while the Settings tab is open.
 
   if (!selectedItem) {
     return (
@@ -339,6 +436,11 @@ export function DetailPanel() {
   const baseId = baseBreakpoint(breakpoints)?.id
   const onBase = !activeBp || activeBp === baseId
   const viewProps = onBase ? props : cascadeStyleBag(props, breakpoints, activeBp)
+
+  // Binding state read straight off the block's own props (no doc subscription).
+  const bindableSlots = BINDABLE_SLOTS[type] ?? []
+  const currentBinding = (props.binding ?? {}) as Binding
+  const currentConditions = readConditions(props.conditions)
 
   const update = (patch: Record<string, unknown>) => {
     const sel = getSelectorForId(id)
@@ -374,6 +476,48 @@ export function DetailPanel() {
     })
   }
 
+  // Writes for a non-base interaction state: patches land in
+  // `props.states.<state>` (pruned to `undefined` when empty), never touching
+  // the base props. Breakpoint targeting is intentionally ignored — a state is
+  // a single layer shared across widths.
+  const allStates = (props.states ?? {}) as Record<string, Record<string, unknown>>
+  const activeStateLayer = styleState === 'base' ? {} : (allStates[styleState] ?? {})
+
+  const updateState = (patch: Record<string, unknown>) => {
+    if (styleState === 'base') return update(patch)
+    const sel = getSelectorForId(id)
+    if (!sel) return
+    const states: Record<string, Record<string, unknown>> = {}
+    for (const [k, v] of Object.entries(allStates)) states[k] = { ...v }
+    const layer = { ...(states[styleState] ?? {}) }
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === undefined || v === '' || v === null) delete layer[k]
+      else layer[k] = v
+    }
+    if (Object.keys(layer).length) states[styleState] = layer
+    else delete states[styleState]
+    const nextProps: Record<string, unknown> = {
+      ...props,
+      states: Object.keys(states).length ? states : undefined,
+    }
+    dispatch({
+      type: 'replace',
+      destinationZone: sel.zone,
+      destinationIndex: sel.index,
+      data: { ...selectedItem, props: nextProps } as ComponentData,
+    })
+  }
+
+  // Bind / unbind a block prop to a CMS field (always base props).
+  const setBinding = (slot: string, fieldKey: string | null) => {
+    const next: Binding = { ...currentBinding }
+    if (fieldKey) next[slot] = fieldKey
+    else delete next[slot]
+    update({ binding: Object.keys(next).length ? next : undefined })
+  }
+  const setConditions = (next: VisibilityCondition[]) =>
+    update({ conditions: next.length ? next : undefined })
+
   // Styled blocks spread `styleFields` (so they have `maxWidth`); Spacer/PageOutlet
   // don't — for those we only show their own Content fields.
   const hasStyle = 'maxWidth' in fields
@@ -381,6 +525,13 @@ export function DetailPanel() {
     (k) => (hasStyle ? !STYLE_KEYS.has(k) : true) && fields[k]?.type !== 'slot'
   )
   const hasSpacing = hasStyle && SPACING_KEYS.some((k) => k in fields)
+
+  const tabs = [
+    contentKeys.length > 0 ? { id: 'content' as const, label: 'Content' } : null,
+    hasStyle ? { id: 'style' as const, label: 'Style' } : null,
+    { id: 'settings' as const, label: 'Settings' },
+  ].filter(Boolean) as { id: 'content' | 'style' | 'settings'; label: string }[]
+  const activeTab = tabs.some((t) => t.id === panelTab) ? panelTab : tabs[0]!.id
 
   return (
     <div className="pb-10">
@@ -393,7 +544,7 @@ export function DetailPanel() {
         </span>
         {!onBase && (
           <span
-            className="shrink-0 rounded bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-medium text-blue-400"
+            className="shrink-0 rounded bg-builder-set-bg px-1.5 py-0.5 text-[11px] font-medium text-builder-set"
             title={`Editing the ${breakpoints.find((b) => b.id === activeBp)?.label ?? activeBp} breakpoint. Style changes here apply to this width and narrower; class, ID and content stay shared.`}
           >
             {breakpoints.find((b) => b.id === activeBp)?.label ?? activeBp}
@@ -401,52 +552,453 @@ export function DetailPanel() {
         )}
       </div>
 
-      {contentKeys.length > 0 && (
+      {/* Content / Style / Settings tabs (Webflow-style split). */}
+      <div className="flex items-center gap-0.5 border-b px-2 py-1.5">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setPanelTab(t.id)}
+            className={cn(
+              'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
+              activeTab === t.id
+                ? 'bg-muted text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'content' && (
         <Section title="Content">
-          {contentKeys.map((k) => (
-            <FieldRow
-              key={k}
-              field={fields[k]}
-              name={k}
-              itemId={id}
-              label={fields[k]?.label ?? k}
-              value={viewProps[k]}
-              onChange={(v) => update({ [k]: v })}
-            />
-          ))}
+          {contentKeys.map((k) => {
+            const bound = currentBinding[k]
+            if (bound)
+              return (
+                <BoundFieldRow
+                  key={k}
+                  label={fields[k]?.label ?? k}
+                  field={bound}
+                  onClear={() => setBinding(k, null)}
+                />
+              )
+            return (
+              <FieldRow
+                key={k}
+                field={fields[k]}
+                name={k}
+                itemId={id}
+                label={fields[k]?.label ?? k}
+                value={viewProps[k]}
+                onChange={(v) => update({ [k]: v })}
+              />
+            )
+          })}
         </Section>
       )}
 
-      {hasStyle && <FlexChildSection props={viewProps} update={update} />}
+      {activeTab === 'style' &&
+        (hasStyle ? (
+          <>
+            {onBase && (
+              <div className="border-b px-3 py-2.5">
+                <SegmentedControl
+                  options={STATE_OPTIONS}
+                  value={styleState}
+                  allowClear={false}
+                  onChange={(v) => setStyleState((v || 'base') as StyleState)}
+                />
+                {styleState !== 'base' && (
+                  <p className="mt-1.5 text-[11px] leading-tight text-muted-foreground">
+                    Styling the <span className="font-medium text-builder-set">{styleState}</span>{' '}
+                    state. Only the properties you set here change on {styleState}; everything else
+                    inherits from Base.
+                  </p>
+                )}
+              </div>
+            )}
+            {onBase && styleState !== 'base' ? (
+              <StateStyleSection
+                layer={activeStateLayer}
+                update={updateState}
+                hasBg={'bg' in fields}
+              />
+            ) : (
+              <>
+                <FlexChildSection props={viewProps} update={update} />
+                <LayoutSection props={viewProps} update={update} hasGap={'gap' in fields} />
+                {hasSpacing && (
+                  <Section title="Spacing">
+                    <SpacingControl
+                      margin={typeof viewProps.margin === 'string' ? viewProps.margin : ''}
+                      padding={typeof viewProps.padding === 'string' ? viewProps.padding : ''}
+                      onChange={(margin, padding) => update({ margin, padding })}
+                    />
+                  </Section>
+                )}
+                <SizeSection props={viewProps} update={update} />
+                <PositionSection props={viewProps} update={update} />
+                <TypographySection props={viewProps} update={update} />
+                {'bg' in fields && <BackgroundSection props={viewProps} update={update} />}
+                <BordersSection props={viewProps} update={update} />
+                <EffectsSection props={viewProps} update={update} />
+                <InteractionsSection props={viewProps} update={update} />
+              </>
+            )}
+          </>
+        ) : (
+          <p className="px-4 py-6 text-sm text-muted-foreground">
+            This element has no style options.
+          </p>
+        ))}
 
-      {hasStyle && <LayoutSection props={viewProps} update={update} hasGap={'gap' in fields} />}
-
-      {hasSpacing && (
-        <Section title="Spacing">
-          <SpacingControl
-            margin={typeof viewProps.margin === 'string' ? viewProps.margin : ''}
-            padding={typeof viewProps.padding === 'string' ? viewProps.padding : ''}
-            onChange={(margin, padding) => update({ margin, padding })}
-          />
-        </Section>
+      {activeTab === 'settings' && (
+        <SettingsTab
+          id={id}
+          slots={bindableSlots}
+          binding={currentBinding}
+          conditions={currentConditions}
+          onBind={setBinding}
+          onConditions={setConditions}
+        >
+          {hasStyle && <AdvancedSection props={viewProps} update={update} />}
+        </SettingsTab>
       )}
-
-      {hasStyle && <SizeSection props={viewProps} update={update} />}
-
-      {hasStyle && <PositionSection props={viewProps} update={update} />}
-
-      {hasStyle && <TypographySection props={viewProps} update={update} />}
-
-      {'bg' in fields && <BackgroundSection props={viewProps} update={update} />}
-
-      {hasStyle && <BordersSection props={viewProps} update={update} />}
-
-      {hasStyle && <EffectsSection props={viewProps} update={update} />}
-
-      {hasStyle && <InteractionsSection props={viewProps} update={update} />}
-
-      {hasStyle && <AdvancedSection props={viewProps} update={update} />}
     </div>
+  )
+}
+
+type CollectionField = { key: string; label: string; type: string }
+
+/** Filter a collection's fields to those sensible for a given bind kind. */
+function fieldsForKind(
+  fields: CollectionField[],
+  kind: 'text' | 'image' | 'link'
+): CollectionField[] {
+  if (kind === 'image') {
+    const media = fields.filter((f) => /MEDIA|IMAGE/i.test(f.type))
+    return media.length ? media : fields
+  }
+  // text / link: any scalar-ish field (drop obvious non-text structures).
+  return fields.filter((f) => !/RELATION|COMPONENT|REPEATABLE|JSON/i.test(f.type))
+}
+
+/** A content row that is bound to a CMS field — locked, with an Unbind action. */
+function BoundFieldRow({
+  label,
+  field,
+  onClear,
+}: {
+  label: string
+  field: string
+  onClear: () => void
+}) {
+  return (
+    <div className="space-y-1">
+      <span className="block text-xs font-medium text-builder-bound">{label}</span>
+      <div className="flex items-center justify-between gap-2 rounded-md border border-builder-bound/40 bg-builder-bound-bg px-2 py-1.5">
+        <span className="flex min-w-0 items-center gap-1.5 text-sm text-builder-bound">
+          <Link2 className="size-3.5 shrink-0" />
+          <span className="truncate">{field}</span>
+        </span>
+        <button
+          type="button"
+          onClick={onClear}
+          className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+        >
+          Unbind
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The Settings tab body. Mounted ONLY while the tab is open, so its doc
+ * subscription (needed to find the enclosing Collection List) never re-renders
+ * the panel during a drag. The tree walk is memoised on the doc reference.
+ */
+function SettingsTab({
+  id,
+  slots,
+  binding,
+  conditions,
+  onBind,
+  onConditions,
+  children,
+}: {
+  id: string
+  slots: Array<{ slot: string; label: string; kind: 'text' | 'image' | 'link' }>
+  binding: Binding
+  conditions: VisibilityCondition[]
+  onBind: (slot: string, field: string | null) => void
+  onConditions: (next: VisibilityCondition[]) => void
+  children?: ReactNode
+}) {
+  const fullData = usePuckStore((s) => s.appState.data)
+  const collections = useCollections()
+  // A COLLECTION template's builder scopes the whole document to one
+  // collection; there is no enclosing list to walk up to.
+  const scope = useCollectionScope()
+  const collectionKey = useMemo(() => {
+    const d = fullData as { content?: unknown; zones?: unknown }
+    return (
+      findCollectionKeyFor(d.content, id, null) ??
+      findCollectionKeyFor(d.zones, id, null) ??
+      scope ??
+      undefined
+    )
+  }, [fullData, id, scope])
+  const boundCollection =
+    typeof collectionKey === 'string' ? collections.find((c) => c.key === collectionKey) : undefined
+  const fields = boundCollection?.fields ?? []
+  const inside = typeof collectionKey === 'string'
+  return (
+    <>
+      <DataBindingSection
+        insideCollection={inside}
+        fields={fields}
+        slots={slots}
+        binding={binding}
+        onBind={onBind}
+      />
+      {inside && (
+        <ConditionalVisibilitySection
+          fields={fields}
+          conditions={conditions}
+          onChange={onConditions}
+        />
+      )}
+      {children}
+    </>
+  )
+}
+
+/** Webflow-style "Get … from" field binding, shown for a bindable block. */
+function DataBindingSection({
+  insideCollection,
+  fields,
+  slots,
+  binding,
+  onBind,
+}: {
+  insideCollection: boolean
+  fields: CollectionField[]
+  slots: Array<{ slot: string; label: string; kind: 'text' | 'image' | 'link' }>
+  binding: Binding
+  onBind: (slot: string, field: string | null) => void
+}) {
+  if (!slots.length) return null
+  return (
+    <Section title="Data binding">
+      {!insideCollection ? (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Drop this element inside a <span className="font-medium">Collection List</span> item to
+          connect it to a CMS field.
+        </p>
+      ) : (
+        slots.map((s) => (
+          <BindingRow
+            key={s.slot}
+            slot={s.slot}
+            label={s.label}
+            kind={s.kind}
+            fields={fields}
+            value={binding[s.slot]}
+            onBind={onBind}
+          />
+        ))
+      )}
+    </Section>
+  )
+}
+
+/** One "Get … from" row; owns the memo so each slot's list is built once. */
+function BindingRow({
+  slot,
+  label,
+  kind,
+  fields,
+  value,
+  onBind,
+}: {
+  slot: string
+  label: string
+  kind: 'text' | 'image' | 'link'
+  fields: CollectionField[]
+  value: string | undefined
+  onBind: (slot: string, field: string | null) => void
+}) {
+  const options = useMemo<AppSelectOption[]>(
+    () => fieldsForKind(fields, kind).map((f) => ({ value: f.key, label: f.label })),
+    [fields, kind]
+  )
+  return (
+    <InlineRow label={label} set={!!value}>
+      <PanelSelect
+        value={value ?? ''}
+        onChange={(v) => onBind(slot, v || null)}
+        options={options}
+        emptyLabel="— Static —"
+        controlClassName={value ? 'text-builder-bound' : undefined}
+      />
+    </InlineRow>
+  )
+}
+
+const OP_OPTIONS: AppSelectOption[] = [
+  { value: 'set', label: 'is set' },
+  { value: 'notset', label: 'is empty' },
+]
+
+/** Show/hide this element per record based on a field being set / empty. */
+function ConditionalVisibilitySection({
+  fields,
+  conditions,
+  onChange,
+}: {
+  fields: CollectionField[]
+  conditions: VisibilityCondition[]
+  onChange: (next: VisibilityCondition[]) => void
+}) {
+  const setAt = (i: number, patch: Partial<VisibilityCondition>) =>
+    onChange(conditions.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
+  const fieldOptions = useMemo<AppSelectOption[]>(
+    () => fields.map((f) => ({ value: f.key, label: f.label })),
+    [fields]
+  )
+  return (
+    <Section title="Conditional visibility" defaultOpen={conditions.length > 0}>
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Show this element only when a field passes. All conditions must match.
+      </p>
+      {conditions.map((c, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <PanelSelect
+            value={c.field}
+            onChange={(v) => setAt(i, { field: v })}
+            options={fieldOptions}
+            emptyLabel="— Field —"
+          />
+          <PanelSelect
+            className="w-28 shrink-0"
+            value={c.op}
+            onChange={(v) => setAt(i, { op: v as VisibilityCondition['op'] })}
+            options={OP_OPTIONS}
+            isSearchable={false}
+          />
+          <button
+            type="button"
+            aria-label="Remove condition"
+            className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive"
+            onClick={() => onChange(conditions.filter((_, idx) => idx !== i))}
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-input py-1.5 text-xs text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+        onClick={() => onChange([...conditions, { field: '', op: 'set' }])}
+      >
+        <Plus className="size-3.5" /> Add condition
+      </button>
+    </Section>
+  )
+}
+
+/**
+ * The curated control set shown when editing an interaction state
+ * (`:hover`/`:focus`/`:active`). Deliberately a focused subset — the properties
+ * people actually restyle on hover — rather than the whole element panel, so
+ * layout-shifting changes (padding, position) stay a base-only concern. Each
+ * value reads from the state layer alone; empty means "inherit from Base".
+ */
+function StateStyleSection({
+  layer,
+  update,
+  hasBg,
+}: {
+  layer: Record<string, unknown>
+  update: (patch: Record<string, unknown>) => void
+  hasBg: boolean
+}) {
+  const get = (k: string) => (typeof layer[k] === 'string' ? (layer[k] as string) : '')
+  const opacityRaw = get('opacity')
+  const pct = (() => {
+    if (!opacityRaw) return 100
+    const n = Number.parseFloat(opacityRaw)
+    if (Number.isNaN(n)) return 100
+    return Math.max(0, Math.min(100, Math.round((n <= 1 ? n : n / 100) * 100)))
+  })()
+  return (
+    <Section title="State style">
+      {hasBg && (
+        <InlineRow label="Background" set={!!get('bg')}>
+          <ColorControl value={get('bg')} onChange={(v) => update({ bg: v })} />
+        </InlineRow>
+      )}
+      <InlineRow label="Text" set={!!get('textColor')}>
+        <ColorControl value={get('textColor')} onChange={(v) => update({ textColor: v })} />
+      </InlineRow>
+      <InlineRow label="Border" set={!!get('borderColor')}>
+        <ColorControl value={get('borderColor')} onChange={(v) => update({ borderColor: v })} />
+      </InlineRow>
+      <InlineRow label="Bd width" set={!!get('borderWidth')}>
+        <NumberUnitControl
+          value={get('borderWidth')}
+          onChange={(v) => update({ borderWidth: v })}
+        />
+      </InlineRow>
+      <InlineRow label="Radius" set={!!get('borderRadius')}>
+        <NumberUnitControl
+          value={get('borderRadius')}
+          onChange={(v) => update({ borderRadius: v })}
+        />
+      </InlineRow>
+      <StackField label="Shadow" set={!!get('boxShadow')}>
+        <BoxShadowControl value={get('boxShadow')} onChange={(v) => update({ boxShadow: v })} />
+      </StackField>
+      <InlineRow label="Opacity" set={opacityRaw !== ''}>
+        <div className="flex items-center gap-2">
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={pct}
+            onChange={(e) =>
+              update({
+                opacity:
+                  Number(e.target.value) >= 100
+                    ? ''
+                    : String(Number((Number(e.target.value) / 100).toFixed(2))),
+              })
+            }
+            className="h-1.5 flex-1 cursor-pointer accent-builder-slider"
+          />
+          <span className="w-9 text-right text-xs tabular-nums text-muted-foreground">{pct}%</span>
+        </div>
+      </InlineRow>
+      <StackField label="Transform" set={!!get('transform')}>
+        <CommitInput
+          value={get('transform')}
+          onCommit={(v) => update({ transform: v })}
+          placeholder="e.g. scale(1.05)"
+          className={inputCls}
+        />
+      </StackField>
+      <StackField label="Transition" set={!!get('transition')}>
+        <CommitInput
+          value={get('transition')}
+          onCommit={(v) => update({ transition: v })}
+          placeholder="e.g. all .2s ease"
+          className={inputCls}
+        />
+      </StackField>
+    </Section>
   )
 }
 
@@ -477,6 +1029,22 @@ function BackgroundSection({
         // prop set it had, rather than gaining an empty array on first glance.
         onChange={(layers) => update({ backgrounds: layers.length ? layers : undefined })}
       />
+      <InlineRow label="Lazy" set={props.bgLazy === true}>
+        <SegmentedControl
+          options={[
+            { value: '', label: 'Eager' },
+            { value: 'lazy', label: 'Lazy' },
+          ]}
+          value={props.bgLazy === true ? 'lazy' : ''}
+          allowClear={false}
+          onChange={(v) => update({ bgLazy: v === 'lazy' ? true : undefined })}
+        />
+      </InlineRow>
+      {props.bgLazy === true ? (
+        <p className="text-[11px] leading-tight text-muted-foreground">
+          The background image loads as it scrolls into view. Best for images below the fold.
+        </p>
+      ) : null}
     </Section>
   )
 }
@@ -501,17 +1069,12 @@ function EffectsSection({
   return (
     <Section title="Effects" defaultOpen={false}>
       <InlineRow label="Blend" set={!!get('mixBlendMode')}>
-        <select
-          className={cn(inputCls, 'cursor-pointer')}
+        <PanelSelect
           value={get('mixBlendMode')}
-          onChange={(e) => update({ mixBlendMode: e.target.value })}
-        >
-          {BLEND_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => update({ mixBlendMode: v })}
+          options={BLEND_OPTIONS}
+          isSearchable={false}
+        />
       </InlineRow>
       <InlineRow label="Opacity" set={opacityRaw !== ''}>
         <div className="flex items-center gap-2">
@@ -521,7 +1084,7 @@ function EffectsSection({
             max={100}
             value={pct}
             onChange={(e) => setPct(Number(e.target.value))}
-            className="h-1.5 flex-1 cursor-pointer accent-blue-500"
+            className="h-1.5 flex-1 cursor-pointer accent-builder-slider"
           />
           <div className="flex h-7 items-center rounded-md border border-input bg-background px-1.5">
             <input
@@ -537,17 +1100,12 @@ function EffectsSection({
         </div>
       </InlineRow>
       <InlineRow label="Cursor" set={!!get('cursor')}>
-        <select
-          className={cn(inputCls, 'cursor-pointer')}
+        <PanelSelect
           value={get('cursor')}
-          onChange={(e) => update({ cursor: e.target.value })}
-        >
-          {CURSOR_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => update({ cursor: v })}
+          options={CURSOR_OPTIONS}
+          isSearchable={false}
+        />
       </InlineRow>
       <StackField label="Transform" set={!!get('transform')}>
         <CommitInput
@@ -612,33 +1170,24 @@ function InteractionsSection({
   return (
     <Section title="Interactions" defaultOpen={false}>
       <InlineRow label="Animate" set={!!type}>
-        <select
-          className={cn(inputCls, 'cursor-pointer')}
+        <PanelSelect
           value={type}
-          onChange={(e) => setSA({ type: e.target.value })}
-        >
-          {SCROLL_ANIM_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => setSA({ type: v })}
+          options={SCROLL_ANIM_OPTIONS}
+          isSearchable={false}
+        />
       </InlineRow>
 
       {type ? (
         <>
           <InlineRow label="Easing" set={!!get('easing')}>
-            <select
-              className={cn(inputCls, 'cursor-pointer')}
+            <PanelSelect
               value={get('easing')}
-              onChange={(e) => setSA({ easing: e.target.value })}
-            >
-              {SCROLL_EASING_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setSA({ easing: v })}
+              options={SCROLL_EASING_OPTIONS}
+              emptyLabel="Default"
+              isSearchable={false}
+            />
           </InlineRow>
 
           <div className="grid grid-cols-2 gap-2">
@@ -701,17 +1250,12 @@ function FlexChildSection({
   return (
     <Section title="Flex Child" defaultOpen={false}>
       <InlineRow label="Self" set={!!get('alignSelf')}>
-        <select
-          className={cn(inputCls, 'cursor-pointer')}
+        <PanelSelect
           value={get('alignSelf')}
-          onChange={(e) => update({ alignSelf: e.target.value })}
-        >
-          {ALIGN_SELF_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => update({ alignSelf: v })}
+          options={ALIGN_SELF_OPTIONS}
+          isSearchable={false}
+        />
       </InlineRow>
       <div className="grid grid-cols-3 gap-2">
         {[
@@ -890,32 +1434,22 @@ function LayoutSection({
             />
           </InlineRow>
           <InlineRow label="Justify" set={!!get('justifyContent')}>
-            <select
-              className={cn(inputCls, 'cursor-pointer')}
+            <PanelSelect
               value={get('justifyContent')}
-              onChange={(e) => update({ justifyContent: e.target.value })}
-            >
-              <option value="">Default</option>
-              {JUSTIFY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => update({ justifyContent: v })}
+              options={JUSTIFY_OPTIONS}
+              emptyLabel="Default"
+              isSearchable={false}
+            />
           </InlineRow>
           <InlineRow label="Align" set={!!get('alignItems')}>
-            <select
-              className={cn(inputCls, 'cursor-pointer')}
+            <PanelSelect
               value={get('alignItems')}
-              onChange={(e) => update({ alignItems: e.target.value })}
-            >
-              <option value="">Default</option>
-              {ALIGN_ITEMS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => update({ alignItems: v })}
+              options={ALIGN_ITEMS_OPTIONS}
+              emptyLabel="Default"
+              isSearchable={false}
+            />
           </InlineRow>
         </>
       )}
@@ -945,7 +1479,10 @@ function SizeSection({
           return (
             <div key={f.key}>
               <span
-                className={cn('mb-1 block text-xs', v ? 'text-blue-400' : 'text-muted-foreground')}
+                className={cn(
+                  'mb-1 block text-xs',
+                  v ? 'text-builder-set' : 'text-muted-foreground'
+                )}
               >
                 {f.label}
               </span>
@@ -958,7 +1495,7 @@ function SizeSection({
         <span
           className={cn(
             'w-14 shrink-0 text-xs',
-            overflow ? 'text-blue-400' : 'text-muted-foreground'
+            overflow ? 'text-builder-set' : 'text-muted-foreground'
           )}
         >
           Overflow
@@ -988,17 +1525,12 @@ function PositionSection({
   return (
     <Section title="Position" defaultOpen={false}>
       <InlineRow label="Position" set={!!position}>
-        <select
-          className={cn(inputCls, 'cursor-pointer')}
+        <PanelSelect
           value={position}
-          onChange={(e) => update({ position: e.target.value })}
-        >
-          {POSITION_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => update({ position: v })}
+          options={POSITION_OPTIONS}
+          isSearchable={false}
+        />
       </InlineRow>
       {showOffsets && (
         <>
@@ -1039,6 +1571,58 @@ function PositionSection({
   )
 }
 
+/** Parse a hex (#rgb/#rrggbb) or rgb()/rgba() colour to [r,g,b], else null. */
+function parseColor(input: string): [number, number, number] | null {
+  const v = input.trim().toLowerCase()
+  const hex = v.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/)
+  if (hex) {
+    const h = hex[1]!
+    const full = h.length === 3 ? h.replace(/(.)/g, '$1$1') : h
+    return [
+      parseInt(full.slice(0, 2), 16),
+      parseInt(full.slice(2, 4), 16),
+      parseInt(full.slice(4, 6), 16),
+    ]
+  }
+  const rgb = v.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/)
+  if (rgb) return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])]
+  return null
+}
+
+/** WCAG relative-luminance contrast ratio between two colours, or null if either is unparseable. */
+function contrastRatio(fg: string, bg: string): number | null {
+  const a = parseColor(fg)
+  const b = parseColor(bg)
+  if (!a || !b) return null
+  const lum = ([r, g, bl]: [number, number, number]) => {
+    const f = (c: number) => {
+      const s = c / 255
+      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+    }
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(bl)
+  }
+  const l1 = lum(a)
+  const l2 = lum(b)
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)
+}
+
+/** A small WCAG contrast readout, shown only when both colours are concrete. */
+function ContrastHint({ fg, bg }: { fg: string; bg: string }) {
+  const ratio = fg && bg ? contrastRatio(fg, bg) : null
+  if (ratio == null) return null
+  const rounded = Math.round(ratio * 100) / 100
+  const passAA = ratio >= 4.5
+  const passAAA = ratio >= 7
+  return (
+    <p className="text-[11px] leading-tight">
+      <span className="text-muted-foreground">Contrast {rounded}:1 · </span>
+      <span className={passAA ? 'text-green-600 dark:text-green-500' : 'text-destructive'}>
+        {passAAA ? 'AAA' : passAA ? 'AA' : 'Fails AA'}
+      </span>
+    </p>
+  )
+}
+
 function TypographySection({
   props,
   update,
@@ -1060,18 +1644,13 @@ function TypographySection({
         />
       </InlineRow>
       <InlineRow label="Weight" set={!!get('fontWeight')}>
-        <select
+        <PanelSelect
           value={get('fontWeight')}
-          onChange={(e) => update({ fontWeight: e.target.value })}
-          className={cn(inputCls, 'cursor-pointer')}
-        >
-          <option value="">Inherit</option>
-          {WEIGHT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => update({ fontWeight: v })}
+          options={WEIGHT_OPTIONS}
+          emptyLabel="Inherit"
+          isSearchable={false}
+        />
       </InlineRow>
       <div className="grid grid-cols-2 gap-x-3 gap-y-2">
         <StackField label="Size" set={!!get('textSize')}>
@@ -1087,6 +1666,7 @@ function TypographySection({
       <InlineRow label="Color" set={!!get('textColor')}>
         <ColorControl value={get('textColor')} onChange={(v) => update({ textColor: v })} />
       </InlineRow>
+      <ContrastHint fg={get('textColor')} bg={get('bg')} />
       <InlineRow label="Align" set={!!get('align')}>
         <SegmentedControl
           options={ALIGN_OPTIONS}
@@ -1148,17 +1728,12 @@ function TypographySection({
             />
           </InlineRow>
           <InlineRow label="Wrap" set={!!get('whiteSpace')}>
-            <select
-              className={cn(inputCls, 'cursor-pointer')}
+            <PanelSelect
               value={get('whiteSpace')}
-              onChange={(e) => update({ whiteSpace: e.target.value })}
-            >
-              {WRAP_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => update({ whiteSpace: v })}
+              options={WRAP_OPTIONS}
+              isSearchable={false}
+            />
           </InlineRow>
         </div>
       )}
@@ -1172,7 +1747,7 @@ function InlineRow({ label, set, children }: { label: string; set: boolean; chil
       <span
         className={cn(
           'w-14 shrink-0 text-xs leading-tight',
-          set ? 'text-blue-400' : 'text-muted-foreground'
+          set ? 'text-builder-set' : 'text-muted-foreground'
         )}
       >
         {label}
@@ -1193,7 +1768,9 @@ function StackField({
 }) {
   return (
     <div>
-      <span className={cn('mb-1 block text-xs', set ? 'text-blue-400' : 'text-muted-foreground')}>
+      <span
+        className={cn('mb-1 block text-xs', set ? 'text-builder-set' : 'text-muted-foreground')}
+      >
         {label}
       </span>
       {children}
@@ -1247,7 +1824,7 @@ function FieldRow({
 }) {
   if (!field) return null
   const isSet = value !== undefined && value !== null && value !== ''
-  const labelCls = cn('text-xs', isSet ? 'text-blue-400' : 'text-muted-foreground')
+  const labelCls = cn('text-xs', isSet ? 'text-builder-set' : 'text-muted-foreground')
 
   if (inline) {
     return (
@@ -1277,6 +1854,34 @@ function FieldRow({
 const inputCls =
   'h-7 w-full rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-ring'
 
+/**
+ * A Puck `select` field. Its own component because the option list is memoised
+ * (`field.options` is a stable reference from the config) and `FieldControl`
+ * returns early above, which rules out hooks there. Hands back the option's
+ * original value rather than always a string, so a numeric option round-trips.
+ */
+function SelectFieldControl({
+  field,
+  value,
+  onChange,
+}: {
+  field: Extract<Field, { type: 'select' }>
+  value: unknown
+  onChange: (value: unknown) => void
+}) {
+  const options = useMemo<AppSelectOption[]>(
+    () => (field.options ?? []).map((o) => ({ value: String(o.value), label: o.label })),
+    [field.options]
+  )
+  return (
+    <PanelSelect
+      value={value === undefined || value === null ? '' : String(value)}
+      onChange={(v) => onChange(field.options?.find((o) => String(o.value) === v)?.value ?? v)}
+      options={options}
+    />
+  )
+}
+
 function FieldControl({
   field,
   name,
@@ -1301,19 +1906,7 @@ function FieldControl({
   }
 
   if (field.type === 'select') {
-    return (
-      <select
-        className={cn(inputCls, 'cursor-pointer')}
-        value={(value as string | undefined) ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {(field.options ?? []).map((o) => (
-          <option key={String(o.value)} value={String(o.value)}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    )
+    return <SelectFieldControl field={field} value={value} onChange={onChange} />
   }
 
   if (field.type === 'radio') {
@@ -1331,7 +1924,7 @@ function FieldControl({
               className={cn(
                 'flex-1 rounded-md border px-2 py-1 text-xs transition-colors',
                 active
-                  ? 'border-blue-500 bg-blue-500/10 text-foreground'
+                  ? 'border-builder-selected bg-builder-selected-bg text-foreground'
                   : 'border-input text-muted-foreground hover:text-foreground'
               )}
             >

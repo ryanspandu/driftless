@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { booleanColumn, moneyColumn } from '#models/_columns'
+import { recoveryCodesColumn, type RecoveryCode } from '#services/totp_service'
 
 /**
  * A buyer.
@@ -14,8 +15,8 @@ import { booleanColumn, moneyColumn } from '#models/_columns'
  * `ctx.auth.user` can never be a customer, because a customer has no row in the
  * table those guards read.
  */
-export default class Customer extends BaseModel {
-  static table = 'ecommerce_customers'
+export default class Account extends BaseModel {
+  static table = 'ecommerce_accounts'
   static selfAssignPrimaryKey = true
 
   @column({ isPrimary: true })
@@ -46,6 +47,19 @@ export default class Customer extends BaseModel {
 
   @column.dateTime()
   declare emailVerifiedAt: DateTime | null
+
+  /**
+   * Authenticator-app (TOTP) two-factor — the same shape as the admin `User`.
+   * Secret encrypted at rest, recovery codes hashed; both `serializeAs: null`.
+   */
+  @column({ serializeAs: null })
+  declare twoFactorSecretEnc: string | null
+
+  @column.dateTime()
+  declare twoFactorEnabledAt: DateTime | null
+
+  @column({ ...recoveryCodesColumn, serializeAs: null })
+  declare twoFactorRecoveryCodes: RecoveryCode[]
 
   @column(booleanColumn)
   declare acceptsMarketing: boolean

@@ -49,6 +49,24 @@ export const authIpThrottle = limiter.define('auth_ip', ((ctx) =>
     .usingKey(`auth_ip_${ctx.request.ip()}`)) as LimiterBuilder)
 
 /**
+ * The public analytics beacon. Generous — a real visitor browsing quickly can
+ * fire many pageviews a minute — but capped per IP so it cannot be used to
+ * flood the events table.
+ */
+export const analyticsCollectThrottle = limiter.define('analytics_collect', ((ctx) =>
+  limiter
+    .allowRequests(120)
+    .every('1 minute')
+    .usingKey(`analytics_${ctx.request.ip()}`)) as LimiterBuilder)
+
+/** Public builder-form submissions — low frequency, capped per IP against spam. */
+export const formsSubmitThrottle = limiter.define('forms_submit', ((ctx) =>
+  limiter
+    .allowRequests(20)
+    .every('10 minutes')
+    .usingKey(`forms_${ctx.request.ip()}`)) as LimiterBuilder)
+
+/**
  * Per-account budget for password login. Applied *in addition to*
  * `authIpThrottle` so a distributed attempt against a single account is capped
  * even when each request arrives from a different address.

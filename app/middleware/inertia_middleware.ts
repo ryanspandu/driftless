@@ -3,10 +3,13 @@ import type { NextFn } from '@adonisjs/core/types/http'
 import type User from '#models/user'
 import UserTransformer from '#transformers/user_transformer'
 import { collectUserPermissions } from '#services/permission_ability_service'
+import { WebSettingsService } from '#services/settings_service'
 import BaseInertiaMiddleware from '@adonisjs/inertia/inertia_middleware'
 
+const webSettings = new WebSettingsService()
+
 export default class InertiaMiddleware extends BaseInertiaMiddleware {
-  share(ctx: HttpContext) {
+  async share(ctx: HttpContext) {
     /**
      * The share method is called everytime an Inertia page is rendered. In
      * certain cases, a page may get rendered before the session middleware
@@ -23,6 +26,8 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
     const error = session?.flashMessages.get('error') as string
     const success = session?.flashMessages.get('success') as string
 
+    const siteTheme = await webSettings.getPublicTheme()
+
     /**
      * Data shared with all Inertia pages. Make sure you are using
      * transformers for rich data-types like Models.
@@ -38,6 +43,9 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
       // Shield generates this before Inertia renders. Trusted settings-managed
       // snippets consume it so CSP never needs unsafe-inline for scripts.
       cspNonce: ctx.inertia.always(ctx.response.nonce),
+      // Public font/colour theme, injected as a `.theme-light`-scoped <style> in
+      // `layout-shell` (public + storefront only).
+      siteTheme: ctx.inertia.always({ ...siteTheme }),
     }
   }
 

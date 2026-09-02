@@ -5,10 +5,12 @@
 
 export const controllers = {
   admin: {
+    Analytics: () => import('#controllers/admin/analytics_controller'),
     ApiTokens: () => import('#controllers/admin/api_tokens_controller'),
     Cms: () => import('#controllers/admin/cms_controller'),
     Content: () => import('#controllers/admin/content_controller'),
     Dashboard: () => import('#controllers/admin/dashboard_controller'),
+    Forms: () => import('#controllers/admin/forms_controller'),
     Health: () => import('#controllers/admin/health_controller'),
     MailSettings: () => import('#controllers/admin/mail_settings_controller'),
     Media: () => import('#controllers/admin/media_controller'),
@@ -16,6 +18,7 @@ export const controllers = {
     Modules: () => import('#controllers/admin/modules_controller'),
     Pages: () => import('#controllers/admin/pages_controller'),
     Permissions: () => import('#controllers/admin/permissions_controller'),
+    Redirects: () => import('#controllers/admin/redirects_controller'),
     Roles: () => import('#controllers/admin/roles_controller'),
     Schema: () => import('#controllers/admin/schema_controller'),
     Settings: () => import('#controllers/admin/settings_controller'),
@@ -38,4 +41,5 @@ export const controllers = {
   PublicTemplates: () => import('#controllers/public_templates_controller'),
   Seo: () => import('#controllers/seo_controller'),
   Session: () => import('#controllers/session_controller'),
+  TwoFactor: () => import('#controllers/two_factor_controller'),
 }

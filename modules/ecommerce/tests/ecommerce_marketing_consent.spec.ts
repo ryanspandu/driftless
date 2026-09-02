@@ -8,7 +8,7 @@ import { newUlid } from '#services/ulid_service'
 import Product from '#modules/ecommerce/models/product'
 import ProductVariant from '#modules/ecommerce/models/product_variant'
 import Cart from '#modules/ecommerce/models/cart'
-import Customer from '#modules/ecommerce/models/customer'
+import Account from '#modules/ecommerce/models/account'
 import MarketingConsentService from '#modules/ecommerce/services/marketing_consent_service'
 import OrderNotifierService from '#modules/ecommerce/services/order_notifier_service'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
@@ -50,8 +50,8 @@ async function resetDatabase() {
   return cleanup
 }
 
-async function seedCustomer(overrides: Partial<Customer> = {}) {
-  return Customer.create({
+async function seedCustomer(overrides: Partial<Account> = {}) {
+  return Account.create({
     id: newUlid(),
     email: `c-${newUlid().toLowerCase().slice(-8)}@example.com`,
     status: 'active',
@@ -63,7 +63,7 @@ async function seedCustomer(overrides: Partial<Customer> = {}) {
 }
 
 /** A cart that is old enough to count as abandoned. */
-async function seedAbandonedCart(customerId: string | null) {
+async function seedAbandonedCart(accountId: string | null) {
   const product = await Product.create({
     id: newUlid(),
     slug: `p-${newUlid().toLowerCase().slice(-8)}`,
@@ -98,7 +98,7 @@ async function seedAbandonedCart(customerId: string | null) {
       .repeat(64)
       .slice(0, 64)
       .replace(/a/g, () => 'b'),
-    customerId,
+    accountId,
     currency: 'USD',
     expiresAt: DateTime.now().plus({ days: 7 }),
   })

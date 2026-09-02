@@ -7,6 +7,7 @@ import Product from '#modules/ecommerce/models/product'
 import ProductVariant from '#modules/ecommerce/models/product_variant'
 import Order from '#modules/ecommerce/models/order'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
+import DiscountService from '#modules/ecommerce/services/discount_service'
 import FakeGatewayDriver from '#modules/ecommerce/services/gateways/fake_driver'
 import {
   clearGatewayOverrides,
@@ -279,6 +280,41 @@ test.group('E-commerce | storefront cart', (group) => {
     assert.equal(updated.body().total.amount, 5997)
   })
 
+  test('a coupon applies to the basket and can be removed', async ({ client, assert }) => {
+    const { variant } = await seedProduct(2000, 10)
+    await new DiscountService().create({ code: 'SAVE10', type: 'percent', value: 10 })
+
+    const added = await client.post('/api/shop/cart/items').json({ variantId: variant.id })
+    const token = added.cookie('dl_cart')?.value ?? ''
+    assert.equal(added.body().discount.amount, 0)
+
+    // Apply a valid coupon → 10% off the 2000 subtotal.
+    const applied = await client
+      .post('/api/shop/cart/discount')
+      .withCookie('dl_cart', token)
+      .json({ code: 'save10' }) // case-insensitive
+    applied.assertStatus(200)
+    assert.equal(applied.body().discountCode, 'SAVE10')
+    assert.equal(applied.body().discount.amount, 200)
+    assert.equal(applied.body().total.amount, 1800)
+
+    // An invalid code is rejected and leaves the basket unchanged.
+    const bad = await client
+      .post('/api/shop/cart/discount')
+      .withCookie('dl_cart', token)
+      .json({ code: 'NOPE' })
+    bad.assertStatus(422)
+    const still = await client.get('/api/shop/cart').withCookie('dl_cart', token)
+    assert.equal(still.body().discountCode, 'SAVE10')
+
+    // Remove it → back to full price.
+    const removed = await client.delete('/api/shop/cart/discount').withCookie('dl_cart', token)
+    removed.assertStatus(200)
+    assert.equal(removed.body().discountCode, null)
+    assert.equal(removed.body().discount.amount, 0)
+    assert.equal(removed.body().total.amount, 2000)
+  })
+
   test('adding the same variant twice bumps the quantity', async ({ client, assert }) => {
     const { variant } = await seedProduct()
 
@@ -525,7 +561,7 @@ test.group('E-commerce | storefront accounts', (group) => {
     assert.isNotEmpty(cookie, 'a storefront session cookie is issued')
 
     const me = await client.get('/api/shop/me').withCookie('dl_shop', cookie)
-    assert.equal(me.body().customer.email, 'shopper@example.com')
+    assert.equal(me.body().account.email, 'shopper@example.com')
 
     const orders = await client.get('/api/shop/account/orders').withCookie('dl_shop', cookie)
     orders.assertStatus(200)
@@ -540,7 +576,7 @@ test.group('E-commerce | storefront accounts', (group) => {
     const cookie = registered.cookie('dl_shop')?.value ?? ''
 
     /**
-     * The structural guarantee: a customer has no row in `users`, so no admin
+     * The structural guarantee: a account has no row in `users`, so no admin
      * guard can ever resolve one. The cookie is not even the same name.
      */
     for (const url of ['/api/me', '/api/admin/ecommerce/orders', '/api/admin/users']) {
@@ -565,7 +601,7 @@ test.group('E-commerce | storefront accounts', (group) => {
 
     // The same token must no longer resolve, even though the browser still has it.
     const me = await client.get('/api/shop/me').withCookie('dl_shop', cookie)
-    assert.isNull(me.body().customer)
+    assert.isNull(me.body().account)
   })
 })
 

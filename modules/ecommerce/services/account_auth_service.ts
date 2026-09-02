@@ -6,8 +6,8 @@ import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import { newUlid } from '#services/ulid_service'
 import { publicError } from '#exceptions/public_error'
-import Customer from '#modules/ecommerce/models/customer'
-import CustomerSession from '#modules/ecommerce/models/customer_session'
+import Account from '#modules/ecommerce/models/account'
+import AccountSession from '#modules/ecommerce/models/account_session'
 import { Money, type MoneyDto } from '#modules/ecommerce/services/money'
 
 /**
@@ -23,7 +23,7 @@ import { Money, type MoneyDto } from '#modules/ecommerce/services/money'
  */
 
 /** The cookie carrying the storefront session token. */
-export const SHOP_SESSION_COOKIE = 'dl_shop'
+export const ACCOUNT_SESSION_COOKIE = 'dl_shop'
 
 const SESSION_DAYS = 30
 
@@ -43,7 +43,7 @@ function normaliseEmail(email: string): string {
   return email.trim().toLowerCase().slice(0, 254)
 }
 
-export interface CustomerDto {
+export interface AccountDto {
   id: string
   email: string
   firstName: string | null
@@ -54,15 +54,17 @@ export interface CustomerDto {
   ordersCount: number
   /** Whether the account can sign in (has a password) vs. a guest record. */
   hasPassword: boolean
+  /** Whether authenticator-app 2FA is active on the account. */
+  twoFactorEnabled: boolean
   memberSince: string | null
   /** Lifetime spend, only when a currency/locale is supplied (the account page). */
   totalSpent: MoneyDto | null
 }
 
-export function toCustomerDto(
-  customer: Customer,
+export function toAccountDto(
+  customer: Account,
   opts?: { currency: string; locale: string }
-): CustomerDto {
+): AccountDto {
   return {
     id: customer.id,
     email: customer.email,
@@ -73,12 +75,13 @@ export function toCustomerDto(
     acceptsMarketing: customer.acceptsMarketing,
     ordersCount: customer.ordersCount,
     hasPassword: Boolean(customer.passwordHash),
+    twoFactorEnabled: customer.twoFactorEnabledAt != null,
     memberSince: customer.createdAt?.toISO() ?? null,
     totalSpent: opts ? Money.toDto(customer.totalSpentAmount, opts.currency, opts.locale) : null,
   }
 }
 
-export default class CustomerAuthService {
+export default class AccountAuthService {
   /**
    * Find or create the customer behind an email, without a password.
    *
@@ -89,16 +92,16 @@ export default class CustomerAuthService {
   async findOrCreateGuest(
     email: string,
     details: { firstName?: string | null; lastName?: string | null } = {}
-  ): Promise<Customer> {
+  ): Promise<Account> {
     const normalised = normaliseEmail(email)
 
-    const existing = await Customer.query()
+    const existing = await Account.query()
       .where('email', normalised)
       .whereNull('deleted_at')
       .first()
     if (existing) return existing
 
-    return Customer.create({
+    return Account.create({
       id: newUlid(),
       email: normalised,
       passwordHash: null,
@@ -125,7 +128,7 @@ export default class CustomerAuthService {
     firstName?: string | null
     lastName?: string | null
     acceptsMarketing?: boolean
-  }): Promise<{ customer: Customer | null }> {
+  }): Promise<{ account: Account | null }> {
     const email = normaliseEmail(input.email)
 
     if (input.password.length < 8) {
@@ -135,7 +138,7 @@ export default class CustomerAuthService {
       )
     }
 
-    const existing = await Customer.query().where('email', email).whereNull('deleted_at').first()
+    const existing = await Account.query().where('email', email).whereNull('deleted_at').first()
 
     if (existing) {
       if (existing.passwordHash) {
@@ -145,7 +148,7 @@ export default class CustomerAuthService {
          * and return no session. The UI says "check your email either way".
          */
         await hash.make(input.password)
-        return { customer: null }
+        return { account: null }
       }
 
       // Guest row being upgraded to a real account.
@@ -154,10 +157,10 @@ export default class CustomerAuthService {
       if (input.lastName !== undefined) existing.lastName = input.lastName ?? null
       if (input.acceptsMarketing !== undefined) existing.acceptsMarketing = input.acceptsMarketing
       await existing.save()
-      return { customer: existing }
+      return { account: existing }
     }
 
-    const customer = await Customer.create({
+    const customer = await Account.create({
       id: newUlid(),
       email,
       passwordHash: await hash.make(input.password),
@@ -169,7 +172,7 @@ export default class CustomerAuthService {
       totalSpentAmount: 0,
     })
 
-    return { customer }
+    return { account: customer }
   }
 
   /**
@@ -188,10 +191,10 @@ export default class CustomerAuthService {
     password?: string | null
     acceptsMarketing?: boolean
     status?: 'active' | 'blocked'
-  }): Promise<Customer> {
+  }): Promise<Account> {
     const email = normaliseEmail(input.email)
 
-    const existing = await Customer.query().where('email', email).whereNull('deleted_at').first()
+    const existing = await Account.query().where('email', email).whereNull('deleted_at').first()
     if (existing) {
       throw publicError.unprocessable('A customer with that email already exists.', 'email_taken')
     }
@@ -204,7 +207,7 @@ export default class CustomerAuthService {
       )
     }
 
-    return Customer.create({
+    return Account.create({
       id: newUlid(),
       email,
       passwordHash: password ? await hash.make(password) : null,
@@ -221,14 +224,14 @@ export default class CustomerAuthService {
   /** A signed-in customer edits their own profile. Email is intentionally not
    *  editable here — it is the account key and changing it is a separate flow. */
   async updateProfile(
-    customer: Customer,
+    customer: Account,
     input: {
       firstName?: string | null
       lastName?: string | null
       phone?: string | null
       acceptsMarketing?: boolean
     }
-  ): Promise<Customer> {
+  ): Promise<Account> {
     if (input.firstName !== undefined) customer.firstName = input.firstName?.trim() || null
     if (input.lastName !== undefined) customer.lastName = input.lastName?.trim() || null
     if (input.phone !== undefined) customer.phone = input.phone?.trim() || null
@@ -245,7 +248,7 @@ export default class CustomerAuthService {
    * changes. The caller re-issues a session for the device that made the change.
    */
   async changePassword(
-    customer: Customer,
+    customer: Account,
     currentPassword: string,
     newPassword: string
   ): Promise<void> {
@@ -277,8 +280,8 @@ export default class CustomerAuthService {
    * account — and always performs a hash comparison so an unknown address
    * cannot be distinguished by how quickly the request comes back.
    */
-  async verify(email: string, password: string): Promise<Customer | null> {
-    const customer = await Customer.query()
+  async verify(email: string, password: string): Promise<Account | null> {
+    const customer = await Account.query()
       .where('email', normaliseEmail(email))
       .whereNull('deleted_at')
       .first()
@@ -299,12 +302,12 @@ export default class CustomerAuthService {
   }
 
   /** Mint a session and set the cookie. */
-  async startSession(ctx: HttpContext, customer: Customer): Promise<CustomerSession> {
+  async startSession(ctx: HttpContext, customer: Account): Promise<AccountSession> {
     const token = crypto.randomBytes(32).toString('base64url')
 
-    const session = await CustomerSession.create({
+    const session = await AccountSession.create({
       id: newUlid(),
-      customerId: customer.id,
+      accountId: customer.id,
       tokenHash: hashToken(token),
       expiresAt: DateTime.now().plus({ days: SESSION_DAYS }),
       ipHash: hashIp(ctx.request.ip()),
@@ -312,7 +315,7 @@ export default class CustomerAuthService {
       createdAt: DateTime.now(),
     })
 
-    ctx.response.cookie(SHOP_SESSION_COOKIE, token, {
+    ctx.response.cookie(ACCOUNT_SESSION_COOKIE, token, {
       httpOnly: true,
       secure: app.inProduction,
       sameSite: 'lax',
@@ -329,11 +332,11 @@ export default class CustomerAuthService {
    * Re-checks `isActive` on every request rather than trusting the session:
    * blocking a customer must take effect immediately, not at their next login.
    */
-  async resolve(ctx: HttpContext): Promise<Customer | null> {
-    const token = ctx.request.cookie(SHOP_SESSION_COOKIE) as string | undefined
+  async resolve(ctx: HttpContext): Promise<Account | null> {
+    const token = ctx.request.cookie(ACCOUNT_SESSION_COOKIE) as string | undefined
     if (!token || typeof token !== 'string') return null
 
-    const session = await CustomerSession.query()
+    const session = await AccountSession.query()
       .where('token_hash', hashToken(token))
       .whereNull('revoked_at')
       .where('expires_at', '>', DateTime.now().toSQL()!)
@@ -341,8 +344,8 @@ export default class CustomerAuthService {
 
     if (!session) return null
 
-    const customer = await Customer.query()
-      .where('id', session.customerId)
+    const customer = await Account.query()
+      .where('id', session.accountId)
       .whereNull('deleted_at')
       .first()
 
@@ -358,16 +361,16 @@ export default class CustomerAuthService {
 
   /** End the current session and clear the cookie. */
   async endSession(ctx: HttpContext): Promise<void> {
-    const token = ctx.request.cookie(SHOP_SESSION_COOKIE) as string | undefined
+    const token = ctx.request.cookie(ACCOUNT_SESSION_COOKIE) as string | undefined
 
     if (typeof token === 'string' && token) {
-      await CustomerSession.query()
+      await AccountSession.query()
         .where('token_hash', hashToken(token))
         .whereNull('revoked_at')
         .update({ revoked_at: DateTime.now().toSQL() })
     }
 
-    ctx.response.clearCookie(SHOP_SESSION_COOKIE, { path: '/' })
+    ctx.response.clearCookie(ACCOUNT_SESSION_COOKIE, { path: '/' })
   }
 
   /**
@@ -376,9 +379,9 @@ export default class CustomerAuthService {
    * Called on password change: a password reset that leaves the attacker's
    * existing session alive has not actually locked them out.
    */
-  async revokeAllSessions(customerId: string): Promise<void> {
-    await CustomerSession.query()
-      .where('customer_id', customerId)
+  async revokeAllSessions(accountId: string): Promise<void> {
+    await AccountSession.query()
+      .where('account_id', accountId)
       .whereNull('revoked_at')
       .update({ revoked_at: DateTime.now().toSQL() })
   }

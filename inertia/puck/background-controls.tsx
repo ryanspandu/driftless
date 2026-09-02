@@ -22,6 +22,8 @@ import {
   stepNumericValue,
 } from '~/puck/style-controls'
 import { MediaPickerDialog } from '~/puck/media-field'
+import { PanelSelect } from '~/puck/panel-select'
+import type { AppSelectOption } from '~/components/ui/app-select'
 import {
   convertLayer,
   formatBytes,
@@ -53,9 +55,6 @@ import {
  * Everything writes back through one `onChange(layers)`; the data shape and its
  * compilation to CSS live in `background-layers.ts`.
  */
-
-const inputCls =
-  'h-7 w-full rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-ring'
 
 const TYPE_OPTIONS: { value: BgLayerType; icon: typeof ImageIcon; title: string }[] = [
   { value: 'image', icon: ImageIcon, title: 'Image' },
@@ -100,7 +99,7 @@ function Label({ children, set = false }: { children: string; set?: boolean }) {
     <span
       className={cn(
         'w-14 shrink-0 pt-1.5 text-xs leading-tight',
-        set ? 'text-blue-400' : 'text-muted-foreground'
+        set ? 'text-builder-set' : 'text-muted-foreground'
       )}
     >
       {children}
@@ -160,7 +159,7 @@ function PositionGrid({
               <span
                 className={cn(
                   'block rounded-full transition-all',
-                  active ? 'size-2 bg-blue-500' : 'size-1 bg-muted-foreground/50'
+                  active ? 'size-2 bg-builder-selected' : 'size-1 bg-muted-foreground/50'
                 )}
               />
             </button>
@@ -417,7 +416,7 @@ function LinearLayerEditor({
             max={360}
             value={Number(layer.angle) || 0}
             onChange={(e) => patch({ angle: e.target.value })}
-            className="h-1.5 flex-1 cursor-pointer accent-blue-500"
+            className="h-1.5 flex-1 cursor-pointer accent-builder-slider"
           />
           <div className="flex h-7 shrink-0 items-center rounded-md border border-input bg-background px-1">
             <input
@@ -436,6 +435,11 @@ function LinearLayerEditor({
     </>
   )
 }
+
+const RADIAL_EXTENT_OPTIONS: AppSelectOption[] = RADIAL_EXTENTS.map((v) => ({
+  value: v,
+  label: v.replace('-', ' '),
+}))
 
 function RadialLayerEditor({
   layer,
@@ -458,17 +462,12 @@ function RadialLayerEditor({
         />
       </Row>
       <Row label="Size" set={layer.extent !== 'farthest-corner'}>
-        <select
-          className={cn(inputCls, 'cursor-pointer')}
+        <PanelSelect
           value={layer.extent}
-          onChange={(e) => patch({ extent: e.target.value })}
-        >
-          {RADIAL_EXTENTS.map((v) => (
-            <option key={v} value={v}>
-              {v.replace('-', ' ')}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => patch({ extent: v as BgRadialLayer['extent'] })}
+          options={RADIAL_EXTENT_OPTIONS}
+          isSearchable={false}
+        />
       </Row>
       <Row label="Position" set={layer.posX !== '50%' || layer.posY !== '50%'}>
         <div className="flex gap-2">
@@ -580,7 +579,7 @@ export function BackgroundLayersControl({
               key={layer.id}
               className={cn(
                 'flex items-center gap-1.5 border-b border-input/60 px-1.5 py-1 last:border-b-0',
-                selected?.id === layer.id && 'bg-blue-500/10'
+                selected?.id === layer.id && 'bg-builder-selected-bg'
               )}
             >
               <button

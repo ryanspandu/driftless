@@ -34,6 +34,8 @@ export default class Content extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
-  @belongsTo(() => User)
+  // Explicit: Lucid would otherwise derive `userId` from the model name, and
+  // the column is `author_id`. Preloading threw until this was set.
+  @belongsTo(() => User, { foreignKey: 'authorId' })
   declare author: BelongsTo<typeof User>
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Head } from '@inertiajs/react'
 import { shopApi, type CartDto } from './_api'
 import { StorefrontLayout } from './_layout'
@@ -138,6 +138,8 @@ export function CartScreen({ embedded }: { embedded?: boolean } = {}) {
         ))}
       </ul>
 
+      <CouponBox cart={cart} onChange={setCart} />
+
       <div className="mt-6 space-y-2 border-t border-border pt-6">
         <Row label="Subtotal" value={cart.subtotal.formatted} />
         {cart.discount.amount > 0 ? (
@@ -155,6 +157,77 @@ export function CartScreen({ embedded }: { embedded?: boolean } = {}) {
         Checkout
       </a>
     </div>
+  )
+}
+
+/** Coupon-code input + applied-code state, wired to the cart discount endpoints. */
+function CouponBox({ cart, onChange }: { cart: CartDto; onChange: (c: CartDto) => void }) {
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function apply(e: FormEvent) {
+    e.preventDefault()
+    if (!code.trim()) return
+    setErr(null)
+    setBusy(true)
+    try {
+      onChange(await shopApi.applyDiscount(code.trim()))
+      setCode('')
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : 'That code is not valid.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove() {
+    setBusy(true)
+    try {
+      onChange(await shopApi.removeDiscount())
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (cart.discountCode) {
+    return (
+      <div className="mt-4 flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm">
+        <span className="text-muted-foreground">
+          Coupon <span className="font-mono font-medium text-foreground">{cart.discountCode}</span>{' '}
+          applied
+        </span>
+        <button
+          type="button"
+          onClick={remove}
+          disabled={busy}
+          className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Remove
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={apply} className="mt-4 space-y-1.5">
+      <div className="flex gap-2">
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="Coupon code"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-ring"
+        />
+        <button
+          type="submit"
+          disabled={busy || !code.trim()}
+          className="shrink-0 rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+        >
+          {busy ? 'Applying…' : 'Apply'}
+        </button>
+      </div>
+      {err ? <p className="text-xs text-destructive">{err}</p> : null}
+    </form>
   )
 }
 

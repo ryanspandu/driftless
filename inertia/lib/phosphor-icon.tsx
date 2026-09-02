@@ -25,6 +25,7 @@ import {
   SquaresFour,
   Stack,
   Tag,
+  Target,
   Ticket,
   Users,
   type Icon,
@@ -62,6 +63,7 @@ const ICONS: Record<string, Icon> = {
   SquaresFour,
   Stack,
   Tag,
+  Target,
   Ticket,
   Users,
 }

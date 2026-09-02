@@ -7,6 +7,7 @@ import { BlockBindingsContext, BlockDataContext } from '~/puck/block-data'
 import { cssFromSnippets, jsSnippets, readSnippets, type CodeSnippet } from '~/puck/custom-code'
 import { initScrollAnimations } from '~/puck/scroll-animation'
 import { initCarousels } from '~/puck/carousel'
+import { initLazyBackgrounds } from '~/puck/lazy-background'
 import { PublicPageHead, type MetaTag } from '~/components/public-page-head'
 
 /**
@@ -94,6 +95,9 @@ export function PublicPageFrame({
    */
   useEffect(() => initScrollAnimations(document.body), [page.url])
 
+  /** Opt-in lazy background images; same public-only, re-keyed-on-URL contract. */
+  useEffect(() => initLazyBackgrounds(document.body), [page.url])
+
   /** Carousel auto-loop (slide/marquee). Same public-only, reduced-motion-safe
    * contract as the scroll reveals; re-keyed on the page URL. */
   useEffect(() => initCarousels(document.body), [page.url])
@@ -102,7 +106,11 @@ export function PublicPageFrame({
     <>
       <PublicPageHead title={title} seo={seo} globalMeta={globalMeta} />
       {globalCss ? (
-        <style nonce={cspNonce} data-global-css="" dangerouslySetInnerHTML={{ __html: globalCss }} />
+        <style
+          nonce={cspNonce}
+          data-global-css=""
+          dangerouslySetInnerHTML={{ __html: globalCss }}
+        />
       ) : null}
       {/* Config first: a TemplateRef needs it to render server-side at all. */}
       <PuckConfigContext.Provider value={puckConfig}>

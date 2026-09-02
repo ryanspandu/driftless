@@ -101,12 +101,12 @@ export function CheckoutScreen(props: { embedded?: boolean } & Partial<CheckoutC
       .then(([basket, me]) => {
         if (!alive) return
         setCart(basket)
-        if (me.customer) {
-          setEmail(me.customer.email)
+        if (me.account) {
+          setEmail(me.account.email)
           setAddress((prev) => ({
             ...prev,
-            firstName: me.customer!.firstName ?? prev.firstName,
-            lastName: me.customer!.lastName ?? prev.lastName,
+            firstName: me.account!.firstName ?? prev.firstName,
+            lastName: me.account!.lastName ?? prev.lastName,
           }))
         }
       })

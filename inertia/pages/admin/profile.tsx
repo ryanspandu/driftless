@@ -9,6 +9,7 @@ import { Textarea } from '~/components/ui/textarea'
 import { Separator } from '~/components/ui/separator'
 import { formatAdminTableDateTime } from '~/lib/utils'
 import api, { ApiError } from '~/lib/api'
+import TwoFactorCard from '~/components/admin/two-factor-card'
 
 interface ProfileUser {
   id: string
@@ -22,6 +23,7 @@ interface ProfileUser {
   status?: 'ACTIVE' | 'INACTIVE' | null
   createdAt?: string | null
   roles?: { name: string }[]
+  twoFactorEnabled?: boolean
 }
 
 interface Props {
@@ -54,6 +56,7 @@ const ProfilePage: FC<Props> = ({ user }) => {
   const [address, setAddress] = useState(user.address ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(user.twoFactorEnabled ?? false)
 
   function resetFromUser() {
     setFirstName(user.firstName ?? '')
@@ -154,7 +157,9 @@ const ProfilePage: FC<Props> = ({ user }) => {
                 <div className="flex flex-wrap items-center gap-2.5">
                   <h2 className="text-lg font-semibold text-foreground">{name}</h2>
                   <Badge variant={isActive ? 'success' : 'secondary'} className="gap-1">
-                    <span className={isActive ? 'text-emerald-500' : 'text-muted-foreground'}>•</span>
+                    <span className={isActive ? 'text-emerald-500' : 'text-muted-foreground'}>
+                      •
+                    </span>
                     {isActive ? 'Active' : 'Inactive'}
                   </Badge>
                 </div>
@@ -196,7 +201,9 @@ const ProfilePage: FC<Props> = ({ user }) => {
                 label="Email"
                 editing={editing}
                 view={email || <Dash />}
-                edit={<Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
+                edit={
+                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                }
               />
               <Field
                 label="Phone"
@@ -231,6 +238,10 @@ const ProfilePage: FC<Props> = ({ user }) => {
               </p>
             ) : null}
           </section>
+
+          <Separator />
+
+          <TwoFactorCard enabled={twoFactorEnabled} onChange={setTwoFactorEnabled} />
         </CardContent>
       </Card>
     </div>

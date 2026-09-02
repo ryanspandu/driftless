@@ -1,4 +1,5 @@
 import '@measured/puck/puck.css'
+import { useMemo } from 'react'
 import { Puck, Render, type Data } from '@measured/puck'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Link } from '@inertiajs/react'
@@ -6,10 +7,13 @@ import { ArrowLeft } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import { puckConfig } from '~/puck/config'
 import { emailPuckConfig } from '~/puck/email-config'
+import { collectionPuckConfig } from '~/puck/collection-config'
 import { builderViewports } from '~/puck/style-fields'
 import { puckOverrides } from '~/puck/overrides'
 import { BuilderShell } from '~/puck/builder-shell'
 import { BuilderLoadState } from '~/puck/builder-load-state'
+import { CollectionScopeContext, RecordContext } from '~/puck/record-binding'
+import { collectionQuery, useRecords } from '~/puck/collection-list'
 import { useTemplate, useUpdateTemplate } from '~/hooks/api/use-templates'
 import { useBreakpoints, useUpdateBreakpoints } from '~/hooks/api/use-breakpoints'
 import { readBreakpoints, type Breakpoint } from '~/puck/breakpoints'
@@ -27,7 +31,9 @@ const PUCK_VIEWPORTS = [...builderViewports]
  * responsive preview would promise something the medium cannot deliver; 600px
  * is the width `layout.edge`'s 560px card sits inside.
  */
-const EMAIL_VIEWPORTS = [{ width: 600, height: 'auto' as const, label: 'Email', icon: 'Smartphone' as const }]
+const EMAIL_VIEWPORTS = [
+  { width: 600, height: 'auto' as const, label: 'Email', icon: 'Smartphone' as const },
+]
 
 /**
  * The email document, flattened to markup.
@@ -47,6 +53,30 @@ export default function TemplateBuilder({ id }: { id: string }) {
   const updateBp = useUpdateBreakpoints()
   const breakpoints = readBreakpoints(bpQuery.data?.breakpoints)
   const template = templateQuery.data
+
+  /**
+   * A COLLECTION template is designed against one real record.
+   *
+   * The newest published record of its collection is fetched (one row) and
+   * provided as the ambient record, so a Heading bound to `title` shows the
+   * actual title in the canvas instead of a placeholder. With no record yet,
+   * bound elements show their static text and `{{tokens}}` stay visible —
+   * `editing: true` in the context — which still makes the binding legible.
+   * The query is empty (no key) for every other type, and `useRecords` then
+   * fetches nothing.
+   */
+  const isCollection = template?.type === 'COLLECTION'
+  const collectionKey = (isCollection && template?.collectionKey) || ''
+  const sampleQuery = useMemo(
+    () => collectionQuery({ collectionKey }, { limit: 1 }),
+    [collectionKey]
+  )
+  const { records: sampleRecords } = useRecords(sampleQuery, 1)
+  const sample = sampleRecords[0]
+  const sampleFields = useMemo<Record<string, unknown>>(
+    () => (sample ? { id: sample.id, createdAt: sample.createdAt, ...sample.data } : {}),
+    [sample]
+  )
 
   if (!template) {
     return (
@@ -91,17 +121,20 @@ export default function TemplateBuilder({ id }: { id: string }) {
   }
 
   /**
-   * An EMAIL template gets a different block set entirely.
+   * The block set depends on the type.
    *
-   * The page blocks carry Tailwind classes and flex/grid layout, neither of
-   * which survives an email client — offering them here would produce a design
-   * that looks right in this canvas and arrives broken. See
-   * `inertia/puck/email-config.tsx`.
+   * EMAIL gets a different set entirely: the page blocks carry Tailwind classes
+   * and flex/grid layout, neither of which survives an email client — offering
+   * them here would produce a design that looks right in this canvas and
+   * arrives broken. See `inertia/puck/email-config.tsx`.
+   *
+   * COLLECTION gets the page set minus the blocks that make no sense inside a
+   * repeated item card. See `inertia/puck/collection-config.tsx`.
    */
   const isEmail = template.type === 'EMAIL'
-  const config = isEmail ? emailPuckConfig : puckConfig
+  const config = isEmail ? emailPuckConfig : isCollection ? collectionPuckConfig : puckConfig
 
-  return (
+  const editor = (
     <Puck
       config={config}
       data={initial}
@@ -129,11 +162,35 @@ export default function TemplateBuilder({ id }: { id: string }) {
               Templates
             </Link>
             <span className="truncate text-sm font-medium">{template.name}</span>
+            {isCollection ? (
+              <span
+                className="hidden shrink-0 rounded-full border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-600 dark:text-violet-300 md:inline-flex"
+                title={
+                  sample
+                    ? `Previewing the newest ${collectionKey} record. Bind elements from their Settings tab; the card repeats once per record in a Collection List.`
+                    : `No published ${collectionKey} record to preview yet — bound fields show their static text.`
+                }
+              >
+                Item card · {collectionKey}
+              </span>
+            ) : null}
           </>
         }
       />
 
       <Toaster richColors position="bottom-right" />
     </Puck>
+  )
+
+  if (!isCollection) return editor
+
+  // The iframe is disabled, so both contexts reach the canvas: the scope feeds
+  // the Settings tab's field dropdowns, the record feeds the bound elements.
+  return (
+    <CollectionScopeContext.Provider value={collectionKey || null}>
+      <RecordContext.Provider value={{ fields: sampleFields, editing: true }}>
+        {editor}
+      </RecordContext.Provider>
+    </CollectionScopeContext.Provider>
   )
 }

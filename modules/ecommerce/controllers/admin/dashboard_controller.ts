@@ -19,6 +19,12 @@ export interface StoreStatsDto {
   activeProductsCount: number
   lowStockCount: number
   customersCount: number
+  /** Approved, not-yet-withdrawn commission across all affiliates. */
+  affiliatePayable: MoneyDto
+  /** Commission actually paid out to date. */
+  affiliatePaid: MoneyDto
+  activeAffiliatesCount: number
+  pendingAffiliatesCount: number
 }
 
 /** Coerce a driver-dependent aggregate (pg returns strings) to a number. */
@@ -94,13 +100,38 @@ export default class EcommerceDashboardController {
       .first()
 
     const customersRow = await db
-      .from('ecommerce_customers')
+      .from('ecommerce_accounts')
       .whereNull('deleted_at')
       .count({ total: '*' })
       .first()
 
     const ordersCount = toNumber(ordersRow?.total)
     const averageOrderValue = paidOrdersCount > 0 ? Math.round(revenue / paidOrdersCount) : 0
+
+    // Affiliate spend, computed from the commission ledger (source of truth).
+    const payableRow = await db
+      .from('ecommerce_commissions')
+      .where('status', 'approved')
+      .whereNull('withdrawal_id')
+      .sum({ total: 'amount' })
+      .first()
+    const paidCommissionRow = await db
+      .from('ecommerce_commissions')
+      .where('status', 'paid')
+      .sum({ total: 'amount' })
+      .first()
+    const activeAffiliatesRow = await db
+      .from('ecommerce_affiliates')
+      .whereNull('deleted_at')
+      .where('status', 'active')
+      .count({ total: '*' })
+      .first()
+    const pendingAffiliatesRow = await db
+      .from('ecommerce_affiliates')
+      .whereNull('deleted_at')
+      .where('status', 'pending')
+      .count({ total: '*' })
+      .first()
 
     const dto: StoreStatsDto = {
       currency,
@@ -113,6 +144,10 @@ export default class EcommerceDashboardController {
       activeProductsCount: toNumber(activeProductsRow?.total),
       lowStockCount: toNumber(lowStockRow?.total),
       customersCount: toNumber(customersRow?.total),
+      affiliatePayable: Money.toDto(toNumber(payableRow?.total), currency, store.locale),
+      affiliatePaid: Money.toDto(toNumber(paidCommissionRow?.total), currency, store.locale),
+      activeAffiliatesCount: toNumber(activeAffiliatesRow?.total),
+      pendingAffiliatesCount: toNumber(pendingAffiliatesRow?.total),
     }
 
     return response.json(dto)

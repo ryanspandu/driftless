@@ -39,6 +39,8 @@ export interface CartDto {
   itemCount: number
   digitalOnly: boolean
   email: string | null
+  /** The applied coupon code, if any. */
+  discountCode: string | null
 }
 
 export interface OrderStatusDto {
@@ -80,7 +82,7 @@ export interface OrderStatusDto {
   }[]
 }
 
-export interface CustomerDto {
+export interface AccountDto {
   id: string
   email: string
   firstName: string | null
@@ -90,6 +92,7 @@ export interface CustomerDto {
   acceptsMarketing: boolean
   ordersCount: number
   hasPassword: boolean
+  twoFactorEnabled: boolean
   memberSince: string | null
   totalSpent: MoneyDto | null
 }
@@ -178,7 +181,15 @@ export const shopApi = {
   removeLine: (variantId: string) =>
     shopFetch<CartDto>(`/api/shop/cart/items/${variantId}`, { method: 'DELETE' }),
 
-  me: () => shopFetch<{ customer: CustomerDto | null }>('/api/shop/me'),
+  applyDiscount: (code: string) =>
+    shopFetch<CartDto>('/api/shop/cart/discount', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
+
+  removeDiscount: () => shopFetch<CartDto>('/api/shop/cart/discount', { method: 'DELETE' }),
+
+  me: () => shopFetch<{ account: AccountDto | null }>('/api/shop/me'),
 
   orderStatus: (token: string) =>
     shopFetch<OrderStatusDto>(`/api/shop/order?token=${encodeURIComponent(token)}`),
@@ -313,13 +324,41 @@ export const accountApi = {
     lastName?: string | null
     acceptsMarketing?: boolean
   }) =>
-    shopFetch<{ customer: CustomerDto }>('/api/shop/account/register', {
+    shopFetch<{ account: AccountDto }>('/api/shop/account/register', {
       method: 'POST',
       body: JSON.stringify(input),
     }),
 
+  /**
+   * A 2FA account returns `{ needs2fa, pendingToken }` (a 200, so `shopFetch`
+   * doesn't throw) instead of a signed-in `{ account }`; the caller then posts
+   * a code to {@link verify2fa}.
+   */
   login: (input: { email: string; password: string }) =>
-    shopFetch<{ customer: CustomerDto }>('/api/shop/account/login', {
+    shopFetch<{ account: AccountDto } | { needs2fa: true; pendingToken: string }>(
+      '/api/shop/account/login',
+      { method: 'POST', body: JSON.stringify(input) }
+    ),
+
+  verify2fa: (input: { pendingToken: string; code: string }) =>
+    shopFetch<{ account: AccountDto }>('/api/shop/account/2fa/verify', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  beginEnroll2fa: () =>
+    shopFetch<{ otpauthUri: string; secret: string }>('/api/shop/account/2fa/enroll', {
+      method: 'POST',
+    }),
+
+  confirmEnroll2fa: (input: { code: string }) =>
+    shopFetch<{ recoveryCodes: string[] }>('/api/shop/account/2fa/confirm', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  disable2fa: (input: { password: string }) =>
+    shopFetch<{ ok: true }>('/api/shop/account/2fa/disable', {
       method: 'POST',
       body: JSON.stringify(input),
     }),
@@ -337,7 +376,7 @@ export const accountApi = {
     phone?: string | null
     acceptsMarketing?: boolean
   }) =>
-    shopFetch<{ customer: CustomerDto }>('/api/shop/account/profile', {
+    shopFetch<{ account: AccountDto }>('/api/shop/account/profile', {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
@@ -364,4 +403,68 @@ export const accountApi = {
 
   deleteAddress: (id: string) =>
     shopFetch<void>(`/api/shop/account/addresses/${id}`, { method: 'DELETE' }),
+
+  affiliate: () => shopFetch<AffiliateOverviewDto>('/api/shop/account/affiliate'),
+
+  applyAffiliate: (input?: { message?: string }) =>
+    shopFetch<AffiliateOverviewDto>('/api/shop/account/affiliate/apply', {
+      method: 'POST',
+      body: JSON.stringify(input ?? {}),
+    }),
+
+  setPayoutMethod: (input: PayoutMethodInput) =>
+    shopFetch<AffiliateOverviewDto>('/api/shop/account/affiliate/payout-method', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  requestWithdrawal: () =>
+    shopFetch<AffiliateOverviewDto>('/api/shop/account/affiliate/withdrawals', { method: 'POST' }),
+}
+
+export type PayoutMethodInput =
+  | { type: 'bank'; bankName: string; accountNumber: string; accountHolder: string }
+  | { type: 'ewallet'; provider: string; accountNumber: string; accountHolder: string }
+  | { type: 'paypal'; email: string }
+
+/** Server money shape for affiliate figures — amount + preformatted string. */
+export interface AmountDto {
+  amount: number
+  formatted: string
+}
+
+export interface AffiliateCommissionDto {
+  id: string
+  orderNumber: string
+  amount: AmountDto
+  status: 'pending' | 'approved' | 'paid' | 'void'
+  ratePercent: number
+  createdAt: string
+}
+
+export interface AffiliateWithdrawalDto {
+  id: string
+  amount: AmountDto
+  status: 'requested' | 'paid' | 'rejected'
+  requestedAt: string
+  processedAt: string | null
+  rejectionReason: string | null
+}
+
+export interface AffiliateOverviewDto {
+  state: 'none' | 'pending' | 'active' | 'paused' | 'blocked' | 'rejected'
+  code: string | null
+  referralPath: string | null
+  commissionPercent: number
+  clicksCount: number
+  ordersCount: number
+  pending: AmountDto
+  available: AmountDto
+  inWithdrawal: AmountDto
+  paid: AmountDto
+  minWithdrawal: AmountDto
+  canWithdraw: boolean
+  payoutMethod: { type: 'bank' | 'ewallet' | 'paypal'; summary: string } | null
+  recentCommissions: AffiliateCommissionDto[]
+  withdrawals: AffiliateWithdrawalDto[]
 }

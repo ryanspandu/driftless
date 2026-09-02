@@ -18,6 +18,8 @@ export interface TemplateSummaryDto {
   name: string
   type: TemplateType
   isDefault: boolean
+  /** The CMS collection a COLLECTION template is the item card for; null otherwise. */
+  collectionKey: string | null
   createdAt: string
   updatedAt: string
 }
@@ -33,6 +35,7 @@ interface CreateTemplateInput {
   type: TemplateType
   content?: Record<string, unknown>
   isDefault?: boolean
+  collectionKey?: string | null
 }
 
 interface UpdateTemplateInput {
@@ -49,9 +52,18 @@ interface UpdateTemplateInput {
   name?: string
   content?: Record<string, unknown>
   isDefault?: boolean
+  collectionKey?: string | null
 }
 
-/** Collect TemplateRef ids referenced anywhere in a Puck node tree. */
+/**
+ * Collect template ids referenced anywhere in a Puck node tree.
+ *
+ * Two blocks embed a template: `TemplateRef` (a header/footer/component
+ * include) and `CollectionList` in template mode, whose `templateId` is the
+ * COLLECTION template repeated once per record. Both carry the id under the
+ * same prop name on purpose — `usages()` and the public reachability check
+ * find either by the one `"templateId":"<id>"` needle.
+ */
 function collectRefIds(node: unknown, acc: string[]): void {
   if (Array.isArray(node)) {
     for (const child of node) collectRefIds(child, acc)
@@ -59,7 +71,11 @@ function collectRefIds(node: unknown, acc: string[]): void {
   }
   if (node && typeof node === 'object') {
     const block = node as { type?: string; props?: Record<string, unknown> }
-    if (block.type === 'TemplateRef' && typeof block.props?.templateId === 'string') {
+    if (
+      (block.type === 'TemplateRef' || block.type === 'CollectionList') &&
+      typeof block.props?.templateId === 'string' &&
+      block.props.templateId
+    ) {
       acc.push(block.props.templateId as string)
     }
     if (block.props) {
@@ -91,6 +107,7 @@ export default class TemplatesService {
       type: dto.type,
       content: sanitizePuckDocument(dto.content ?? EMPTY_DOC),
       isDefault: dto.isDefault ?? false,
+      collectionKey: this.collectionKeyFor(dto.type, dto.collectionKey),
     })
     if (row.isDefault) await this.clearOtherDefaults(row.type, row.id)
     return this.toDto(row)
@@ -109,6 +126,9 @@ export default class TemplatesService {
       row.renderedHtml = dto.renderedHtml
     }
     if (dto.isDefault !== undefined) row.isDefault = dto.isDefault
+    if (dto.collectionKey !== undefined) {
+      row.collectionKey = this.collectionKeyFor(row.type, dto.collectionKey)
+    }
     await row.save()
     if (dto.isDefault) await this.clearOtherDefaults(row.type, row.id)
     // Templates are shared — any edit can affect SSG pages that include it.
@@ -132,12 +152,29 @@ export default class TemplatesService {
 
   /** Count pages + other templates that reference this template id. */
   async usages(id: string): Promise<{ pages: number; templates: number; total: number }> {
+    /**
+     * `CAST(... AS TEXT)` rather than pg's `::text`, which threw on SQLite —
+     * the test suite's driver. `public_templates_controller` already used the
+     * portable form for the same query; this one had simply never been
+     * reached from a test.
+     */
+    const needle = `%"templateId":"${id}"%`
+
+    /**
+     * A page uses a template through its layout/header/footer columns, or from
+     * inside its design: a TemplateRef include, or a CollectionList repeating a
+     * COLLECTION template. The staged draft counts too — deleting a template
+     * the operator has just placed, before they publish, would leave the draft
+     * pointing at nothing.
+     */
     const pageRow = await Page.query()
       .where((q) =>
         q
           .where('layout_id', id)
           .orWhere('header_template_id', id)
           .orWhere('footer_template_id', id)
+          .orWhereRaw('CAST(content AS TEXT) like ?', [needle])
+          .orWhereRaw('CAST(draft_content AS TEXT) like ?', [needle])
       )
       .whereNull('deleted_at')
       .count('* as total')
@@ -146,13 +183,7 @@ export default class TemplatesService {
     const templateRow = await Template.query()
       .whereNot('id', id)
       .whereNull('deleted_at')
-      /**
-       * `CAST(... AS TEXT)` rather than pg's `::text`, which threw on SQLite —
-       * the test suite's driver. `public_templates_controller` already used the
-       * portable form for the same query; this one had simply never been
-       * reached from a test.
-       */
-      .whereRaw('CAST(content AS TEXT) like ?', [`%"templateId":"${id}"%`])
+      .whereRaw('CAST(content AS TEXT) like ?', [needle])
       .count('* as total')
     const templates = Number((templateRow[0] as any)?.$extras?.total ?? 0)
 
@@ -175,6 +206,7 @@ export default class TemplatesService {
       type: source.type,
       content: sanitizePuckDocument(source.content),
       isDefault: false,
+      collectionKey: source.collectionKey ?? null,
     })
     return this.toDto(row)
   }
@@ -245,12 +277,25 @@ export default class TemplatesService {
       .update({ is_default: false })
   }
 
+  /**
+   * A collection key is meaningful only on COLLECTION templates. Dropping it
+   * elsewhere keeps a header from claiming a collection it can never bind to,
+   * which would otherwise surface in the CollectionList template picker.
+   */
+  private collectionKeyFor(type: TemplateType, key: string | null | undefined): string | null {
+    if (type !== 'COLLECTION') return null
+    const trimmed = String(key ?? '').trim()
+    if (!trimmed) throw new Error('A collection template must be bound to a collection')
+    return trimmed
+  }
+
   private toSummary(row: Template): TemplateSummaryDto {
     return {
       id: row.id,
       name: row.name,
       type: row.type,
       isDefault: row.isDefault,
+      collectionKey: row.collectionKey ?? null,
       createdAt: row.createdAt.toISO()!,
       updatedAt: row.updatedAt.toISO()!,
     }

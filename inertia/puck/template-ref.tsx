@@ -1,11 +1,13 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { Render, type Config, type Data } from '@measured/puck'
+import { PanelSelect } from '~/puck/panel-select'
+import type { AppSelectOption } from '~/components/ui/app-select'
 
 /**
  * TemplateRef block for the Pages builder — embeds the content of another
  * Template (header/footer/component) inline, composable like a partial.
  *
- * - `TemplateRefField`: a Puck custom field — a `<select>` picker listing
+ * - `TemplateRefField`: a Puck custom field — a dropdown picker listing
  *   reusable templates (HEADER | FOOTER | COMPONENT), fetched from the admin API.
  *   Value is the chosen `templateId`.
  * - `TemplateRefView`: reads the referenced template's content from
@@ -30,9 +32,6 @@ interface TemplateMeta {
   isDefault: boolean
 }
 
-const inputCls =
-  'w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring'
-
 /** Reusable (non-layout) templates available to reference. */
 function useReferenceableTemplates(): TemplateMeta[] {
   const [items, setItems] = useState<TemplateMeta[]>([])
@@ -43,7 +42,9 @@ function useReferenceableTemplates(): TemplateMeta[] {
       .then((d) => {
         if (!alive) return
         const list = Array.isArray(d) ? (d as TemplateMeta[]) : []
-        setItems(list.filter((t) => t.type === 'HEADER' || t.type === 'FOOTER' || t.type === 'COMPONENT'))
+        setItems(
+          list.filter((t) => t.type === 'HEADER' || t.type === 'FOOTER' || t.type === 'COMPONENT')
+        )
       })
       .catch(() => {})
     return () => {
@@ -61,35 +62,34 @@ export function TemplateRefField({
   onChange: (value: string) => void
 }) {
   const templates = useReferenceableTemplates()
+  const options = useMemo<AppSelectOption[]>(
+    () => templates.map((t) => ({ value: t.id, label: `${t.name} (${t.type})` })),
+    [templates]
+  )
   return (
     <label className="block space-y-1">
       <span className="text-xs text-muted-foreground">Template</span>
-      <select
-        className={inputCls}
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">Select template…</option>
-        {templates.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name} ({t.type})
-          </option>
-        ))}
-      </select>
+      <PanelSelect
+        value={value}
+        onChange={onChange}
+        options={options}
+        placeholder="Select template…"
+        isClearable
+      />
     </label>
   )
 }
 
 const notice = 'rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground'
 
-function toData(doc: Record<string, unknown> | undefined | null): Data {
+export function toData(doc: Record<string, unknown> | undefined | null): Data {
   return doc && Object.keys(doc).length
     ? (doc as unknown as Data)
     : ({ content: [], root: {} } as unknown as Data)
 }
 
 /** A doc with no blocks (`undefined`, `{}` or `{ content: [] }`) renders nothing. */
-function hasBlocks(doc: Record<string, unknown> | undefined | null): boolean {
+export function hasBlocks(doc: Record<string, unknown> | undefined | null): boolean {
   if (!doc || !Object.keys(doc).length) return false
   const blocks = (doc as { content?: unknown }).content
   return !Array.isArray(blocks) || blocks.length > 0
@@ -113,7 +113,7 @@ export const PuckConfigContext = createContext<Config | undefined>(undefined)
  * module-level singleton, so the fallback resolves immediately after first load
  * — it covers the builder canvas, where no provider is mounted.
  */
-function usePuckConfig(): Config | undefined {
+export function usePuckConfig(): Config | undefined {
   const provided = useContext(PuckConfigContext)
   const [config, setConfig] = useState<Config>()
   useEffect(() => {

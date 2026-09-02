@@ -60,26 +60,26 @@ export function toAddressDto(a: CustomerAddress): AddressDto {
 /**
  * A customer's saved address book.
  *
- * Every method is scoped by `customerId` — an address id alone is never enough
+ * Every method is scoped by `accountId` — an address id alone is never enough
  * to read or change one, so a customer can only ever touch their own. At most
  * one default shipping and one default billing address exist per customer; the
  * flip is done in a transaction so two addresses can never both claim it.
  */
 export default class CustomerAddressService {
-  async list(customerId: string): Promise<AddressDto[]> {
+  async list(accountId: string): Promise<AddressDto[]> {
     const rows = await CustomerAddress.query()
-      .where('customer_id', customerId)
+      .where('account_id', accountId)
       .whereNull('deleted_at')
       .orderBy('is_default_shipping', 'desc')
       .orderBy('created_at', 'desc')
     return rows.map(toAddressDto)
   }
 
-  async create(customerId: string, input: AddressInput): Promise<AddressDto> {
+  async create(accountId: string, input: AddressInput): Promise<AddressDto> {
     // The first address a customer saves becomes their default for both roles —
     // there is nothing else it could sensibly defer to.
     const count = await CustomerAddress.query()
-      .where('customer_id', customerId)
+      .where('account_id', accountId)
       .whereNull('deleted_at')
       .count('* as total')
     const isFirst =
@@ -92,13 +92,13 @@ export default class CustomerAddressService {
     const isDefaultBilling = isFirst || (input.isDefaultBilling ?? false)
 
     const address = await db.transaction(async (trx) => {
-      if (isDefaultShipping) await this.clearDefault(customerId, 'shipping', null, trx)
-      if (isDefaultBilling) await this.clearDefault(customerId, 'billing', null, trx)
+      if (isDefaultShipping) await this.clearDefault(accountId, 'shipping', null, trx)
+      if (isDefaultBilling) await this.clearDefault(accountId, 'billing', null, trx)
 
       return CustomerAddress.create(
         {
           id: newUlid(),
-          customerId,
+          accountId,
           ...this.fields(input),
           isDefaultShipping,
           isDefaultBilling,
@@ -110,8 +110,8 @@ export default class CustomerAddressService {
     return toAddressDto(address)
   }
 
-  async update(customerId: string, id: string, input: Partial<AddressInput>): Promise<AddressDto> {
-    const address = await this.owned(customerId, id)
+  async update(accountId: string, id: string, input: Partial<AddressInput>): Promise<AddressDto> {
+    const address = await this.owned(accountId, id)
 
     await db.transaction(async (trx) => {
       address.useTransaction(trx)
@@ -120,13 +120,13 @@ export default class CustomerAddressService {
       Object.assign(address, assign)
 
       if (input.isDefaultShipping === true) {
-        await this.clearDefault(customerId, 'shipping', id, trx)
+        await this.clearDefault(accountId, 'shipping', id, trx)
         address.isDefaultShipping = true
       } else if (input.isDefaultShipping === false) {
         address.isDefaultShipping = false
       }
       if (input.isDefaultBilling === true) {
-        await this.clearDefault(customerId, 'billing', id, trx)
+        await this.clearDefault(accountId, 'billing', id, trx)
         address.isDefaultBilling = true
       } else if (input.isDefaultBilling === false) {
         address.isDefaultBilling = false
@@ -138,17 +138,17 @@ export default class CustomerAddressService {
     return toAddressDto(address)
   }
 
-  async remove(customerId: string, id: string): Promise<void> {
-    const address = await this.owned(customerId, id)
+  async remove(accountId: string, id: string): Promise<void> {
+    const address = await this.owned(accountId, id)
     address.deletedAt = DateTime.now()
     await address.save()
   }
 
   /** The address, or a 404 — never leaks that an id exists under another owner. */
-  private async owned(customerId: string, id: string): Promise<CustomerAddress> {
+  private async owned(accountId: string, id: string): Promise<CustomerAddress> {
     const address = await CustomerAddress.query()
       .where('id', id)
-      .where('customer_id', customerId)
+      .where('account_id', accountId)
       .whereNull('deleted_at')
       .first()
     if (!address) throw publicError.notFound('Address not found.', 'address_not_found')
@@ -156,14 +156,14 @@ export default class CustomerAddressService {
   }
 
   private async clearDefault(
-    customerId: string,
+    accountId: string,
     role: 'shipping' | 'billing',
     exceptId: string | null,
     trx: TransactionClientContract
   ): Promise<void> {
     const column = role === 'shipping' ? 'is_default_shipping' : 'is_default_billing'
     const query = CustomerAddress.query({ client: trx })
-      .where('customer_id', customerId)
+      .where('account_id', accountId)
       .where(column, true)
     if (exceptId) query.whereNot('id', exceptId)
     await query.update({ [column]: false })

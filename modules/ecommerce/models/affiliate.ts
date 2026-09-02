@@ -19,25 +19,42 @@ export default class Affiliate extends BaseModel {
   @column()
   declare email: string
 
+  /**
+   * The storefront account behind this affiliate. Affiliates are account-based:
+   * a customer applies, an admin approves. Nullable only for historical rows.
+   */
   @column()
-  declare customerId: string | null
+  declare accountId: string | null
 
   /** Millipercent (10% → 10000). Integer, for the same reason discounts are. */
   @column()
   declare commissionPercentMilli: number
 
+  /**
+   * `pending` (applied, awaiting approval) → `active` (earning) with `paused`,
+   * `blocked` and `rejected` as non-earning states. Only `active` earns.
+   */
   @column()
-  declare status: 'active' | 'paused' | 'blocked'
+  declare status: 'pending' | 'active' | 'paused' | 'blocked' | 'rejected'
 
   /**
-   * Bank or PayPal details for a manual payout, encrypted.
+   * Structured payout instrument (bank / e-wallet / PayPal), encrypted JSON.
    *
    * A payment instrument: the admin list must never be able to leak it, so it
    * is stored the same way gateway secrets are and never serialised.
    */
   @column({ serializeAs: null })
-  declare payoutDetailsEnc: string | null
+  declare payoutMethodEnc: string | null
 
+  /** When the account applied to become an affiliate (orders the admin queue). */
+  @column.dateTime()
+  declare appliedAt: DateTime | null
+
+  /** The applicant's own note — why they want in. Set on apply / re-apply. */
+  @column()
+  declare applicantMessage: string | null
+
+  /** Admin-only note. */
   @column()
   declare notes: string | null
 

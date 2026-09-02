@@ -43,6 +43,8 @@ const updateValidator = vine.compile(
     checkoutTtlMinutes: vine.number().min(5).max(1_440).withoutDecimals().optional(),
     refundWindowDays: vine.number().min(0).max(365).withoutDecimals().optional(),
     affiliateCookieDays: vine.number().min(1).max(365).withoutDecimals().optional(),
+    affiliateMinWithdrawalAmount: vine.number().min(0).withoutDecimals().optional(),
+    affiliateDefaultCommissionPercent: vine.number().min(0).max(100).optional(),
     orderNumberPrefix: vine.string().trim().maxLength(16).optional(),
     /**
      * Which builder page fills each storefront slot. A blank string clears the

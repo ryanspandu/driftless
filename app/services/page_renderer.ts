@@ -6,6 +6,8 @@ import { WebSettingsService } from '#services/settings_service'
 import { resolvePageCollections } from '#services/page_data_resolver'
 import { resolveBlockData, type BlockRenderContext } from '#services/block_data_resolvers'
 import { renderPage } from '#helpers/inertia_render'
+import { buildJsonLd } from '#services/structured_data_service'
+import { absoluteUrl } from '#helpers/site_url'
 
 const pagesService = new PagesService()
 const templatesService = new TemplatesService()
@@ -36,6 +38,11 @@ export interface RenderPageOptions {
     description?: string | null
     imageUrl?: string | null
     canonicalPath?: string | null
+    /**
+     * Extra schema.org nodes (e.g. a `Product`) spread into the page's JSON-LD
+     * graph. Lets a module contribute rich-result data for the record it renders.
+     */
+    jsonLd?: unknown[]
   }
   /**
    * Skip the SSG snapshot even for an SSG page.
@@ -185,20 +192,53 @@ export default class PageRenderer {
             },
           })
 
-    const [globalCode, globalMeta, breakpoints] = await Promise.all([
+    const [globalCode, globalMeta, breakpoints, appearance] = await Promise.all([
       webSettingsService.getGlobalCode(),
       webSettingsService.getSiteMetaTags(),
       webSettingsService.getBreakpointsRaw(),
+      webSettingsService.getPublicAppearance(),
     ])
 
     /**
      * The record's own SEO wins over the template's, field by field — a
      * template that sets an image but no title should still contribute its
-     * image.
+     * image. The override arrives with the renderer's own key names
+     * (`imageUrl`/`canonicalPath`); map them to what the head actually reads
+     * (`ogImage`/`canonical`) and absolutise the canonical, or a template's
+     * per-record image and canonical are silently dropped.
      */
-    const seo = options.seoOverride
-      ? { ...(page.seo ?? {}), ...stripUndefined(options.seoOverride) }
-      : page.seo
+    const ov = options.seoOverride
+    const mappedOverride = ov
+      ? stripUndefined({
+          title: ov.title ?? undefined,
+          description: ov.description ?? undefined,
+          ogImage: ov.imageUrl ?? undefined,
+          canonical: ov.canonicalPath ? absoluteUrl(ov.canonicalPath) : undefined,
+        })
+      : undefined
+    const baseSeo: Record<string, unknown> = mappedOverride
+      ? { ...(page.seo ?? {}), ...mappedOverride }
+      : (page.seo ?? {})
+
+    /**
+     * Structured data (JSON-LD). Serialised here and carried on the seo bag as a
+     * ready-to-embed string, so the shared head component emits it inside the
+     * SSR-rendered `<head>` — captured in both live responses and the SSG
+     * snapshot with no extra plumbing.
+     */
+    const isHome = request.url() === '/'
+    const jsonLd = buildJsonLd({
+      url: absoluteUrl(page.path),
+      title: (typeof baseSeo.title === 'string' && baseSeo.title) || ov?.title || page.title,
+      description: typeof baseSeo.description === 'string' ? baseSeo.description : undefined,
+      siteName: appearance.siteTitle,
+      logoUrl: appearance.faviconUrl,
+      isHome,
+      path: page.path,
+      extra: ov?.jsonLd,
+      custom: typeof baseSeo.jsonLdCustom === 'string' ? baseSeo.jsonLdCustom : null,
+    })
+    const seo = jsonLd ? { ...baseSeo, jsonLd } : baseSeo
 
     const result = await renderPage(inertia, component, {
       page: {

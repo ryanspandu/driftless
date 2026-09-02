@@ -2,26 +2,64 @@ import CmsService from '#services/cms_service'
 
 const cmsService = new CmsService()
 
-interface CollectionRef {
+interface CollectionQuery {
   key: string
-  limit: number
+  pageSize: number
+  sortField: string
+  sortDir: 'asc' | 'desc'
+  filterField: string
+  filterValue: string
+}
+
+/**
+ * Derive a CollectionList block's server query from its props.
+ *
+ * MIRRORS `collectionQuery` + `collectionCacheKey` in
+ * `inertia/puck/collection-list.tsx` (by copy, not import — different module
+ * trees). The client looks up this preload under the identical key, so the two
+ * must normalise the same. Change both together.
+ */
+function collectionQuery(
+  source: { collectionKey?: string; titleField?: string } | undefined,
+  props: Record<string, unknown>
+): CollectionQuery {
+  const key = source?.collectionKey ?? ''
+  const perPage = Number(props.pageSize) || 0
+  const pageSize = perPage > 0 ? perPage : Number(props.limit) || 12
+  const titleField = source?.titleField
+  const sort = String(props.sort ?? 'newest')
+  let sortField = 'created_at'
+  let sortDir: 'asc' | 'desc' = 'desc'
+  if (sort === 'oldest') sortDir = 'asc'
+  else if (sort === 'title-asc' && titleField) {
+    sortField = titleField
+    sortDir = 'asc'
+  } else if (sort === 'title-desc' && titleField) {
+    sortField = titleField
+    sortDir = 'desc'
+  }
+  const filterField = String(props.filterField ?? '').trim()
+  const filterValue = String(props.filterValue ?? '').trim()
+  return { key, pageSize, sortField, sortDir, filterField, filterValue }
+}
+
+function cacheKey(q: CollectionQuery, page: number): string {
+  return `${q.key}|${page}|${q.pageSize}|${q.sortField}|${q.sortDir}|${q.filterField}|${q.filterValue}`
 }
 
 /** Recursively find CollectionList blocks in a Puck node tree. */
-function collectRefs(node: unknown, acc: CollectionRef[]): void {
+function collectRefs(node: unknown, acc: CollectionQuery[]): void {
   if (Array.isArray(node)) {
     for (const child of node) collectRefs(child, acc)
     return
   }
   if (node && typeof node === 'object') {
     const block = node as { type?: string; props?: Record<string, unknown> }
-    const source = block.props?.source as { collectionKey?: string } | undefined
+    const source = block.props?.source as
+      | { collectionKey?: string; titleField?: string }
+      | undefined
     if (block.type === 'CollectionList' && source?.collectionKey) {
-      // `Number(x) || 12` must match `recordLimit()` in `inertia/puck/collection-list.tsx`
-      // exactly — the client looks the payload up under the key built from it,
-      // and a limit the two normalise differently (`0`, `'6'`) resolves data
-      // here that the page then never finds and re-fetches on the client.
-      acc.push({ key: source.collectionKey, limit: Number(block.props?.limit) || 12 })
+      acc.push(collectionQuery(source, block.props ?? {}))
     }
 
     /**
@@ -48,25 +86,32 @@ function collectRefs(node: unknown, acc: CollectionRef[]): void {
 export async function resolvePageCollections(
   docs: Array<Record<string, unknown> | undefined | null>
 ): Promise<Record<string, unknown[]>> {
-  const refs: CollectionRef[] = []
+  const refs: CollectionQuery[] = []
   for (const doc of docs) {
     if (!doc) continue
     collectRefs((doc as { content?: unknown }).content, refs)
     collectRefs((doc as { zones?: unknown }).zones, refs)
   }
 
+  // Only page 1 is preloaded for SSR/SSG first paint; later pages fetch on the
+  // client. Keyed identically to the client's `collectionCacheKey(q, 1)`.
   const map: Record<string, unknown[]> = {}
-  for (const ref of refs) {
-    const cacheKey = `${ref.key}:${ref.limit}`
-    if (cacheKey in map) continue
+  for (const q of refs) {
+    const key = cacheKey(q, 1)
+    if (key in map) continue
     try {
-      const result = await cmsService.listRecords(ref.key, {
-        pageSize: ref.limit,
+      const result = await cmsService.listRecords(q.key, {
+        pageSize: q.pageSize,
+        page: 1,
         status: 'PUBLISHED',
+        sortField: q.sortField,
+        sortDir: q.sortDir,
+        filterField: q.filterField || undefined,
+        filterValue: q.filterValue || undefined,
       })
-      map[cacheKey] = result.items
+      map[key] = result.items
     } catch {
-      map[cacheKey] = []
+      map[key] = []
     }
   }
   return map

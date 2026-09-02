@@ -9,6 +9,8 @@ import StorefrontCatalogService from '#modules/ecommerce/services/storefront_cat
 import CurrencyService from '#modules/ecommerce/services/currency_service'
 import CartService from '#modules/ecommerce/services/cart_service'
 import GatewayCredentialsService from '#modules/ecommerce/services/gateway_credentials_service'
+import { Money } from '#modules/ecommerce/services/money'
+import { absoluteUrl } from '#helpers/site_url'
 
 const carts = new CartService()
 const credentials = new GatewayCredentialsService()
@@ -169,6 +171,28 @@ export default class StorefrontPagesController {
     if (!page) notFound()
 
     const seo = (product.seo ?? {}) as Record<string, unknown>
+    const productUrl = absoluteUrl(`${PRODUCT_PATH_PREFIX}/${product.slug}`)
+
+    // schema.org Product node for rich results (price, image, availability).
+    const productJsonLd: Record<string, unknown> = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      'name': product.title,
+      ...(product.subtitle ? { description: product.subtitle } : {}),
+      ...(product.images.length ? { image: product.images.map((i) => absoluteUrl(i.url)) } : {}),
+      'url': productUrl,
+      ...(product.priceFrom
+        ? {
+            offers: {
+              '@type': 'Offer',
+              'priceCurrency': product.priceFrom.currency,
+              'price': Money.toMajor(product.priceFrom.amount, product.priceFrom.currency),
+              'availability': 'https://schema.org/InStock',
+              'url': productUrl,
+            },
+          }
+        : {}),
+    }
 
     return renderer.render(page, ctx, {
       bindings: { params: { slug } },
@@ -183,6 +207,7 @@ export default class StorefrontPagesController {
         description: (seo.description as string) || product.subtitle || null,
         imageUrl: product.images[0]?.url ?? null,
         canonicalPath: `${PRODUCT_PATH_PREFIX}/${product.slug}`,
+        jsonLd: [productJsonLd],
       },
       /**
        * Never snapshot. The cache is keyed on the page, so storing one

@@ -2,8 +2,10 @@ import app from '@adonisjs/core/services/app'
 import { middleware } from '#start/kernel'
 import router from '@adonisjs/core/services/router'
 import {
+  analyticsCollectThrottle,
   apiV1Throttle,
   authIpThrottle,
+  formsSubmitThrottle,
   forgotPasswordAccountThrottle,
   forgotPasswordIpThrottle,
   loginAccountThrottle,
@@ -30,6 +32,29 @@ async function loadAutoSwagger(): Promise<any> {
 router.get('/', [() => import('#controllers/public_controller'), 'home']).as('home')
 router.get('/posts/:slug', [() => import('#controllers/public_controller'), 'post'])
 router.get('/offline', [() => import('#controllers/public_controller'), 'offline'])
+
+// First-party analytics beacon. Public + unauthenticated (real visitors have no
+// account), CSRF-exempt (see config/shield.ts), rate-limited per IP.
+router
+  .post('/api/analytics/collect', [
+    () => import('#controllers/admin/analytics_controller'),
+    'collect',
+  ])
+  .as('analytics.collect')
+  .use(analyticsCollectThrottle)
+
+// Public builder-form submissions. CSRF-protected (the form sends the XSRF
+// token), rate-limited, honeypot-guarded in the controller.
+router
+  .post('/api/forms/submit', [() => import('#controllers/admin/forms_controller'), 'submit'])
+  .as('forms.submit')
+  .use(formsSubmitThrottle)
+
+// Shareable draft-preview links (no login; token-gated, never indexed).
+router.get('/preview/:token', [
+  () => import('#controllers/pages_public_controller'),
+  'previewByToken',
+])
 
 router.get('/api/public/content', [() => import('#controllers/public_content_controller'), 'index'])
 router.get('/api/public/content/:slug', [
@@ -153,6 +178,17 @@ router
       .use(authIpThrottle)
       .use(loginAccountThrottle)
 
+    // Second factor. Reachable only mid-login (a pending id in the session); the
+    // real session is not opened until the code verifies, so this stays in the
+    // guest group. IP-throttled, with a per-challenge attempt cap in the action.
+    router
+      .get('/login/2fa', [() => import('#controllers/two_factor_controller'), 'challenge'])
+      .as('session.two_factor.challenge')
+    router
+      .post('/login/2fa', [() => import('#controllers/two_factor_controller'), 'verifyChallenge'])
+      .as('session.two_factor.verify')
+      .use(authIpThrottle)
+
     // Password reset. GET routes render a form and are unthrottled like the
     // ones above; the POSTs are capped both per-IP and per-target-address
     // because each one sends mail to an address the requester picked.
@@ -198,6 +234,20 @@ router
       .as('session.destroy')
     router.get('/api/me', [() => import('#controllers/session_controller'), 'me'])
     router.put('/api/me', [() => import('#controllers/session_controller'), 'updateProfile'])
+
+    // Self-service 2FA management for the signed-in admin.
+    router.post('/api/me/2fa/enroll', [
+      () => import('#controllers/two_factor_controller'),
+      'enroll',
+    ])
+    router.post('/api/me/2fa/confirm', [
+      () => import('#controllers/two_factor_controller'),
+      'confirm',
+    ])
+    router.post('/api/me/2fa/disable', [
+      () => import('#controllers/two_factor_controller'),
+      'disable',
+    ])
   })
   .use(middleware.auth())
 
@@ -210,10 +260,68 @@ router
       () => import('#controllers/admin/dashboard_controller'),
       'index',
     ])
-    router.get('/admin/analytics', [
-      () => import('#controllers/admin/dashboard_controller'),
-      'analyticsPage',
-    ])
+    router
+      .get('/admin/analytics', [
+        () => import('#controllers/admin/dashboard_controller'),
+        'analyticsPage',
+      ])
+      .use(middleware.pagePermission({ permission: 'analytics:read' }))
+    router
+      .get('/api/admin/analytics/report', [
+        () => import('#controllers/admin/analytics_controller'),
+        'report',
+      ])
+      .use(middleware.permission({ permission: 'analytics:read' }))
+
+    // Form submissions inbox
+    router
+      .get('/admin/forms', [() => import('#controllers/admin/forms_controller'), 'page'])
+      .use(middleware.pagePermission({ permission: 'forms:read' }))
+    router
+      .get('/api/admin/forms', [() => import('#controllers/admin/forms_controller'), 'list'])
+      .use(middleware.permission({ permission: 'forms:read' }))
+    router
+      .put('/api/admin/forms/:id/status', [
+        () => import('#controllers/admin/forms_controller'),
+        'updateStatus',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+    router
+      .delete('/api/admin/forms/:id', [
+        () => import('#controllers/admin/forms_controller'),
+        'destroy',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+
+    // URL redirects (301/302)
+    router
+      .get('/admin/redirects', [() => import('#controllers/admin/redirects_controller'), 'page'])
+      .use(middleware.pagePermission({ permission: 'redirects:manage' }))
+    router
+      .get('/api/admin/redirects', [
+        () => import('#controllers/admin/redirects_controller'),
+        'list',
+      ])
+      .use(middleware.permission({ permission: 'redirects:manage' }))
+    router
+      .post('/api/admin/redirects', [
+        () => import('#controllers/admin/redirects_controller'),
+        'store',
+      ])
+      .use(middleware.permission({ permission: 'redirects:manage' }))
+    router
+      .put('/api/admin/redirects/:id', [
+        () => import('#controllers/admin/redirects_controller'),
+        'update',
+      ])
+      .use(middleware.permission({ permission: 'redirects:manage' }))
+    router
+      .delete('/api/admin/redirects/:id', [
+        () => import('#controllers/admin/redirects_controller'),
+        'destroy',
+      ])
+      .use(middleware.permission({ permission: 'redirects:manage' }))
+
     router.get('/admin/profile', [
       () => import('#controllers/admin/dashboard_controller'),
       'profilePage',
@@ -447,6 +555,14 @@ router
           () => import('#controllers/admin/pages_controller'),
           'codeComponents',
         ])
+        router.post('/api/admin/pages/import', [
+          () => import('#controllers/admin/pages_controller'),
+          'importOne',
+        ])
+        router.post('/api/admin/pages/bulk', [
+          () => import('#controllers/admin/pages_controller'),
+          'bulk',
+        ])
         router.post('/api/admin/pages', [
           () => import('#controllers/admin/pages_controller'),
           'store',
@@ -466,6 +582,34 @@ router
         router.post('/api/admin/pages/:id/revisions/:revisionId/restore', [
           () => import('#controllers/admin/pages_controller'),
           'restoreRevision',
+        ])
+        router.put('/api/admin/pages/:id/draft', [
+          () => import('#controllers/admin/pages_controller'),
+          'saveDraft',
+        ])
+        router.post('/api/admin/pages/:id/publish', [
+          () => import('#controllers/admin/pages_controller'),
+          'publish',
+        ])
+        router.post('/api/admin/pages/:id/discard-draft', [
+          () => import('#controllers/admin/pages_controller'),
+          'discardDraft',
+        ])
+        router.post('/api/admin/pages/:id/preview-token', [
+          () => import('#controllers/admin/pages_controller'),
+          'previewToken',
+        ])
+        router.delete('/api/admin/pages/:id/preview-token', [
+          () => import('#controllers/admin/pages_controller'),
+          'clearPreviewToken',
+        ])
+        router.post('/api/admin/pages/:id/duplicate', [
+          () => import('#controllers/admin/pages_controller'),
+          'duplicate',
+        ])
+        router.get('/api/admin/pages/:id/export', [
+          () => import('#controllers/admin/pages_controller'),
+          'exportOne',
         ])
         router.get('/api/admin/pages/:id', [
           () => import('#controllers/admin/pages_controller'),

@@ -5,11 +5,9 @@ import { DateTime } from 'luxon'
 import Module from '#models/module'
 import ModulesService from '#services/modules_service'
 import { newUlid } from '#services/ulid_service'
-import Customer from '#modules/ecommerce/models/customer'
-import CustomerSession from '#modules/ecommerce/models/customer_session'
-import CustomerAuthService, {
-  toCustomerDto,
-} from '#modules/ecommerce/services/customer_auth_service'
+import Account from '#modules/ecommerce/models/account'
+import AccountSession from '#modules/ecommerce/models/account_session'
+import AccountAuthService, { toAccountDto } from '#modules/ecommerce/services/account_auth_service'
 import CustomerAddressService from '#modules/ecommerce/services/customer_address_service'
 
 async function resetDatabase() {
@@ -25,7 +23,7 @@ async function resetDatabase() {
 }
 
 async function makeCustomer(email: string, password: string | null = null) {
-  return Customer.create({
+  return Account.create({
     id: newUlid(),
     email,
     passwordHash: password ? await hash.make(password) : null,
@@ -36,7 +34,7 @@ async function makeCustomer(email: string, password: string | null = null) {
   })
 }
 
-const auth = () => new CustomerAuthService()
+const auth = () => new AccountAuthService()
 const book = () => new CustomerAddressService()
 
 const addr = (over: Record<string, unknown> = {}) => ({
@@ -107,7 +105,7 @@ test.group('E-commerce | account profile & password', (group) => {
       acceptsMarketing: true,
     })
 
-    const fresh = await Customer.findOrFail(c.id)
+    const fresh = await Account.findOrFail(c.id)
     assert.equal(fresh.firstName, 'Ada')
     assert.equal(fresh.phone, '+15551234')
     assert.isTrue(fresh.acceptsMarketing)
@@ -125,9 +123,9 @@ test.group('E-commerce | account profile & password', (group) => {
     const c = await makeCustomer('rotate@example.com', 'the-old-password')
     // Two live sessions, as if signed in on two devices.
     for (let i = 0; i < 2; i++) {
-      await CustomerSession.create({
+      await AccountSession.create({
         id: newUlid(),
-        customerId: c.id,
+        accountId: c.id,
         tokenHash: `hash-${i}`,
         expiresAt: DateTime.now().plus({ days: 30 }),
       })
@@ -135,15 +133,15 @@ test.group('E-commerce | account profile & password', (group) => {
 
     await auth().changePassword(c, 'the-old-password', 'brand-new-password')
 
-    const fresh = await Customer.findOrFail(c.id)
+    const fresh = await Account.findOrFail(c.id)
     assert.isTrue(await hash.verify(fresh.passwordHash!, 'brand-new-password'))
 
-    const live = await CustomerSession.query().where('customer_id', c.id).whereNull('revoked_at')
+    const live = await AccountSession.query().where('account_id', c.id).whereNull('revoked_at')
     assert.isEmpty(live, 'every session is revoked on password change')
   })
 })
 
-test.group('E-commerce | widened customer DTO', (group) => {
+test.group('E-commerce | widened account DTO', (group) => {
   group.each.setup(async () => resetDatabase())
 
   test('carries phone, member-since, has-password, and total spent when priced', async ({
@@ -154,7 +152,7 @@ test.group('E-commerce | widened customer DTO', (group) => {
     c.totalSpentAmount = 12_345
     await c.save()
 
-    const withMoney = toCustomerDto(c, { currency: 'USD', locale: 'en-US' })
+    const withMoney = toAccountDto(c, { currency: 'USD', locale: 'en-US' })
     assert.equal(withMoney.phone, '+15550000')
     assert.isTrue(withMoney.hasPassword)
     assert.isNotNull(withMoney.memberSince)
@@ -162,7 +160,7 @@ test.group('E-commerce | widened customer DTO', (group) => {
     assert.equal(withMoney.totalSpent?.formatted, '$123.45')
 
     // Without currency/locale (login/register responses) totalSpent is omitted.
-    const withoutMoney = toCustomerDto(c)
+    const withoutMoney = toAccountDto(c)
     assert.isNull(withoutMoney.totalSpent)
   })
 })

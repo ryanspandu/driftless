@@ -3,8 +3,8 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import User from '#models/user'
 import Module from '#models/module'
 import ModulesService from '#services/modules_service'
-import Customer from '#modules/ecommerce/models/customer'
-import CustomerAuthService from '#modules/ecommerce/services/customer_auth_service'
+import Account from '#modules/ecommerce/models/account'
+import AccountAuthService from '#modules/ecommerce/services/account_auth_service'
 
 async function resetDatabase() {
   const cleanup = await testUtils.db().truncate()
@@ -23,7 +23,7 @@ async function adminUser() {
   return User.query().where('email', 'admin@driftless.local').firstOrFail()
 }
 
-const auth = () => new CustomerAuthService()
+const auth = () => new AccountAuthService()
 
 test.group('E-commerce | admin creates a customer', (group) => {
   group.each.setup(async () => resetDatabase())
@@ -55,7 +55,7 @@ test.group('E-commerce | admin creates a customer', (group) => {
     await auth().adminCreate({ email: 'taken@example.com' })
 
     await assert.rejects(() => auth().adminCreate({ email: 'taken@example.com' }))
-    const count = await Customer.query().where('email', 'taken@example.com').count('* as total')
+    const count = await Account.query().where('email', 'taken@example.com').count('* as total')
     assert.equal(Number((count[0] as unknown as { $extras: { total: number } }).$extras.total), 1)
   })
 
@@ -74,7 +74,7 @@ test.group('E-commerce | admin creates a customer', (group) => {
     assert.equal(res.body().email, 'via-api@example.com')
     assert.isTrue(res.body().isGuest, 'no password given, so it is a record-only customer')
     assert.isTrue(res.body().acceptsMarketing)
-    assert.isNotNull(await Customer.query().where('email', 'via-api@example.com').first())
+    assert.isNotNull(await Account.query().where('email', 'via-api@example.com').first())
   })
 
   test('the endpoint is guarded by auth', async ({ client }) => {

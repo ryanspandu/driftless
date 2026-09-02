@@ -8,10 +8,12 @@ import CmsRevision from '#models/cms_revision'
 import { newUlid } from '#services/ulid_service'
 import CmsPermissionsService from '#services/cms_permissions_service'
 import { sanitizeRichText } from '#services/html_sanitizer_service'
+import { nativeFieldColumn, nativeTableName } from '#cms/native_registry'
 import {
-  nativeFieldColumn,
-  nativeTableName,
-} from '#cms/native_registry'
+  builtinCollection,
+  isBuiltinCollectionKey,
+  listBuiltinCollections,
+} from '#cms/builtin_collections'
 
 export type CmsFieldType =
   | 'TEXT'
@@ -92,10 +94,33 @@ const FIELD_REGISTRY = pgFieldRegistry()
 
 const KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/
 const RESERVED = new Set([
-  'select', 'from', 'where', 'table', 'insert', 'update', 'delete', 'user',
-  'role', 'order', 'group', 'union', 'join', 'index', 'primary', 'foreign',
-  'constraint', 'default', 'null', 'true', 'false', 'status', 'id',
-  'created_at', 'updated_at', 'author_id', 'deleted_at',
+  'select',
+  'from',
+  'where',
+  'table',
+  'insert',
+  'update',
+  'delete',
+  'user',
+  'role',
+  'order',
+  'group',
+  'union',
+  'join',
+  'index',
+  'primary',
+  'foreign',
+  'constraint',
+  'default',
+  'null',
+  'true',
+  'false',
+  'status',
+  'id',
+  'created_at',
+  'updated_at',
+  'author_id',
+  'deleted_at',
 ])
 
 function assertValidKey(value: string, kind: string): void {
@@ -213,7 +238,9 @@ export default class CmsService {
   async deleteComponent(key: string): Promise<void> {
     const c = await CmsComponent.query().where('key', key).whereNull('deleted_at').firstOrFail()
     // Guard: a component still referenced by a collection field can't be deleted.
-    const componentFields = await CmsField.query().where('type', 'COMPONENT').whereNull('deleted_at')
+    const componentFields = await CmsField.query()
+      .where('type', 'COMPONENT')
+      .whereNull('deleted_at')
     const inUse = componentFields.some((f) => {
       const cfg = (typeof f.config === 'string' ? JSON.parse(f.config) : f.config) as {
         componentKey?: string
@@ -272,6 +299,46 @@ export default class CmsService {
     return rows.map((r) => this.collectionToDto(r))
   }
 
+  /**
+   * Everything the page builder may bind to: the built-in collections (posts,
+   * products when the store is on) first, then the dynamic CMS collections.
+   *
+   * Separate from `listCollections()` on purpose — the CMS admin lists only
+   * what its generic record editor can write to, and built-ins are read-only
+   * here (they have their own admin pages). Ids are synthetic; nothing should
+   * try to load a built-in through the CMS collection routes.
+   */
+  async listBindableCollections(): Promise<CmsCollectionDto[]> {
+    const builtins = await listBuiltinCollections()
+    const dynamic = await this.listCollections()
+    const epoch = new Date(0).toISOString()
+    const mapped: CmsCollectionDto[] = builtins.map((b) => ({
+      id: `builtin:${b.key}`,
+      key: b.key,
+      label: b.label,
+      icon: b.icon ?? null,
+      group: b.group ?? 'Built-in',
+      source: 'BUILTIN',
+      revisionsOn: false,
+      draftsOn: false,
+      kind: 'collection',
+      fields: b.fields.map((f, i) => ({
+        id: `builtin:${b.key}:${f.key}`,
+        collectionId: `builtin:${b.key}`,
+        key: f.key,
+        label: f.label,
+        type: f.type,
+        required: false,
+        unique: false,
+        order: i,
+        config: {},
+      })),
+      createdAt: epoch,
+      updatedAt: epoch,
+    }))
+    return [...mapped, ...dynamic]
+  }
+
   async findCollection(key: string): Promise<CmsCollectionDto> {
     const row = await CmsCollection.query()
       .where('key', key)
@@ -289,11 +356,26 @@ export default class CmsService {
     revisionsOn?: boolean
     draftsOn?: boolean
     kind?: 'collection' | 'single'
-    fields?: Array<{ key: string; label: string; type: CmsFieldType; required?: boolean; unique?: boolean; config?: Record<string, unknown> }>
+    fields?: Array<{
+      key: string
+      label: string
+      type: CmsFieldType
+      required?: boolean
+      unique?: boolean
+      config?: Record<string, unknown>
+    }>
   }): Promise<CmsCollectionDto> {
     assertValidKey(dto.key, 'collection')
+    // `posts` / `products` are answered by their adapters; a dynamic collection
+    // under the same key could never be reached from the builder.
+    if (isBuiltinCollectionKey(dto.key)) {
+      throw new Error(`"${dto.key}" is a built-in collection — pick another key`)
+    }
 
-    const existing = await CmsCollection.query().where('key', dto.key).whereNull('deleted_at').first()
+    const existing = await CmsCollection.query()
+      .where('key', dto.key)
+      .whereNull('deleted_at')
+      .first()
     if (existing) throw new Error(`Collection "${dto.key}" already exists`)
 
     const collection = await CmsCollection.create({
@@ -474,7 +556,14 @@ export default class CmsService {
 
   async addField(
     collectionKey: string,
-    dto: { key: string; label: string; type: CmsFieldType; required?: boolean; unique?: boolean; config?: Record<string, unknown> }
+    dto: {
+      key: string
+      label: string
+      type: CmsFieldType
+      required?: boolean
+      unique?: boolean
+      config?: Record<string, unknown>
+    }
   ): Promise<CmsFieldDto> {
     assertValidKey(dto.key, 'field')
 
@@ -710,9 +799,15 @@ export default class CmsService {
         // oneToMany: repoint the target rows' inverse FK to this record.
         const targetTable = dynamicTableName(cfg.targetKey ?? '')
         const col = cfg.inverseColumn ?? `${collection.key}_${field.key}`
-        await db.from(targetTable).where(col, recordId).update({ [col]: null })
+        await db
+          .from(targetTable)
+          .where(col, recordId)
+          .update({ [col]: null })
         if (targetIds.length) {
-          await db.from(targetTable).whereIn('id', targetIds).update({ [col]: recordId })
+          await db
+            .from(targetTable)
+            .whereIn('id', targetIds)
+            .update({ [col]: recordId })
         }
       }
     }
@@ -775,22 +870,109 @@ export default class CmsService {
 
   async listRecords(
     collectionKey: string,
-    query: { page?: number; pageSize?: number; status?: string; search?: string }
-  ): Promise<{ items: CmsRecordDto[]; page: number; pageSize: number; total: number; totalPages: number }> {
+    query: {
+      page?: number
+      pageSize?: number
+      status?: string
+      search?: string
+      /** Substring filter on one field (whitelisted against the collection's fields). */
+      filterField?: string
+      filterValue?: string
+      /** Sort by a field key, or `created_at`/`updated_at`; defaults to the table's own. */
+      sortField?: string
+      sortDir?: 'asc' | 'desc'
+    }
+  ): Promise<{
+    items: CmsRecordDto[]
+    page: number
+    pageSize: number
+    total: number
+    totalPages: number
+  }> {
+    /**
+     * Built-in collections (posts, a module's products) answer from their own
+     * adapter. They only ever expose published rows, so a `status` other than
+     * PUBLISHED — an admin listing drafts — finds nothing there, by design.
+     */
+    const builtin = await builtinCollection(collectionKey)
+    if (builtin) {
+      if (query.status && query.status !== 'PUBLISHED') {
+        return {
+          items: [],
+          page: 1,
+          pageSize: Number(query.pageSize) || 20,
+          total: 0,
+          totalPages: 0,
+        }
+      }
+      return builtin.list({
+        page: Number(query.page) || 1,
+        pageSize: Number(query.pageSize) || 20,
+        search: query.search,
+        filterField: query.filterField,
+        filterValue: query.filterValue,
+        sortField: query.sortField,
+        sortDir: query.sortDir,
+      })
+    }
+
     const { table, collection } = await this.resolveRecordContext(collectionKey)
     const page = Math.max(1, Number(query.page) || 1)
     const pageSize = Math.max(1, Math.min(100, Number(query.pageSize) || 20))
     const offset = (page - 1) * pageSize
 
+    // Only real field keys may be referenced in filter/sort — never raw input.
+    const fieldKeys = new Set(collection.fields.map((f) => f.key))
+    const safeCol = (c: string) => /^[a-zA-Z0-9_]+$/.test(c)
+
     let baseQuery = db.from(table).whereNull('deleted_at')
     if (query.status) baseQuery = baseQuery.where('status', query.status)
+
+    // Field filter (case-insensitive substring), dialect-safe.
+    const ff = query.filterField?.trim()
+    const fv = query.filterValue?.trim()
+    if (ff && fv && fieldKeys.has(ff)) {
+      const col = this.fieldToColumn(collection, ff)
+      if (safeCol(col))
+        baseQuery = baseQuery.whereRaw(`LOWER("${col}") LIKE ?`, [`%${fv.toLowerCase()}%`])
+    }
+
+    // Cross-field text search across the collection's text-like columns.
+    const search = query.search?.trim()
+    if (search) {
+      const textCols = collection.fields
+        .filter((f) => ['TEXT', 'TEXTAREA', 'RICHTEXT', 'SLUG', 'STRING'].includes(String(f.type)))
+        .map((f) => this.fieldToColumn(collection, f.key))
+        .filter(safeCol)
+      if (textCols.length) {
+        const like = `%${search.toLowerCase()}%`
+        baseQuery = baseQuery.where((b: any) => {
+          for (const col of textCols) b.orWhereRaw(`LOWER("${col}") LIKE ?`, [like])
+        })
+      }
+    }
 
     const countResult = await baseQuery.clone().count('* as total')
     const total = Number((countResult[0] as any)?.total ?? 0)
 
+    // Sort: a whitelisted field or timestamp, else the table's default.
+    let sortCol = this.orderColumnForTable(table)
+    let sortDir: 'asc' | 'desc' = 'desc'
+    const sf = query.sortField?.trim()
+    if (sf === 'created_at' || sf === 'updated_at') {
+      sortCol = sf
+      sortDir = query.sortDir === 'asc' ? 'asc' : 'desc'
+    } else if (sf && fieldKeys.has(sf)) {
+      const col = this.fieldToColumn(collection, sf)
+      if (safeCol(col)) {
+        sortCol = col
+        sortDir = query.sortDir === 'asc' ? 'asc' : 'desc'
+      }
+    }
+
     const rows = await baseQuery
       .select('*')
-      .orderBy(this.orderColumnForTable(table), 'desc')
+      .orderBy(sortCol, sortDir)
       .limit(pageSize)
       .offset(offset)
 
@@ -806,6 +988,13 @@ export default class CmsService {
   }
 
   async findRecord(collectionKey: string, id: string): Promise<CmsRecordDto> {
+    const builtin = await builtinCollection(collectionKey)
+    if (builtin) {
+      const record = await builtin.find(id)
+      if (!record) throw new Error('Record not found')
+      return record
+    }
+
     const { table, collection } = await this.resolveRecordContext(collectionKey)
     const row = await db.from(table).where('id', id).whereNull('deleted_at').first()
     if (!row) throw new Error('Record not found')
@@ -1242,12 +1431,7 @@ export default class CmsService {
 
   private serializeFieldValue(type: string, val: unknown): unknown {
     if (val === undefined || val === null) return null
-    if (
-      type === 'JSON' ||
-      type === 'RICHTEXT' ||
-      type === 'REPEATABLE' ||
-      type === 'COMPONENT'
-    ) {
+    if (type === 'JSON' || type === 'RICHTEXT' || type === 'REPEATABLE' || type === 'COMPONENT') {
       return typeof val === 'string' ? val : JSON.stringify(val)
     }
     if (type === 'BOOL') {

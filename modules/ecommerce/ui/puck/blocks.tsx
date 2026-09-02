@@ -4,6 +4,7 @@ import {
   LogIn,
   Package,
   ReceiptText,
+  Share2,
   ShoppingBag,
   ShoppingCart,
   UserPlus,
@@ -13,6 +14,7 @@ import { styleFields, Box } from '~/puck/style-fields'
 import { CartWidget, ProductDetail, ProductList } from './product-blocks'
 import {
   AccountBlockView,
+  AffiliateBlockView,
   CartBlockView,
   CheckoutBlockView,
   LoginBlockView,
@@ -46,6 +48,7 @@ export default {
     CheckoutBlock: CreditCard,
     OrderStatusBlock: ReceiptText,
     AccountBlock: CircleUser,
+    AffiliateBlock: Share2,
     LoginBlock: LogIn,
     RegisterBlock: UserPlus,
   },
@@ -246,6 +249,24 @@ export default {
             <ScreenPlaceholder label="Sign up" hint="The shopper sign-up form renders here." />
           ) : (
             <RegisterBlockView />
+          )}
+        </Box>
+      ),
+    },
+
+    AffiliateBlock: {
+      label: 'Affiliate program',
+      fields: { ...styleFields },
+      defaultProps: {},
+      render: (s) => (
+        <Box s={s}>
+          {isEditing(s) ? (
+            <ScreenPlaceholder
+              label="Affiliate program"
+              hint="Apply, referral link, commissions and payouts render here for the signed-in shopper."
+            />
+          ) : (
+            <AffiliateBlockView />
           )}
         </Box>
       ),

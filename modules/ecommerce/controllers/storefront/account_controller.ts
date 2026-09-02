@@ -4,11 +4,12 @@ import vine from '@vinejs/vine'
 import { apiFail } from '#helpers/api_error_response'
 import { publicError } from '#exceptions/public_error'
 import Order from '#modules/ecommerce/models/order'
-import CustomerAuthService, {
-  toCustomerDto,
-} from '#modules/ecommerce/services/customer_auth_service'
+import Account from '#modules/ecommerce/models/account'
+import AccountAuthService, { toAccountDto } from '#modules/ecommerce/services/account_auth_service'
 import CustomerAddressService from '#modules/ecommerce/services/customer_address_service'
+import AccountTwoFactorService from '#modules/ecommerce/services/account_two_factor_service'
 import DigitalDeliveryService from '#modules/ecommerce/services/digital_delivery_service'
+import AffiliateService, { type PayoutMethod } from '#modules/ecommerce/services/affiliate_service'
 import { stageOf } from '#modules/ecommerce/services/order_state_machine'
 import { Money } from '#modules/ecommerce/services/money'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
@@ -84,10 +85,27 @@ const addressUpdateValidator = vine.compile(
   })
 )
 
-const customers = new CustomerAuthService()
+const accounts = new AccountAuthService()
 const settings = new StoreSettingsService()
 const addresses = new CustomerAddressService()
 const delivery = new DigitalDeliveryService()
+const twoFactor = new AccountTwoFactorService()
+
+const codeValidator = vine.compile(vine.object({ code: vine.string().trim().maxLength(20) }))
+
+const affiliates = new AffiliateService()
+
+/** A structured payout instrument submitted by an affiliate. */
+const payoutMethodValidator = vine.compile(
+  vine.object({
+    type: vine.enum(['bank', 'ewallet', 'paypal'] as const),
+    bankName: vine.string().trim().maxLength(120).optional(),
+    provider: vine.string().trim().maxLength(120).optional(),
+    accountNumber: vine.string().trim().maxLength(64).optional(),
+    accountHolder: vine.string().trim().maxLength(160).optional(),
+    email: vine.string().trim().maxLength(254).optional(),
+  })
+)
 
 const fail = (response: HttpContext['response'], error: unknown) =>
   apiFail(response, error, 'ecommerce/account')
@@ -108,22 +126,22 @@ export default class StorefrontAccountController {
     const { request, response } = ctx
     try {
       const payload = await request.validateUsing(registerValidator)
-      const { customer } = await customers.register(payload)
+      const { account } = await accounts.register(payload)
 
       /**
-       * `customer` is null when the address already had an account. The
+       * `account` is null when the address already had an account. The
        * response is identical either way — a caller cannot use this endpoint to
        * discover who is registered. Only a genuinely new (or upgraded guest)
        * account gets a session.
        */
-      if (customer) {
-        await customers.startSession(ctx, customer)
+      if (account) {
+        await accounts.startSession(ctx, account)
       }
 
       return response.status(201).json({
         ok: true,
         message: 'If that address can be registered, your account is ready.',
-        customer: customer ? toCustomerDto(customer) : null,
+        account: account ? toAccountDto(account) : null,
       })
     } catch (error) {
       return fail(response, error)
@@ -134,12 +152,12 @@ export default class StorefrontAccountController {
     const { request, response } = ctx
     try {
       const { email, password } = await request.validateUsing(loginValidator)
-      const customer = await customers.verify(email, password)
+      const account = await accounts.verify(email, password)
 
-      if (!customer) {
+      if (!account) {
         /**
          * One message for every failure — wrong password, unknown address,
-         * blocked account. `CustomerAuthService.verify` also does a scrypt
+         * blocked account. `AccountAuthService.verify` also does a scrypt
          * comparison on the miss path, so timing does not distinguish them
          * either.
          */
@@ -149,46 +167,154 @@ export default class StorefrontAccountController {
         })
       }
 
-      await customers.startSession(ctx, customer)
-      return response.json({ ok: true, customer: toCustomerDto(customer) })
+      // Password was right, but a 2FA account is not signed in yet. Hand back a
+      // short-lived pending token (a 200, not an error, so `shopFetch` doesn't
+      // throw) and wait for the code. No cookie is set until `verify2fa`.
+      if (twoFactor.isEnabled(account)) {
+        return response.json({
+          needs2fa: true,
+          pendingToken: twoFactor.issueChallengeToken(account),
+        })
+      }
+
+      await accounts.startSession(ctx, account)
+      return response.json({ ok: true, account: toAccountDto(account) })
     } catch (error) {
       return fail(response, error)
     }
   }
 
+  /**
+   * Second step of a 2FA login: a valid code exchanges the pending token for a
+   * real session. Deliberately returns the same 401 for a bad token and a bad
+   * code, so neither reveals which was wrong.
+   */
+  async verify2fa(ctx: HttpContext) {
+    const { request, response } = ctx
+    try {
+      const pendingToken = String(request.input('pendingToken') ?? '')
+      const { code } = await request.validateUsing(codeValidator)
+
+      const accountId = pendingToken ? twoFactor.resolveChallengeToken(pendingToken) : null
+      const account = accountId
+        ? await Account.query().where('id', accountId).whereNull('deleted_at').first()
+        : null
+
+      if (!account || !account.isActive || !twoFactor.isEnabled(account)) {
+        return response.status(401).json({ message: 'That code did not match.', reason: 'invalid' })
+      }
+
+      const ok = await twoFactor.verifyChallenge(account, code)
+      if (!ok) {
+        return response.status(401).json({ message: 'That code did not match.', reason: 'invalid' })
+      }
+
+      await accounts.startSession(ctx, account)
+      const store = await settings.getOrCreate()
+      return response.json({
+        ok: true,
+        account: toAccountDto(account, { currency: store.currency, locale: store.locale }),
+      })
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /** Begin enrolment for the signed-in account — returns a QR URI + secret. */
+  async enroll2fa(ctx: HttpContext) {
+    const { response } = ctx
+    const account = await accounts.resolve(ctx)
+    if (!account) {
+      return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
+    }
+    if (!account.passwordHash) {
+      return response
+        .status(422)
+        .json({ message: 'Set a password before enabling 2FA.', reason: 'no_password' })
+    }
+    if (twoFactor.isEnabled(account)) {
+      return response.status(409).json({ message: 'Two-factor is already enabled.' })
+    }
+    const { otpauthUri, secret } = await twoFactor.beginEnroll(account)
+    return response.json({ otpauthUri, secret })
+  }
+
+  /** Confirm enrolment with a first code; returns the one-time recovery codes. */
+  async confirm2fa(ctx: HttpContext) {
+    const { request, response } = ctx
+    const account = await accounts.resolve(ctx)
+    if (!account) {
+      return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
+    }
+    if (twoFactor.isEnabled(account)) {
+      return response.status(409).json({ message: 'Two-factor is already enabled.' })
+    }
+    const { code } = await request.validateUsing(codeValidator)
+    const recoveryCodes = await twoFactor.confirmEnroll(account, code)
+    if (!recoveryCodes) {
+      return response
+        .status(422)
+        .json({ message: 'That code did not match.', reason: 'invalid_code' })
+    }
+    return response.json({ recoveryCodes })
+  }
+
+  /** Disable 2FA — requires the account password; revokes other sessions. */
+  async disable2fa(ctx: HttpContext) {
+    const { request, response } = ctx
+    const account = await accounts.resolve(ctx)
+    if (!account) {
+      return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
+    }
+    if (!twoFactor.isEnabled(account)) {
+      return response.status(409).json({ message: 'Two-factor is not enabled.' })
+    }
+    const password = String(request.input('password') ?? '')
+    const ok = await twoFactor.disable(account, password)
+    if (!ok) {
+      return response
+        .status(422)
+        .json({ message: 'Your password is incorrect.', reason: 'wrong_password' })
+    }
+    // A hijacked live session should not survive 2FA being turned off elsewhere.
+    await accounts.revokeAllSessions(account.id)
+    await accounts.startSession(ctx, account)
+    return response.json({ ok: true })
+  }
+
   async logout(ctx: HttpContext) {
-    await customers.endSession(ctx)
+    await accounts.endSession(ctx)
     return ctx.response.json({ ok: true })
   }
 
-  /** The signed-in customer, or null. Never 401s — the storefront renders either way. */
+  /** The signed-in account, or null. Never 401s — the storefront renders either way. */
   async me(ctx: HttpContext) {
-    const customer = await customers.resolve(ctx)
-    if (!customer) return ctx.response.json({ customer: null })
+    const account = await accounts.resolve(ctx)
+    if (!account) return ctx.response.json({ account: null })
     const store = await settings.getOrCreate()
     return ctx.response.json({
-      customer: toCustomerDto(customer, { currency: store.currency, locale: store.locale }),
+      account: toAccountDto(account, { currency: store.currency, locale: store.locale }),
     })
   }
 
   /**
-   * The signed-in customer's own orders.
+   * The signed-in account's own orders.
    *
-   * Scoped by the session's customer id, never by anything in the request — a
-   * `customerId` parameter here would be an invitation to read someone else's
+   * Scoped by the session's account id, never by anything in the request — a
+   * `accountId` parameter here would be an invitation to read someone else's
    * purchase history.
    */
   async orders(ctx: HttpContext) {
     const { response } = ctx
-    const customer = await customers.resolve(ctx)
+    const account = await accounts.resolve(ctx)
 
-    if (!customer) {
+    if (!account) {
       return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
     }
 
     const store = await settings.getOrCreate()
     const orders = await Order.query()
-      .where('customer_id', customer.id)
+      .where('account_id', account.id)
       .whereNull('deleted_at')
       .preload('items')
       .orderBy('created_at', 'desc')
@@ -215,23 +341,23 @@ export default class StorefrontAccountController {
   }
 
   /**
-   * One of the signed-in customer's orders, in full.
+   * One of the signed-in account's orders, in full.
    *
-   * Scoped by `customer.id` **and** the number — an order that is not theirs 404s
+   * Scoped by `account.id` **and** the number — an order that is not theirs 404s
    * exactly like one that does not exist, so the number space cannot be probed.
    * This is the token order page's data, but session-authorised and including the
-   * shipping address (it is the customer's own).
+   * shipping address (it is the account's own).
    */
   async orderDetail(ctx: HttpContext) {
     const { params, response } = ctx
-    const customer = await customers.resolve(ctx)
-    if (!customer) {
+    const account = await accounts.resolve(ctx)
+    if (!account) {
       return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
     }
 
     const order = await Order.query()
       .where('number', String(params.number))
-      .where('customer_id', customer.id)
+      .where('account_id', account.id)
       .whereNull('deleted_at')
       .preload('items')
       .first()
@@ -282,13 +408,13 @@ export default class StorefrontAccountController {
   /** Stream a purchased file for the signed-in owner (no token; session-scoped). */
   async downloadOrderFile(ctx: HttpContext) {
     const { params, response } = ctx
-    const customer = await customers.resolve(ctx)
-    if (!customer) {
+    const account = await accounts.resolve(ctx)
+    if (!account) {
       return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
     }
 
     try {
-      const file = await delivery.redeemForCustomer(String(params.grantId ?? ''), customer.id, ctx)
+      const file = await delivery.redeemForCustomer(String(params.grantId ?? ''), account.id, ctx)
       response.header('Content-Type', file.mimeType)
       response.header('Content-Length', String(file.sizeBytes))
       response.header('Content-Disposition', `attachment; filename="${file.filename}"`)
@@ -300,19 +426,19 @@ export default class StorefrontAccountController {
     }
   }
 
-  /** Edit the signed-in customer's own profile (not email — that's the account key). */
+  /** Edit the signed-in account's own profile (not email — that's the account key). */
   async updateProfile(ctx: HttpContext) {
     const { request, response } = ctx
-    const customer = await customers.resolve(ctx)
-    if (!customer) {
+    const account = await accounts.resolve(ctx)
+    if (!account) {
       return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
     }
     try {
       const payload = await request.validateUsing(profileValidator)
-      await customers.updateProfile(customer, payload)
+      await accounts.updateProfile(account, payload)
       const store = await settings.getOrCreate()
       return response.json({
-        customer: toCustomerDto(customer, { currency: store.currency, locale: store.locale }),
+        account: toAccountDto(account, { currency: store.currency, locale: store.locale }),
       })
     } catch (error) {
       return fail(response, error)
@@ -322,16 +448,16 @@ export default class StorefrontAccountController {
   /** Change password, then re-issue this device's session (the rest are revoked). */
   async changePassword(ctx: HttpContext) {
     const { request, response } = ctx
-    const customer = await customers.resolve(ctx)
-    if (!customer) {
+    const account = await accounts.resolve(ctx)
+    if (!account) {
       return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
     }
     try {
       const { currentPassword, newPassword } = await request.validateUsing(passwordValidator)
-      await customers.changePassword(customer, currentPassword, newPassword)
+      await accounts.changePassword(account, currentPassword, newPassword)
       // Every session was just revoked (including this one) — mint a fresh one so
       // the shopper who made the change stays signed in on this device.
-      await customers.startSession(ctx, customer)
+      await accounts.startSession(ctx, account)
       return response.json({ ok: true })
     } catch (error) {
       return fail(response, error)
@@ -340,22 +466,22 @@ export default class StorefrontAccountController {
 
   async addresses(ctx: HttpContext) {
     const { response } = ctx
-    const customer = await customers.resolve(ctx)
-    if (!customer) {
+    const account = await accounts.resolve(ctx)
+    if (!account) {
       return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
     }
-    return response.json({ addresses: await addresses.list(customer.id) })
+    return response.json({ addresses: await addresses.list(account.id) })
   }
 
   async createAddress(ctx: HttpContext) {
     const { request, response } = ctx
-    const customer = await customers.resolve(ctx)
-    if (!customer) {
+    const account = await accounts.resolve(ctx)
+    if (!account) {
       return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
     }
     try {
       const payload = await request.validateUsing(addressValidator)
-      return response.status(201).json(await addresses.create(customer.id, payload))
+      return response.status(201).json(await addresses.create(account.id, payload))
     } catch (error) {
       return fail(response, error)
     }
@@ -363,13 +489,13 @@ export default class StorefrontAccountController {
 
   async updateAddress(ctx: HttpContext) {
     const { params, request, response } = ctx
-    const customer = await customers.resolve(ctx)
-    if (!customer) {
+    const account = await accounts.resolve(ctx)
+    if (!account) {
       return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
     }
     try {
       const payload = await request.validateUsing(addressUpdateValidator)
-      return response.json(await addresses.update(customer.id, String(params.id), payload))
+      return response.json(await addresses.update(account.id, String(params.id), payload))
     } catch (error) {
       return fail(response, error)
     }
@@ -377,12 +503,12 @@ export default class StorefrontAccountController {
 
   async deleteAddress(ctx: HttpContext) {
     const { params, response } = ctx
-    const customer = await customers.resolve(ctx)
-    if (!customer) {
+    const account = await accounts.resolve(ctx)
+    if (!account) {
       return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
     }
     try {
-      await addresses.remove(customer.id, String(params.id))
+      await addresses.remove(account.id, String(params.id))
       return response.status(204).send('')
     } catch (error) {
       return fail(response, error)
@@ -409,5 +535,74 @@ export default class StorefrontAccountController {
     response.header('Cache-Control', 'no-store')
 
     return renderPage(inertia, 'modules/ecommerce/storefront/account/unsubscribed', {})
+  }
+
+  // ── Affiliate ──────────────────────────────────────────────────────────────
+
+  /** Everything the account's Affiliate tab renders. */
+  async affiliateOverview(ctx: HttpContext) {
+    const { response } = ctx
+    const account = await accounts.resolve(ctx)
+    if (!account) {
+      return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
+    }
+    return response.json(await affiliates.overviewForAccount(account))
+  }
+
+  /** Apply (or re-apply after a rejection) to join the affiliate program. */
+  async applyAffiliate(ctx: HttpContext) {
+    const { request, response } = ctx
+    const account = await accounts.resolve(ctx)
+    if (!account) {
+      return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
+    }
+    try {
+      const message = String(request.input('message') ?? '')
+      await affiliates.apply(account, message)
+      return response.json(await affiliates.overviewForAccount(account))
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /** Save or replace the affiliate's payout method. */
+  async updatePayoutMethod(ctx: HttpContext) {
+    const { request, response } = ctx
+    const account = await accounts.resolve(ctx)
+    if (!account) {
+      return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
+    }
+    try {
+      const affiliate = await affiliates.findByAccountId(account.id)
+      if (!affiliate) {
+        return response.status(404).json({ message: 'Not an affiliate.', reason: 'not_affiliate' })
+      }
+      const payload = await request.validateUsing(payoutMethodValidator)
+      await affiliates.setPayoutMethod(affiliate, payload as PayoutMethod)
+      return response.json(await affiliates.overviewForAccount(account))
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /** Request a payout of the available balance. */
+  async requestWithdrawal(ctx: HttpContext) {
+    const { response } = ctx
+    const account = await accounts.resolve(ctx)
+    if (!account) {
+      return response.status(401).json({ message: 'Sign in first.', reason: 'not_signed_in' })
+    }
+    try {
+      const affiliate = await affiliates.findByAccountId(account.id)
+      if (!affiliate || !affiliate.isEarning) {
+        return response
+          .status(422)
+          .json({ message: 'Your affiliate account is not active.', reason: 'not_active' })
+      }
+      await affiliates.requestWithdrawal(affiliate)
+      return response.json(await affiliates.overviewForAccount(account))
+    } catch (error) {
+      return fail(response, error)
+    }
   }
 }

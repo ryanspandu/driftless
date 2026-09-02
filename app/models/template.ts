@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 
-export type TemplateType = 'HEADER' | 'FOOTER' | 'COMPONENT' | 'LAYOUT' | 'EMAIL'
+export type TemplateType = 'HEADER' | 'FOOTER' | 'COMPONENT' | 'LAYOUT' | 'EMAIL' | 'COLLECTION'
 
 const jsonColumn = {
   prepare: (v: unknown) => JSON.stringify(v ?? {}),
@@ -34,6 +34,16 @@ export default class Template extends BaseModel {
    */
   @column()
   declare renderedHtml: string | null
+
+  /**
+   * The CMS collection a COLLECTION template is the item card for.
+   *
+   * Scopes the design: the builder offers this collection's fields in the
+   * "Get text/image from" binding dropdowns, and a CollectionList only lists
+   * templates bound to its own collection. Null for every other type.
+   */
+  @column()
+  declare collectionKey: string | null
 
   /** The site-wide default for its type (HEADER / FOOTER / LAYOUT). */
   @column()

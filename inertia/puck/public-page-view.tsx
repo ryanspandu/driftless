@@ -87,8 +87,18 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
     </PageOutletContext.Provider>
   ) : (
     <>
+      {/* Keyboard/AT users can jump the header straight to the content. Hidden
+          until focused (sr-only → visible on focus). */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[9999] focus:rounded focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:shadow"
+      >
+        Skip to content
+      </a>
       {showHeader ? <Render config={puckConfig} data={toData(page.header)} /> : null}
-      <Render config={puckConfig} data={data} />
+      <main id="main-content">
+        <Render config={puckConfig} data={data} />
+      </main>
       {showFooter ? <Render config={puckConfig} data={toData(page.footer)} /> : null}
     </>
   )

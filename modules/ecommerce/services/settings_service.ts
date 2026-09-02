@@ -23,6 +23,10 @@ export interface StoreSettingsDto {
   checkoutTtlMinutes: number
   refundWindowDays: number
   affiliateCookieDays: number
+  /** Smallest balance (minor units) an affiliate may withdraw. */
+  affiliateMinWithdrawalAmount: number
+  /** Default commission percent (e.g. `10`) applied when approving an affiliate. */
+  affiliateDefaultCommissionPercent: number
   orderNumberPrefix: string
   productPageId: string | null
   shopPageId: string | null
@@ -69,6 +73,8 @@ export default class StoreSettingsService {
       checkoutTtlMinutes: 60,
       refundWindowDays: 30,
       affiliateCookieDays: 30,
+      affiliateMinWithdrawalAmount: 0,
+      affiliateDefaultCommissionMilli: 10_000,
       orderNumberPrefix: 'ORD-',
       productPageId: null,
       shopPageId: null,
@@ -101,6 +107,8 @@ export default class StoreSettingsService {
       checkoutTtlMinutes: row.checkoutTtlMinutes,
       refundWindowDays: row.refundWindowDays,
       affiliateCookieDays: row.affiliateCookieDays,
+      affiliateMinWithdrawalAmount: row.affiliateMinWithdrawalAmount,
+      affiliateDefaultCommissionPercent: row.affiliateDefaultCommissionMilli / 1_000,
       orderNumberPrefix: row.orderNumberPrefix,
       productPageId: row.productPageId,
       shopPageId: row.shopPageId,
@@ -217,6 +225,13 @@ export default class StoreSettingsService {
     }
     if (dto.affiliateCookieDays !== undefined) {
       row.affiliateCookieDays = Math.min(Math.max(dto.affiliateCookieDays, 1), 365)
+    }
+    if (dto.affiliateMinWithdrawalAmount !== undefined) {
+      row.affiliateMinWithdrawalAmount = Math.max(Math.round(dto.affiliateMinWithdrawalAmount), 0)
+    }
+    if (dto.affiliateDefaultCommissionPercent !== undefined) {
+      const pct = Math.min(Math.max(dto.affiliateDefaultCommissionPercent, 0), 100)
+      row.affiliateDefaultCommissionMilli = Math.round(pct * 1_000)
     }
     if (dto.productPageId !== undefined) {
       row.productPageId = dto.productPageId || null

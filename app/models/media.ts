@@ -1,5 +1,7 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import type { HasMany } from '@adonisjs/lucid/types/relations'
+import MediaVariant from '#models/media_variant'
 
 export default class Media extends BaseModel {
   static table = 'media'
@@ -46,4 +48,7 @@ export default class Media extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+
+  @hasMany(() => MediaVariant)
+  declare variants: HasMany<typeof MediaVariant>
 }

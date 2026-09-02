@@ -9,6 +9,15 @@ const jsonColumn = {
   consume: (v: unknown) => (typeof v === 'string' ? JSON.parse(v) : (v ?? {})),
 }
 
+/**
+ * Like `jsonColumn` but keeps `null` as `null` — for the staged draft columns
+ * where "no draft" must be distinguishable from "an empty document".
+ */
+const nullableJsonColumn = {
+  prepare: (v: unknown) => (v == null ? null : JSON.stringify(v)),
+  consume: (v: unknown) => (v == null ? null : typeof v === 'string' ? JSON.parse(v) : v),
+}
+
 export default class Page extends BaseModel {
   static table = 'pages'
   static selfAssignPrimaryKey = true
@@ -95,6 +104,27 @@ export default class Page extends BaseModel {
 
   @column()
   declare authorId: number | null
+
+  // Staged, unpublished edits (autosave writes here; Publish promotes them).
+  @column(nullableJsonColumn)
+  declare draftContent: Record<string, unknown> | null
+
+  @column(nullableJsonColumn)
+  declare draftSeo: Record<string, unknown> | null
+
+  @column.dateTime()
+  declare draftUpdatedAt: DateTime | null
+
+  // Scheduled status transitions, applied by `pages:run-schedule`.
+  @column.dateTime()
+  declare scheduledPublishAt: DateTime | null
+
+  @column.dateTime()
+  declare scheduledUnpublishAt: DateTime | null
+
+  /** Shareable no-login preview token. */
+  @column({ serializeAs: null })
+  declare previewToken: string | null
 
   @column.dateTime()
   declare publishedAt: DateTime | null

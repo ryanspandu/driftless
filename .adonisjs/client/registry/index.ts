@@ -24,6 +24,24 @@ const routes = {
     tokens: [{"old":"/offline","type":0,"val":"offline","end":""}],
     types: placeholder as Registry['public.offline']['types'],
   },
+  'analytics.collect': {
+    methods: ["POST"],
+    pattern: '/api/analytics/collect',
+    tokens: [{"old":"/api/analytics/collect","type":0,"val":"api","end":""},{"old":"/api/analytics/collect","type":0,"val":"analytics","end":""},{"old":"/api/analytics/collect","type":0,"val":"collect","end":""}],
+    types: placeholder as Registry['analytics.collect']['types'],
+  },
+  'forms.submit': {
+    methods: ["POST"],
+    pattern: '/api/forms/submit',
+    tokens: [{"old":"/api/forms/submit","type":0,"val":"api","end":""},{"old":"/api/forms/submit","type":0,"val":"forms","end":""},{"old":"/api/forms/submit","type":0,"val":"submit","end":""}],
+    types: placeholder as Registry['forms.submit']['types'],
+  },
+  'pages_public.preview_by_token': {
+    methods: ["GET","HEAD"],
+    pattern: '/preview/:token',
+    tokens: [{"old":"/preview/:token","type":0,"val":"preview","end":""},{"old":"/preview/:token","type":1,"val":"token","end":""}],
+    types: placeholder as Registry['pages_public.preview_by_token']['types'],
+  },
   'public_content.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/public/content',
@@ -132,6 +150,18 @@ const routes = {
     tokens: [{"old":"/login","type":0,"val":"login","end":""}],
     types: placeholder as Registry['session.store']['types'],
   },
+  'session.two_factor.challenge': {
+    methods: ["GET","HEAD"],
+    pattern: '/login/2fa',
+    tokens: [{"old":"/login/2fa","type":0,"val":"login","end":""},{"old":"/login/2fa","type":0,"val":"2fa","end":""}],
+    types: placeholder as Registry['session.two_factor.challenge']['types'],
+  },
+  'session.two_factor.verify': {
+    methods: ["POST"],
+    pattern: '/login/2fa',
+    tokens: [{"old":"/login/2fa","type":0,"val":"login","end":""},{"old":"/login/2fa","type":0,"val":"2fa","end":""}],
+    types: placeholder as Registry['session.two_factor.verify']['types'],
+  },
   'password_reset.create': {
     methods: ["GET","HEAD"],
     pattern: '/forgot-password',
@@ -180,6 +210,24 @@ const routes = {
     tokens: [{"old":"/api/me","type":0,"val":"api","end":""},{"old":"/api/me","type":0,"val":"me","end":""}],
     types: placeholder as Registry['session.update_profile']['types'],
   },
+  'two_factor.enroll': {
+    methods: ["POST"],
+    pattern: '/api/me/2fa/enroll',
+    tokens: [{"old":"/api/me/2fa/enroll","type":0,"val":"api","end":""},{"old":"/api/me/2fa/enroll","type":0,"val":"me","end":""},{"old":"/api/me/2fa/enroll","type":0,"val":"2fa","end":""},{"old":"/api/me/2fa/enroll","type":0,"val":"enroll","end":""}],
+    types: placeholder as Registry['two_factor.enroll']['types'],
+  },
+  'two_factor.confirm': {
+    methods: ["POST"],
+    pattern: '/api/me/2fa/confirm',
+    tokens: [{"old":"/api/me/2fa/confirm","type":0,"val":"api","end":""},{"old":"/api/me/2fa/confirm","type":0,"val":"me","end":""},{"old":"/api/me/2fa/confirm","type":0,"val":"2fa","end":""},{"old":"/api/me/2fa/confirm","type":0,"val":"confirm","end":""}],
+    types: placeholder as Registry['two_factor.confirm']['types'],
+  },
+  'two_factor.disable': {
+    methods: ["POST"],
+    pattern: '/api/me/2fa/disable',
+    tokens: [{"old":"/api/me/2fa/disable","type":0,"val":"api","end":""},{"old":"/api/me/2fa/disable","type":0,"val":"me","end":""},{"old":"/api/me/2fa/disable","type":0,"val":"2fa","end":""},{"old":"/api/me/2fa/disable","type":0,"val":"disable","end":""}],
+    types: placeholder as Registry['two_factor.disable']['types'],
+  },
   'dashboard.index': {
     methods: ["GET","HEAD"],
     pattern: '/admin/dashboard',
@@ -191,6 +239,66 @@ const routes = {
     pattern: '/admin/analytics',
     tokens: [{"old":"/admin/analytics","type":0,"val":"admin","end":""},{"old":"/admin/analytics","type":0,"val":"analytics","end":""}],
     types: placeholder as Registry['dashboard.analytics_page']['types'],
+  },
+  'analytics.report': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/analytics/report',
+    tokens: [{"old":"/api/admin/analytics/report","type":0,"val":"api","end":""},{"old":"/api/admin/analytics/report","type":0,"val":"admin","end":""},{"old":"/api/admin/analytics/report","type":0,"val":"analytics","end":""},{"old":"/api/admin/analytics/report","type":0,"val":"report","end":""}],
+    types: placeholder as Registry['analytics.report']['types'],
+  },
+  'forms.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/forms',
+    tokens: [{"old":"/admin/forms","type":0,"val":"admin","end":""},{"old":"/admin/forms","type":0,"val":"forms","end":""}],
+    types: placeholder as Registry['forms.page']['types'],
+  },
+  'forms.list': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/forms',
+    tokens: [{"old":"/api/admin/forms","type":0,"val":"api","end":""},{"old":"/api/admin/forms","type":0,"val":"admin","end":""},{"old":"/api/admin/forms","type":0,"val":"forms","end":""}],
+    types: placeholder as Registry['forms.list']['types'],
+  },
+  'forms.update_status': {
+    methods: ["PUT"],
+    pattern: '/api/admin/forms/:id/status',
+    tokens: [{"old":"/api/admin/forms/:id/status","type":0,"val":"api","end":""},{"old":"/api/admin/forms/:id/status","type":0,"val":"admin","end":""},{"old":"/api/admin/forms/:id/status","type":0,"val":"forms","end":""},{"old":"/api/admin/forms/:id/status","type":1,"val":"id","end":""},{"old":"/api/admin/forms/:id/status","type":0,"val":"status","end":""}],
+    types: placeholder as Registry['forms.update_status']['types'],
+  },
+  'forms.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/forms/:id',
+    tokens: [{"old":"/api/admin/forms/:id","type":0,"val":"api","end":""},{"old":"/api/admin/forms/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/forms/:id","type":0,"val":"forms","end":""},{"old":"/api/admin/forms/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['forms.destroy']['types'],
+  },
+  'redirects.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/redirects',
+    tokens: [{"old":"/admin/redirects","type":0,"val":"admin","end":""},{"old":"/admin/redirects","type":0,"val":"redirects","end":""}],
+    types: placeholder as Registry['redirects.page']['types'],
+  },
+  'redirects.list': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/redirects',
+    tokens: [{"old":"/api/admin/redirects","type":0,"val":"api","end":""},{"old":"/api/admin/redirects","type":0,"val":"admin","end":""},{"old":"/api/admin/redirects","type":0,"val":"redirects","end":""}],
+    types: placeholder as Registry['redirects.list']['types'],
+  },
+  'redirects.store': {
+    methods: ["POST"],
+    pattern: '/api/admin/redirects',
+    tokens: [{"old":"/api/admin/redirects","type":0,"val":"api","end":""},{"old":"/api/admin/redirects","type":0,"val":"admin","end":""},{"old":"/api/admin/redirects","type":0,"val":"redirects","end":""}],
+    types: placeholder as Registry['redirects.store']['types'],
+  },
+  'redirects.update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/redirects/:id',
+    tokens: [{"old":"/api/admin/redirects/:id","type":0,"val":"api","end":""},{"old":"/api/admin/redirects/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/redirects/:id","type":0,"val":"redirects","end":""},{"old":"/api/admin/redirects/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['redirects.update']['types'],
+  },
+  'redirects.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/redirects/:id',
+    tokens: [{"old":"/api/admin/redirects/:id","type":0,"val":"api","end":""},{"old":"/api/admin/redirects/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/redirects/:id","type":0,"val":"redirects","end":""},{"old":"/api/admin/redirects/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['redirects.destroy']['types'],
   },
   'dashboard.profile_page': {
     methods: ["GET","HEAD"],
@@ -492,6 +600,18 @@ const routes = {
     tokens: [{"old":"/api/admin/pages/code-components","type":0,"val":"api","end":""},{"old":"/api/admin/pages/code-components","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/code-components","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/code-components","type":0,"val":"code-components","end":""}],
     types: placeholder as Registry['pages.code_components']['types'],
   },
+  'pages.import_one': {
+    methods: ["POST"],
+    pattern: '/api/admin/pages/import',
+    tokens: [{"old":"/api/admin/pages/import","type":0,"val":"api","end":""},{"old":"/api/admin/pages/import","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/import","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/import","type":0,"val":"import","end":""}],
+    types: placeholder as Registry['pages.import_one']['types'],
+  },
+  'pages.bulk': {
+    methods: ["POST"],
+    pattern: '/api/admin/pages/bulk',
+    tokens: [{"old":"/api/admin/pages/bulk","type":0,"val":"api","end":""},{"old":"/api/admin/pages/bulk","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/bulk","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/bulk","type":0,"val":"bulk","end":""}],
+    types: placeholder as Registry['pages.bulk']['types'],
+  },
   'pages.store': {
     methods: ["POST"],
     pattern: '/api/admin/pages',
@@ -521,6 +641,48 @@ const routes = {
     pattern: '/api/admin/pages/:id/revisions/:revisionId/restore',
     tokens: [{"old":"/api/admin/pages/:id/revisions/:revisionId/restore","type":0,"val":"api","end":""},{"old":"/api/admin/pages/:id/revisions/:revisionId/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/:id/revisions/:revisionId/restore","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/:id/revisions/:revisionId/restore","type":1,"val":"id","end":""},{"old":"/api/admin/pages/:id/revisions/:revisionId/restore","type":0,"val":"revisions","end":""},{"old":"/api/admin/pages/:id/revisions/:revisionId/restore","type":1,"val":"revisionId","end":""},{"old":"/api/admin/pages/:id/revisions/:revisionId/restore","type":0,"val":"restore","end":""}],
     types: placeholder as Registry['pages.restore_revision']['types'],
+  },
+  'pages.save_draft': {
+    methods: ["PUT"],
+    pattern: '/api/admin/pages/:id/draft',
+    tokens: [{"old":"/api/admin/pages/:id/draft","type":0,"val":"api","end":""},{"old":"/api/admin/pages/:id/draft","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/:id/draft","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/:id/draft","type":1,"val":"id","end":""},{"old":"/api/admin/pages/:id/draft","type":0,"val":"draft","end":""}],
+    types: placeholder as Registry['pages.save_draft']['types'],
+  },
+  'pages.publish': {
+    methods: ["POST"],
+    pattern: '/api/admin/pages/:id/publish',
+    tokens: [{"old":"/api/admin/pages/:id/publish","type":0,"val":"api","end":""},{"old":"/api/admin/pages/:id/publish","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/:id/publish","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/:id/publish","type":1,"val":"id","end":""},{"old":"/api/admin/pages/:id/publish","type":0,"val":"publish","end":""}],
+    types: placeholder as Registry['pages.publish']['types'],
+  },
+  'pages.discard_draft': {
+    methods: ["POST"],
+    pattern: '/api/admin/pages/:id/discard-draft',
+    tokens: [{"old":"/api/admin/pages/:id/discard-draft","type":0,"val":"api","end":""},{"old":"/api/admin/pages/:id/discard-draft","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/:id/discard-draft","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/:id/discard-draft","type":1,"val":"id","end":""},{"old":"/api/admin/pages/:id/discard-draft","type":0,"val":"discard-draft","end":""}],
+    types: placeholder as Registry['pages.discard_draft']['types'],
+  },
+  'pages.preview_token': {
+    methods: ["POST"],
+    pattern: '/api/admin/pages/:id/preview-token',
+    tokens: [{"old":"/api/admin/pages/:id/preview-token","type":0,"val":"api","end":""},{"old":"/api/admin/pages/:id/preview-token","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/:id/preview-token","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/:id/preview-token","type":1,"val":"id","end":""},{"old":"/api/admin/pages/:id/preview-token","type":0,"val":"preview-token","end":""}],
+    types: placeholder as Registry['pages.preview_token']['types'],
+  },
+  'pages.clear_preview_token': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/pages/:id/preview-token',
+    tokens: [{"old":"/api/admin/pages/:id/preview-token","type":0,"val":"api","end":""},{"old":"/api/admin/pages/:id/preview-token","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/:id/preview-token","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/:id/preview-token","type":1,"val":"id","end":""},{"old":"/api/admin/pages/:id/preview-token","type":0,"val":"preview-token","end":""}],
+    types: placeholder as Registry['pages.clear_preview_token']['types'],
+  },
+  'pages.duplicate': {
+    methods: ["POST"],
+    pattern: '/api/admin/pages/:id/duplicate',
+    tokens: [{"old":"/api/admin/pages/:id/duplicate","type":0,"val":"api","end":""},{"old":"/api/admin/pages/:id/duplicate","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/:id/duplicate","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/:id/duplicate","type":1,"val":"id","end":""},{"old":"/api/admin/pages/:id/duplicate","type":0,"val":"duplicate","end":""}],
+    types: placeholder as Registry['pages.duplicate']['types'],
+  },
+  'pages.export_one': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/pages/:id/export',
+    tokens: [{"old":"/api/admin/pages/:id/export","type":0,"val":"api","end":""},{"old":"/api/admin/pages/:id/export","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/:id/export","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/:id/export","type":1,"val":"id","end":""},{"old":"/api/admin/pages/:id/export","type":0,"val":"export","end":""}],
+    types: placeholder as Registry['pages.export_one']['types'],
   },
   'pages.show': {
     methods: ["GET","HEAD"],
@@ -1290,6 +1452,18 @@ const routes = {
     tokens: [{"old":"/api/shop/cart","type":0,"val":"api","end":""},{"old":"/api/shop/cart","type":0,"val":"shop","end":""},{"old":"/api/shop/cart","type":0,"val":"cart","end":""}],
     types: placeholder as Registry['shop.cart.clear']['types'],
   },
+  'shop.cart.discount.apply': {
+    methods: ["POST"],
+    pattern: '/api/shop/cart/discount',
+    tokens: [{"old":"/api/shop/cart/discount","type":0,"val":"api","end":""},{"old":"/api/shop/cart/discount","type":0,"val":"shop","end":""},{"old":"/api/shop/cart/discount","type":0,"val":"cart","end":""},{"old":"/api/shop/cart/discount","type":0,"val":"discount","end":""}],
+    types: placeholder as Registry['shop.cart.discount.apply']['types'],
+  },
+  'shop.cart.discount.remove': {
+    methods: ["DELETE"],
+    pattern: '/api/shop/cart/discount',
+    tokens: [{"old":"/api/shop/cart/discount","type":0,"val":"api","end":""},{"old":"/api/shop/cart/discount","type":0,"val":"shop","end":""},{"old":"/api/shop/cart/discount","type":0,"val":"cart","end":""},{"old":"/api/shop/cart/discount","type":0,"val":"discount","end":""}],
+    types: placeholder as Registry['shop.cart.discount.remove']['types'],
+  },
   'shop.checkout': {
     methods: ["POST"],
     pattern: '/api/shop/checkout',
@@ -1307,6 +1481,12 @@ const routes = {
     pattern: '/api/shop/account/login',
     tokens: [{"old":"/api/shop/account/login","type":0,"val":"api","end":""},{"old":"/api/shop/account/login","type":0,"val":"shop","end":""},{"old":"/api/shop/account/login","type":0,"val":"account","end":""},{"old":"/api/shop/account/login","type":0,"val":"login","end":""}],
     types: placeholder as Registry['shop.account.login']['types'],
+  },
+  'shop.account.two_factor.verify': {
+    methods: ["POST"],
+    pattern: '/api/shop/account/2fa/verify',
+    tokens: [{"old":"/api/shop/account/2fa/verify","type":0,"val":"api","end":""},{"old":"/api/shop/account/2fa/verify","type":0,"val":"shop","end":""},{"old":"/api/shop/account/2fa/verify","type":0,"val":"account","end":""},{"old":"/api/shop/account/2fa/verify","type":0,"val":"2fa","end":""},{"old":"/api/shop/account/2fa/verify","type":0,"val":"verify","end":""}],
+    types: placeholder as Registry['shop.account.two_factor.verify']['types'],
   },
   'shop.account.logout': {
     methods: ["POST"],
@@ -1367,6 +1547,48 @@ const routes = {
     pattern: '/api/shop/account/addresses/:id',
     tokens: [{"old":"/api/shop/account/addresses/:id","type":0,"val":"api","end":""},{"old":"/api/shop/account/addresses/:id","type":0,"val":"shop","end":""},{"old":"/api/shop/account/addresses/:id","type":0,"val":"account","end":""},{"old":"/api/shop/account/addresses/:id","type":0,"val":"addresses","end":""},{"old":"/api/shop/account/addresses/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['shop.account.addresses.delete']['types'],
+  },
+  'shop.account.affiliate.overview': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/shop/account/affiliate',
+    tokens: [{"old":"/api/shop/account/affiliate","type":0,"val":"api","end":""},{"old":"/api/shop/account/affiliate","type":0,"val":"shop","end":""},{"old":"/api/shop/account/affiliate","type":0,"val":"account","end":""},{"old":"/api/shop/account/affiliate","type":0,"val":"affiliate","end":""}],
+    types: placeholder as Registry['shop.account.affiliate.overview']['types'],
+  },
+  'shop.account.affiliate.apply': {
+    methods: ["POST"],
+    pattern: '/api/shop/account/affiliate/apply',
+    tokens: [{"old":"/api/shop/account/affiliate/apply","type":0,"val":"api","end":""},{"old":"/api/shop/account/affiliate/apply","type":0,"val":"shop","end":""},{"old":"/api/shop/account/affiliate/apply","type":0,"val":"account","end":""},{"old":"/api/shop/account/affiliate/apply","type":0,"val":"affiliate","end":""},{"old":"/api/shop/account/affiliate/apply","type":0,"val":"apply","end":""}],
+    types: placeholder as Registry['shop.account.affiliate.apply']['types'],
+  },
+  'shop.account.affiliate.payout': {
+    methods: ["PUT"],
+    pattern: '/api/shop/account/affiliate/payout-method',
+    tokens: [{"old":"/api/shop/account/affiliate/payout-method","type":0,"val":"api","end":""},{"old":"/api/shop/account/affiliate/payout-method","type":0,"val":"shop","end":""},{"old":"/api/shop/account/affiliate/payout-method","type":0,"val":"account","end":""},{"old":"/api/shop/account/affiliate/payout-method","type":0,"val":"affiliate","end":""},{"old":"/api/shop/account/affiliate/payout-method","type":0,"val":"payout-method","end":""}],
+    types: placeholder as Registry['shop.account.affiliate.payout']['types'],
+  },
+  'shop.account.affiliate.withdraw': {
+    methods: ["POST"],
+    pattern: '/api/shop/account/affiliate/withdrawals',
+    tokens: [{"old":"/api/shop/account/affiliate/withdrawals","type":0,"val":"api","end":""},{"old":"/api/shop/account/affiliate/withdrawals","type":0,"val":"shop","end":""},{"old":"/api/shop/account/affiliate/withdrawals","type":0,"val":"account","end":""},{"old":"/api/shop/account/affiliate/withdrawals","type":0,"val":"affiliate","end":""},{"old":"/api/shop/account/affiliate/withdrawals","type":0,"val":"withdrawals","end":""}],
+    types: placeholder as Registry['shop.account.affiliate.withdraw']['types'],
+  },
+  'shop.account.two_factor.enroll': {
+    methods: ["POST"],
+    pattern: '/api/shop/account/2fa/enroll',
+    tokens: [{"old":"/api/shop/account/2fa/enroll","type":0,"val":"api","end":""},{"old":"/api/shop/account/2fa/enroll","type":0,"val":"shop","end":""},{"old":"/api/shop/account/2fa/enroll","type":0,"val":"account","end":""},{"old":"/api/shop/account/2fa/enroll","type":0,"val":"2fa","end":""},{"old":"/api/shop/account/2fa/enroll","type":0,"val":"enroll","end":""}],
+    types: placeholder as Registry['shop.account.two_factor.enroll']['types'],
+  },
+  'shop.account.two_factor.confirm': {
+    methods: ["POST"],
+    pattern: '/api/shop/account/2fa/confirm',
+    tokens: [{"old":"/api/shop/account/2fa/confirm","type":0,"val":"api","end":""},{"old":"/api/shop/account/2fa/confirm","type":0,"val":"shop","end":""},{"old":"/api/shop/account/2fa/confirm","type":0,"val":"account","end":""},{"old":"/api/shop/account/2fa/confirm","type":0,"val":"2fa","end":""},{"old":"/api/shop/account/2fa/confirm","type":0,"val":"confirm","end":""}],
+    types: placeholder as Registry['shop.account.two_factor.confirm']['types'],
+  },
+  'shop.account.two_factor.disable': {
+    methods: ["POST"],
+    pattern: '/api/shop/account/2fa/disable',
+    tokens: [{"old":"/api/shop/account/2fa/disable","type":0,"val":"api","end":""},{"old":"/api/shop/account/2fa/disable","type":0,"val":"shop","end":""},{"old":"/api/shop/account/2fa/disable","type":0,"val":"account","end":""},{"old":"/api/shop/account/2fa/disable","type":0,"val":"2fa","end":""},{"old":"/api/shop/account/2fa/disable","type":0,"val":"disable","end":""}],
+    types: placeholder as Registry['shop.account.two_factor.disable']['types'],
   },
   'shop.referral': {
     methods: ["GET","HEAD"],
@@ -1824,6 +2046,12 @@ const routes = {
     tokens: [{"old":"/admin/marketing/commissions","type":0,"val":"admin","end":""},{"old":"/admin/marketing/commissions","type":0,"val":"marketing","end":""},{"old":"/admin/marketing/commissions","type":0,"val":"commissions","end":""}],
     types: placeholder as Registry['ecommerce.commissions.page']['types'],
   },
+  'ecommerce.withdrawals.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/marketing/withdrawals',
+    tokens: [{"old":"/admin/marketing/withdrawals","type":0,"val":"admin","end":""},{"old":"/admin/marketing/withdrawals","type":0,"val":"marketing","end":""},{"old":"/admin/marketing/withdrawals","type":0,"val":"withdrawals","end":""}],
+    types: placeholder as Registry['ecommerce.withdrawals.page']['types'],
+  },
   'ecommerce.api.discounts.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/ecommerce/discounts',
@@ -1854,11 +2082,29 @@ const routes = {
     tokens: [{"old":"/api/admin/ecommerce/affiliates","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/affiliates","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/affiliates","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/affiliates","type":0,"val":"affiliates","end":""}],
     types: placeholder as Registry['ecommerce.api.affiliates.index']['types'],
   },
+  'ecommerce.api.affiliates.accounts': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/ecommerce/affiliate-accounts',
+    tokens: [{"old":"/api/admin/ecommerce/affiliate-accounts","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/affiliate-accounts","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/affiliate-accounts","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/affiliate-accounts","type":0,"val":"affiliate-accounts","end":""}],
+    types: placeholder as Registry['ecommerce.api.affiliates.accounts']['types'],
+  },
   'ecommerce.api.affiliates.store': {
     methods: ["POST"],
     pattern: '/api/admin/ecommerce/affiliates',
     tokens: [{"old":"/api/admin/ecommerce/affiliates","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/affiliates","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/affiliates","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/affiliates","type":0,"val":"affiliates","end":""}],
     types: placeholder as Registry['ecommerce.api.affiliates.store']['types'],
+  },
+  'ecommerce.api.affiliates.approve': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/affiliates/:id/approve',
+    tokens: [{"old":"/api/admin/ecommerce/affiliates/:id/approve","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/affiliates/:id/approve","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/affiliates/:id/approve","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/affiliates/:id/approve","type":0,"val":"affiliates","end":""},{"old":"/api/admin/ecommerce/affiliates/:id/approve","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/affiliates/:id/approve","type":0,"val":"approve","end":""}],
+    types: placeholder as Registry['ecommerce.api.affiliates.approve']['types'],
+  },
+  'ecommerce.api.affiliates.reject': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/affiliates/:id/reject',
+    tokens: [{"old":"/api/admin/ecommerce/affiliates/:id/reject","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/affiliates/:id/reject","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/affiliates/:id/reject","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/affiliates/:id/reject","type":0,"val":"affiliates","end":""},{"old":"/api/admin/ecommerce/affiliates/:id/reject","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/affiliates/:id/reject","type":0,"val":"reject","end":""}],
+    types: placeholder as Registry['ecommerce.api.affiliates.reject']['types'],
   },
   'ecommerce.api.affiliates.update': {
     methods: ["PUT"],
@@ -1872,6 +2118,12 @@ const routes = {
     tokens: [{"old":"/api/admin/ecommerce/commissions","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/commissions","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/commissions","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/commissions","type":0,"val":"commissions","end":""}],
     types: placeholder as Registry['ecommerce.api.commissions.index']['types'],
   },
+  'ecommerce.api.withdrawals.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/ecommerce/withdrawals',
+    tokens: [{"old":"/api/admin/ecommerce/withdrawals","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/withdrawals","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/withdrawals","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/withdrawals","type":0,"val":"withdrawals","end":""}],
+    types: placeholder as Registry['ecommerce.api.withdrawals.index']['types'],
+  },
   'ecommerce.api.commissions.pay': {
     methods: ["POST"],
     pattern: '/api/admin/ecommerce/commissions/pay',
@@ -1883,6 +2135,12 @@ const routes = {
     pattern: '/api/admin/ecommerce/commissions/export',
     tokens: [{"old":"/api/admin/ecommerce/commissions/export","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/commissions/export","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/commissions/export","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/commissions/export","type":0,"val":"commissions","end":""},{"old":"/api/admin/ecommerce/commissions/export","type":0,"val":"export","end":""}],
     types: placeholder as Registry['ecommerce.api.commissions.export']['types'],
+  },
+  'ecommerce.api.withdrawals.process': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/withdrawals/:id/process',
+    tokens: [{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":0,"val":"withdrawals","end":""},{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":0,"val":"process","end":""}],
+    types: placeholder as Registry['ecommerce.api.withdrawals.process']['types'],
   },
   'ecommerce.api.stats': {
     methods: ["GET","HEAD"],

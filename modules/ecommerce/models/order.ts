@@ -58,7 +58,7 @@ export default class Order extends BaseModel {
   declare fulfillmentStatus: FulfillmentStatus
 
   @column()
-  declare customerId: string | null
+  declare accountId: string | null
 
   @column()
   declare email: string

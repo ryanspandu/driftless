@@ -55,7 +55,21 @@ export default class MediaController {
   async store({ request, auth, response }: HttpContext) {
     const file = request.file('file', {
       size: '10mb',
-      extnames: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'doc', 'docx'],
+      extnames: [
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'webp',
+        'svg',
+        'pdf',
+        'doc',
+        'docx',
+        'woff',
+        'woff2',
+        'ttf',
+        'otf',
+      ],
     })
 
     if (!file) {
@@ -88,13 +102,15 @@ export default class MediaController {
   async serve({ params, response }: HttpContext) {
     const segments: string[] = Array.isArray(params['*']) ? params['*'] : []
     const filename = segments.length ? segments.join('/') : null
-    const media = filename
-      ? await mediaService.findByFilename(filename)
-      : null
-    const path = media ? mediaService.resolveFilePath(media.filename) : null
-    if (!media || !path) return response.notFound({ message: 'Not found' })
-
-    return mediaService.serve(response, path, media)
+    const media = filename ? await mediaService.findByFilename(filename) : null
+    if (media) {
+      const path = mediaService.resolveFilePath(media.filename)
+      if (!path) return response.notFound({ message: 'Not found' })
+      return mediaService.serve(response, path, media)
+    }
+    // Not an original — it may be a responsive webp derivative.
+    if (filename && (await mediaService.serveVariant(response, filename))) return
+    return response.notFound({ message: 'Not found' })
   }
 
   async destroy({ params, response }: HttpContext) {

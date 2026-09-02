@@ -33,6 +33,14 @@ html {
   --color-sidebar-active: var(--sidebar-active);
   --color-sidebar-active-foreground: var(--sidebar-active-foreground);
   --color-sidebar-active-bar: var(--sidebar-active-bar);
+  /* Page-builder chrome accents (inertia/puck) — see the builder token block. */
+  --color-builder-set: var(--builder-set);
+  --color-builder-set-bg: var(--builder-set-bg);
+  --color-builder-selected: var(--builder-selected);
+  --color-builder-selected-bg: var(--builder-selected-bg);
+  --color-builder-slider: var(--builder-slider);
+  --color-builder-bound: var(--builder-bound);
+  --color-builder-bound-bg: var(--builder-bound-bg);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
@@ -107,6 +115,16 @@ html {
   --sidebar-active: color-mix(in oklch, var(--primary) 10%, transparent);
   --sidebar-active-foreground: var(--primary);
   --sidebar-active-bar: var(--primary);
+  /* Page builder: "this prop is set" labels, selected chips and sliders follow
+     the brand; "bound to a CMS field" is teal — the hue farthest from the
+     violet brand that is neither the red of errors nor the green of success. */
+  --builder-set: var(--primary);
+  --builder-set-bg: color-mix(in oklch, var(--primary) 12%, transparent);
+  --builder-selected: var(--primary);
+  --builder-selected-bg: color-mix(in oklch, var(--primary) 10%, transparent);
+  --builder-slider: var(--primary);
+  --builder-bound: oklch(0.6 0.118 184.7);
+  --builder-bound-bg: color-mix(in oklch, var(--builder-bound) 12%, transparent);
 }
 
 .dark {
@@ -146,6 +164,25 @@ html {
   --sidebar-active-foreground: color-mix(in oklch, var(--primary) 55%, white);
   --sidebar-active: color-mix(in oklch, var(--sidebar-active-foreground) 16%, transparent);
   --sidebar-active-bar: var(--sidebar-active-foreground);
+  /* #5225e6 on near-black fails for 12px text — lift it like the sidebar does. */
+  --builder-set: color-mix(in oklch, var(--primary) 55%, white);
+  --builder-set-bg: color-mix(in oklch, var(--builder-set) 16%, transparent);
+  --builder-selected: var(--builder-set);
+  --builder-selected-bg: color-mix(in oklch, var(--builder-set) 14%, transparent);
+  --builder-slider: var(--builder-set);
+  --builder-bound: oklch(0.777 0.152 181.9);
+  --builder-bound-bg: color-mix(in oklch, var(--builder-bound) 14%, transparent);
+}
+
+/* Builder chrome: focus rings follow the brand instead of the app-wide sky-blue
+   --ring. Scoped to the shell root (`data-builder`, inertia/puck/builder-shell.tsx);
+   the preview canvas is wrapped in `.theme-light`, which re-declares --ring on
+   itself, so rendered blocks keep exactly the ring they have on the public site. */
+[data-builder] {
+  --ring: var(--primary);
+}
+.dark [data-builder] {
+  --ring: var(--builder-set);
 }
 
 /* The admin theme sets `color` on <body> (outside this scope), and `color`
@@ -530,6 +567,26 @@ html {
    specificity than :root, wins regardless of stylesheet order). This themes the
    editor chrome only; the preview canvas stays light via the `.theme-light`
    wrapper in the Puck root render (see config.tsx). */
+/* Puck's canvas/drawer accent, re-derived from the brand primary. Puck declares
+   its "azure" ramp on :root; `html:not(.dark)` outranks that whatever the
+   stylesheet order. 04 = brand; 01-03 darker; 05-09 tints — 05 focus outline,
+   06/08 drop-zone dashes, 07 selected-block outline, 08 hover fill, 09 hover
+   outline + drag placeholder; 10-12 near-surface tints (drawer/radio hover). */
+html:not(.dark) {
+  --puck-color-azure-01: color-mix(in oklch, var(--primary) 55%, black);
+  --puck-color-azure-02: color-mix(in oklch, var(--primary) 70%, black);
+  --puck-color-azure-03: color-mix(in oklch, var(--primary) 85%, black);
+  --puck-color-azure-04: var(--primary);
+  --puck-color-azure-05: color-mix(in oklch, var(--primary) 80%, white);
+  --puck-color-azure-06: color-mix(in oklch, var(--primary) 62%, white);
+  --puck-color-azure-07: color-mix(in oklch, var(--primary) 46%, white);
+  --puck-color-azure-08: color-mix(in oklch, var(--primary) 32%, white);
+  --puck-color-azure-09: color-mix(in oklch, var(--primary) 20%, white);
+  --puck-color-azure-10: color-mix(in oklch, var(--primary) 10%, white);
+  --puck-color-azure-11: color-mix(in oklch, var(--primary) 5%, white);
+  --puck-color-azure-12: color-mix(in oklch, var(--primary) 3%, white);
+}
+
 html.dark {
   /* Native form controls (Puck uses real <select>/<input>) render light unless
      the document opts into a dark color scheme. */
@@ -548,12 +605,22 @@ html.dark {
   --puck-color-grey-10: #404040;
   --puck-color-grey-11: #292929;
   --puck-color-grey-12: #181818;
-  /* Subtle near-white azure tints (hover/selected backgrounds: Outline, radios,
-     array fields…) → dark slate-blue so they don't appear as bright patches.
-     12 = subtlest (closest to bg), 10 = most pronounced. */
-  --puck-color-azure-10: #2b3a55;
-  --puck-color-azure-11: #233247;
-  --puck-color-azure-12: #1e2a3d;
+  /* Same brand ramp as light, with two differences: the canvas stays white
+     (.theme-light) but the drawer is dark, so 04/05 are lifted to read as hover
+     text / focus outlines on #1e1e1e; and 10-12 must stay dark surfaces
+     (drawer/radio hover tints), 12 = subtlest, 10 = most pronounced. */
+  --puck-color-azure-01: color-mix(in oklch, var(--primary) 55%, black);
+  --puck-color-azure-02: color-mix(in oklch, var(--primary) 70%, black);
+  --puck-color-azure-03: color-mix(in oklch, var(--primary) 85%, black);
+  --puck-color-azure-04: color-mix(in oklch, var(--primary) 70%, white);
+  --puck-color-azure-05: color-mix(in oklch, var(--primary) 75%, white);
+  --puck-color-azure-06: color-mix(in oklch, var(--primary) 62%, white);
+  --puck-color-azure-07: color-mix(in oklch, var(--primary) 46%, white);
+  --puck-color-azure-08: color-mix(in oklch, var(--primary) 32%, white);
+  --puck-color-azure-09: color-mix(in oklch, var(--primary) 20%, white);
+  --puck-color-azure-10: color-mix(in oklch, var(--primary) 30%, #1e1e1e);
+  --puck-color-azure-11: color-mix(in oklch, var(--primary) 20%, #1e1e1e);
+  --puck-color-azure-12: color-mix(in oklch, var(--primary) 12%, #1e1e1e);
 }
 
 /* Puck's base button label color is var(--puck-color-white), which we repurposed

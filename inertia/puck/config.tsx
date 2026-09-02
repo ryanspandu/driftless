@@ -1,13 +1,16 @@
-import { lazy, Suspense, type ElementType, type ReactNode } from 'react'
+import { lazy, Suspense, type ComponentType, type ElementType, type ReactNode } from 'react'
 import { usePage } from '@inertiajs/react'
 import type { Config } from '@measured/puck'
 import { cn } from '~/lib/utils'
 import { CollectionSourceField, CollectionList } from '~/puck/collection-list'
+import { CollectionTemplateField } from '~/puck/collection-template-field'
 import { withModuleBlocks } from '~/puck/module-blocks'
 import { withCustomBlocks } from '~/puck/custom-blocks'
 import { RichTextView } from '~/puck/rich-text-view'
 import { styleFields, Box } from '~/puck/style-fields'
 import { MediaField } from '~/puck/media-field'
+import { normalizeImageValue, buildSrcset } from '~/puck/image-source'
+import { useBoundString, useBoundField, FieldOrText, type Binding } from '~/puck/record-binding'
 import { LottieAnimationView, SplineSceneView, RiveView } from '~/puck/media-embeds'
 import {
   CarouselView,
@@ -63,6 +66,84 @@ function PuckRoot({ children, ...rootProps }: { children?: ReactNode } & Record<
       {css ? <style nonce={cspNonce} dangerouslySetInnerHTML={{ __html: css }} /> : null}
       {children}
     </div>
+  )
+}
+
+// ── Binding-aware views (repeater `{{field}}` tokens work in these) ──────────
+// Real components (not inline render arrows) so the record-binding hook is valid.
+
+type StyleBag = Record<string, unknown>
+type ButtonViewProps = {
+  label?: string
+  href?: string
+  variant?: string
+  binding?: Binding
+} & StyleBag
+
+function ButtonView({ label, href, variant, binding, ...s }: ButtonViewProps) {
+  // Bound field wins; else the static value (with token support).
+  const fieldLabel = useBoundField(binding?.label)
+  const fieldHref = useBoundField(binding?.href)
+  const staticLabel = useBoundString(label)
+  const staticHref = useBoundString(href)
+  const boundLabel = fieldLabel == null ? staticLabel : fieldLabel
+  const boundHref = fieldHref == null ? staticHref : fieldHref
+  return (
+    <Box s={s}>
+      <a
+        href={boundHref || '#'}
+        className={cn(
+          'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors',
+          variant === 'primary' && 'bg-primary text-primary-foreground hover:opacity-90',
+          variant === 'secondary' && 'bg-secondary text-secondary-foreground hover:opacity-90',
+          variant === 'outline' && 'border border-input hover:bg-accent'
+        )}
+      >
+        {boundLabel}
+      </a>
+    </Box>
+  )
+}
+
+type ImageViewProps = {
+  src?: unknown
+  alt?: string
+  sizes?: string
+  priority?: string
+  binding?: Binding
+} & StyleBag
+
+function ImageView({ src, alt, sizes, priority, binding, ...s }: ImageViewProps) {
+  const img = normalizeImageValue(src)
+  // A bound src comes straight from the record's field; else the static URL
+  // (with `{{token}}` support).
+  const fieldSrc = useBoundField(binding?.src)
+  const staticUrl = useBoundString(img.url)
+  const url = fieldSrc == null ? staticUrl : fieldSrc
+  const boundAlt = useBoundString(alt)
+  // srcset only applies to the picked static image, never a bound field URL.
+  const useSrcset = img.srcset && fieldSrc == null && url === img.url
+  return (
+    <Box s={s}>
+      {url ? (
+        <img
+          src={url}
+          alt={boundAlt || ''}
+          className="h-auto max-w-full"
+          loading={priority === 'true' ? 'eager' : 'lazy'}
+          decoding="async"
+          {...(useSrcset ? { srcSet: img.srcset } : {})}
+          {...(useSrcset && sizes ? { sizes } : useSrcset ? { sizes: '100vw' } : {})}
+          {...(img.width ? { width: img.width } : {})}
+          {...(img.height ? { height: img.height } : {})}
+          {...(priority === 'true' ? { fetchPriority: 'high' as const } : {})}
+        />
+      ) : (
+        <div className="flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
+          No image URL
+        </div>
+      )}
+    </Box>
   )
 }
 
@@ -300,9 +381,9 @@ const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { text: 'Heading', level: '2' },
-      render: ({ text, level, ...s }) => (
+      render: ({ text, level, binding, ...s }) => (
         <Box as={`h${level || '2'}` as ElementType} s={s} className="font-semibold tracking-tight">
-          {text}
+          <FieldOrText field={(binding as Binding | undefined)?.text}>{text}</FieldOrText>
         </Box>
       ),
     },
@@ -313,9 +394,9 @@ const baseConfig: Config = {
       label: 'Text Block',
       fields: { text: { type: 'textarea', label: 'Text' }, ...styleFields },
       defaultProps: { text: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.' },
-      render: ({ text, ...s }) => (
+      render: ({ text, binding, ...s }) => (
         <Box s={s} style={{ whiteSpace: 'pre-line' }}>
-          {text}
+          <FieldOrText field={(binding as Binding | undefined)?.text}>{text}</FieldOrText>
         </Box>
       ),
     },
@@ -325,9 +406,9 @@ const baseConfig: Config = {
       label: 'Paragraph',
       fields: { text: { type: 'textarea', label: 'Text' }, ...styleFields },
       defaultProps: { text: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.' },
-      render: ({ text, ...s }) => (
+      render: ({ text, binding, ...s }) => (
         <Box as="p" s={s} style={{ whiteSpace: 'pre-line' }}>
-          {text}
+          <FieldOrText field={(binding as Binding | undefined)?.text}>{text}</FieldOrText>
         </Box>
       ),
     },
@@ -396,21 +477,7 @@ const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { label: 'Click me', href: '#', variant: 'primary' },
-      render: ({ label, href, variant, ...s }) => (
-        <Box s={s}>
-          <a
-            href={href || '#'}
-            className={cn(
-              'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors',
-              variant === 'primary' && 'bg-primary text-primary-foreground hover:opacity-90',
-              variant === 'secondary' && 'bg-secondary text-secondary-foreground hover:opacity-90',
-              variant === 'outline' && 'border border-input hover:bg-accent'
-            )}
-          >
-            {label}
-          </a>
-        </Box>
-      ),
+      render: (props) => <ButtonView {...(props as ButtonViewProps)} />,
     },
 
     // Div Block — generic container (Webflow's workhorse). Style-ready slot.
@@ -502,23 +569,43 @@ const baseConfig: Config = {
         src: {
           type: 'custom',
           label: 'Image',
-          render: ({ value, onChange }) => <MediaField value={value} onChange={onChange} />,
+          render: ({ value, onChange }) => {
+            const cur = normalizeImageValue(value)
+            return (
+              <MediaField
+                value={cur.url}
+                // A pasted / cleared URL carries no variants → plain object.
+                onChange={(url) => onChange((url ? { url } : '') as never)}
+                // A library pick captures dimensions + responsive srcset.
+                onPick={(item) =>
+                  onChange({
+                    url: item.url,
+                    width: item.width,
+                    height: item.height,
+                    srcset: buildSrcset(item.variants),
+                  } as never)
+                }
+              />
+            )
+          },
         },
         alt: { type: 'text', label: 'Alt text' },
+        sizes: {
+          type: 'text',
+          label: 'Sizes (advanced, e.g. "(max-width: 768px) 100vw, 50vw")',
+        },
+        priority: {
+          type: 'radio',
+          label: 'Above the fold',
+          options: [
+            { label: 'No (lazy-load)', value: 'false' },
+            { label: 'Yes (load eagerly)', value: 'true' },
+          ],
+        },
         ...styleFields,
       },
-      defaultProps: { src: '', alt: '' },
-      render: ({ src, alt, ...s }) => (
-        <Box s={s}>
-          {src ? (
-            <img src={src} alt={alt || ''} className="h-auto max-w-full" />
-          ) : (
-            <div className="flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
-              No image URL
-            </div>
-          )}
-        </Box>
-      ),
+      defaultProps: { src: '', alt: '', sizes: '', priority: 'false' },
+      render: (props) => <ImageView {...(props as ImageViewProps)} />,
     },
 
     // Video — native <video> from a file URL (.mp4/.webm).
@@ -704,18 +791,166 @@ const baseConfig: Config = {
             <CollectionSourceField value={value} onChange={onChange} />
           ),
         },
-        limit: { type: 'number', label: 'Max items' },
+        // 'card' (the old built-in preset) is no longer offered but pages saved
+        // with it still render through the legacy path in CollectionList.
+        template: {
+          type: 'radio',
+          label: 'Item design',
+          options: [
+            { label: 'Select template', value: 'template' },
+            { label: 'Custom (design below)', value: 'custom' },
+          ],
+        },
+        // A COLLECTION template (Templates area) repeated once per record. Only
+        // used when Item design = Select template; the field hides itself otherwise.
+        templateId: {
+          type: 'custom',
+          label: 'Template',
+          render: ({ value, onChange }) => (
+            <CollectionTemplateField value={value} onChange={onChange} />
+          ),
+        },
+        // The designed item, repeated once per record. Only used when Item
+        // design = Custom; bind child elements to fields via their Settings tab.
+        item: { type: 'slot' },
+        // Optional "no records" design; falls back to a default notice.
+        empty: { type: 'slot' },
+        layout: {
+          type: 'select',
+          label: 'Layout',
+          options: [
+            { label: 'Grid of cards', value: 'grid' },
+            { label: 'Vertical list', value: 'list' },
+          ],
+        },
+        cardStyle: {
+          type: 'select',
+          label: 'Item style',
+          options: [
+            { label: 'Card (bordered)', value: 'card' },
+            { label: 'Plain (no border)', value: 'plain' },
+            { label: 'Image overlay', value: 'overlay' },
+          ],
+        },
         columns: {
           type: 'select',
-          label: 'Columns',
-          options: [2, 3, 4].map((n) => ({ label: String(n), value: String(n) })),
+          label: 'Columns (grid)',
+          options: [1, 2, 3, 4, 5, 6].map((n) => ({ label: String(n), value: String(n) })),
         },
+        gap: { type: 'number', label: 'Gap (px)' },
+        imageAspect: {
+          type: 'select',
+          label: 'Image aspect',
+          options: [
+            { label: '16:9', value: 'video' },
+            { label: 'Square', value: 'square' },
+            { label: 'Portrait 3:4', value: 'portrait' },
+            { label: 'Original', value: 'auto' },
+          ],
+        },
+        showImage: {
+          type: 'radio',
+          label: 'Show image',
+          options: [
+            { label: 'Yes', value: 'true' },
+            { label: 'No', value: 'false' },
+          ],
+        },
+        showTitle: {
+          type: 'radio',
+          label: 'Show title',
+          options: [
+            { label: 'Yes', value: 'true' },
+            { label: 'No', value: 'false' },
+          ],
+        },
+        showExcerpt: {
+          type: 'radio',
+          label: 'Show excerpt',
+          options: [
+            { label: 'Yes', value: 'true' },
+            { label: 'No', value: 'false' },
+          ],
+        },
+        sort: {
+          type: 'select',
+          label: 'Sort by',
+          options: [
+            { label: 'Newest first', value: 'newest' },
+            { label: 'Oldest first', value: 'oldest' },
+            { label: 'Title A → Z', value: 'title-asc' },
+            { label: 'Title Z → A', value: 'title-desc' },
+          ],
+        },
+        filterField: { type: 'text', label: 'Filter field (key)' },
+        filterValue: { type: 'text', label: 'Filter contains' },
+        limit: { type: 'number', label: 'Total items to load' },
+        pageSize: { type: 'number', label: 'Items per page (0 = all)' },
         ...styleFields,
       },
-      defaultProps: { source: {}, limit: 6, columns: '3' },
-      render: ({ source, limit, columns, ...s }) => (
+      defaultProps: {
+        source: {},
+        template: 'template',
+        templateId: '',
+        item: [],
+        layout: 'grid',
+        cardStyle: 'card',
+        columns: '3',
+        gap: 20,
+        imageAspect: 'video',
+        showImage: 'true',
+        showTitle: 'true',
+        showExcerpt: 'true',
+        sort: 'newest',
+        filterField: '',
+        filterValue: '',
+        limit: 12,
+        pageSize: 0,
+        empty: [],
+      },
+      render: ({
+        source,
+        template,
+        templateId,
+        item: Item,
+        empty: Empty,
+        layout,
+        cardStyle,
+        columns,
+        gap,
+        imageAspect,
+        showImage,
+        showTitle,
+        showExcerpt,
+        sort,
+        filterField,
+        filterValue,
+        limit,
+        pageSize,
+        ...s
+      }) => (
         <Box s={s}>
-          <CollectionList source={source} limit={limit} columns={columns} />
+          <CollectionList
+            source={source}
+            template={template}
+            templateId={templateId}
+            ItemSlot={Item as unknown as ComponentType}
+            EmptySlot={Empty as unknown as ComponentType}
+            editing={Boolean((s.puck as { isEditing?: boolean } | undefined)?.isEditing)}
+            layout={layout}
+            cardStyle={cardStyle}
+            columns={columns}
+            gap={gap}
+            imageAspect={imageAspect}
+            showImage={showImage}
+            showTitle={showTitle}
+            showExcerpt={showExcerpt}
+            sort={sort}
+            filterField={filterField}
+            filterValue={filterValue}
+            limit={limit}
+            pageSize={pageSize}
+          />
         </Box>
       ),
     },
@@ -889,11 +1124,23 @@ const baseConfig: Config = {
           label: 'Submits to',
           options: [
             { label: 'Nothing / custom action URL', value: 'none' },
+            { label: 'Collect submissions (inbox)', value: 'collect' },
             { label: 'Sign in — name inputs: login, password', value: 'login' },
             { label: 'Sign up — name inputs: email, username, password', value: 'register' },
             { label: 'Forgot password — name input: email', value: 'forgotPassword' },
-            { label: 'Reset password — name inputs: password, passwordConfirmation', value: 'resetPassword' },
+            {
+              label: 'Reset password — name inputs: password, passwordConfirmation',
+              value: 'resetPassword',
+            },
           ],
+        },
+        formName: {
+          type: 'text',
+          label: 'Form name (Collect only — labels submissions in the inbox)',
+        },
+        successMessage: {
+          type: 'text',
+          label: 'Success message (Collect only)',
         },
         action: { type: 'text', label: 'Action URL (ignored when Submits to is set)' },
         method: {
@@ -907,7 +1154,14 @@ const baseConfig: Config = {
         content: { type: 'slot' },
         ...styleFields,
       },
-      defaultProps: { handler: 'none', action: '', method: 'post', content: [] },
+      defaultProps: {
+        handler: 'none',
+        action: '',
+        method: 'post',
+        formName: 'Contact form',
+        successMessage: 'Thanks — we’ve received your message.',
+        content: [],
+      },
       render: (props) => <FormBlockView {...props} />,
     },
 
@@ -1512,7 +1766,10 @@ const baseConfig: Config = {
             rating: {
               type: 'select',
               label: 'Rating',
-              options: [1, 2, 3, 4, 5].map((n) => ({ label: `${n} star${n === 1 ? '' : 's'}`, value: String(n) })),
+              options: [1, 2, 3, 4, 5].map((n) => ({
+                label: `${n} star${n === 1 ? '' : 's'}`,
+                value: String(n),
+              })),
             },
             text: { type: 'textarea', label: 'Review' },
             date: { type: 'text', label: 'Date' },
@@ -1527,9 +1784,27 @@ const baseConfig: Config = {
         columns: '3',
         showAggregate: 'true',
         reviews: [
-          { author: 'Alex Doe', rating: '5', text: 'Fantastic experience — highly recommend!', date: '2 weeks ago', avatar: '' },
-          { author: 'Sam Lee', rating: '5', text: 'Great service and support.', date: '1 month ago', avatar: '' },
-          { author: 'Jordan Park', rating: '4', text: 'Really solid, would use again.', date: '1 month ago', avatar: '' },
+          {
+            author: 'Alex Doe',
+            rating: '5',
+            text: 'Fantastic experience — highly recommend!',
+            date: '2 weeks ago',
+            avatar: '',
+          },
+          {
+            author: 'Sam Lee',
+            rating: '5',
+            text: 'Great service and support.',
+            date: '1 month ago',
+            avatar: '',
+          },
+          {
+            author: 'Jordan Park',
+            rating: '4',
+            text: 'Really solid, would use again.',
+            date: '1 month ago',
+            avatar: '',
+          },
         ],
       },
       render: (props) => <ReviewsView {...props} />,

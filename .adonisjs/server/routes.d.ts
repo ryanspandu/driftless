@@ -5,12 +5,16 @@ type ParamValue = string | number | bigint | boolean
 export type ScannedRoutes = {
   ALL: {
     'home': { paramsTuple?: []; params?: {} }
+    'analytics.collect': { paramsTuple?: []; params?: {} }
+    'forms.submit': { paramsTuple?: []; params?: {} }
     'media.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'media.serveLegacy': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'new_account.create': { paramsTuple?: []; params?: {} }
     'new_account.store': { paramsTuple?: []; params?: {} }
     'session.create': { paramsTuple?: []; params?: {} }
     'session.store': { paramsTuple?: []; params?: {} }
+    'session.two_factor.challenge': { paramsTuple?: []; params?: {} }
+    'session.two_factor.verify': { paramsTuple?: []; params?: {} }
     'password_reset.create': { paramsTuple?: []; params?: {} }
     'password_reset.store': { paramsTuple?: []; params?: {} }
     'password_reset.edit': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
@@ -49,9 +53,12 @@ export type ScannedRoutes = {
     'shop.cart.update': { paramsTuple?: []; params?: {} }
     'shop.cart.remove': { paramsTuple: [ParamValue]; params: {'variantId': ParamValue} }
     'shop.cart.clear': { paramsTuple?: []; params?: {} }
+    'shop.cart.discount.apply': { paramsTuple?: []; params?: {} }
+    'shop.cart.discount.remove': { paramsTuple?: []; params?: {} }
     'shop.checkout': { paramsTuple?: []; params?: {} }
     'shop.account.register': { paramsTuple?: []; params?: {} }
     'shop.account.login': { paramsTuple?: []; params?: {} }
+    'shop.account.two_factor.verify': { paramsTuple?: []; params?: {} }
     'shop.account.logout': { paramsTuple?: []; params?: {} }
     'shop.account.orders': { paramsTuple?: []; params?: {} }
     'shop.account.order': { paramsTuple: [ParamValue]; params: {'number': ParamValue} }
@@ -62,6 +69,13 @@ export type ScannedRoutes = {
     'shop.account.addresses.create': { paramsTuple?: []; params?: {} }
     'shop.account.addresses.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'shop.account.addresses.delete': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'shop.account.affiliate.overview': { paramsTuple?: []; params?: {} }
+    'shop.account.affiliate.apply': { paramsTuple?: []; params?: {} }
+    'shop.account.affiliate.payout': { paramsTuple?: []; params?: {} }
+    'shop.account.affiliate.withdraw': { paramsTuple?: []; params?: {} }
+    'shop.account.two_factor.enroll': { paramsTuple?: []; params?: {} }
+    'shop.account.two_factor.confirm': { paramsTuple?: []; params?: {} }
+    'shop.account.two_factor.disable': { paramsTuple?: []; params?: {} }
     'shop.referral': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'shop.currencies': { paramsTuple?: []; params?: {} }
     'shop.shipping.options': { paramsTuple?: []; params?: {} }
@@ -138,16 +152,22 @@ export type ScannedRoutes = {
     'ecommerce.discounts.page': { paramsTuple?: []; params?: {} }
     'ecommerce.affiliates.page': { paramsTuple?: []; params?: {} }
     'ecommerce.commissions.page': { paramsTuple?: []; params?: {} }
+    'ecommerce.withdrawals.page': { paramsTuple?: []; params?: {} }
     'ecommerce.api.discounts.index': { paramsTuple?: []; params?: {} }
     'ecommerce.api.discounts.store': { paramsTuple?: []; params?: {} }
     'ecommerce.api.discounts.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.discounts.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.affiliates.index': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.affiliates.accounts': { paramsTuple?: []; params?: {} }
     'ecommerce.api.affiliates.store': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.affiliates.approve': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ecommerce.api.affiliates.reject': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.affiliates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.commissions.index': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.withdrawals.index': { paramsTuple?: []; params?: {} }
     'ecommerce.api.commissions.pay': { paramsTuple?: []; params?: {} }
     'ecommerce.api.commissions.export': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.withdrawals.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.stats': { paramsTuple?: []; params?: {} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
     'ctrl.index': { paramsTuple?: []; params?: {} }
@@ -163,6 +183,7 @@ export type ScannedRoutes = {
     'media.serveLegacy': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'new_account.create': { paramsTuple?: []; params?: {} }
     'session.create': { paramsTuple?: []; params?: {} }
+    'session.two_factor.challenge': { paramsTuple?: []; params?: {} }
     'password_reset.create': { paramsTuple?: []; params?: {} }
     'password_reset.edit': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'v1.content.index': { paramsTuple?: []; params?: {} }
@@ -185,6 +206,7 @@ export type ScannedRoutes = {
     'shop.account.order': { paramsTuple: [ParamValue]; params: {'number': ParamValue} }
     'shop.account.order.download': { paramsTuple: [ParamValue,ParamValue]; params: {'number': ParamValue,'grantId': ParamValue} }
     'shop.account.addresses': { paramsTuple?: []; params?: {} }
+    'shop.account.affiliate.overview': { paramsTuple?: []; params?: {} }
     'shop.referral': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'shop.currencies': { paramsTuple?: []; params?: {} }
     'shop.front': { paramsTuple?: []; params?: {} }
@@ -229,9 +251,12 @@ export type ScannedRoutes = {
     'ecommerce.discounts.page': { paramsTuple?: []; params?: {} }
     'ecommerce.affiliates.page': { paramsTuple?: []; params?: {} }
     'ecommerce.commissions.page': { paramsTuple?: []; params?: {} }
+    'ecommerce.withdrawals.page': { paramsTuple?: []; params?: {} }
     'ecommerce.api.discounts.index': { paramsTuple?: []; params?: {} }
     'ecommerce.api.affiliates.index': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.affiliates.accounts': { paramsTuple?: []; params?: {} }
     'ecommerce.api.commissions.index': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.withdrawals.index': { paramsTuple?: []; params?: {} }
     'ecommerce.api.commissions.export': { paramsTuple?: []; params?: {} }
     'ecommerce.api.stats': { paramsTuple?: []; params?: {} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
@@ -244,6 +269,7 @@ export type ScannedRoutes = {
     'media.serveLegacy': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'new_account.create': { paramsTuple?: []; params?: {} }
     'session.create': { paramsTuple?: []; params?: {} }
+    'session.two_factor.challenge': { paramsTuple?: []; params?: {} }
     'password_reset.create': { paramsTuple?: []; params?: {} }
     'password_reset.edit': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'v1.content.index': { paramsTuple?: []; params?: {} }
@@ -266,6 +292,7 @@ export type ScannedRoutes = {
     'shop.account.order': { paramsTuple: [ParamValue]; params: {'number': ParamValue} }
     'shop.account.order.download': { paramsTuple: [ParamValue,ParamValue]; params: {'number': ParamValue,'grantId': ParamValue} }
     'shop.account.addresses': { paramsTuple?: []; params?: {} }
+    'shop.account.affiliate.overview': { paramsTuple?: []; params?: {} }
     'shop.referral': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'shop.currencies': { paramsTuple?: []; params?: {} }
     'shop.front': { paramsTuple?: []; params?: {} }
@@ -310,9 +337,12 @@ export type ScannedRoutes = {
     'ecommerce.discounts.page': { paramsTuple?: []; params?: {} }
     'ecommerce.affiliates.page': { paramsTuple?: []; params?: {} }
     'ecommerce.commissions.page': { paramsTuple?: []; params?: {} }
+    'ecommerce.withdrawals.page': { paramsTuple?: []; params?: {} }
     'ecommerce.api.discounts.index': { paramsTuple?: []; params?: {} }
     'ecommerce.api.affiliates.index': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.affiliates.accounts': { paramsTuple?: []; params?: {} }
     'ecommerce.api.commissions.index': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.withdrawals.index': { paramsTuple?: []; params?: {} }
     'ecommerce.api.commissions.export': { paramsTuple?: []; params?: {} }
     'ecommerce.api.stats': { paramsTuple?: []; params?: {} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
@@ -320,8 +350,11 @@ export type ScannedRoutes = {
     'ctrl.assignees': { paramsTuple?: []; params?: {} }
   }
   POST: {
+    'analytics.collect': { paramsTuple?: []; params?: {} }
+    'forms.submit': { paramsTuple?: []; params?: {} }
     'new_account.store': { paramsTuple?: []; params?: {} }
     'session.store': { paramsTuple?: []; params?: {} }
+    'session.two_factor.verify': { paramsTuple?: []; params?: {} }
     'password_reset.store': { paramsTuple?: []; params?: {} }
     'password_reset.update': { paramsTuple?: []; params?: {} }
     'legacy.signup.store': { paramsTuple?: []; params?: {} }
@@ -333,11 +366,18 @@ export type ScannedRoutes = {
     'ecommerce.webhooks.paypal': { paramsTuple?: []; params?: {} }
     'shop.availability': { paramsTuple?: []; params?: {} }
     'shop.cart.add': { paramsTuple?: []; params?: {} }
+    'shop.cart.discount.apply': { paramsTuple?: []; params?: {} }
     'shop.checkout': { paramsTuple?: []; params?: {} }
     'shop.account.register': { paramsTuple?: []; params?: {} }
     'shop.account.login': { paramsTuple?: []; params?: {} }
+    'shop.account.two_factor.verify': { paramsTuple?: []; params?: {} }
     'shop.account.logout': { paramsTuple?: []; params?: {} }
     'shop.account.addresses.create': { paramsTuple?: []; params?: {} }
+    'shop.account.affiliate.apply': { paramsTuple?: []; params?: {} }
+    'shop.account.affiliate.withdraw': { paramsTuple?: []; params?: {} }
+    'shop.account.two_factor.enroll': { paramsTuple?: []; params?: {} }
+    'shop.account.two_factor.confirm': { paramsTuple?: []; params?: {} }
+    'shop.account.two_factor.disable': { paramsTuple?: []; params?: {} }
     'shop.shipping.options': { paramsTuple?: []; params?: {} }
     'shop.currency.set': { paramsTuple?: []; params?: {} }
     'shop.discount.check': { paramsTuple?: []; params?: {} }
@@ -356,7 +396,10 @@ export type ScannedRoutes = {
     'ecommerce.api.categories.store': { paramsTuple?: []; params?: {} }
     'ecommerce.api.discounts.store': { paramsTuple?: []; params?: {} }
     'ecommerce.api.affiliates.store': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.affiliates.approve': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ecommerce.api.affiliates.reject': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.commissions.pay': { paramsTuple?: []; params?: {} }
+    'ecommerce.api.withdrawals.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ctrl.store': { paramsTuple?: []; params?: {} }
   }
   PUT: {
@@ -367,6 +410,7 @@ export type ScannedRoutes = {
     'shop.account.profile': { paramsTuple?: []; params?: {} }
     'shop.account.password': { paramsTuple?: []; params?: {} }
     'shop.account.addresses.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'shop.account.affiliate.payout': { paramsTuple?: []; params?: {} }
     'ecommerce.api.orders.status': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.orders.note': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.shipping.update': { paramsTuple?: []; params?: {} }
@@ -389,6 +433,7 @@ export type ScannedRoutes = {
     'admin.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'shop.cart.remove': { paramsTuple: [ParamValue]; params: {'variantId': ParamValue} }
     'shop.cart.clear': { paramsTuple?: []; params?: {} }
+    'shop.cart.discount.remove': { paramsTuple?: []; params?: {} }
     'shop.account.addresses.delete': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.products.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.variants.destroy': { paramsTuple: [ParamValue]; params: {'variantId': ParamValue} }

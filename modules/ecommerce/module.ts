@@ -19,8 +19,8 @@ const TABLES = [
   'ecommerce_product_images',
   'ecommerce_product_categories',
   'ecommerce_digital_assets',
-  'ecommerce_customers',
-  'ecommerce_customer_sessions',
+  'ecommerce_accounts',
+  'ecommerce_account_sessions',
   'ecommerce_addresses',
   'ecommerce_carts',
   'ecommerce_cart_items',
@@ -37,6 +37,7 @@ const TABLES = [
   'ecommerce_discount_redemptions',
   'ecommerce_affiliates',
   'ecommerce_affiliate_clicks',
+  'ecommerce_affiliate_withdrawals',
   'ecommerce_commissions',
   'ecommerce_download_grants',
   'ecommerce_currencies',
@@ -77,9 +78,8 @@ export default defineModule({
    * restores a page someone deleted or undoes edits to one they kept.
    */
   async onEnable() {
-    const { default: StorefrontSeederService } = await import(
-      '#modules/ecommerce/services/storefront_seeder_service'
-    )
+    const { default: StorefrontSeederService } =
+      await import('#modules/ecommerce/services/storefront_seeder_service')
     await new StorefrontSeederService().seed()
   },
 
@@ -232,7 +232,7 @@ export default defineModule({
     },
     {
       label: 'Marketing',
-      icon: 'Megaphone',
+      icon: 'Target',
       order: 31,
       permission: 'ecommerce:discounts:read',
       items: [
@@ -254,6 +254,12 @@ export default defineModule({
           icon: 'CurrencyDollar',
           permission: 'ecommerce:commissions:read',
         },
+        {
+          label: 'Withdrawals',
+          href: '/admin/marketing/withdrawals',
+          icon: 'Receipt',
+          permission: 'ecommerce:commissions:read',
+        },
       ],
     },
   ],
@@ -271,9 +277,36 @@ export default defineModule({
       await import('#modules/ecommerce/services/block_resolvers')
     registerEcommerceBlockResolvers()
 
-    const { registerEcommerceMailEvents } =
-      await import('#modules/ecommerce/services/mail_events')
+    const { registerEcommerceMailEvents } = await import('#modules/ecommerce/services/mail_events')
     registerEcommerceMailEvents()
+
+    // Products as a bindable collection for Collection Lists / Collection
+    // Templates. Gated per call on the module being enabled, so disabling the
+    // store hides it again without a restart.
+    const { registerProductsCollection } =
+      await import('#modules/ecommerce/services/builtin_collection')
+    registerProductsCollection()
+
+    // Contribute product pages + the shop front to the core sitemap. Guarded
+    // (isolated by the registry) so a query failure never breaks /sitemap.xml.
+    const { registerSitemapSource } = await import('#services/sitemap_registry')
+    const { siteUrl } = await import('#helpers/site_url')
+    registerSitemapSource('ecommerce', async () => {
+      const { default: Product } = await import('#modules/ecommerce/models/product')
+      const { PRODUCT_PATH_PREFIX } =
+        await import('#modules/ecommerce/controllers/storefront/pages_controller')
+      const base = siteUrl()
+      const rows = await Product.query()
+        .where('status', 'active')
+        .whereNull('deleted_at')
+        .select('slug', 'updated_at')
+      const entries = rows.map((p) => ({
+        loc: `${base}${PRODUCT_PATH_PREFIX}/${encodeURIComponent(p.slug)}`,
+        lastmod: p.updatedAt?.toISO() ?? undefined,
+      }))
+      entries.push({ loc: `${base}/shop`, lastmod: undefined })
+      return entries
+    })
   },
 
   registerRoutes,

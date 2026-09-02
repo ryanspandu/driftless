@@ -31,6 +31,8 @@ export default class DashboardController {
     await user.load('roles')
     // Pass a serialized plain object (not the raw Lucid model) so Inertia sends
     // flat props and the password hash / model internals are not leaked.
-    return renderPage(inertia, 'admin/profile', { user: user.serialize() })
+    return renderPage(inertia, 'admin/profile', {
+      user: { ...user.serialize(), twoFactorEnabled: user.twoFactorEnabledAt != null },
+    })
   }
 }

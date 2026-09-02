@@ -18,10 +18,9 @@ import Order from '#modules/ecommerce/models/order'
 import DigitalAsset from '#modules/ecommerce/models/digital_asset'
 import DownloadGrant from '#modules/ecommerce/models/download_grant'
 import Discount from '#modules/ecommerce/models/discount'
-import Customer from '#modules/ecommerce/models/customer'
+import Account from '#modules/ecommerce/models/account'
 import CheckoutService from '#modules/ecommerce/services/checkout_service'
 import DiscountService from '#modules/ecommerce/services/discount_service'
-import AffiliateService from '#modules/ecommerce/services/affiliate_service'
 import OrderService from '#modules/ecommerce/services/order_service'
 import PricingService from '#modules/ecommerce/services/pricing_service'
 import OrderQueryService from '#modules/ecommerce/services/order_query_service'
@@ -32,6 +31,27 @@ import ExportService from '#modules/ecommerce/services/export_service'
 import MaintenanceService from '#modules/ecommerce/services/maintenance_service'
 import AnalyticsService from '#modules/ecommerce/services/analytics_service'
 import Commission from '#modules/ecommerce/models/commission'
+import Affiliate from '#modules/ecommerce/models/affiliate'
+
+/** Seed an active affiliate with a known code (attribution is by code). */
+function seedActiveAffiliate(code: string, percent = 10) {
+  return Affiliate.create({
+    id: newUlid(),
+    code,
+    name: 'A Partner',
+    email: `${code.toLowerCase()}@example.com`,
+    accountId: null,
+    commissionPercentMilli: Math.round(percent * 1_000),
+    status: 'active',
+    payoutMethodEnc: null,
+    appliedAt: null,
+    notes: null,
+    clicksCount: 0,
+    ordersCount: 0,
+    totalCommissionAmount: 0,
+    paidCommissionAmount: 0,
+  })
+}
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 import FakeGatewayDriver from '#modules/ecommerce/services/gateways/fake_driver'
 import {
@@ -687,7 +707,7 @@ test.group('E-commerce | exports', (group) => {
   })
 
   test('a customer export carries no password or session material', async ({ assert }) => {
-    await Customer.create({
+    await Account.create({
       id: newUlid(),
       email: 'buyer@example.com',
       firstName: 'Jane',
@@ -769,7 +789,7 @@ test.group('E-commerce | customers admin', (group) => {
   group.each.setup(async () => resetDatabase())
 
   test('lists buyers without leaking their password hash', async ({ client, assert }) => {
-    await Customer.create({
+    await Account.create({
       id: newUlid(),
       email: 'buyer@example.com',
       passwordHash: 'scrypt$secret',
@@ -788,7 +808,7 @@ test.group('E-commerce | customers admin', (group) => {
   })
 
   test('blocking a customer ends their sessions', async ({ client, assert }) => {
-    const customer = await Customer.create({
+    const customer = await Account.create({
       id: newUlid(),
       email: 'buyer@example.com',
       passwordHash: 'scrypt$secret',
@@ -798,9 +818,9 @@ test.group('E-commerce | customers admin', (group) => {
       totalSpentAmount: 0,
     })
 
-    await db.table('ecommerce_customer_sessions').insert({
+    await db.table('ecommerce_account_sessions').insert({
       id: newUlid(),
-      customer_id: customer.id,
+      account_id: customer.id,
       token_hash: 'a'.repeat(64),
       expires_at: DateTime.now().plus({ days: 7 }).toSQL(),
       created_at: DateTime.now().toSQL(),
@@ -818,14 +838,14 @@ test.group('E-commerce | customers admin', (group) => {
      * already signed in — which is exactly the person being blocked.
      */
     const session = await db
-      .from('ecommerce_customer_sessions')
-      .where('customer_id', customer.id)
+      .from('ecommerce_account_sessions')
+      .where('account_id', customer.id)
       .first()
     assert.isNotNull(session.revoked_at)
   })
 
   test('reading customers does not permit blocking them', async ({ client, assert }) => {
-    const customer = await Customer.create({
+    const customer = await Account.create({
       id: newUlid(),
       email: 'buyer@example.com',
       status: 'active',
@@ -1268,12 +1288,7 @@ test.group('E-commerce | maintenance sweeps', (group) => {
   test('matures a commission once the refund window has passed', async ({ assert }) => {
     const { variant } = await seedProduct(10_000, 5)
 
-    await new AffiliateService().create({
-      code: 'PARTNER',
-      name: 'A Partner',
-      email: 'partner@example.com',
-      commissionPercent: 10,
-    })
+    await seedActiveAffiliate('PARTNER', 10)
 
     const started = await new CheckoutService().start({
       lines: [{ variantId: variant.id, quantity: 1 }],
@@ -1318,12 +1333,7 @@ test.group('E-commerce | maintenance sweeps', (group) => {
   test('leaves a fresh commission alone', async ({ assert }) => {
     const { variant } = await seedProduct(10_000, 5)
 
-    await new AffiliateService().create({
-      code: 'PARTNER',
-      name: 'A Partner',
-      email: 'partner@example.com',
-      commissionPercent: 10,
-    })
+    await seedActiveAffiliate('PARTNER', 10)
 
     const started = await new CheckoutService().start({
       lines: [{ variantId: variant.id, quantity: 1 }],

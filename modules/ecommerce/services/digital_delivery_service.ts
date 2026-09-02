@@ -322,13 +322,13 @@ export default class DigitalDeliveryService {
    */
   async redeemForCustomer(
     grantId: string,
-    customerId: string,
+    accountId: string,
     ctx: HttpContext
   ): Promise<ResolvedDownload> {
     const orders = db
       .from('ecommerce_orders')
       .select('id')
-      .where('customer_id', customerId)
+      .where('account_id', accountId)
       .whereIn('payment_status', ['paid', 'partially_refunded'])
       .whereNull('deleted_at')
     return this.claimAndServe(grantId, ctx, orders)

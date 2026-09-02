@@ -166,7 +166,12 @@ test.group('E-commerce | product template route', (group) => {
      */
     const page = res.body().props.page
     assert.equal(page.title, 'Blue Widget')
-    assert.equal(page.seo.canonicalPath, '/shop/p/blue-widget')
+    // The renderer maps the override's `canonicalPath` to the key the head
+    // actually reads (`canonical`) as an absolute URL — the earlier mismatch
+    // meant the per-product canonical was silently dropped.
+    assert.match(page.seo.canonical, /\/shop\/p\/blue-widget$/)
+    // A Product JSON-LD node is emitted for rich results.
+    assert.include(page.seo.jsonLd, '"@type":"Product"')
   })
 
   test('the route echoes its binding to the client', async ({ client, assert }) => {
