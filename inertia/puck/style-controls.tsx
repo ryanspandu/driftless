@@ -8,6 +8,8 @@ import {
 } from 'react'
 import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react'
 import { cn } from '~/lib/utils'
+import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
+import { ColorPicker } from './color-picker'
 
 /**
  * Webflow-style visual controls for the builder's Detail panel, wired into the
@@ -298,10 +300,6 @@ export function SegmentedControl({
 
 // ───────────────────────────── Colour (swatch) ─────────────────────────────
 
-function isHex(v: string): boolean {
-  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v.trim())
-}
-
 /**
  * Theme swatches. These insert a CSS variable reference, not a fixed hex — so a
  * block coloured "Primary" follows whatever the operator sets in Website
@@ -332,19 +330,27 @@ export function ColorControl({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-2">
-        <label
-          className="size-7 shrink-0 cursor-pointer rounded-md border border-input"
-          style={{ background: v || 'transparent' }}
-          title="Pick a colour"
-        >
-          <input
-            type="color"
-            value={isHex(v) ? v : '#000000'}
-            onChange={(e) => onChange(e.target.value)}
-            className="size-0 opacity-0"
-            aria-label="Pick colour"
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                title="Pick a colour"
+                aria-label="Pick colour"
+                className={cn(
+                  'size-7 shrink-0 cursor-pointer rounded-md border border-input',
+                  // Checkerboard when there's no concrete colour to show.
+                  (!v || v === 'transparent') &&
+                    'bg-[length:8px_8px] bg-[position:0_0,4px_4px] bg-[linear-gradient(45deg,#bbb_25%,transparent_25%,transparent_75%,#bbb_75%),linear-gradient(45deg,#bbb_25%,transparent_25%,transparent_75%,#bbb_75%)]'
+                )}
+                style={v && v !== 'transparent' ? { background: v } : undefined}
+              />
+            }
           />
-        </label>
+          <PopoverContent align="start" side="bottom" className="w-56 p-3">
+            <ColorPicker value={v} onChange={onChange} />
+          </PopoverContent>
+        </Popover>
         <CommitInput
           type="text"
           value={v}

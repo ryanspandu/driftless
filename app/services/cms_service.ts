@@ -132,6 +132,26 @@ function dynamicTableName(key: string): string {
   return `cms_${key}`
 }
 
+/**
+ * A short human label for a related record — the first non-empty of
+ * title/name/label/slug, else any string field, else the id.
+ *
+ * Ported from the admin `recordLabel` (`inertia/components/cms/field-renderer.tsx`)
+ * so the page renderer can turn a relation's target id into readable text
+ * server-side. A deliberate small duplication across the server/client boundary.
+ */
+function recordLabel(record: CmsRecordDto): string {
+  const data = (record.data ?? {}) as Record<string, unknown>
+  for (const k of ['title', 'name', 'label', 'slug']) {
+    const v = data[k]
+    if (typeof v === 'string' && v.trim()) return v
+  }
+  for (const v of Object.values(data)) {
+    if (typeof v === 'string' && v.trim()) return v
+  }
+  return record.id
+}
+
 /** Join table backing a many-to-many relation field. */
 function relationJoinTableName(srcKey: string, fieldKey: string): string {
   return `cms_${srcKey}_${fieldKey}`
@@ -881,7 +901,14 @@ export default class CmsService {
       /** Sort by a field key, or `created_at`/`updated_at`; defaults to the table's own. */
       sortField?: string
       sortDir?: 'asc' | 'desc'
-    }
+    },
+    /**
+     * Public render paths pass `resolveRelations: true` to swap each RELATION
+     * field's raw target id(s) for the target record's display label. Left
+     * `false` for the admin editor and the external v1 API, which both need the
+     * raw ids (editing writes them back; the v1 DTO is a stable contract).
+     */
+    opts?: { resolveRelations?: boolean }
   ): Promise<{
     items: CmsRecordDto[]
     page: number
@@ -978,6 +1005,7 @@ export default class CmsService {
 
     const items = rows.map((r: any) => this.rowToRecordDto(r, collection))
     await this.resolveMultiRelations(collection, items)
+    if (opts?.resolveRelations) await this.resolveRelationLabels(collection, items)
     return {
       items,
       page,
@@ -987,7 +1015,11 @@ export default class CmsService {
     }
   }
 
-  async findRecord(collectionKey: string, id: string): Promise<CmsRecordDto> {
+  async findRecord(
+    collectionKey: string,
+    id: string,
+    opts?: { resolveRelations?: boolean }
+  ): Promise<CmsRecordDto> {
     const builtin = await builtinCollection(collectionKey)
     if (builtin) {
       const record = await builtin.find(id)
@@ -1000,7 +1032,96 @@ export default class CmsService {
     if (!row) throw new Error('Record not found')
     const dto = this.rowToRecordDto(row, collection)
     await this.resolveMultiRelations(collection, [dto])
+    if (opts?.resolveRelations) await this.resolveRelationLabels(collection, [dto])
     return dto
+  }
+
+  /**
+   * Fetch dynamic-collection records by id, keyed by id. Batched (`whereIn`) so
+   * relation-label resolution stays one query per target collection. Relations
+   * can only target dynamic collections, so the dynamic table path suffices.
+   */
+  private async findRecordsByIds(
+    targetKey: string,
+    ids: string[]
+  ): Promise<Map<string, CmsRecordDto>> {
+    const out = new Map<string, CmsRecordDto>()
+    if (!ids.length) return out
+    const { table, collection } = await this.resolveRecordContext(targetKey)
+    const rows = await db
+      .from(table)
+      .whereIn('id', [...new Set(ids)])
+      .whereNull('deleted_at')
+      .select('*')
+    for (const row of rows as any[]) {
+      const dto = this.rowToRecordDto(row, collection)
+      out.set(dto.id, dto)
+    }
+    return out
+  }
+
+  /**
+   * Swap each RELATION field's raw target id(s) for the target record's display
+   * label — single → the label string, multi → labels joined by ", ", empty or
+   * dangling → "". Public render paths only (opt-in via `resolveRelations`); the
+   * admin/v1 paths keep ids. Target draft state is ignored: any non-deleted
+   * target row yields a label. Batched per target collection to avoid N+1.
+   */
+  private async resolveRelationLabels(
+    collection: CmsCollection,
+    dtos: CmsRecordDto[]
+  ): Promise<void> {
+    if (!dtos.length) return
+    const relFields = collection.fields.filter((f) => f.type === 'RELATION')
+    if (!relFields.length) return
+
+    // Pass 1 — collect target ids per target collection (fields sharing a
+    // target coalesce into one query).
+    const idsByTarget = new Map<string, Set<string>>()
+    for (const field of relFields) {
+      const targetKey = (field.config as { targetKey?: string })?.targetKey
+      if (!targetKey) continue
+      const bucket = idsByTarget.get(targetKey) ?? new Set<string>()
+      for (const dto of dtos) {
+        const v = dto.data[field.key]
+        if (typeof v === 'string' && v) bucket.add(v)
+        else if (Array.isArray(v))
+          for (const id of v) if (typeof id === 'string' && id) bucket.add(id)
+      }
+      if (bucket.size) idsByTarget.set(targetKey, bucket)
+    }
+
+    // One batched fetch per target collection; a deleted target collection
+    // (firstOrFail throws) degrades to blank labels rather than an error.
+    const labelsByTarget = new Map<string, Map<string, CmsRecordDto>>()
+    for (const [targetKey, ids] of idsByTarget) {
+      try {
+        labelsByTarget.set(targetKey, await this.findRecordsByIds(targetKey, [...ids]))
+      } catch {
+        labelsByTarget.set(targetKey, new Map())
+      }
+    }
+
+    // Pass 2 — rewrite each record's relation value to label text.
+    for (const field of relFields) {
+      const targetKey = (field.config as { targetKey?: string })?.targetKey
+      const byId = (targetKey && labelsByTarget.get(targetKey)) || new Map<string, CmsRecordDto>()
+      for (const dto of dtos) {
+        const v = dto.data[field.key]
+        if (Array.isArray(v)) {
+          dto.data[field.key] = v
+            .map((id) => (typeof id === 'string' ? byId.get(id) : undefined))
+            .filter((r): r is CmsRecordDto => !!r)
+            .map((r) => recordLabel(r))
+            .join(', ')
+        } else if (typeof v === 'string' && v) {
+          const target = byId.get(v)
+          dto.data[field.key] = target ? recordLabel(target) : ''
+        } else {
+          dto.data[field.key] = ''
+        }
+      }
+    }
   }
 
   /**

@@ -86,8 +86,7 @@ export function readBreakpoints(raw: unknown): Breakpoint[] {
       maxWidth = Math.round(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, n)))
     }
 
-    const label =
-      typeof o.label === 'string' && o.label.trim() ? o.label.trim().slice(0, 40) : id
+    const label = typeof o.label === 'string' && o.label.trim() ? o.label.trim().slice(0, 40) : id
     seen.add(id)
     out.push({ id, label, maxWidth, custom: o.custom === true })
     if (out.length >= MAX_BREAKPOINTS) break
@@ -170,3 +169,28 @@ export const BreakpointContext = createContext<BreakpointState>({
   breakpoints: DEFAULT_BREAKPOINTS,
   activeBp: null,
 })
+
+/** The style state currently being edited/previewed in the Style panel. */
+export type StyleState = 'base' | 'hover' | 'focus' | 'active'
+
+/**
+ * Which block (if any) the canvas should preview in a non-base state, and which
+ * state. Provided by `BuilderShell` around `Puck.Preview` (like `BreakpointContext`)
+ * and read by `Box`, so selecting the Hover/Focus/Active tab renders the selected
+ * element as if in that state, live — editor only, via inline styles (no `<style>`,
+ * so no CSP nonce needed). `id: null` (the Base case) is a constant, so ordinary
+ * selection changes don't invalidate every canvas Box.
+ */
+export type StatePreview = { id: string | null; state: StyleState }
+
+export const StatePreviewContext = createContext<StatePreview>({ id: null, state: 'base' })
+
+/**
+ * The per-request CSP nonce, threaded to every `Box` on the PUBLISHED path so its
+ * generated `<style>` (responsive `@media` / `:hover/:focus/:active` rules) carries
+ * a nonce — without it, the strict production `style-src 'self' 'nonce-…'` drops the
+ * element and the styles silently vanish. Provided by `PublicPageView` (read off the
+ * Inertia `cspNonce` shared prop); the builder needs no provider because an editing
+ * `Box` emits inline styles, never a `<style>` element. Default `''` = omit the attr.
+ */
+export const NonceContext = createContext<string>('')

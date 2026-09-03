@@ -19,6 +19,8 @@ import { scrollAnimationAttrs } from '~/puck/scroll-animation'
 import { readConditions, useConditionallyHidden } from '~/puck/record-binding'
 import {
   BreakpointContext,
+  NonceContext,
+  StatePreviewContext,
   cascadeStyleBag,
   orderBreakpoints,
   readResponsive,
@@ -434,7 +436,6 @@ export function Box({
   // when its field conditions fail. Published only — the editor keeps it visible
   // (and dimmed) so it stays selectable.
   const condHidden = useConditionallyHidden(readConditions(s.conditions))
-  if ((hidden || condHidden) && !isEditing) return null
 
   // Scroll-into-view reveal: data-attrs + inert CSS custom properties, applied
   // only on the published page (suppressed while editing). The hidden start
@@ -453,6 +454,8 @@ export function Box({
    *     inline path untouched, so existing pages are byte-for-byte identical.
    */
   const { breakpoints, activeBp } = useContext(BreakpointContext)
+  // Per-request CSP nonce for the generated `<style>` below (published path only).
+  const nonce = useContext(NonceContext)
   const hasResponsive = Object.keys(readResponsive(s)).length > 0
   // Interaction states (`:hover`/`:focus`/`:active`) can only be expressed in a
   // stylesheet, never inline — so a block with any defined state joins the same
@@ -462,12 +465,32 @@ export function Box({
   const useStylesheet = !isEditing && !!bId
   const styleBag = isEditing && hasResponsive ? cascadeStyleBag(s, breakpoints, activeBp) : s
 
+  // Live state preview (editor only): when THIS block is the selected one and the
+  // Style panel is on a non-base tab, render it as if in that state. The editor
+  // has no stylesheet (`useStylesheet` is false while editing), so we overlay the
+  // state's declarations inline. Merge the style BAGS (not the CSSProperties) so
+  // `styleToCss` recomposes shorthands and unset base keys aren't clobbered by the
+  // `undefined`s a full CSSProperties object carries. Inline style needs no CSP
+  // nonce; `null` here (any other block / Base tab / published) leaves output
+  // byte-identical to before.
+  const preview = useContext(StatePreviewContext)
+
+  // Hidden-and-published → render nothing. Placed AFTER every hook so hook order
+  // is unconditional (the editor keeps hidden blocks visible + dimmed, selectable).
+  if ((hidden || condHidden) && !isEditing) return null
+
+  const previewLayer =
+    isEditing && preview.state !== 'base' && preview.id !== null && preview.id === str(s, 'id')
+      ? (readStates(s)[preview.state] ?? null)
+      : null
+  const effectiveBag = previewLayer ? { ...styleBag, ...previewLayer } : styleBag
+
   // For components marked `inline: true`, Puck skips its own drag wrapper and
   // hands us a `dragRef` to put on the real element instead — so the block is
   // itself the flex/grid item (matching the published DOM) while Puck still
   // tracks/selects/drags it. `null` for non-inline blocks (React ignores it).
   const inlineStyle: CSSProperties = {
-    ...(useStylesheet ? null : styleToCss(styleBag)),
+    ...(useStylesheet ? null : styleToCss(effectiveBag)),
     ...anim.vars,
     ...style,
     ...(hidden ? { opacity: 0.4 } : null),
@@ -514,7 +537,10 @@ export function Box({
       return createElement(
         Fragment,
         null,
-        createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
+        createElement('style', {
+          nonce: nonce || undefined,
+          dangerouslySetInnerHTML: { __html: css },
+        }),
         el
       )
     }

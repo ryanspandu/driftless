@@ -57,6 +57,18 @@ createInertiaApp({
       void import('virtual:serwist').then(({ registerSW }) => {
         registerSW({ immediate: true })
       })
+    } else if (import.meta.env.DEV && 'serviceWorker' in navigator) {
+      // Dev never registers a service worker — but if a production build was
+      // once served on this same origin (e.g. `npm start` on :3333), its worker
+      // stays registered and keeps intercepting every request with a stale
+      // NetworkFirst cache, which makes the whole dev app feel laggy and fights
+      // HMR. Actively tear any leftover worker (and its caches) down in dev.
+      void navigator.serviceWorker.getRegistrations().then((regs) => {
+        for (const reg of regs) void reg.unregister()
+      })
+      if ('caches' in window) {
+        void caches.keys().then((keys) => keys.forEach((k) => void caches.delete(k)))
+      }
     }
 
     createRoot(el).render(

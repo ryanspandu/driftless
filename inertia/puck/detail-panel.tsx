@@ -1,6 +1,12 @@
 import { memo, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createUsePuck, type ComponentData, type Field } from '@measured/puck'
-import { BreakpointContext, baseBreakpoint, cascadeStyleBag, readResponsive } from './breakpoints'
+import {
+  BreakpointContext,
+  baseBreakpoint,
+  cascadeStyleBag,
+  readResponsive,
+  type StyleState,
+} from './breakpoints'
 import {
   AlignCenter,
   AlignJustify,
@@ -368,7 +374,6 @@ const RESPONSIVE_KEYS = new Set([
  * (hover, other-block edits). `config`/`dispatch`/`getSelectorForId` are stable
  * references, so those subscriptions never trigger a re-render.
  */
-type StyleState = 'base' | 'hover' | 'focus' | 'active'
 
 const STATE_OPTIONS: SegmentedOption[] = [
   { value: 'base', label: 'Base' },
@@ -387,7 +392,13 @@ const usePuckStore = createUsePuck()
  */
 export const DetailPanel = memo(DetailPanelImpl)
 
-function DetailPanelImpl() {
+function DetailPanelImpl({
+  previewState,
+  onPreviewStateChange,
+}: {
+  previewState: StyleState
+  onPreviewStateChange: (state: StyleState) => void
+}) {
   const selectedItem = usePuckStore((s) => s.selectedItem)
   const config = usePuckStore((s) => s.config)
   const dispatch = usePuckStore((s) => s.dispatch)
@@ -396,9 +407,11 @@ function DetailPanelImpl() {
 
   // Which interaction state is being styled. 'base' is the normal element; the
   // others write to `props.states.<state>` and render as `:hover`/`:focus`/
-  // `:active` on the published page. Reset when the selected element changes.
-  const [styleState, setStyleState] = useState<StyleState>('base')
-  useEffect(() => setStyleState('base'), [selectedItem?.props?.id])
+  // `:active`. Owned by BuilderShell (it also feeds the canvas live preview and
+  // resets on selection change); aliased here so the rest of this component is
+  // unchanged.
+  const styleState = previewState
+  const setStyleState = onPreviewStateChange
 
   // Element panel tab: Content / Style / Settings (Webflow-style). Reset per element.
   const [panelTab, setPanelTab] = useState<'content' | 'style' | 'settings'>('content')
@@ -491,7 +504,9 @@ function DetailPanelImpl() {
     for (const [k, v] of Object.entries(allStates)) states[k] = { ...v }
     const layer = { ...(states[styleState] ?? {}) }
     for (const [k, v] of Object.entries(patch)) {
-      if (v === undefined || v === '' || v === null) delete layer[k]
+      // Drop empties AND values equal to Base — a state that matches Base is not an
+      // override, so it stays inherited and `props.states` stays minimal.
+      if (v === undefined || v === '' || v === null || v === props[k]) delete layer[k]
       else layer[k] = v
     }
     if (Object.keys(layer).length) states[styleState] = layer
@@ -507,6 +522,16 @@ function DetailPanelImpl() {
       data: { ...selectedItem, props: nextProps } as ComponentData,
     })
   }
+
+  // A non-base state tab (Hover/Focus/Active) shows the SAME sections as Base, so
+  // it never looks like a different, cut-down panel. Fields are pre-filled from
+  // the Base values as a baseline (the state's own overrides layered on top), and
+  // every edit writes to `props.states[state]` — pruned back to inherit when it
+  // matches Base, so the stored layer stays minimal. A state is width-agnostic, so
+  // it reads the flat base props, never the responsive cascade.
+  const inStyleState = onBase && styleState !== 'base'
+  const styleViewProps = inStyleState ? { ...props, ...activeStateLayer } : viewProps
+  const styleUpdate = inStyleState ? updateState : update
 
   // Bind / unbind a block prop to a CMS field (always base props).
   const setBinding = (slot: string, fieldKey: string | null) => {
@@ -619,34 +644,24 @@ function DetailPanelImpl() {
                 )}
               </div>
             )}
-            {onBase && styleState !== 'base' ? (
-              <StateStyleSection
-                layer={activeStateLayer}
-                update={updateState}
-                hasBg={'bg' in fields}
-              />
-            ) : (
-              <>
-                <FlexChildSection props={viewProps} update={update} />
-                <LayoutSection props={viewProps} update={update} hasGap={'gap' in fields} />
-                {hasSpacing && (
-                  <Section title="Spacing">
-                    <SpacingControl
-                      margin={typeof viewProps.margin === 'string' ? viewProps.margin : ''}
-                      padding={typeof viewProps.padding === 'string' ? viewProps.padding : ''}
-                      onChange={(margin, padding) => update({ margin, padding })}
-                    />
-                  </Section>
-                )}
-                <SizeSection props={viewProps} update={update} />
-                <PositionSection props={viewProps} update={update} />
-                <TypographySection props={viewProps} update={update} />
-                {'bg' in fields && <BackgroundSection props={viewProps} update={update} />}
-                <BordersSection props={viewProps} update={update} />
-                <EffectsSection props={viewProps} update={update} />
-                <InteractionsSection props={viewProps} update={update} />
-              </>
+            <FlexChildSection props={styleViewProps} update={styleUpdate} />
+            <LayoutSection props={styleViewProps} update={styleUpdate} hasGap={'gap' in fields} />
+            {hasSpacing && (
+              <Section title="Spacing">
+                <SpacingControl
+                  margin={typeof styleViewProps.margin === 'string' ? styleViewProps.margin : ''}
+                  padding={typeof styleViewProps.padding === 'string' ? styleViewProps.padding : ''}
+                  onChange={(margin, padding) => styleUpdate({ margin, padding })}
+                />
+              </Section>
             )}
+            <SizeSection props={styleViewProps} update={styleUpdate} />
+            <PositionSection props={styleViewProps} update={styleUpdate} />
+            <TypographySection props={styleViewProps} update={styleUpdate} />
+            {'bg' in fields && <BackgroundSection props={styleViewProps} update={styleUpdate} />}
+            <BordersSection props={styleViewProps} update={styleUpdate} />
+            <EffectsSection props={styleViewProps} update={styleUpdate} />
+            <InteractionsSection props={styleViewProps} update={styleUpdate} />
           </>
         ) : (
           <p className="px-4 py-6 text-sm text-muted-foreground">
@@ -681,8 +696,13 @@ function fieldsForKind(
     const media = fields.filter((f) => /MEDIA|IMAGE/i.test(f.type))
     return media.length ? media : fields
   }
-  // text / link: any scalar-ish field (drop obvious non-text structures).
-  return fields.filter((f) => !/RELATION|COMPONENT|REPEATABLE|JSON/i.test(f.type))
+  // A link needs a real URL, so relations stay out of it. Text can bind a
+  // relation — the server renders it as the related record's label.
+  if (kind === 'link') {
+    return fields.filter((f) => !/RELATION|COMPONENT|REPEATABLE|JSON/i.test(f.type))
+  }
+  // text: allow RELATION, drop only structural (non-text) field kinds.
+  return fields.filter((f) => !/COMPONENT|REPEATABLE|JSON/i.test(f.type))
 }
 
 /** A content row that is bound to a CMS field — locked, with an Unbind action. */
@@ -906,98 +926,6 @@ function ConditionalVisibilitySection({
       >
         <Plus className="size-3.5" /> Add condition
       </button>
-    </Section>
-  )
-}
-
-/**
- * The curated control set shown when editing an interaction state
- * (`:hover`/`:focus`/`:active`). Deliberately a focused subset — the properties
- * people actually restyle on hover — rather than the whole element panel, so
- * layout-shifting changes (padding, position) stay a base-only concern. Each
- * value reads from the state layer alone; empty means "inherit from Base".
- */
-function StateStyleSection({
-  layer,
-  update,
-  hasBg,
-}: {
-  layer: Record<string, unknown>
-  update: (patch: Record<string, unknown>) => void
-  hasBg: boolean
-}) {
-  const get = (k: string) => (typeof layer[k] === 'string' ? (layer[k] as string) : '')
-  const opacityRaw = get('opacity')
-  const pct = (() => {
-    if (!opacityRaw) return 100
-    const n = Number.parseFloat(opacityRaw)
-    if (Number.isNaN(n)) return 100
-    return Math.max(0, Math.min(100, Math.round((n <= 1 ? n : n / 100) * 100)))
-  })()
-  return (
-    <Section title="State style">
-      {hasBg && (
-        <InlineRow label="Background" set={!!get('bg')}>
-          <ColorControl value={get('bg')} onChange={(v) => update({ bg: v })} />
-        </InlineRow>
-      )}
-      <InlineRow label="Text" set={!!get('textColor')}>
-        <ColorControl value={get('textColor')} onChange={(v) => update({ textColor: v })} />
-      </InlineRow>
-      <InlineRow label="Border" set={!!get('borderColor')}>
-        <ColorControl value={get('borderColor')} onChange={(v) => update({ borderColor: v })} />
-      </InlineRow>
-      <InlineRow label="Bd width" set={!!get('borderWidth')}>
-        <NumberUnitControl
-          value={get('borderWidth')}
-          onChange={(v) => update({ borderWidth: v })}
-        />
-      </InlineRow>
-      <InlineRow label="Radius" set={!!get('borderRadius')}>
-        <NumberUnitControl
-          value={get('borderRadius')}
-          onChange={(v) => update({ borderRadius: v })}
-        />
-      </InlineRow>
-      <StackField label="Shadow" set={!!get('boxShadow')}>
-        <BoxShadowControl value={get('boxShadow')} onChange={(v) => update({ boxShadow: v })} />
-      </StackField>
-      <InlineRow label="Opacity" set={opacityRaw !== ''}>
-        <div className="flex items-center gap-2">
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={pct}
-            onChange={(e) =>
-              update({
-                opacity:
-                  Number(e.target.value) >= 100
-                    ? ''
-                    : String(Number((Number(e.target.value) / 100).toFixed(2))),
-              })
-            }
-            className="h-1.5 flex-1 cursor-pointer accent-builder-slider"
-          />
-          <span className="w-9 text-right text-xs tabular-nums text-muted-foreground">{pct}%</span>
-        </div>
-      </InlineRow>
-      <StackField label="Transform" set={!!get('transform')}>
-        <CommitInput
-          value={get('transform')}
-          onCommit={(v) => update({ transform: v })}
-          placeholder="e.g. scale(1.05)"
-          className={inputCls}
-        />
-      </StackField>
-      <StackField label="Transition" set={!!get('transition')}>
-        <CommitInput
-          value={get('transition')}
-          onCommit={(v) => update({ transition: v })}
-          placeholder="e.g. all .2s ease"
-          className={inputCls}
-        />
-      </StackField>
     </Section>
   )
 }

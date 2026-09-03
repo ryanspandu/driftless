@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
+import { usePage } from '@inertiajs/react'
 import { Render, type Data } from '@measured/puck'
 import { puckConfig } from '~/puck/config'
 import { type CmsRecord } from '~/puck/collection-list'
 import { PageOutletContext } from '~/puck/page-outlet'
 import { type CodeSnippet } from '~/puck/custom-code'
-import { BreakpointContext, readBreakpoints } from '~/puck/breakpoints'
+import { BreakpointContext, NonceContext, readBreakpoints } from '~/puck/breakpoints'
 import { PublicPageFrame } from '~/components/public-page-frame'
 
 export interface PublicPageData {
@@ -102,7 +103,14 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
       {showFooter ? <Render config={puckConfig} data={toData(page.footer)} /> : null}
     </>
   )
-  const body = <BreakpointContext.Provider value={bpContext}>{inner}</BreakpointContext.Provider>
+  // Threaded to every Box so its published `<style>` (responsive/state CSS) carries
+  // the per-request CSP nonce; without it the strict prod `style-src` drops it.
+  const cspNonce = usePage<{ cspNonce?: string }>().props.cspNonce ?? ''
+  const body = (
+    <NonceContext.Provider value={cspNonce}>
+      <BreakpointContext.Provider value={bpContext}>{inner}</BreakpointContext.Provider>
+    </NonceContext.Provider>
+  )
 
   return (
     <PublicPageFrame

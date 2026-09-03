@@ -100,15 +100,20 @@ export async function resolvePageCollections(
     const key = cacheKey(q, 1)
     if (key in map) continue
     try {
-      const result = await cmsService.listRecords(q.key, {
-        pageSize: q.pageSize,
-        page: 1,
-        status: 'PUBLISHED',
-        sortField: q.sortField,
-        sortDir: q.sortDir,
-        filterField: q.filterField || undefined,
-        filterValue: q.filterValue || undefined,
-      })
+      const result = await cmsService.listRecords(
+        q.key,
+        {
+          pageSize: q.pageSize,
+          page: 1,
+          status: 'PUBLISHED',
+          sortField: q.sortField,
+          sortDir: q.sortDir,
+          filterField: q.filterField || undefined,
+          filterValue: q.filterValue || undefined,
+        },
+        // SSR/SSG preload mirrors the public endpoint: relation labels, not ids.
+        { resolveRelations: true }
+      )
       map[key] = result.items
     } catch {
       map[key] = []

@@ -15,6 +15,18 @@ const webSettingsService = new WebSettingsService()
 
 export const SSG_CACHE = 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400'
 
+/**
+ * Placeholder that stands in for the CSP nonce inside a stored SSG snapshot.
+ *
+ * A snapshot is rendered once with that request's nonce and re-served verbatim on
+ * later requests — but Shield sets a FRESH nonce in each response's CSP header, so
+ * a baked-in nonce would never match and every nonced `<style>`/`<script>` would be
+ * dropped. So the render-time nonce is rewritten to this sentinel before caching,
+ * and `PagesPublicController` swaps the sentinel back to the current request's nonce
+ * when it serves the snapshot — keeping the HTML in lockstep with the live header.
+ */
+export const CSP_NONCE_SENTINEL = '__CSP_NONCE__'
+
 export interface RenderPageOptions {
   /** Admin preview: always fresh, never cached, any status. */
   preview?: boolean
@@ -276,7 +288,12 @@ export default class PageRenderer {
       !isInertiaVisit &&
       typeof result === 'string'
     ) {
-      await pagesService.cacheRenderedHtml(page.id, result)
+      // Freeze the nonce as a sentinel so the snapshot can be re-nonced per request
+      // on serve (see `CSP_NONCE_SENTINEL`). This request still gets `result` with
+      // its real nonce, which matches the header Shield already set for it.
+      const nonce = response.nonce
+      const snapshot = nonce ? result.replaceAll(nonce, CSP_NONCE_SENTINEL) : result
+      await pagesService.cacheRenderedHtml(page.id, snapshot)
     }
 
     return result

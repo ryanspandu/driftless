@@ -15,17 +15,22 @@ export default class PublicCmsController {
     const page = qs.page !== undefined && qs.page !== '' ? Math.max(Number(qs.page) || 1, 1) : 1
 
     try {
-      const result = await cmsService.listRecords(params.key, {
-        pageSize,
-        page,
-        status: 'PUBLISHED',
-        // Server-side shaping for CollectionList (all optional).
-        filterField: typeof qs.filterField === 'string' ? qs.filterField : undefined,
-        filterValue: typeof qs.filterValue === 'string' ? qs.filterValue : undefined,
-        sortField: typeof qs.sortField === 'string' ? qs.sortField : undefined,
-        sortDir: qs.sortDir === 'asc' ? 'asc' : qs.sortDir === 'desc' ? 'desc' : undefined,
-        search: typeof qs.search === 'string' ? qs.search : undefined,
-      })
+      const result = await cmsService.listRecords(
+        params.key,
+        {
+          pageSize,
+          page,
+          status: 'PUBLISHED',
+          // Server-side shaping for CollectionList (all optional).
+          filterField: typeof qs.filterField === 'string' ? qs.filterField : undefined,
+          filterValue: typeof qs.filterValue === 'string' ? qs.filterValue : undefined,
+          sortField: typeof qs.sortField === 'string' ? qs.sortField : undefined,
+          sortDir: qs.sortDir === 'asc' ? 'asc' : qs.sortDir === 'desc' ? 'desc' : undefined,
+          search: typeof qs.search === 'string' ? qs.search : undefined,
+        },
+        // Public render path: show related records' labels, not raw ids.
+        { resolveRelations: true }
+      )
       return response.json({
         items: result.items,
         total: result.total,
@@ -40,7 +45,7 @@ export default class PublicCmsController {
 
   async record({ params, response }: HttpContext) {
     try {
-      const record = await cmsService.findRecord(params.key, params.id)
+      const record = await cmsService.findRecord(params.key, params.id, { resolveRelations: true })
       if (record.status !== 'PUBLISHED') {
         return response.notFound({ message: 'Record not found' })
       }

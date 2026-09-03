@@ -1,7 +1,7 @@
 import { Exception } from '@adonisjs/core/exceptions'
 import type { HttpContext } from '@adonisjs/core/http'
 import Page from '#models/page'
-import PageRenderer, { SSG_CACHE } from '#services/page_renderer'
+import PageRenderer, { SSG_CACHE, CSP_NONCE_SENTINEL } from '#services/page_renderer'
 import { currentBuildId } from '#services/release'
 import { allReservedSegments } from '#modules/registry'
 import { mediaUrlSegment } from '#services/media_url'
@@ -113,8 +113,14 @@ export default class PagesPublicController {
       page.renderedHtml.length > 0 &&
       page.renderedBuild === currentBuildId()
     ) {
+      // Re-nonce the frozen snapshot to this request's nonce so its `<style>`/
+      // `<script>` elements match the fresh CSP header Shield set for this response.
+      const nonce = response.nonce
+      const html = nonce
+        ? page.renderedHtml.replaceAll(CSP_NONCE_SENTINEL, nonce)
+        : page.renderedHtml
       response.header('Cache-Control', SSG_CACHE)
-      return response.header('Content-Type', 'text/html; charset=utf-8').send(page.renderedHtml)
+      return response.header('Content-Type', 'text/html; charset=utf-8').send(html)
     }
 
     return this.composeAndRender(page, ctx, false)
