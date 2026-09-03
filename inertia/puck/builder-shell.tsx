@@ -763,26 +763,29 @@ export function BuilderShell({
                   <div className="min-h-0 flex-1 overflow-y-auto">
                     {leftTab === 'components' ? (
                       <div className="p-3">
-                        <div className="relative mb-3">
-                          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                          <input
-                            type="text"
-                            value={componentQuery}
-                            onChange={(e) => setComponentQuery(e.target.value)}
-                            placeholder="Search components…"
-                            aria-label="Search components"
-                            className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-8 text-sm outline-none focus:ring-1 focus:ring-ring"
-                          />
-                          {componentQuery ? (
-                            <button
-                              type="button"
-                              onClick={() => setComponentQuery('')}
-                              aria-label="Clear search"
-                              className="absolute right-1.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                            >
-                              <X className="size-3.5" />
-                            </button>
-                          ) : null}
+                        {/* Search stays pinned to the top while the component list scrolls. */}
+                        <div className="sticky top-0 z-10 -mt-3 bg-background pb-3 pt-3">
+                          <div className="relative">
+                            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <input
+                              type="text"
+                              value={componentQuery}
+                              onChange={(e) => setComponentQuery(e.target.value)}
+                              placeholder="Search components…"
+                              aria-label="Search components"
+                              className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-8 text-sm outline-none focus:ring-1 focus:ring-ring"
+                            />
+                            {componentQuery ? (
+                              <button
+                                type="button"
+                                onClick={() => setComponentQuery('')}
+                                aria-label="Clear search"
+                                className="absolute right-1.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                              >
+                                <X className="size-3.5" />
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                         <div ref={componentsRef}>
                           <Puck.Components />
