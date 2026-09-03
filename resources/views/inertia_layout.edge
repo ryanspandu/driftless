@@ -3,6 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {{-- Exposes the per-request CSP nonce to client JS (react-select's emotion
+        cache reads it so its injected <style> elements are not blocked). --}}
+    <meta name="csp-nonce" content="{{ cspNonce ?? '' }}" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/logo.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/logo.svg" />

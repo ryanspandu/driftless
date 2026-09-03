@@ -839,3 +839,34 @@ html.dark [class*='_Button_']:not([class*='--secondary']) {
     grid-template-columns: 1fr;
   }
 }
+
+/*
+ * CSP fallback for react-select's screen-reader live region.
+ *
+ * react-select hides its <A11yText> announcer spans with an emotion-injected
+ * <style>. The nonced emotion cache (app-select.tsx) makes that <style> pass the
+ * production CSP, but this self-hosted rule (served from 'self', never CSP-blocked)
+ * re-applies the visually-hidden box as belt-and-suspenders, so the announcer
+ * text ("… results available. Use Up and Down to choose options …") can never
+ * render visibly in the panel even if the nonce path ever fails.
+ *
+ * Three redundant, react-select-specific hooks: (1) emotion bakes the label
+ * "a11yText" into the class (e.g. "rs-7pg0cj-a11yText"), surviving hash changes;
+ * (2) the live "log" span; (3) the initial-focus span whose id ends "-live-region".
+ * The combobox input (id "…-input"), menu (id "…-listbox") and options carry none
+ * of these, so no user-facing content is hidden.
+ */
+span[class*='a11yText'],
+span[role='log'][aria-live][aria-relevant='additions text'],
+span[id$='-live-region'] {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}

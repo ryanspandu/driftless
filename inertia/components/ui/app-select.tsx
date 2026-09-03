@@ -4,7 +4,34 @@ import ReactSelect, {
   type Props as ReactSelectProps,
   type SingleValue,
 } from 'react-select'
+import createCache from '@emotion/cache'
+import { CacheProvider } from '@emotion/react'
 import { cn } from '~/lib/utils'
+
+/**
+ * react-select styles a few internals with emotion (notably the visually-hidden
+ * screen-reader live region), injecting `<style>` elements at runtime. Under the
+ * production CSP (`style-src 'self' 'nonce-…'`) an un-nonced `<style>` is dropped
+ * by the browser — which left the a11y announcer text visible in the builder
+ * panel and spammed the console with style-src violations. Read the per-request
+ * nonce once from the document meta tag (emitted in `inertia_layout.edge`; it is
+ * stable for the loaded document's whole SPA lifetime — Inertia navigations swap
+ * components without a new document) and hand every react-select emotion sheet a
+ * single shared, nonced cache. `key: 'rs'` isolates these sheets from any other
+ * emotion usage. Guarded for SSR, where there is no `document`.
+ */
+const rsEmotionCache = createCache({
+  key: 'rs',
+  nonce:
+    typeof document !== 'undefined'
+      ? (document.querySelector('meta[name="csp-nonce"]')?.getAttribute('content') ?? undefined)
+      : undefined,
+})
+
+/** Wrap react-select so its emotion `<style>` injections carry the CSP nonce. */
+export function RsCacheProvider({ children }: { children: ReactNode }) {
+  return <CacheProvider value={rsEmotionCache}>{children}</CacheProvider>
+}
 
 export type AppSelectOption = {
   value: string
@@ -101,7 +128,11 @@ export function AppSelect({
     ...selectPresentation<false>({ size, invalid, className, controlClassName }),
   }
 
-  return <ReactSelect<AppSelectOption, false> {...common} />
+  return (
+    <RsCacheProvider>
+      <ReactSelect<AppSelectOption, false> {...common} />
+    </RsCacheProvider>
+  )
 }
 
 const MENU_CLASS_PREFIX = 'app-select'

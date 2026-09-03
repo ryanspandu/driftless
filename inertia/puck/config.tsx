@@ -1838,8 +1838,21 @@ const baseConfig: Config = {
  * First-party blocks written for this project fold in the same way from
  * `inertia/custom/blocks/`, after modules so neither can shadow the other.
  */
-export const puckConfig: Config = withCustomBlocks(withModuleBlocks(baseConfig))
-
+/**
+ * The full config — core blocks plus module and custom contributions — resolved
+ * on first read rather than at import.
+ *
+ * The module blocks are collected by an eager `import.meta.glob`, and a module's
+ * block file can reach back here (ecommerce: blocks → storefront layout →
+ * public-page-frame → this config). That is a legitimate cycle in ESM, but
+ * when Rollup folds the cycle into one SSR chunk it may place this module's
+ * body before the module that declares the contributed `blocks`; calling
+ * `withModuleBlocks()` here at module evaluation then throws "Cannot access
+ * 'blocks' before initialization" — on the production build only, since the
+ * dev server evaluates modules separately. Reading through getters defers the
+ * merge to render time, when every module has long finished initialising.
+ * The merged pieces are memoised, so `puckConfig.components` keeps one identity.
+ */
 // Lock support: a `_locked` layer (toggled from the Layers panel) freezes its
 // drag / delete / duplicate / edit affordances. Puck only exposes permissions
 // per component, so attach the same resolver to every block. Unlocking always
@@ -1849,7 +1862,31 @@ const lockedPermissions = { drag: false, duplicate: false, delete: false, edit: 
 function resolveLockPermissions(data: { props?: Record<string, unknown> }) {
   return data?.props?._locked ? lockedPermissions : {}
 }
-for (const component of Object.values(puckConfig.components)) {
-  ;(component as { resolvePermissions?: typeof resolveLockPermissions }).resolvePermissions =
-    resolveLockPermissions
+
+let resolvedConfig: Config | undefined
+function fullConfig(): Config {
+  if (!resolvedConfig) {
+    const merged = withCustomBlocks(withModuleBlocks(baseConfig))
+    // Attach the lock resolver here, not at import: this loop reads the merged
+    // component set, and doing it eagerly would force the merge below to run
+    // while this module is still initialising — see the cycle note above.
+    for (const component of Object.values(merged.components ?? {})) {
+      ;(component as { resolvePermissions?: typeof resolveLockPermissions }).resolvePermissions =
+        resolveLockPermissions
+    }
+    resolvedConfig = merged
+  }
+  return resolvedConfig
+}
+
+export const puckConfig: Config = {
+  get root() {
+    return fullConfig().root
+  },
+  get categories() {
+    return fullConfig().categories
+  },
+  get components() {
+    return fullConfig().components
+  },
 }

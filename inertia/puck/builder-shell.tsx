@@ -208,6 +208,16 @@ export function BuilderShell({
     let raf = 0
     const observer = new MutationObserver(() => {
       if (raf) return
+      // Never re-filter mid-drag. Dragging a component from the drawer makes
+      // dnd-kit mutate the drawer, which fires this observer; re-applying the
+      // per-cell `display` toggles on every frame perturbs dnd-kit's cached
+      // measurements and can abort the drag — which is why a searched-for block
+      // (buried in a category, reached by typing, so the observer is live)
+      // could not be dropped while top-of-drawer blocks (no search) dragged
+      // fine. Puck sets `data-puck-dragging` on `[data-puck-entry]` for the
+      // duration of a drag, and re-renders the drawer on drop, which re-fires
+      // this observer with the flag gone and restores the filter.
+      if (document.querySelector('[data-puck-dragging]')) return
       raf = requestAnimationFrame(() => {
         raf = 0
         filterComponentDrawer(root, componentQuery)

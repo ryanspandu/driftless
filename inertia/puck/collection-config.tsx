@@ -37,4 +37,23 @@ function withoutExcluded(config: Config): Config {
   return { ...config, components, categories }
 }
 
-export const collectionPuckConfig: Config = withoutExcluded(puckConfig)
+// Resolved on first read, for the same reason `puckConfig` itself is (see
+// config.tsx): reading `puckConfig.components` at import time would pull the
+// module blocks in before their modules may have initialised.
+let resolved: Config | undefined
+function collectionConfig(): Config {
+  resolved ??= withoutExcluded(puckConfig)
+  return resolved
+}
+
+export const collectionPuckConfig: Config = {
+  get root() {
+    return collectionConfig().root
+  },
+  get categories() {
+    return collectionConfig().categories
+  },
+  get components() {
+    return collectionConfig().components
+  },
+}

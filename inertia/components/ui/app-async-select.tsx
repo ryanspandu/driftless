@@ -1,6 +1,6 @@
 import AsyncSelect from 'react-select/async'
 import type { GroupBase } from 'react-select'
-import { selectPresentation, type AppSelectOption } from './app-select'
+import { selectPresentation, RsCacheProvider, type AppSelectOption } from './app-select'
 
 /**
  * Async, server-searched variant of {@link AppSelect} — same look, but options
@@ -23,18 +23,20 @@ export function AppAsyncSelect({
   noOptionsMessage?: string
 }) {
   return (
-    <AsyncSelect<AppSelectOption, false, GroupBase<AppSelectOption>>
-      cacheOptions
-      defaultOptions
-      value={value}
-      onChange={(opt) => onChange(opt ?? null)}
-      loadOptions={loadOptions}
-      placeholder={placeholder}
-      isDisabled={disabled}
-      isClearable
-      loadingMessage={() => 'Searching…'}
-      noOptionsMessage={() => noOptionsMessage ?? 'No matches'}
-      {...selectPresentation<false>({})}
-    />
+    <RsCacheProvider>
+      <AsyncSelect<AppSelectOption, false, GroupBase<AppSelectOption>>
+        cacheOptions
+        defaultOptions
+        value={value}
+        onChange={(opt) => onChange(opt ?? null)}
+        loadOptions={loadOptions}
+        placeholder={placeholder}
+        isDisabled={disabled}
+        isClearable
+        loadingMessage={() => 'Searching…'}
+        noOptionsMessage={() => noOptionsMessage ?? 'No matches'}
+        {...selectPresentation<false>({})}
+      />
+    </RsCacheProvider>
   )
 }

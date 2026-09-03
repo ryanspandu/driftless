@@ -131,11 +131,29 @@ const CORE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
  *  the same glyphs. Module blocks (`module-blocks.ts`) and first-party custom
  *  blocks (`custom-blocks.ts`) bring their own; core wins on a name collision.
  *  Anything not listed falls back to `Square`. */
-export const ICONS: Record<string, ComponentType<{ className?: string }>> = {
-  ...moduleBlockIcons(),
-  ...customBlockIcons(),
-  ...CORE_ICONS,
+type IconMap = Record<string, ComponentType<{ className?: string }>>
+
+/**
+ * Merged on first lookup, not at import. A module's block file can sit in an
+ * import cycle with the Puck config (see the note on `puckConfig` in
+ * config.tsx); reading its icons while this module evaluates would throw in
+ * the production SSR chunk if Rollup ordered that file after this one.
+ */
+let mergedIcons: IconMap | undefined
+function allIcons(): IconMap {
+  mergedIcons ??= { ...moduleBlockIcons(), ...customBlockIcons(), ...CORE_ICONS }
+  return mergedIcons
 }
+
+export const ICONS: IconMap = new Proxy({} as IconMap, {
+  get: (_target, key) => (typeof key === 'string' ? allIcons()[key] : undefined),
+  has: (_target, key) => typeof key === 'string' && key in allIcons(),
+  ownKeys: () => Reflect.ownKeys(allIcons()),
+  getOwnPropertyDescriptor: (_target, key) => {
+    const descriptor = Object.getOwnPropertyDescriptor(allIcons(), key)
+    return descriptor ? { ...descriptor, configurable: true } : undefined
+  },
+})
 
 /** Legacy friendlier labels (the drawer + tree now prefer the config `label`). */
 export const LABELS: Record<string, string> = {

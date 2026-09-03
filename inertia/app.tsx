@@ -12,6 +12,23 @@ import { LayoutShell } from '~/components/layout-shell'
 
 const appName = import.meta.env.VITE_APP_NAME || 'Driftless'
 
+/**
+ * A CSS chunk that fails to preload must never blank the page.
+ *
+ * Vite preloads a code-split route's CSS by injecting a `<link>` and rejects
+ * the whole dynamic `import()` if that link errors — which, for a route like
+ * the page builder, takes the entire page down to a white screen. The CSS a
+ * component needs is a progressive enhancement, not a load-bearing dependency:
+ * swallow the preload error for CSS so the route's JavaScript still mounts.
+ * (JS chunk failures are left to surface — they are a real integrity problem,
+ * and `verify-build` guards against them.) See the CSS `@import` note in
+ * `vite.config.ts` for the specific failure this was first hit on.
+ */
+window.addEventListener('vite:preloadError', (event) => {
+  const message = String((event as Event & { payload?: Error }).payload?.message ?? '')
+  if (message.includes('Unable to preload CSS')) event.preventDefault()
+})
+
 createInertiaApp({
   title: (title) => (title ? `${title} - ${appName}` : appName),
   resolve: async (name) => {

@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/inertia'
 
 const inertiaConfig = defineConfig({
@@ -26,6 +27,19 @@ const inertiaConfig = defineConfig({
      * Entry file used by the SSR server build.
      */
     entrypoint: 'inertia/ssr.tsx',
+
+    /**
+     * The compiled SSR bundle, imported at render time in production.
+     *
+     * Absolute on purpose. `@adonisjs/inertia` defaults this to the relative
+     * `ssr/ssr.js` and imports it via `pathToFileURL(bundle)`, i.e. relative to
+     * the *working directory*. `npm start` runs `node current/bin/server.js`
+     * from the repo root, where there is no `ssr/` (the build lives under
+     * `releases/…`), so every SSR page 500'd with "Cannot find module …/ssr/ssr.js"
+     * unless the process was started from inside the release. Same fix as the
+     * Vite manifest path in `config/vite.ts`.
+     */
+    bundle: app.makePath('ssr/ssr.js'),
   },
 })
 
