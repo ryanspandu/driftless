@@ -16,7 +16,7 @@ interface SiteTheme {
   fontCustomName: string
   primaryColor: string
   secondaryColor: string
-  accentColor: string
+  savedColors: { slug: string; name: string; value: string }[]
 }
 
 /** Guess the CSS `format(...)` for an uploaded font URL (best-effort). */
@@ -35,13 +35,15 @@ function fontFormat(url: string): string {
  * on public surfaces — never on admin or auth pages.
  */
 function SiteThemeStyle() {
-  const theme = (usePage().props as { siteTheme?: SiteTheme }).siteTheme
+  const props = usePage().props as { siteTheme?: SiteTheme; cspNonce?: string }
+  const theme = props.siteTheme
   if (!theme) return null
 
   const decls: string[] = []
   if (theme.primaryColor) decls.push(`--primary:${theme.primaryColor}`)
   if (theme.secondaryColor) decls.push(`--secondary:${theme.secondaryColor}`)
-  if (theme.accentColor) decls.push(`--accent:${theme.accentColor}`)
+  // User-named colour variables, usable in blocks as `var(--color-<slug>)`.
+  for (const c of theme.savedColors ?? []) decls.push(`--color-${c.slug}:${c.value}`)
   if (theme.fontFamily) decls.push(`font-family:'${theme.fontFamily}',var(--font-sans)`)
 
   // The uploaded custom font is declared via @font-face (keyed by its name);
@@ -59,7 +61,7 @@ function SiteThemeStyle() {
   return (
     <>
       {theme.fontCssUrl && !customActive ? <link rel="stylesheet" href={theme.fontCssUrl} /> : null}
-      {css ? <style dangerouslySetInnerHTML={{ __html: css }} /> : null}
+      {css ? <style nonce={props.cspNonce} dangerouslySetInnerHTML={{ __html: css }} /> : null}
     </>
   )
 }

@@ -104,7 +104,7 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
     font_custom_name: '', // display name of the uploaded custom font
     primary_color: '', // e.g. '#5225e6'; '' = app.css default
     secondary_color: '',
-    accent_color: '',
+    saved_colors: '[]', // user-named colour variables (JSON [{slug,name,value}])
   },
 
   /**
@@ -286,17 +286,57 @@ export interface PublicTheme {
   fontCustomName: string
   primaryColor: string
   secondaryColor: string
-  accentColor: string
+  /** User-named colour variables, emitted as `--color-<slug>` on public pages. */
+  savedColors: SavedColor[]
 }
 
-/** A CSS colour we are willing to inject: hex, or a short safe keyword/rgb(). */
+/** A CSS colour we are willing to inject: hex, a short safe keyword, or rgb()/rgba(). */
 function safeColor(value: string | undefined): string {
   const v = (value ?? '').trim()
   if (!v) return ''
   if (/^#[0-9a-fA-F]{3,8}$/.test(v)) return v
-  if (/^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/.test(v)) return v
+  if (/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+)\s*)?\)$/.test(v))
+    return v
   if (/^[a-zA-Z]{3,20}$/.test(v)) return v // a colour keyword like "rebeccapurple"
   return ''
+}
+
+/** A saved, named colour variable — emitted as `--color-<slug>` on public pages. */
+export type SavedColor = { slug: string; name: string; value: string }
+
+/**
+ * Parse + sanitise the stored `theme.saved_colors` JSON into a trustworthy list:
+ * a valid slug (`--color-<slug>` must be a safe identifier), a short display name,
+ * and an injectable colour. Invalid entries and duplicate slugs are dropped — this
+ * list becomes generated CSS custom properties, so it has to be clean.
+ */
+function sanitizeSavedColors(raw: unknown): SavedColor[] {
+  let list: unknown = raw
+  if (typeof raw === 'string') {
+    if (!raw.trim()) return []
+    try {
+      list = JSON.parse(raw)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(list)) return []
+
+  const seen = new Set<string>()
+  const out: SavedColor[] = []
+  for (const item of list) {
+    if (!item || typeof item !== 'object') continue
+    const o = item as Record<string, unknown>
+    const slug = typeof o.slug === 'string' ? o.slug.trim().toLowerCase() : ''
+    if (!/^[a-z0-9-]{1,40}$/.test(slug) || seen.has(slug)) continue
+    const value = safeColor(typeof o.value === 'string' ? o.value : '')
+    if (!value) continue
+    const rawName = typeof o.name === 'string' ? o.name.trim().slice(0, 40) : ''
+    seen.add(slug)
+    out.push({ slug, name: rawName || slug, value })
+    if (out.length >= 48) break
+  }
+  return out
 }
 
 /** A font-family name safe to drop into a CSS declaration. */
@@ -432,7 +472,7 @@ export class WebSettingsService {
       fontCustomName: safeFontFamily(t['font_custom_name']),
       primaryColor: safeColor(t['primary_color']),
       secondaryColor: safeColor(t['secondary_color']),
-      accentColor: safeColor(t['accent_color']),
+      savedColors: sanitizeSavedColors(t['saved_colors']),
     }
   }
 

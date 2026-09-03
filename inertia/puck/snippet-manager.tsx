@@ -21,7 +21,8 @@ export function SnippetManager({
 }: {
   snippets: CodeSnippet[]
   onChange: (next: CodeSnippet[]) => void
-  title: string
+  /** Omit when the surrounding chrome (e.g. the settings dialog header) shows it. */
+  title?: string
   description: ReactNode
 }) {
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -62,7 +63,10 @@ export function SnippetManager({
           />
           <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
             Enabled
-            <Switch checked={editing.enabled} onCheckedChange={(v) => patch(editing.id, { enabled: v })} />
+            <Switch
+              checked={editing.enabled}
+              onCheckedChange={(v) => patch(editing.id, { enabled: v })}
+            />
           </label>
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-3">
@@ -79,9 +83,9 @@ export function SnippetManager({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="shrink-0 border-b p-4 pr-12">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      <div className="shrink-0 border-b p-4">
+        {title ? <h3 className="text-sm font-semibold">{title}</h3> : null}
+        <p className={cn('text-sm text-muted-foreground', title && 'mt-1')}>{description}</p>
         <div className="mt-3 flex gap-2">
           <Button size="sm" variant="outline" className="gap-1.5" onClick={() => add('css')}>
             <Plus className="size-4" /> Add CSS
@@ -96,7 +100,9 @@ export function SnippetManager({
         {snippets.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
             <Code2 className="size-6 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">No snippets yet. Add CSS or JS to get started.</p>
+            <p className="text-sm text-muted-foreground">
+              No snippets yet. Add CSS or JS to get started.
+            </p>
           </div>
         ) : (
           <ul className="space-y-1.5">
@@ -112,11 +118,21 @@ export function SnippetManager({
                   className="flex min-w-0 flex-1 items-center gap-2 text-left"
                 >
                   <LangBadge lang={s.lang} />
-                  <span className={cn('truncate text-sm', !s.enabled && 'text-muted-foreground line-through')}>
+                  <span
+                    className={cn(
+                      'truncate text-sm',
+                      !s.enabled && 'text-muted-foreground line-through'
+                    )}
+                  >
                     {s.name || (s.lang === 'css' ? 'Untitled CSS' : 'Untitled script')}
                   </span>
                 </button>
-                <Button variant="ghost" size="sm" className="h-7" onClick={() => setEditingId(s.id)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7"
+                  onClick={() => setEditingId(s.id)}
+                >
                   Edit
                 </Button>
                 <Button

@@ -1,4 +1,5 @@
 import {
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -6,10 +7,13 @@ import {
   type InputHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react'
-import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react'
+import { AlignCenter, AlignLeft, AlignRight, Plus } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '~/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
+import { useUpdateWebsiteSettings } from '~/hooks/api/use-website-settings'
 import { ColorPicker } from './color-picker'
+import { SavedColorsContext, savedColorRef, slugifyColorName } from './saved-colors'
 
 /**
  * Webflow-style visual controls for the builder's Detail panel, wired into the
@@ -301,23 +305,72 @@ export function SegmentedControl({
 // ───────────────────────────── Colour (swatch) ─────────────────────────────
 
 /**
- * Theme swatches. These insert a CSS variable reference, not a fixed hex — so a
- * block coloured "Primary" follows whatever the operator sets in Website
- * Settings → Appearance (and the light/dark scope) instead of freezing a value.
- * Plain hex/keywords stay available in the text field + native picker.
+ * Default colour "variables" — a CSS variable reference, not a fixed hex, so a
+ * block coloured "Primary" follows whatever the operator sets in Appearance. Kept
+ * deliberately to just Primary + Secondary; the operator's own saved colours fill
+ * in the rest (see `SavedColorsContext`).
  */
-const THEME_SWATCHES: { label: string; value: string }[] = [
+const BASE_SWATCHES: { label: string; value: string }[] = [
   { label: 'Primary', value: 'var(--primary)' },
   { label: 'Secondary', value: 'var(--secondary)' },
-  { label: 'Accent', value: 'var(--accent)' },
-  { label: 'Text', value: 'var(--foreground)' },
-  { label: 'Muted', value: 'var(--muted-foreground)' },
-  { label: 'Surface', value: 'var(--background)' },
-  { label: 'Border', value: 'var(--border)' },
+]
+
+/** Always-there quick utilities (not "variables"): white, black, transparent. */
+const UTILITY_SWATCHES: { label: string; value: string }[] = [
   { label: 'White', value: '#ffffff' },
   { label: 'Black', value: '#000000' },
   { label: 'None', value: 'transparent' },
 ]
+
+const checkerboard =
+  'bg-[length:8px_8px] bg-[position:0_0,4px_4px] bg-[linear-gradient(45deg,#bbb_25%,transparent_25%,transparent_75%,#bbb_75%),linear-gradient(45deg,#bbb_25%,transparent_25%,transparent_75%,#bbb_75%)]'
+
+/**
+ * The colour well + popover picker + hex field, without the swatch row — shared
+ * by `ColorControl` (which adds swatches) and the Appearance panel's plain colour
+ * inputs, so neither falls back to the native `<input type="color">`.
+ */
+export function ColorPickerInput({
+  value,
+  onChange,
+  className,
+}: {
+  value?: string
+  onChange: (value: string) => void
+  className?: string
+}) {
+  const v = value ?? ''
+  return (
+    <div className={cn('flex items-center gap-2', className)}>
+      <Popover>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              title="Pick a colour"
+              aria-label="Pick colour"
+              className={cn(
+                'size-7 shrink-0 cursor-pointer rounded-md border border-input',
+                (!v || v === 'transparent') && checkerboard
+              )}
+              style={v && v !== 'transparent' ? { background: v } : undefined}
+            />
+          }
+        />
+        <PopoverContent align="start" side="bottom" className="w-56 p-3">
+          <ColorPicker value={v} onChange={onChange} />
+        </PopoverContent>
+      </Popover>
+      <CommitInput
+        type="text"
+        value={v}
+        placeholder="—"
+        onCommit={onChange}
+        className={cn(inputCls, 'tabular-nums')}
+      />
+    </div>
+  )
+}
 
 export function ColorControl({
   value,
@@ -327,40 +380,19 @@ export function ColorControl({
   onChange: (value: string) => void
 }) {
   const v = value ?? ''
+  const saved = useContext(SavedColorsContext)
+  // `value` is what a click stores; `display` is what the swatch shows. For a
+  // saved colour they differ: store the live `var(--color-slug)`, show the hex.
+  const swatches: { label: string; value: string; display?: string }[] = [
+    ...BASE_SWATCHES,
+    ...saved.map((c) => ({ label: c.name, value: savedColorRef(c.slug), display: c.value })),
+    ...UTILITY_SWATCHES,
+  ]
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-2">
-        <Popover>
-          <PopoverTrigger
-            render={
-              <button
-                type="button"
-                title="Pick a colour"
-                aria-label="Pick colour"
-                className={cn(
-                  'size-7 shrink-0 cursor-pointer rounded-md border border-input',
-                  // Checkerboard when there's no concrete colour to show.
-                  (!v || v === 'transparent') &&
-                    'bg-[length:8px_8px] bg-[position:0_0,4px_4px] bg-[linear-gradient(45deg,#bbb_25%,transparent_25%,transparent_75%,#bbb_75%),linear-gradient(45deg,#bbb_25%,transparent_25%,transparent_75%,#bbb_75%)]'
-                )}
-                style={v && v !== 'transparent' ? { background: v } : undefined}
-              />
-            }
-          />
-          <PopoverContent align="start" side="bottom" className="w-56 p-3">
-            <ColorPicker value={v} onChange={onChange} />
-          </PopoverContent>
-        </Popover>
-        <CommitInput
-          type="text"
-          value={v}
-          placeholder="—"
-          onCommit={onChange}
-          className={cn(inputCls, 'tabular-nums')}
-        />
-      </div>
+      <ColorPickerInput value={v} onChange={onChange} />
       <div className="flex flex-wrap gap-1">
-        {THEME_SWATCHES.map((s) => (
+        {swatches.map((s) => (
           <button
             key={s.value}
             type="button"
@@ -369,14 +401,104 @@ export function ColorControl({
             className={cn(
               'size-5 rounded border transition-transform hover:scale-110',
               v === s.value ? 'border-ring ring-1 ring-ring' : 'border-input',
-              s.value === 'transparent' &&
-                'bg-[linear-gradient(45deg,#ccc_25%,transparent_25%,transparent_75%,#ccc_75%),linear-gradient(45deg,#ccc_25%,transparent_25%,transparent_75%,#ccc_75%)] bg-[length:8px_8px] bg-[position:0_0,4px_4px]'
+              s.value === 'transparent' && checkerboard
             )}
-            style={s.value === 'transparent' ? undefined : { background: s.value }}
+            style={s.value === 'transparent' ? undefined : { background: s.display ?? s.value }}
           />
         ))}
+        <AddSwatchPopover initial={v} onSaved={onChange} />
       </div>
     </div>
+  )
+}
+
+/**
+ * The "+" at the end of the swatch row: name the current colour and save it as a
+ * reusable site-wide swatch (Webflow-style), without leaving for the Appearance
+ * panel. Writes `theme.saved_colors`; the builder's `SavedColorsContext` refetches
+ * so the new swatch appears immediately, and the field is switched to it.
+ */
+function AddSwatchPopover({
+  initial,
+  onSaved,
+}: {
+  initial: string
+  onSaved: (value: string) => void
+}) {
+  const saved = useContext(SavedColorsContext)
+  const update = useUpdateWebsiteSettings()
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [color, setColor] = useState('#000000')
+
+  // Seed the picker from the field's current colour (when concrete) as the popover
+  // opens — done in the open handler, not an effect, to avoid a cascading render.
+  const onOpenChange = (next: boolean) => {
+    if (next) {
+      setName('')
+      const concrete = initial && initial !== 'transparent' && !initial.startsWith('var(')
+      setColor(concrete ? initial : '#000000')
+    }
+    setOpen(next)
+  }
+
+  const save = () => {
+    const trimmed = name.trim()
+    if (!trimmed || !color) return
+    const used = new Set(saved.map((c) => c.slug))
+    const base = slugifyColorName(trimmed) || 'color'
+    let slug = base
+    let i = 2
+    while (used.has(slug)) slug = `${base}-${i++}`
+    const next = [...saved, { slug, name: trimmed, value: color }]
+    update.mutate(
+      { patches: [{ section: 'theme', key: 'saved_colors', value: JSON.stringify(next) }] },
+      {
+        onSuccess: () => {
+          onSaved(savedColorRef(slug))
+          setOpen(false)
+        },
+        onError: () => toast.error('Could not save colour'),
+      }
+    )
+  }
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            title="Save a colour"
+            aria-label="Save a colour"
+            className="flex size-5 items-center justify-center rounded border border-dashed border-input text-muted-foreground hover:border-ring hover:text-foreground"
+          />
+        }
+      >
+        <Plus className="size-3" />
+      </PopoverTrigger>
+      <PopoverContent align="start" side="bottom" className="w-56 space-y-2 p-3">
+        <p className="text-xs font-medium">Save colour</p>
+        <ColorPickerInput value={color} onChange={setColor} />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save()
+          }}
+          placeholder="Name (e.g. Brand)"
+          className={inputCls}
+        />
+        <button
+          type="button"
+          onClick={save}
+          disabled={!name.trim() || update.isPending}
+          className="w-full rounded-md bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {update.isPending ? 'Saving…' : 'Save colour'}
+        </button>
+      </PopoverContent>
+    </Popover>
   )
 }
 

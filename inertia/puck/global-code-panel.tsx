@@ -11,7 +11,14 @@ import { SnippetManager } from './snippet-manager'
  * by the builder Settings dialog ("Global code" section) and the `/admin/pages`
  * Global code dialog — both share the same data via `use-page-code`.
  */
-export function GlobalCodePanel({ onClose }: { onClose?: () => void }) {
+export function GlobalCodePanel({
+  onClose,
+  hideTitle = false,
+}: {
+  onClose?: () => void
+  /** Hide the internal title when a surrounding header already shows it. */
+  hideTitle?: boolean
+}) {
   const query = useGlobalCode()
   const updateMut = useUpdateGlobalCode()
   const server = query.data?.snippets
@@ -48,7 +55,7 @@ export function GlobalCodePanel({ onClose }: { onClose?: () => void }) {
           <SnippetManager
             snippets={snippets}
             onChange={setDraft}
-            title="Global code"
+            title={hideTitle ? undefined : 'Global code'}
             description={
               <>
                 Injected on <strong>every published page</strong> (site-wide). JS runs on live pages

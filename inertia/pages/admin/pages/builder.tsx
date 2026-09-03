@@ -18,6 +18,8 @@ import {
   useDiscardDraft,
 } from '~/hooks/api/use-pages'
 import { useBreakpoints, useUpdateBreakpoints } from '~/hooks/api/use-breakpoints'
+import { useWebsiteSettings } from '~/hooks/api/use-website-settings'
+import { parseSavedColors } from '~/puck/saved-colors'
 import { readBreakpoints, type Breakpoint } from '~/puck/breakpoints'
 import type { PageDto } from '~/types/api'
 import { buttonVariants } from '~/components/ui/button'
@@ -131,9 +133,18 @@ function BuilderInner({
   const discardMut = useDiscardDraft()
   const bpQuery = useBreakpoints()
   const updateBp = useUpdateBreakpoints()
+  const settingsQuery = useWebsiteSettings()
   // Site-wide tiers, normalised client-side (falls back to the standard set while
   // loading or if the read is not permitted).
   const breakpoints = readBreakpoints(bpQuery.data?.breakpoints)
+  // Site-wide appearance: saved colour variables (swatches + live canvas preview)
+  // and the operator's custom Primary/Secondary. Falls back to app.css while loading.
+  const themeSection = settingsQuery.data?.sections?.theme ?? {}
+  const savedColors = parseSavedColors(themeSection.saved_colors)
+  const themeColors = {
+    primary: themeSection.primary_color || undefined,
+    secondary: themeSection.secondary_color || undefined,
+  }
   const [historyOpen, setHistoryOpen] = useState(false)
   const [meta, setMeta] = useState<PageMeta>(() => ({
     title: page.title,
@@ -214,6 +225,7 @@ function BuilderInner({
         onPublish={save}
         onAutosave={autosave}
         hasDraft={Boolean(page.draftContent)}
+        draftSavedAt={page.draftUpdatedAt}
         onDiscardDraft={discardDraft}
         pageMeta={meta}
         onPageMetaChange={setMeta}
@@ -221,6 +233,8 @@ function BuilderInner({
         onBreakpointsChange={(next: Breakpoint[]) =>
           updateBp.mutate(next, { onError: () => toast.error('Could not save breakpoints') })
         }
+        savedColors={savedColors}
+        themeColors={themeColors}
         topbarStart={
           <>
             <Link

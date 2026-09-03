@@ -333,6 +333,19 @@ const SCROLL_ONCE_OPTIONS: SegmentedOption[] = [
   { value: 'replay', label: 'Replay' },
 ]
 
+/** When the animation fires: on scroll into view (default) or as the page loads. */
+const SCROLL_TRIGGER_OPTIONS: SegmentedOption[] = [
+  { value: 'scroll', label: 'On scroll' },
+  { value: 'load', label: 'On load' },
+]
+
+/** Scroll only: where in the viewport the element reveals. */
+const SCROLL_POSITION_OPTIONS: SegmentedOption[] = [
+  { value: 'top', label: 'Top' },
+  { value: 'center', label: 'Center' },
+  { value: 'bottom', label: 'Bottom' },
+]
+
 const SCROLL_SLIDE_PRESETS = ['fade-up', 'fade-down', 'fade-left', 'fade-right']
 
 const STYLE_KEYS = new Set([
@@ -560,40 +573,61 @@ function DetailPanelImpl({
 
   return (
     <div className="pb-10">
-      <div className="flex items-center gap-2 border-b px-3 py-2.5 text-sm font-semibold">
-        {Icon ? <Icon className="size-4 text-muted-foreground" /> : null}
-        <span className="min-w-0 flex-1 truncate">
-          {(config.components?.[type] as { label?: string } | undefined)?.label ??
-            LABELS[type] ??
-            type}
-        </span>
-        {!onBase && (
-          <span
-            className="shrink-0 rounded bg-builder-set-bg px-1.5 py-0.5 text-[11px] font-medium text-builder-set"
-            title={`Editing the ${breakpoints.find((b) => b.id === activeBp)?.label ?? activeBp} breakpoint. Style changes here apply to this width and narrower; class, ID and content stay shared.`}
-          >
-            {breakpoints.find((b) => b.id === activeBp)?.label ?? activeBp}
+      {/* Block name + tabs + state tabs stay pinned while the sections scroll. */}
+      <div className="sticky top-0 z-10 bg-background">
+        <div className="flex items-center gap-2 border-b px-3 py-2.5 text-sm font-semibold">
+          {Icon ? <Icon className="size-4 text-muted-foreground" /> : null}
+          <span className="min-w-0 flex-1 truncate">
+            {(config.components?.[type] as { label?: string } | undefined)?.label ??
+              LABELS[type] ??
+              type}
           </span>
-        )}
-      </div>
+          {!onBase && (
+            <span
+              className="shrink-0 rounded bg-builder-set-bg px-1.5 py-0.5 text-[11px] font-medium text-builder-set"
+              title={`Editing the ${breakpoints.find((b) => b.id === activeBp)?.label ?? activeBp} breakpoint. Style changes here apply to this width and narrower; class, ID and content stay shared.`}
+            >
+              {breakpoints.find((b) => b.id === activeBp)?.label ?? activeBp}
+            </span>
+          )}
+        </div>
 
-      {/* Content / Style / Settings tabs (Webflow-style split). */}
-      <div className="flex items-center gap-0.5 border-b px-2 py-1.5">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setPanelTab(t.id)}
-            className={cn(
-              'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
-              activeTab === t.id
-                ? 'bg-muted text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
+        {/* Content / Style / Settings tabs (Webflow-style split). */}
+        <div className="flex items-center gap-0.5 border-b px-2 py-1.5">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setPanelTab(t.id)}
+              className={cn(
+                'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
+                activeTab === t.id
+                  ? 'bg-muted text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'style' && hasStyle && onBase && (
+          <div className="border-b px-3 py-2.5">
+            <SegmentedControl
+              options={STATE_OPTIONS}
+              value={styleState}
+              allowClear={false}
+              onChange={(v) => setStyleState((v || 'base') as StyleState)}
+            />
+            {styleState !== 'base' && (
+              <p className="mt-1.5 text-[11px] leading-tight text-muted-foreground">
+                Styling the <span className="font-medium text-builder-set">{styleState}</span>{' '}
+                state. Only the properties you set here change on {styleState}; everything else
+                inherits from Base.
+              </p>
             )}
-          >
-            {t.label}
-          </button>
-        ))}
+          </div>
+        )}
       </div>
 
       {activeTab === 'content' && (
@@ -627,23 +661,6 @@ function DetailPanelImpl({
       {activeTab === 'style' &&
         (hasStyle ? (
           <>
-            {onBase && (
-              <div className="border-b px-3 py-2.5">
-                <SegmentedControl
-                  options={STATE_OPTIONS}
-                  value={styleState}
-                  allowClear={false}
-                  onChange={(v) => setStyleState((v || 'base') as StyleState)}
-                />
-                {styleState !== 'base' && (
-                  <p className="mt-1.5 text-[11px] leading-tight text-muted-foreground">
-                    Styling the <span className="font-medium text-builder-set">{styleState}</span>{' '}
-                    state. Only the properties you set here change on {styleState}; everything else
-                    inherits from Base.
-                  </p>
-                )}
-              </div>
-            )}
             <FlexChildSection props={styleViewProps} update={styleUpdate} />
             <LayoutSection props={styleViewProps} update={styleUpdate} hasGap={'gap' in fields} />
             {hasSpacing && (
@@ -1004,29 +1021,29 @@ function EffectsSection({
           isSearchable={false}
         />
       </InlineRow>
-      <InlineRow label="Opacity" set={opacityRaw !== ''}>
-        <div className="flex items-center gap-2">
+      <StackField label="Opacity" set={opacityRaw !== ''}>
+        <div className="space-y-2">
           <input
             type="range"
             min={0}
             max={100}
             value={pct}
             onChange={(e) => setPct(Number(e.target.value))}
-            className="h-1.5 flex-1 cursor-pointer accent-builder-slider"
+            className="h-1.5 w-full cursor-pointer accent-builder-slider"
           />
-          <div className="flex h-7 items-center rounded-md border border-input bg-background px-1.5">
+          <div className="flex h-7 w-full items-center rounded-md border border-input bg-background px-2">
             <input
               type="number"
               min={0}
               max={100}
               value={pct}
               onChange={(e) => setPct(Number(e.target.value))}
-              className="w-10 bg-transparent text-right text-sm tabular-nums outline-none"
+              className="w-full bg-transparent text-sm tabular-nums outline-none"
             />
             <span className="text-xs text-muted-foreground">%</span>
           </div>
         </div>
-      </InlineRow>
+      </StackField>
       <InlineRow label="Cursor" set={!!get('cursor')}>
         <PanelSelect
           value={get('cursor')}
@@ -1087,6 +1104,8 @@ function InteractionsSection({
   const get = (k: string) => (typeof sa[k] === 'string' ? (sa[k] as string) : '')
   const type = get('type')
   const isSlide = SCROLL_SLIDE_PRESETS.includes(type)
+  const trigger = get('trigger') === 'load' ? 'load' : 'scroll'
+  const isScroll = trigger !== 'load'
 
   const setSA = (patch: Record<string, unknown>) => {
     const next = { ...sa, ...patch }
@@ -1108,6 +1127,16 @@ function InteractionsSection({
 
       {type ? (
         <>
+          {/* When it fires. Scroll (default) is stored as undefined to stay minimal. */}
+          <InlineRow label="Trigger" set={trigger === 'load'}>
+            <SegmentedControl
+              options={SCROLL_TRIGGER_OPTIONS}
+              value={trigger}
+              allowClear={false}
+              onChange={(v) => setSA({ trigger: v === 'load' ? 'load' : undefined })}
+            />
+          </InlineRow>
+
           <InlineRow label="Easing" set={!!get('easing')}>
             <PanelSelect
               value={get('easing')}
@@ -1135,24 +1164,40 @@ function InteractionsSection({
             </StackField>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {isSlide ? (
-              <StackField label="Distance" set={!!get('distance')}>
-                <NumberUnitControl
-                  value={get('distance')}
-                  onChange={(v) => setSA({ distance: v })}
-                  units={['px', 'rem', '%']}
-                />
-              </StackField>
-            ) : null}
-            <StackField label="Trigger" set={!!get('threshold')}>
-              <NumberUnitControl
-                value={get('threshold')}
-                onChange={(v) => setSA({ threshold: v })}
-                units={['%']}
+          {/* Where in the viewport it reveals — scroll trigger only. */}
+          {isScroll ? (
+            <InlineRow label="Position" set={!!get('position')}>
+              <SegmentedControl
+                options={SCROLL_POSITION_OPTIONS}
+                value={get('position') || 'bottom'}
+                allowClear={false}
+                onChange={(v) => setSA({ position: v === 'bottom' ? undefined : v })}
               />
-            </StackField>
-          </div>
+            </InlineRow>
+          ) : null}
+
+          {isSlide || isScroll ? (
+            <div className="grid grid-cols-2 gap-2">
+              {isSlide ? (
+                <StackField label="Distance" set={!!get('distance')}>
+                  <NumberUnitControl
+                    value={get('distance')}
+                    onChange={(v) => setSA({ distance: v })}
+                    units={['px', 'rem', '%']}
+                  />
+                </StackField>
+              ) : null}
+              {isScroll ? (
+                <StackField label="Amount" set={!!get('threshold')}>
+                  <NumberUnitControl
+                    value={get('threshold')}
+                    onChange={(v) => setSA({ threshold: v })}
+                    units={['%']}
+                  />
+                </StackField>
+              ) : null}
+            </div>
+          ) : null}
 
           <InlineRow label="Replay" set={sa.once === false}>
             <SegmentedControl

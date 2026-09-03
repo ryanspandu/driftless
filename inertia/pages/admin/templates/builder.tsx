@@ -16,6 +16,8 @@ import { CollectionScopeContext, RecordContext } from '~/puck/record-binding'
 import { collectionQuery, useRecords } from '~/puck/collection-list'
 import { useTemplate, useUpdateTemplate } from '~/hooks/api/use-templates'
 import { useBreakpoints, useUpdateBreakpoints } from '~/hooks/api/use-breakpoints'
+import { useWebsiteSettings } from '~/hooks/api/use-website-settings'
+import { parseSavedColors } from '~/puck/saved-colors'
 import { readBreakpoints, type Breakpoint } from '~/puck/breakpoints'
 import { buttonVariants } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
@@ -52,6 +54,13 @@ export default function TemplateBuilder({ id }: { id: string }) {
   const bpQuery = useBreakpoints()
   const updateBp = useUpdateBreakpoints()
   const breakpoints = readBreakpoints(bpQuery.data?.breakpoints)
+  const settingsQuery = useWebsiteSettings()
+  const themeSection = settingsQuery.data?.sections?.theme ?? {}
+  const savedColors = parseSavedColors(themeSection.saved_colors)
+  const themeColors = {
+    primary: themeSection.primary_color || undefined,
+    secondary: themeSection.secondary_color || undefined,
+  }
   const template = templateQuery.data
 
   /**
@@ -152,6 +161,8 @@ export default function TemplateBuilder({ id }: { id: string }) {
             : (next: Breakpoint[]) =>
                 updateBp.mutate(next, { onError: () => toast.error('Could not save breakpoints') })
         }
+        savedColors={savedColors}
+        themeColors={themeColors}
         topbarStart={
           <>
             <Link

@@ -37,6 +37,11 @@ export const SCROLL_ANIMATION_PRESETS = [
 
 export type ScrollAnimationPreset = (typeof SCROLL_ANIMATION_PRESETS)[number]
 
+/** When the entrance animation fires. Absent = 'scroll' (back-compat). */
+export type ScrollAnimationTrigger = 'scroll' | 'load'
+/** Where in the viewport a scroll-triggered element reveals. Absent = 'bottom'. */
+export type ScrollAnimationPosition = 'top' | 'center' | 'bottom'
+
 export interface ScrollAnimation {
   type?: '' | ScrollAnimationPreset
   duration?: string
@@ -45,6 +50,10 @@ export interface ScrollAnimation {
   distance?: string
   threshold?: string
   once?: boolean
+  /** 'scroll' (into view, default) or 'load' (as the page loads). */
+  trigger?: ScrollAnimationTrigger
+  /** Scroll only: viewport line the element must reach to reveal. */
+  position?: ScrollAnimationPosition
 }
 
 function isPreset(value: unknown): value is ScrollAnimationPreset {
@@ -90,6 +99,11 @@ export function scrollAnimationAttrs(
   if (typeof a.threshold === 'string' && a.threshold.trim()) {
     attrs['data-sa-threshold'] = a.threshold.trim()
   }
+  // Default trigger ('scroll') is omitted; only 'load' opts out of the observer.
+  if (a.trigger === 'load') attrs['data-sa-trigger'] = 'load'
+  if (a.position === 'top' || a.position === 'center' || a.position === 'bottom') {
+    attrs['data-sa-position'] = a.position
+  }
 
   // Inert custom properties consumed by the CSS transition/transform. Only
   // emitted when set; the CSS provides sensible fallbacks via `var(--sa-*, …)`.
@@ -111,6 +125,22 @@ function thresholdFraction(raw: string | undefined): number {
 }
 
 /**
+ * Viewport line the element must cross to reveal, as an IntersectionObserver
+ * `rootMargin` shrinking the root's bottom edge: `bottom` triggers as it enters
+ * from the bottom (early, the historical default), `center` at mid-viewport,
+ * `top` only once it nears the top (late).
+ */
+const POSITION_ROOT_MARGIN: Record<string, string> = {
+  top: '0px 0px -85% 0px',
+  center: '0px 0px -50% 0px',
+  bottom: '0px 0px -8% 0px',
+}
+
+function positionRootMargin(pos: string | undefined): string {
+  return POSITION_ROOT_MARGIN[pos ?? ''] ?? POSITION_ROOT_MARGIN.bottom!
+}
+
+/**
  * Wire up scroll reveals inside `root` (the public page's `.theme-light` div).
  * Returns a cleanup function. No-op (and leaves everything visible) when reduced
  * motion is requested or `IntersectionObserver` is unavailable.
@@ -118,7 +148,6 @@ function thresholdFraction(raw: string | undefined): number {
 export function initScrollAnimations(root: HTMLElement): () => void {
   if (typeof window === 'undefined') return () => {}
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return () => {}
-  if (!('IntersectionObserver' in window)) return () => {}
 
   const els = Array.from(root.querySelectorAll<HTMLElement>('[data-scroll-animation]'))
   if (els.length === 0) return () => {}
@@ -127,39 +156,64 @@ export function initScrollAnimations(root: HTMLElement): () => void {
   // rule apply opacity:0. Before this, and without JS, the elements are visible.
   root.classList.add('sa-active')
 
-  const reveal: IntersectionObserverCallback = (entries, observer) => {
-    for (const entry of entries) {
-      const el = entry.target as HTMLElement
-      if (entry.isIntersecting) {
-        el.classList.add('sa-in')
-        if (el.dataset.saOnce !== 'false') observer.unobserve(el)
-      } else if (el.dataset.saOnce === 'false') {
-        // Replay mode: re-hide when it leaves so it animates again next time.
-        el.classList.remove('sa-in')
+  // On-load reveals: no observer — reveal once the hidden state has painted, so
+  // the transition plays instead of snapping. Double rAF ensures that first paint.
+  const loadEls = els.filter((el) => el.dataset.saTrigger === 'load')
+  let raf1 = 0
+  let raf2 = 0
+  if (loadEls.length) {
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        for (const el of loadEls) el.classList.add('sa-in')
+      })
+    })
+  }
+
+  // On-scroll reveals via IntersectionObserver.
+  const scrollEls = els.filter((el) => el.dataset.saTrigger !== 'load')
+  const observers: IntersectionObserver[] = []
+  if (scrollEls.length) {
+    if (!('IntersectionObserver' in window)) {
+      // No observer support: reveal now rather than leave them stuck hidden.
+      for (const el of scrollEls) el.classList.add('sa-in')
+    } else {
+      const reveal: IntersectionObserverCallback = (entries, observer) => {
+        for (const entry of entries) {
+          const el = entry.target as HTMLElement
+          if (entry.isIntersecting) {
+            el.classList.add('sa-in')
+            if (el.dataset.saOnce !== 'false') observer.unobserve(el)
+          } else if (el.dataset.saOnce === 'false') {
+            // Replay mode: re-hide when it leaves so it animates again next time.
+            el.classList.remove('sa-in')
+          }
+        }
+      }
+
+      // One observer per distinct (threshold, viewport position) pair.
+      const groups = new Map<
+        string,
+        { threshold: number; rootMargin: string; els: HTMLElement[] }
+      >()
+      for (const el of scrollEls) {
+        const threshold = thresholdFraction(el.dataset.saThreshold)
+        const rootMargin = positionRootMargin(el.dataset.saPosition)
+        const key = `${threshold}|${rootMargin}`
+        const g = groups.get(key) ?? { threshold, rootMargin, els: [] }
+        g.els.push(el)
+        groups.set(key, g)
+      }
+      for (const { threshold, rootMargin, els: groupEls } of groups.values()) {
+        const observer = new IntersectionObserver(reveal, { threshold, rootMargin })
+        for (const el of groupEls) observer.observe(el)
+        observers.push(observer)
       }
     }
   }
 
-  // One observer per distinct threshold (usually just one for the whole page).
-  const groups = new Map<number, HTMLElement[]>()
-  for (const el of els) {
-    const t = thresholdFraction(el.dataset.saThreshold)
-    const arr = groups.get(t) ?? []
-    arr.push(el)
-    groups.set(t, arr)
-  }
-
-  const observers: IntersectionObserver[] = []
-  for (const [threshold, groupEls] of groups) {
-    const observer = new IntersectionObserver(reveal, {
-      threshold,
-      rootMargin: '0px 0px -8% 0px',
-    })
-    for (const el of groupEls) observer.observe(el)
-    observers.push(observer)
-  }
-
   return () => {
+    if (raf1) cancelAnimationFrame(raf1)
+    if (raf2) cancelAnimationFrame(raf2)
     for (const observer of observers) observer.disconnect()
     root.classList.remove('sa-active')
     for (const el of els) el.classList.remove('sa-in')

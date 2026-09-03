@@ -3,6 +3,7 @@ import { Trash, ArrowRight } from '@phosphor-icons/react'
 import { Card, CardContent } from '~/components/ui/card'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
+import { AppSelect } from '~/components/ui/app-select'
 import { Badge } from '~/components/ui/badge'
 import { apiErrorMessage } from '~/lib/api'
 import {
@@ -70,14 +71,16 @@ export default function RedirectsPage() {
             </label>
             <label className="space-y-1">
               <span className="text-xs text-muted-foreground">Type</span>
-              <select
-                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-                value={status}
-                onChange={(e) => setStatus(Number(e.target.value))}
-              >
-                <option value={301}>301 (permanent)</option>
-                <option value={302}>302 (temporary)</option>
-              </select>
+              <AppSelect
+                className="w-44"
+                value={String(status)}
+                onChange={(v) => setStatus(Number(v))}
+                options={[
+                  { value: '301', label: '301 (permanent)' },
+                  { value: '302', label: '302 (temporary)' },
+                ]}
+                isSearchable={false}
+              />
             </label>
             <Button type="submit" disabled={create.isPending}>
               {create.isPending ? 'Adding…' : 'Add'}

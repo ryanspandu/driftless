@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { Puck, createUsePuck, type Data } from '@measured/puck'
-import { router } from '@inertiajs/react'
+import { router, usePage } from '@inertiajs/react'
 import {
   Blocks,
   ChevronDown,
@@ -49,6 +49,7 @@ import {
   type Breakpoint,
   type StyleState,
 } from './breakpoints'
+import { SavedColorsContext, type SavedColor } from './saved-colors'
 
 /**
  * Selector-scoped Puck store hook. Every consumer here subscribes to a NARROW
@@ -154,11 +155,14 @@ export function BuilderShell({
   onPublish,
   onAutosave,
   hasDraft = false,
+  draftSavedAt,
   onDiscardDraft,
   pageMeta,
   onPageMetaChange,
   breakpoints = DEFAULT_BREAKPOINTS,
   onBreakpointsChange,
+  savedColors = [],
+  themeColors,
 }: {
   topbarStart?: ReactNode
   topbarEnd?: ReactNode
@@ -167,6 +171,8 @@ export function BuilderShell({
   onAutosave?: (data: Data, seo: Record<string, unknown>) => Promise<void>
   /** Whether a staged (unpublished) draft already exists for this page. */
   hasDraft?: boolean
+  /** ISO timestamp the existing draft was last saved (shown in the Publish menu). */
+  draftSavedAt?: string | null
   /** Discard the staged draft (the editor reloads onto the live design). */
   onDiscardDraft?: () => void | Promise<void>
   /** Page-level settings — omitted by the Templates builder. */
@@ -176,6 +182,10 @@ export function BuilderShell({
   breakpoints?: Breakpoint[]
   /** Persist an edited tier list (add/remove custom resolutions). */
   onBreakpointsChange?: (next: Breakpoint[]) => void
+  /** Site-wide saved colour variables — shown as swatches + previewed in canvas. */
+  savedColors?: SavedColor[]
+  /** The operator's custom Primary/Secondary, so the canvas previews them live. */
+  themeColors?: { primary?: string; secondary?: string }
 }) {
   // The document reference: replaced synchronously by the reducer on every
   // content edit, never touched by hover/selection (those are ui-only) — so this
@@ -253,6 +263,19 @@ export function BuilderShell({
   // Memoised so the canvas Boxes (context consumers) only re-render when the tier
   // or list actually changes — not on every unrelated shell render.
   const bpContext = useMemo(() => ({ breakpoints, activeBp }), [breakpoints, activeBp])
+
+  // The operator's live palette, injected into the `.theme-light` canvas so a block
+  // set to Primary or a saved colour previews the REAL colour (the public site's),
+  // not the app.css default the admin document otherwise resolves. Nonced because
+  // the admin runs under the strict prod CSP too. `savedColors` also feeds swatches.
+  const cspNonce = (usePage().props as { cspNonce?: string }).cspNonce
+  const paletteCss = useMemo(() => {
+    const decls: string[] = []
+    if (themeColors?.primary) decls.push(`--primary:${themeColors.primary}`)
+    if (themeColors?.secondary) decls.push(`--secondary:${themeColors.secondary}`)
+    for (const c of savedColors) decls.push(`--color-${c.slug}:${c.value}`)
+    return decls.length ? `.theme-light{${decls.join(';')}}` : ''
+  }, [themeColors, savedColors])
 
   // Which interaction state (Base/Hover/Focus/Active) the Style panel is editing.
   // Owned here (not in DetailPanel) so the canvas can preview it live: selecting a
@@ -391,7 +414,9 @@ export function BuilderShell({
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>(
     hasDraft ? 'saved' : 'idle'
   )
-  const [savedAt, setSavedAt] = useState<Date | null>(null)
+  // Seed from the existing draft's server timestamp so the "Draft saved" line shows
+  // when it was last saved even before this session autosaves anything.
+  const [savedAt, setSavedAt] = useState<Date | null>(draftSavedAt ? new Date(draftSavedAt) : null)
   const [publishMenuOpen, setPublishMenuOpen] = useState(false)
   const lastAutosaved = useRef<{ data: Data; meta: string } | null>(null)
   useEffect(() => {
@@ -462,348 +487,372 @@ export function BuilderShell({
     // Shares the active breakpoint + tier list with the Detail panel (edit target)
     // AND every Box in the canvas (preview flatten). The device switcher reads the
     // shell's own state directly, so it lives outside the value it drives.
-    <BreakpointContext.Provider value={bpContext}>
-      <StatePreviewContext.Provider value={statePreview}>
-        {/* `data-builder` scopes the brand focus ring to the editor chrome — see app.css. */}
-        <div data-builder className="flex h-screen flex-col">
-          <div className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3">
-            <div className="flex min-w-0 flex-1 items-center gap-2">{topbarStart}</div>
+    <SavedColorsContext.Provider value={savedColors}>
+      <BreakpointContext.Provider value={bpContext}>
+        <StatePreviewContext.Provider value={statePreview}>
+          {paletteCss ? (
+            <style nonce={cspNonce} dangerouslySetInnerHTML={{ __html: paletteCss }} />
+          ) : null}
+          {/* `data-builder` scopes the brand focus ring to the editor chrome — see app.css. */}
+          <div data-builder className="flex h-screen flex-col">
+            <div className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3">
+              <div className="flex min-w-0 flex-1 items-center gap-2">{topbarStart}</div>
 
-            {/* Device / canvas-size switcher (centered) */}
-            <TooltipProvider delay={250}>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <div className="flex items-center gap-0.5 rounded-md bg-muted p-0.5">
-                  {orderBreakpoints(breakpoints).map((bp) => {
-                    const Icon = iconForBreakpoint(bp)
-                    const active = bp.id === activeBp
-                    const label =
-                      bp.maxWidth === null ? `${bp.label} (full)` : `${bp.label} (${bp.maxWidth}px)`
-                    return (
-                      <Tooltip key={bp.id}>
-                        <TooltipTrigger
-                          type="button"
-                          aria-label={label}
-                          aria-pressed={active}
-                          onClick={() => selectBreakpoint(bp)}
-                          className={cn(
-                            'flex size-7 items-center justify-center rounded transition-colors',
-                            active
-                              ? 'bg-background text-foreground shadow-sm'
-                              : 'text-muted-foreground hover:text-foreground'
-                          )}
-                        >
-                          <Icon className="size-4" />
-                        </TooltipTrigger>
-                        <TooltipContent>{label}</TooltipContent>
-                      </Tooltip>
-                    )
-                  })}
-                </div>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min={1}
-                    value={canvasWidth ?? ''}
-                    placeholder="Auto"
-                    onChange={(e) => {
-                      const v = Number.parseInt(e.target.value, 10)
-                      setCustomWidth(Number.isFinite(v) && v > 0 ? v : null)
-                    }}
-                    className="h-7 w-16 rounded-md border border-input bg-background px-2 text-xs tabular-nums outline-none focus:ring-1 focus:ring-ring"
-                    aria-label="Custom canvas width (px)"
-                  />
-                  <span className="text-xs text-muted-foreground">px</span>
-                  {onBreakpointsChange && (
-                    <BreakpointPopover
-                      submitLabel="Add"
-                      initialWidth={widthIsSaved ? null : canvasWidth}
-                      onSubmit={addCustomBreakpoint}
-                      trigger={
-                        <button
-                          type="button"
-                          title="Add a named custom resolution"
-                          aria-label="Add custom resolution"
-                          className="flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                        />
-                      }
-                    >
-                      <Plus className="size-4" />
-                    </BreakpointPopover>
-                  )}
-                  {onBreakpointsChange && activeIsCustom && activeBpObj && (
-                    <BreakpointPopover
-                      submitLabel="Save"
-                      initialLabel={activeBpObj.label}
-                      initialWidth={activeBpObj.maxWidth}
-                      onSubmit={(l, w) => updateBreakpoint(activeBpObj.id, l, w)}
-                      onDelete={() => removeBreakpoint(activeBpObj.id)}
-                      trigger={
-                        <button
-                          type="button"
-                          title={`Rename or resize “${activeBpObj.label}”`}
-                          aria-label="Edit custom resolution"
-                          className="flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                        />
-                      }
-                    >
-                      <Pencil className="size-3.5" />
-                    </BreakpointPopover>
-                  )}
-                </div>
-              </div>
-            </TooltipProvider>
-
-            <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
-              <div className="flex items-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    'size-8',
-                    leftOpen ? 'bg-muted text-foreground' : 'text-muted-foreground'
-                  )}
-                  aria-pressed={leftOpen}
-                  onClick={() => setLeftOpen((v) => !v)}
-                  aria-label="Toggle left panel"
-                >
-                  <PanelLeft className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    'size-8',
-                    rightOpen ? 'bg-muted text-foreground' : 'text-muted-foreground'
-                  )}
-                  aria-pressed={rightOpen}
-                  onClick={() => setRightOpen((v) => !v)}
-                  aria-label="Toggle right panel"
-                >
-                  <PanelRight className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  onClick={() => setSettingsOpen(true)}
-                  aria-label="Page settings"
-                >
-                  <Settings className="size-4" />
-                </Button>
-              </div>
-              <div className="flex items-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  disabled={!hasPast}
-                  onClick={() => undo()}
-                  aria-label="Undo"
-                >
-                  <Undo2 className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  disabled={!hasFuture}
-                  onClick={() => redo()}
-                  aria-label="Redo"
-                >
-                  <Redo2 className="size-4" />
-                </Button>
-              </div>
-              {/* The alt-text nudge stays out in the toolbar; everything else moves
-                into the Publish dropdown. */}
-              {missingAlt > 0 ? (
-                <span
-                  className="shrink-0 whitespace-nowrap rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
-                  title={`${missingAlt} image${missingAlt > 1 ? 's' : ''} missing alt text. Add alt for screen-reader users (leave empty only for decorative images).`}
-                >
-                  {missingAlt} missing alt
-                </span>
-              ) : null}
-
-              <Popover open={publishMenuOpen} onOpenChange={setPublishMenuOpen}>
-                <PopoverTrigger
-                  className="relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-                  aria-label="Publish menu"
-                >
-                  <Globe className="size-3.5" />
-                  Publish
-                  <ChevronDown className="size-3.5 opacity-80" />
-                  {/* Amber dot: there are changes not yet published. */}
-                  {dirty || hasDraft ? (
-                    <span
-                      className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-amber-400 ring-2 ring-background"
-                      aria-hidden
+              {/* Device / canvas-size switcher (centered) */}
+              <TooltipProvider delay={250}>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <div className="flex items-center gap-0.5 rounded-md bg-muted p-0.5">
+                    {orderBreakpoints(breakpoints).map((bp) => {
+                      const Icon = iconForBreakpoint(bp)
+                      const active = bp.id === activeBp
+                      const label =
+                        bp.maxWidth === null
+                          ? `${bp.label} (full)`
+                          : `${bp.label} (${bp.maxWidth}px)`
+                      return (
+                        <Tooltip key={bp.id}>
+                          <TooltipTrigger
+                            type="button"
+                            aria-label={label}
+                            aria-pressed={active}
+                            onClick={() => selectBreakpoint(bp)}
+                            className={cn(
+                              'flex size-7 items-center justify-center rounded transition-colors',
+                              active
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            <Icon className="size-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>{label}</TooltipContent>
+                        </Tooltip>
+                      )
+                    })}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={1}
+                      value={canvasWidth ?? ''}
+                      placeholder="Auto"
+                      onChange={(e) => {
+                        const v = Number.parseInt(e.target.value, 10)
+                        setCustomWidth(Number.isFinite(v) && v > 0 ? v : null)
+                      }}
+                      className="h-7 w-16 rounded-md border border-input bg-background px-2 text-xs tabular-nums outline-none focus:ring-1 focus:ring-ring"
+                      aria-label="Custom canvas width (px)"
                     />
-                  ) : null}
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-64 p-1.5">
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                    {saveState === 'saving'
-                      ? 'Saving draft…'
-                      : saveState === 'error'
-                        ? 'Autosave failed — edit to retry'
-                        : saveState === 'saved'
-                          ? `Draft saved${savedAt ? ` at ${savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}`
-                          : dirty
-                            ? 'Unsaved changes'
-                            : hasDraft
-                              ? 'Unpublished draft'
-                              : 'Published — up to date'}
-                  </div>
-                  <div className="my-1 h-px bg-border" />
-                  {/* Page actions (History / Preview / View live) + Discard. Any
-                    click closes the menu. */}
-                  <div className="flex flex-col" onClick={() => setPublishMenuOpen(false)}>
-                    {topbarEnd}
-                    {onDiscardDraft && (hasDraft || saveState === 'saved') ? (
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              'Discard the unpublished draft and revert to the live page?'
-                            )
-                          ) {
-                            void onDiscardDraft()
-                          }
-                        }}
-                      >
-                        <Trash2 className="size-4" /> Discard draft
-                      </button>
-                    ) : null}
-                  </div>
-                  <div className="my-1 h-px bg-border" />
-                  <Button
-                    size="sm"
-                    className="w-full gap-1.5"
-                    onClick={() => {
-                      setPublishMenuOpen(false)
-                      void publish()
-                    }}
-                  >
-                    <Globe className="size-4" />
-                    Publish now
-                  </Button>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-
-          <div className="flex min-h-0 flex-1">
-            {leftOpen && (
-              <aside className="flex w-72 shrink-0 flex-col border-r bg-background">
-                <div className="shrink-0 border-b p-2">
-                  <div className="flex gap-1">
-                    <TabButton
-                      active={leftTab === 'components'}
-                      onClick={() => setLeftTab('components')}
-                    >
-                      <Blocks className="size-4" />
-                      Components
-                    </TabButton>
-                    <TabButton active={leftTab === 'element'} onClick={() => setLeftTab('element')}>
-                      <SlidersHorizontal className="size-4" />
-                      Element
-                    </TabButton>
-                  </div>
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  {leftTab === 'components' ? (
-                    <div className="p-3">
-                      <div className="relative mb-3">
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <input
-                          type="text"
-                          value={componentQuery}
-                          onChange={(e) => setComponentQuery(e.target.value)}
-                          placeholder="Search components…"
-                          aria-label="Search components"
-                          className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-8 text-sm outline-none focus:ring-1 focus:ring-ring"
-                        />
-                        {componentQuery ? (
+                    <span className="text-xs text-muted-foreground">px</span>
+                    {onBreakpointsChange && (
+                      <BreakpointPopover
+                        submitLabel="Add"
+                        initialWidth={widthIsSaved ? null : canvasWidth}
+                        onSubmit={addCustomBreakpoint}
+                        trigger={
                           <button
                             type="button"
-                            onClick={() => setComponentQuery('')}
-                            aria-label="Clear search"
-                            className="absolute right-1.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                          >
-                            <X className="size-3.5" />
-                          </button>
-                        ) : null}
-                      </div>
-                      <div ref={componentsRef}>
-                        <Puck.Components />
-                      </div>
+                            title="Add a named custom resolution"
+                            aria-label="Add custom resolution"
+                            className="flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                          />
+                        }
+                      >
+                        <Plus className="size-4" />
+                      </BreakpointPopover>
+                    )}
+                    {onBreakpointsChange && activeIsCustom && activeBpObj && (
+                      <BreakpointPopover
+                        submitLabel="Save"
+                        initialLabel={activeBpObj.label}
+                        initialWidth={activeBpObj.maxWidth}
+                        onSubmit={(l, w) => updateBreakpoint(activeBpObj.id, l, w)}
+                        onDelete={() => removeBreakpoint(activeBpObj.id)}
+                        trigger={
+                          <button
+                            type="button"
+                            title={`Rename or resize “${activeBpObj.label}”`}
+                            aria-label="Edit custom resolution"
+                            className="flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                          />
+                        }
+                      >
+                        <Pencil className="size-3.5" />
+                      </BreakpointPopover>
+                    )}
+                  </div>
+                </div>
+              </TooltipProvider>
+
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+                <div className="flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      'size-8',
+                      leftOpen ? 'bg-muted text-foreground' : 'text-muted-foreground'
+                    )}
+                    aria-pressed={leftOpen}
+                    onClick={() => setLeftOpen((v) => !v)}
+                    aria-label="Toggle left panel"
+                  >
+                    <PanelLeft className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      'size-8',
+                      rightOpen ? 'bg-muted text-foreground' : 'text-muted-foreground'
+                    )}
+                    aria-pressed={rightOpen}
+                    onClick={() => setRightOpen((v) => !v)}
+                    aria-label="Toggle right panel"
+                  >
+                    <PanelRight className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    onClick={() => setSettingsOpen(true)}
+                    aria-label="Page settings"
+                  >
+                    <Settings className="size-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    disabled={!hasPast}
+                    onClick={() => undo()}
+                    aria-label="Undo"
+                  >
+                    <Undo2 className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    disabled={!hasFuture}
+                    onClick={() => redo()}
+                    aria-label="Redo"
+                  >
+                    <Redo2 className="size-4" />
+                  </Button>
+                </div>
+                {/* The alt-text nudge stays out in the toolbar; everything else moves
+                into the Publish dropdown. */}
+                {missingAlt > 0 ? (
+                  <span
+                    className="shrink-0 whitespace-nowrap rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+                    title={`${missingAlt} image${missingAlt > 1 ? 's' : ''} missing alt text. Add alt for screen-reader users (leave empty only for decorative images).`}
+                  >
+                    {missingAlt} missing alt
+                  </span>
+                ) : null}
+
+                <Popover open={publishMenuOpen} onOpenChange={setPublishMenuOpen}>
+                  <PopoverTrigger
+                    className="relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                    aria-label="Publish menu"
+                  >
+                    <Globe className="size-3.5" />
+                    Publish
+                    <ChevronDown className="size-3.5 opacity-80" />
+                    {/* Amber dot: there are changes not yet published. */}
+                    {dirty || hasDraft ? (
+                      <span
+                        className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-amber-400 ring-2 ring-background"
+                        aria-hidden
+                      />
+                    ) : null}
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-64 p-1.5">
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                      {saveState === 'saving' ? (
+                        'Saving draft…'
+                      ) : saveState === 'error' ? (
+                        'Autosave failed — edit to retry'
+                      ) : saveState === 'saved' ? (
+                        savedAt ? (
+                          <span className="flex flex-col">
+                            <span>Draft saved</span>
+                            <span className="text-muted-foreground/80">
+                              {savedAt.toLocaleString([], {
+                                dateStyle: 'medium',
+                                timeStyle: 'medium',
+                              })}
+                            </span>
+                          </span>
+                        ) : (
+                          'Draft saved'
+                        )
+                      ) : dirty ? (
+                        'Unsaved changes'
+                      ) : hasDraft ? (
+                        'Unpublished draft'
+                      ) : (
+                        'Published — up to date'
+                      )}
                     </div>
-                  ) : (
-                    <DetailPanel
-                      previewState={previewState}
-                      onPreviewStateChange={setPreviewState}
-                    />
-                  )}
-                </div>
-              </aside>
-            )}
-
-            {/*
-             * Emulated device viewport, in two nested layers, because the canvas renders
-             * in the host document (no iframe — see file header) so `position: fixed`
-             * would otherwise escape to the WINDOW and pin above the toolbar:
-             *
-             *   .frame  — device-width box that is the containing block for `fixed`/
-             *             `sticky` (via `transform: translateZ(0)`) but does NOT scroll
-             *             (`h-full` + `overflow-hidden`). Because it holds still, fixed
-             *             descendants PIN to it, and because it is exactly the device
-             *             width, they are BOUNDED to the page (no spill into the gutters,
-             *             the "kelewat batas" bug). A transformed *scrolling* box can't do
-             *             both — its fixed children would scroll away with the content.
-             *   .scroll — the real scrollport for page content, nested inside the frame.
-             *
-             * <main> keeps only horizontal scroll, for a custom width wider than it.
-             * Editor-only: the published page has no such ancestor, so `fixed`/`sticky`
-             * behave normally against the real viewport there.
-             */}
-            <main className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden bg-muted/30 p-4">
-              <div
-                className="theme-light relative mx-auto h-full overflow-hidden bg-background shadow-sm"
-                style={{
-                  width: canvasWidth ? `${canvasWidth}px` : '100%',
-                  transform: 'translateZ(0)',
-                }}
-              >
-                <div className="h-full overflow-auto">
-                  <Puck.Preview />
-                </div>
+                    <div className="my-1 h-px bg-border" />
+                    {/* Page actions (History / Preview / View live) + Discard. Any
+                    click closes the menu. */}
+                    <div className="flex flex-col" onClick={() => setPublishMenuOpen(false)}>
+                      {topbarEnd}
+                      {onDiscardDraft && (hasDraft || saveState === 'saved') ? (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                'Discard the unpublished draft and revert to the live page?'
+                              )
+                            ) {
+                              void onDiscardDraft()
+                            }
+                          }}
+                        >
+                          <Trash2 className="size-4" /> Discard draft
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="my-1 h-px bg-border" />
+                    <Button
+                      size="sm"
+                      className="w-full gap-1.5"
+                      onClick={() => {
+                        setPublishMenuOpen(false)
+                        void publish()
+                      }}
+                    >
+                      <Globe className="size-4" />
+                      Publish now
+                    </Button>
+                  </PopoverContent>
+                </Popover>
               </div>
-            </main>
+            </div>
 
-            {rightOpen && (
-              <aside className="flex w-72 shrink-0 flex-col border-l bg-background">
-                <div className="flex shrink-0 items-center gap-1.5 border-b p-3 text-sm font-medium">
-                  <Layers className="size-4" />
-                  Layers
+            <div className="flex min-h-0 flex-1">
+              {leftOpen && (
+                <aside className="flex w-72 shrink-0 flex-col border-r bg-background">
+                  <div className="shrink-0 border-b p-2">
+                    <div className="flex gap-1">
+                      <TabButton
+                        active={leftTab === 'components'}
+                        onClick={() => setLeftTab('components')}
+                      >
+                        <Blocks className="size-4" />
+                        Components
+                      </TabButton>
+                      <TabButton
+                        active={leftTab === 'element'}
+                        onClick={() => setLeftTab('element')}
+                      >
+                        <SlidersHorizontal className="size-4" />
+                        Element
+                      </TabButton>
+                    </div>
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    {leftTab === 'components' ? (
+                      <div className="p-3">
+                        <div className="relative mb-3">
+                          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                          <input
+                            type="text"
+                            value={componentQuery}
+                            onChange={(e) => setComponentQuery(e.target.value)}
+                            placeholder="Search components…"
+                            aria-label="Search components"
+                            className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-8 text-sm outline-none focus:ring-1 focus:ring-ring"
+                          />
+                          {componentQuery ? (
+                            <button
+                              type="button"
+                              onClick={() => setComponentQuery('')}
+                              aria-label="Clear search"
+                              className="absolute right-1.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              <X className="size-3.5" />
+                            </button>
+                          ) : null}
+                        </div>
+                        <div ref={componentsRef}>
+                          <Puck.Components />
+                        </div>
+                      </div>
+                    ) : (
+                      <DetailPanel
+                        previewState={previewState}
+                        onPreviewStateChange={setPreviewState}
+                      />
+                    )}
+                  </div>
+                </aside>
+              )}
+
+              {/*
+               * Emulated device viewport, in two nested layers, because the canvas renders
+               * in the host document (no iframe — see file header) so `position: fixed`
+               * would otherwise escape to the WINDOW and pin above the toolbar:
+               *
+               *   .frame  — device-width box that is the containing block for `fixed`/
+               *             `sticky` (via `transform: translateZ(0)`) but does NOT scroll
+               *             (`h-full` + `overflow-hidden`). Because it holds still, fixed
+               *             descendants PIN to it, and because it is exactly the device
+               *             width, they are BOUNDED to the page (no spill into the gutters,
+               *             the "kelewat batas" bug). A transformed *scrolling* box can't do
+               *             both — its fixed children would scroll away with the content.
+               *   .scroll — the real scrollport for page content, nested inside the frame.
+               *
+               * <main> keeps only horizontal scroll, for a custom width wider than it.
+               * Editor-only: the published page has no such ancestor, so `fixed`/`sticky`
+               * behave normally against the real viewport there.
+               */}
+              <main className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden bg-muted/30 p-4">
+                <div
+                  className="theme-light relative mx-auto h-full overflow-hidden bg-background shadow-sm"
+                  style={{
+                    width: canvasWidth ? `${canvasWidth}px` : '100%',
+                    transform: 'translateZ(0)',
+                  }}
+                >
+                  <div className="h-full overflow-auto">
+                    <Puck.Preview />
+                  </div>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  <LayersTree />
-                </div>
-              </aside>
-            )}
+              </main>
+
+              {rightOpen && (
+                <aside className="flex w-72 shrink-0 flex-col border-l bg-background">
+                  <div className="flex shrink-0 items-center gap-1.5 border-b p-3 text-sm font-medium">
+                    <Layers className="size-4" />
+                    Layers
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    <LayersTree />
+                  </div>
+                </aside>
+              )}
+            </div>
+
+            <SettingsDialog
+              open={settingsOpen}
+              onOpenChange={setSettingsOpen}
+              pageMeta={pageMeta}
+              onPageMetaChange={onPageMetaChange}
+            />
           </div>
-
-          <SettingsDialog
-            open={settingsOpen}
-            onOpenChange={setSettingsOpen}
-            pageMeta={pageMeta}
-            onPageMetaChange={onPageMetaChange}
-          />
-        </div>
-      </StatePreviewContext.Provider>
-    </BreakpointContext.Provider>
+        </StatePreviewContext.Provider>
+      </BreakpointContext.Provider>
+    </SavedColorsContext.Provider>
   )
 }
 

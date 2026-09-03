@@ -1,6 +1,6 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { createUsePuck } from '@measured/puck'
-import { Code2, Globe, Search, Settings2 } from 'lucide-react'
+import { Code2, Globe, Palette, Search, Settings2, X } from 'lucide-react'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { Switch } from '~/components/ui/switch'
@@ -14,6 +14,7 @@ import { MediaField } from './media-field'
 import { readSnippets, type CodeSnippet } from './custom-code'
 import { SnippetManager } from './snippet-manager'
 import { GlobalCodePanel } from './global-code-panel'
+import { AppearancePanel } from '~/components/appearance-panel'
 
 /**
  * Page Settings — a sectioned panel reached from the builder navbar gear.
@@ -49,12 +50,13 @@ export interface PageMeta {
 /** Sentinel for "none" in the header/footer selects. Never sent as an id. */
 const NONE = '__none__'
 
-type SectionKey = 'general' | 'seo' | 'page-code' | 'global-code'
+type SectionKey = 'general' | 'seo' | 'appearance' | 'page-code' | 'global-code'
 
 const SECTIONS: { key: SectionKey; label: string; icon: ComponentType<{ className?: string }> }[] =
   [
     { key: 'general', label: 'General', icon: Settings2 },
     { key: 'seo', label: 'SEO & Meta', icon: Search },
+    { key: 'appearance', label: 'Appearance', icon: Palette },
     { key: 'page-code', label: 'Page code', icon: Code2 },
     { key: 'global-code', label: 'Global code', icon: Globe },
   ]
@@ -75,7 +77,9 @@ export function SettingsDialog({
   const canEditMeta = Boolean(pageMeta && onPageMetaChange)
   const availableSections = canEditMeta
     ? SECTIONS
-    : SECTIONS.filter((s) => s.key === 'page-code' || s.key === 'global-code')
+    : SECTIONS.filter(
+        (s) => s.key === 'appearance' || s.key === 'page-code' || s.key === 'global-code'
+      )
   const [section, setSection] = useState<SectionKey>(canEditMeta ? 'general' : 'page-code')
 
   if (!open) return null
@@ -116,48 +120,51 @@ export function SettingsDialog({
         </nav>
 
         {/* Content */}
-        <div className="min-w-0 flex-1 overflow-hidden">
-          {section === 'general' && pageMeta && onPageMetaChange ? (
-            <GeneralSection meta={pageMeta} onChange={onPageMetaChange} />
-          ) : section === 'seo' && pageMeta && onPageMetaChange ? (
-            <SeoSection meta={pageMeta} onChange={onPageMetaChange} />
-          ) : section === 'page-code' ? (
-            <PageCodeSection />
-          ) : (
-            <GlobalCodePanel />
-          )}
-        </div>
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {/* Sticky header bar so the close control sits in a full-width row and
+              never floats alone over scrolled content. */}
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-card px-4 py-2.5">
+            <span className="min-w-0 truncate text-sm font-semibold">
+              {availableSections.find((s) => s.key === section)?.label ?? 'Settings'}
+            </span>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              aria-label="Close"
+              className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
 
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          aria-label="Close"
-          className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <span className="text-lg leading-none">×</span>
-        </button>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {section === 'general' && pageMeta && onPageMetaChange ? (
+              <GeneralSection meta={pageMeta} onChange={onPageMetaChange} />
+            ) : section === 'seo' && pageMeta && onPageMetaChange ? (
+              <SeoSection meta={pageMeta} onChange={onPageMetaChange} />
+            ) : section === 'appearance' ? (
+              <div className="h-full overflow-y-auto p-5">
+                <AppearancePanel />
+              </div>
+            ) : section === 'page-code' ? (
+              <PageCodeSection />
+            ) : (
+              <GlobalCodePanel hideTitle />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-/** Scrollable section frame: sticky title/description header + padded body. */
-function SectionBody({
-  title,
-  description,
-  children,
-}: {
-  title: string
-  description?: string
-  children: ReactNode
-}) {
+/** Scrollable section frame: an optional description then a padded, scrolling body.
+ *  The section title lives in the dialog's shared header bar, not here. */
+function SectionBody({ description, children }: { description?: string; children: ReactNode }) {
   return (
-    <div className="flex h-full flex-col">
-      <div className="shrink-0 border-b p-4 pr-12">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
-      </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">{children}</div>
+    <div className="h-full space-y-4 overflow-y-auto p-4">
+      {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+      {children}
     </div>
   )
 }
@@ -207,7 +214,7 @@ function GeneralSection({ meta, onChange }: { meta: PageMeta; onChange: (m: Page
   ]
 
   return (
-    <SectionBody title="General" description="Page basics, render mode, and template overrides.">
+    <SectionBody description="Page basics, render mode, and template overrides.">
       <Row label="Title" htmlFor="set-title">
         <Input
           id="set-title"
@@ -356,7 +363,7 @@ function SeoSection({ meta, onChange }: { meta: PageMeta; onChange: (m: PageMeta
   const displayUrl = `${origin}/${(meta.path || '').replace(/^\/+/, '')}`.replace(/\/$/, '')
 
   return (
-    <SectionBody title="SEO & Meta" description="Search and social metadata for this page.">
+    <SectionBody description="Search and social metadata for this page.">
       <SeoPreview title={effTitle} description={effDesc} url={displayUrl} image={str('ogImage')} />
 
       <Row label="Meta title" htmlFor="seo-title" hint="Falls back to the page title if empty.">
@@ -516,7 +523,6 @@ function PageCodeSection() {
     <SnippetManager
       snippets={snippets}
       onChange={persist}
-      title="Page code"
       description={
         <>
           Custom CSS &amp; vanilla JS for <strong>this page only</strong> — not site-wide. JS runs
