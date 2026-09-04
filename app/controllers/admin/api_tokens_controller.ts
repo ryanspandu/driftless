@@ -6,7 +6,9 @@ import vine from '@vinejs/vine'
 const createTokenValidator = vine.compile(
   vine.object({
     name: vine.string().minLength(1),
-    abilities: vine.array(vine.string()).optional(),
+    // At least one ability is required — an empty/omitted list must never
+    // silently mint a full-access ('*') token. Callers choose '*' explicitly.
+    abilities: vine.array(vine.string().trim().minLength(1)).minLength(1),
     expiresIn: vine.string().nullable().optional(),
   })
 )
@@ -44,8 +46,7 @@ export default class ApiTokensController {
     const { name, abilities, expiresIn } = await request.validateUsing(createTokenValidator)
 
     try {
-      const effectiveAbilities = abilities && abilities.length > 0 ? abilities : ['*']
-      const token = await User.accessTokens.create(user, effectiveAbilities, {
+      const token = await User.accessTokens.create(user, abilities, {
         name,
         expiresIn: expiresIn || undefined,
       })

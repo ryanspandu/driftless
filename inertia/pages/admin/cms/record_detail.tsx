@@ -11,6 +11,7 @@ import { RecordForm } from '~/components/cms/record-form'
 import { RevisionsPanel } from '~/components/cms/revisions-panel'
 import { BackButton } from '~/components/admin/back-button'
 import { useCmsCollection } from '~/hooks/api/use-cms-collections'
+import { useCmsRecord } from '~/hooks/api/use-cms-records'
 import { useOfflineRecords } from '~/hooks/offline/use-offline-records'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 
@@ -31,14 +32,22 @@ export default function CmsRecordEditPage({
   const offline = useOfflineRecords(key)
   const collection = collectionQuery.data
 
-  const record = useMemo(() => {
+  const cachedRecord = useMemo(() => {
     if (isNew) return null
     return offline.rows.find((r) => r.data.id === recordId)?.data ?? null
   }, [offline.rows, recordId, isNew])
 
+  // The offline store only holds the first page (~100 rows), so a deep-link to
+  // an older record — or one just past the cache — needs a single-record fetch.
+  // Prefer the cached row (it also covers locally-created rows not yet synced).
+  const recordQuery = useCmsRecord(key, !isNew && !cachedRecord ? recordId : '')
+  const record = cachedRecord ?? recordQuery.data ?? null
+
   const [revisionsOpen, setRevisionsOpen] = useState(false)
 
-  const isLoading = collectionQuery.isLoading || (!isNew && offline.isLoading && !record)
+  const isLoading =
+    collectionQuery.isLoading ||
+    (!isNew && !record && (offline.isLoading || recordQuery.isLoading))
 
   const iconValue = collection?.icon ?? 'LayoutList'
   const isCustomImage = isCustomCollectionIcon(iconValue)

@@ -18,6 +18,7 @@ import {
   useRemoveCmsField,
   useReorderCmsFields,
   useUpdateCmsCollection,
+  useUpdateCmsField,
 } from '~/hooks/api/use-cms-collections'
 import { ComboboxInput } from '~/components/ui/combobox-input'
 import { CollectionIconPicker } from '~/components/cms/collection-icon-popover'
@@ -82,6 +83,7 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
   const addFieldMut = useAddCmsField(key)
   const removeFieldMut = useRemoveCmsField(key)
   const reorderFieldsMut = useReorderCmsFields(key)
+  const updateFieldMut = useUpdateCmsField(key)
 
   const collection = query.data
   const isNative = collection?.source === 'PRISMA'
@@ -212,6 +214,12 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
                   : (orderedKeys) => reorderFieldsMut.mutate({ fieldKeys: orderedKeys })
               }
               onRemove={(fieldKey) => setFieldDeleteKey(fieldKey)}
+              onEditField={
+                isNative
+                  ? undefined
+                  : (fieldKey, body) => updateFieldMut.mutateAsync({ fieldKey, body })
+              }
+              editSiblings={collection.fields}
               headerAction={
                 !isNative ? (
                   <AddFieldDialog
@@ -220,6 +228,9 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
                     relationTargets={(listQuery.data ?? []).filter((c) => c.source === 'DYNAMIC')}
                     siblingFields={collection.fields}
                     onAdd={(body) => addFieldMut.mutateAsync(body)}
+                    // A field added to an existing collection must be optional —
+                    // the server rejects `required` (existing rows would break).
+                    allowRequired={false}
                   />
                 ) : null
               }

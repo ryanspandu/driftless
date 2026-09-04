@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { CheckCircle2, RefreshCw, Send, XCircle } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
@@ -311,8 +311,9 @@ function EmailSettings() {
         <CardHeader>
           <CardTitle>Send a test</CardTitle>
           <CardDescription>
-            Delivers a real message using the settings above, and waits for the result — so a
-            failure here is the actual failure your customers would hit.
+            Delivers a real message using your <strong>saved</strong> SMTP settings (save any
+            changes above first), and waits for the result — so a failure here is the actual failure
+            your customers would hit.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -404,7 +405,13 @@ function EventCopyEditor({ event }: { event: MailEventDto }) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Seed the copy draft once per event, keyed by its stable id. Re-seeding on
+  // every `event` change wiped unsaved copy edits when changing the Design
+  // template (that mutation refetches the event and hands us a new object).
+  const seededKeyRef = useRef<string | null>(null)
   useEffect(() => {
+    if (seededKeyRef.current === event.key) return
+    seededKeyRef.current = event.key
     setDraft({
       subject: event.overrides.subject ?? '',
       heading: event.overrides.heading ?? '',

@@ -9,7 +9,7 @@ import {
   type MailEvent,
   type MailEventCopy,
 } from '#services/mail_events'
-import { WebSettingsService } from '#services/settings_service'
+import { WebSettingsService, safeColor } from '#services/settings_service'
 import { newUlid } from '#services/ulid_service'
 
 const webSettingsService = new WebSettingsService()
@@ -216,7 +216,9 @@ export default class MailEventsService {
     const section = sections['email_branding'] ?? {}
     return {
       logoUrl: section['logo_url']?.trim() || BRANDING_DEFAULTS.logoUrl,
-      accentColor: section['accent_color']?.trim() || BRANDING_DEFAULTS.accentColor,
+      // The accent colour is dropped raw into a `style="…"` in the email — a bad
+      // value could inject extra CSS, so sanitise it (fall back to the default).
+      accentColor: safeColor(section['accent_color']?.trim()) || BRANDING_DEFAULTS.accentColor,
       footerNote: section['footer_note']?.trim() || BRANDING_DEFAULTS.footerNote,
     }
   }

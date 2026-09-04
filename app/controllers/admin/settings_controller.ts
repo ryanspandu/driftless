@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import vine from '@vinejs/vine'
 import { WebSettingsService, IntegrationSettingsService } from '#services/settings_service'
 import PagesService from '#services/pages_service'
 import { renderPage } from '#helpers/inertia_render'
@@ -6,6 +7,30 @@ import { renderPage } from '#helpers/inertia_render'
 const webSettingsService = new WebSettingsService()
 const integrationService = new IntegrationSettingsService()
 const pagesService = new PagesService()
+
+/**
+ * Type-checks the integration payload before it reaches the service. Without
+ * this, a bad type (e.g. a number where a string is expected) hit `.trim()` in
+ * the service and threw an unhandled 500; booleans could arrive as strings.
+ * Every field is optional — the service only writes keys that are present.
+ */
+const updateIntegrationValidator = vine.compile(
+  vine.object({
+    googleAuthEnabled: vine.boolean().optional(),
+    googleClientId: vine.string().trim().nullable().optional(),
+    googleClientSecret: vine.string().trim().nullable().optional(),
+    captchaEnabled: vine.boolean().optional(),
+    captchaProvider: vine.string().trim().nullable().optional(),
+    captchaSiteKey: vine.string().trim().nullable().optional(),
+    captchaSecret: vine.string().trim().nullable().optional(),
+    captchaOnLogin: vine.boolean().optional(),
+    captchaOnRegister: vine.boolean().optional(),
+    ga4Enabled: vine.boolean().optional(),
+    ga4MeasurementId: vine.string().trim().nullable().optional(),
+    clarityEnabled: vine.boolean().optional(),
+    clarityProjectId: vine.string().trim().nullable().optional(),
+  })
+)
 
 export default class SettingsController {
   // Web settings
@@ -67,9 +92,13 @@ export default class SettingsController {
   }
 
   async updateIntegrationSettings({ request, response }: HttpContext) {
-    const dto = request.all()
-    const settings = await integrationService.update(dto)
-    return response.json(settings)
+    const dto = await request.validateUsing(updateIntegrationValidator)
+    try {
+      const settings = await integrationService.update(dto)
+      return response.json(settings)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
   }
 
   async getAuthConfig({ response }: HttpContext) {

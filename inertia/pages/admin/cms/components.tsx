@@ -24,6 +24,7 @@ import {
   ComponentSchemaEditor,
   componentSchemaError,
 } from '~/components/cms/component-schema-editor'
+import { keyHint } from '~/components/cms/schema-builder'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { formatAdminTableDateTime } from '~/lib/utils'
 import {
@@ -32,8 +33,6 @@ import {
   useDeleteCmsComponent,
   useUpdateCmsComponent,
 } from '~/hooks/api/use-cms-components'
-
-const KEY_RE = /^[a-z][a-z0-9_]{0,31}$/
 
 /** Card mirroring the Collections page: icon tile + name + meta + actions menu. */
 function ComponentCard({
@@ -269,9 +268,11 @@ function ComponentEditorDialog({
 
   const fields = (config.fields as CmsComponentField[] | undefined) ?? []
   const schemaErr = componentSchemaError(config)
+  const keyInvalid = keyHint(key)
   const keyDuplicate = !isEdit && existingKeys.includes(key)
+  const keyMessage = keyInvalid ?? (keyDuplicate ? 'Key already exists.' : null)
   const canSave =
-    label.trim().length > 0 && KEY_RE.test(key) && !keyDuplicate && !schemaErr && !saving
+    label.trim().length > 0 && (isEdit || !keyMessage) && !schemaErr && !saving
 
   const handleSave = async () => {
     setError(null)
@@ -333,8 +334,8 @@ function ComponentEditorDialog({
                   setKey(slugifyKey(e.target.value))
                 }}
               />
-              {keyDuplicate ? (
-                <p className="text-xs text-destructive">Key already exists.</p>
+              {!isEdit && keyMessage ? (
+                <p className="text-xs text-destructive">{keyMessage}</p>
               ) : null}
             </div>
           </div>

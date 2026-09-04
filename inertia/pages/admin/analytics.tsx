@@ -17,13 +17,19 @@ import {
   type TopPage,
 } from '~/hooks/api/use-analytics'
 
-const PIE_COLORS = [
-  'var(--primary)',
-  'var(--chart-2)',
-  'var(--chart-3)',
-  'var(--chart-4)',
-  'var(--chart-5)',
+// A cohesive, brand-adjacent palette for the analytics charts — cooler and more
+// varied than a wall of `--primary`, but still at home in the indigo dark theme.
+// (`--chart-2..5` are greyscale, which is what made every chart read as purple.)
+const CHART_COLORS = [
+  '#7c6cff', // violet — brand family, a touch lighter than --primary
+  '#22d3ee', // cyan
+  '#34d399', // emerald
+  '#f472b6', // pink
+  '#fbbf24', // amber
 ]
+
+/** The top-pages row highlight, tinted from the first palette colour. */
+const ROW_HIGHLIGHT = 'rgba(124, 108, 255, 0.12)'
 
 const GRANULARITIES: { value: Granularity; label: string }[] = [
   { value: 'day', label: 'Daily' },
@@ -32,8 +38,8 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
 ]
 
 const trafficConfig = {
-  pageviews: { label: 'Pageviews', color: 'var(--primary)' },
-  visitors: { label: 'Visitors', color: 'var(--chart-2)' },
+  pageviews: { label: 'Pageviews', color: CHART_COLORS[0] },
+  visitors: { label: 'Visitors', color: CHART_COLORS[1] },
 } satisfies ChartConfig
 
 function fmtInt(n: number): string {
@@ -270,8 +276,11 @@ function TopPagesTable({ rows, loading }: { rows: TopPage[]; loading?: boolean }
       {rows.map((r) => (
         <div key={r.path} className="relative overflow-hidden rounded-md">
           <div
-            className="absolute inset-y-0 left-0 bg-primary/10"
-            style={{ width: `${(r.pageviews / max) * 100}%` }}
+            className="absolute inset-y-0 left-0"
+            style={{
+              width: `${(r.pageviews / max) * 100}%`,
+              backgroundColor: ROW_HIGHLIGHT,
+            }}
           />
           <div className="relative flex items-center justify-between px-2 py-1.5 text-sm">
             <span className="truncate font-mono text-xs">{r.path}</span>
@@ -304,7 +313,7 @@ function DonutBreakdown({ rows }: { rows: Breakdown[] }) {
             nameKey="label"
           >
             {rows.map((_, i) => (
-              <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
             ))}
           </Pie>
         </PieChart>
@@ -315,7 +324,7 @@ function DonutBreakdown({ rows }: { rows: Breakdown[] }) {
             <span className="flex items-center gap-1.5 capitalize">
               <span
                 className="inline-block size-2.5 rounded-full"
-                style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
               />
               <span className="text-muted-foreground">{r.label}</span>
             </span>
@@ -335,7 +344,7 @@ function BarBreakdown({ rows }: { rows: Breakdown[] }) {
   const max = Math.max(...rows.map((r) => r.count), 1)
   return (
     <div className="space-y-2">
-      {rows.map((r) => (
+      {rows.map((r, i) => (
         <div key={r.label}>
           <div className="mb-0.5 flex items-center justify-between text-xs">
             <span className="truncate">{r.label}</span>
@@ -343,8 +352,11 @@ function BarBreakdown({ rows }: { rows: Breakdown[] }) {
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${(r.count / max) * 100}%` }}
+              className="h-full rounded-full"
+              style={{
+                width: `${(r.count / max) * 100}%`,
+                backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+              }}
             />
           </div>
         </div>

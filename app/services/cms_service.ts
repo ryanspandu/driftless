@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import hash from '@adonisjs/core/services/hash'
 import dbConfig from '#config/database'
@@ -129,6 +130,26 @@ function assertValidKey(value: string, kind: string): void {
   if (RESERVED.has(value)) throw new Error(`"${value}" is a reserved identifier`)
 }
 
+/**
+ * Scalar-only field types allowed inside a COMPONENT — mirrors the client
+ * `COMPONENT_SUBFIELD_TYPE_OPTIONS`. No relation/password (no FK or hashing in
+ * JSONB) and no nesting (component/repeatable/json/slug/select), so a direct
+ * API call can't smuggle in a type the structured editor never offers.
+ */
+const COMPONENT_SUBFIELD_TYPES = new Set<CmsFieldType>([
+  'TEXT',
+  'TEXTAREA',
+  'EMAIL',
+  'RICHTEXT',
+  'NUMBER',
+  'INTEGER',
+  'DECIMAL',
+  'BOOL',
+  'DATE',
+  'DATETIME',
+  'MEDIA',
+])
+
 function dynamicTableName(key: string): string {
   return `cms_${key}`
 }
@@ -229,17 +250,29 @@ export default class CmsService {
     fields?: CmsComponentField[]
   }): Promise<CmsComponentDto> {
     assertValidKey(dto.key, 'component')
-    const existing = await CmsComponent.query()
-      .where('key', dto.key)
-      .whereNull('deleted_at')
-      .first()
-    if (existing) throw new Error(`Component "${dto.key}" already exists`)
+    // Look across trashed rows too: the `key` column has a DB-level unique
+    // constraint that a soft-deleted row still occupies, so a plain insert with
+    // a previously-used key would hit a constraint error ("burned" key). Revive
+    // and overwrite the trashed row instead.
+    const existing = await CmsComponent.query().where('key', dto.key).first()
+    if (existing && !existing.deletedAt) {
+      throw new Error(`Component "${dto.key}" already exists`)
+    }
+    const fields = this.normalizeComponentFields(dto.fields)
+    if (existing) {
+      existing.label = dto.label
+      existing.icon = dto.icon ?? null
+      existing.fields = fields
+      existing.deletedAt = null
+      await existing.save()
+      return this.componentToDto(existing)
+    }
     const c = await CmsComponent.create({
       id: newUlid(),
       key: dto.key,
       label: dto.label,
       icon: dto.icon ?? null,
-      fields: this.normalizeComponentFields(dto.fields),
+      fields,
     })
     return this.componentToDto(c)
   }
@@ -271,7 +304,7 @@ export default class CmsService {
     if (inUse) {
       throw new Error('This component is used by a collection field — remove those fields first')
     }
-    c.deletedAt = new Date() as any
+    c.deletedAt = DateTime.now()
     await c.save()
   }
 
@@ -288,7 +321,7 @@ export default class CmsService {
       assertValidKey(key, 'component field')
       if (!label) throw new Error(`Component field "${key}" needs a label`)
       if (!(type in FIELD_REGISTRY)) throw new Error(`Unknown field type "${type}"`)
-      if (type === 'RELATION' || type === 'COMPONENT' || type === 'PASSWORD') {
+      if (!COMPONENT_SUBFIELD_TYPES.has(type as CmsFieldType)) {
         throw new Error(`Field type "${type}" is not allowed inside a component`)
       }
       if (seen.has(key)) throw new Error(`Duplicate component field key "${key}"`)
@@ -483,7 +516,7 @@ export default class CmsService {
 
     // Soft delete only — the dynamic table and permissions are kept so the
     // collection can be restored from the Trash. They are dropped on force-delete.
-    collection.deletedAt = new Date() as any
+    collection.deletedAt = DateTime.now()
     await collection.save()
   }
 
@@ -506,7 +539,7 @@ export default class CmsService {
     const clash = await CmsCollection.query().where('key', key).whereNull('deleted_at').first()
     if (clash) throw new Error(`A collection with key "${key}" already exists`)
 
-    collection.deletedAt = null as any
+    collection.deletedAt = null
     await collection.save()
     await this.permissions.mintForCollection(key)
     return this.collectionToDto(collection)
@@ -610,6 +643,10 @@ export default class CmsService {
       return this.addRelationField(collection, dto, order)
     }
 
+    // Only enforce uniqueness for types that support it; store what we actually
+    // apply so the metadata never claims a constraint the DB doesn't have.
+    const applyUnique = !!dto.unique && desc.allowsUnique
+
     const field = await CmsField.create({
       id: newUlid(),
       collectionId: collection.id,
@@ -617,14 +654,21 @@ export default class CmsService {
       label: dto.label,
       type: dto.type,
       required: false,
-      unique: dto.unique ?? false,
+      unique: applyUnique,
       order,
       config: dto.config ?? {},
     })
 
-    await db.rawQuery(
-      `ALTER TABLE "${dynamicTableName(collectionKey)}" ADD COLUMN "${dto.key}" ${desc.sqlType} NULL`
-    )
+    const table = dynamicTableName(collectionKey)
+    await db.rawQuery(`ALTER TABLE "${table}" ADD COLUMN "${dto.key}" ${desc.sqlType} NULL`)
+
+    if (applyUnique) {
+      // A separate unique INDEX (not an inline column constraint) — SQLite can't
+      // add a UNIQUE column via ALTER, and this works the same on Postgres. The
+      // new column is all-NULL on existing rows, and NULLs stay distinct.
+      const idx = `${table}_${dto.key}_uq`.slice(0, 63)
+      await db.rawQuery(`CREATE UNIQUE INDEX "${idx}" ON "${table}" ("${dto.key}")`)
+    }
 
     return this.fieldToDto(field)
   }
@@ -871,7 +915,7 @@ export default class CmsService {
 
       const trx = await db.transaction()
       try {
-        field.deletedAt = new Date() as any
+        field.deletedAt = DateTime.now()
         field.useTransaction(trx)
         await field.save()
         await trx.rawQuery(ddl)
@@ -883,7 +927,7 @@ export default class CmsService {
       return
     }
 
-    field.deletedAt = new Date() as any
+    field.deletedAt = DateTime.now()
     await field.save()
   }
 

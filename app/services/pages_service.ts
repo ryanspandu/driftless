@@ -1,3 +1,4 @@
+import db from '@adonisjs/lucid/services/db'
 import Page from '#models/page'
 import PageRevision from '#models/page_revision'
 import { newUlid } from '#services/ulid_service'
@@ -200,6 +201,10 @@ export default class PagesService {
   async importPage(authorId: number | null, payload: unknown): Promise<PageDto> {
     if (!payload || typeof payload !== 'object') throw new Error('Invalid page file.')
     const p = payload as Record<string, unknown>
+    // Only accept files this app exported — an arbitrary JSON blob is not a page.
+    if (p._type !== 'driftless.page') {
+      throw new Error('Not a Driftless page export.')
+    }
     const title = typeof p.title === 'string' && p.title ? p.title : 'Imported page'
     const kind: PageKind = p.kind === 'CODE' ? 'CODE' : 'BUILDER'
     const row = await Page.create({
@@ -280,8 +285,31 @@ export default class PagesService {
         ? DateTime.fromISO(dto.scheduledUnpublishAt)
         : null
     }
+    let draftPromoted = false
     if (dto.status !== undefined) {
-      if (dto.status === 'PUBLISHED' && row.status !== 'PUBLISHED') row.publishedAt = DateTime.now()
+      const publishing = dto.status === 'PUBLISHED' && row.status !== 'PUBLISHED'
+      if (publishing) {
+        row.publishedAt = DateTime.now()
+        // Promote any staged draft the caller didn't explicitly override —
+        // publishing from the "Edit settings" dialog sends no content, so
+        // without this the page would go live with stale/blank content.
+        if (dto.content === undefined && row.draftContent) {
+          row.content = row.draftContent
+          draftPromoted = true
+        }
+        if (dto.seo === undefined && row.draftSeo) {
+          row.seo = row.draftSeo
+          draftPromoted = true
+        }
+        if (draftPromoted) {
+          row.draftContent = null
+          row.draftSeo = null
+          row.draftUpdatedAt = null
+        }
+        // The scheduled publish (if any) has now happened; clear it so a stale
+        // timestamp can't re-publish the page after a later unpublish.
+        row.scheduledPublishAt = null
+      }
       row.status = dto.status
     }
 
@@ -296,8 +324,9 @@ export default class PagesService {
       await new RedirectsService().capturePathChange(previousPath, row.path).catch(() => {})
     }
 
-    // Snapshot a revision whenever the page's design (content/seo) changes.
-    if (dto.content !== undefined || dto.seo !== undefined) {
+    // Snapshot a revision whenever the page's design (content/seo) changes —
+    // including a draft promoted to live by publishing.
+    if (dto.content !== undefined || dto.seo !== undefined || draftPromoted) {
       await this.snapshotRevision(row, authorId)
     }
 
@@ -314,11 +343,19 @@ export default class PagesService {
     dto: { content?: Record<string, unknown>; seo?: Record<string, unknown> }
   ): Promise<PageDto> {
     const row = await Page.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    // `updated_at` has `autoUpdate`, so a model save bumps it — but autosave is
+    // not a live-page edit and must not reorder the pages list. Capture the raw
+    // stored value first and restore it afterwards (as a raw string, so no
+    // date-format round-trip), letting the model still serialise the draft cols.
+    const before = await db.from('pages').where('id', id).select('updated_at').first()
     if (dto.content !== undefined) row.draftContent = sanitizePuckDocument(dto.content)
     if (dto.seo !== undefined) row.draftSeo = dto.seo
     row.draftUpdatedAt = DateTime.now()
     await row.save()
-    return this.toDto(row)
+    if (before && before.updated_at !== undefined && before.updated_at !== null) {
+      await db.from('pages').where('id', id).update({ updated_at: before.updated_at })
+    }
+    return this.findOne(id)
   }
 
   /**
@@ -381,12 +418,17 @@ export default class PagesService {
 
     const toPublish = await Page.query()
       .whereNull('deleted_at')
-      .where('status', 'DRAFT')
+      .whereNot('status', 'PUBLISHED')
       .whereNotNull('scheduled_publish_at')
       .where('scheduled_publish_at', '<=', iso)
     for (const row of toPublish) {
-      await this.publish(row.id, row.authorId, {})
-      await Page.query().where('id', row.id).update({ scheduled_publish_at: null })
+      // One bad page must not abort the whole scheduled run.
+      try {
+        await this.publish(row.id, row.authorId, {})
+        await Page.query().where('id', row.id).update({ scheduled_publish_at: null })
+      } catch {
+        // leave the schedule in place; the next run retries this page.
+      }
     }
 
     const toUnpublish = await Page.query()
@@ -395,8 +437,12 @@ export default class PagesService {
       .whereNotNull('scheduled_unpublish_at')
       .where('scheduled_unpublish_at', '<=', iso)
     for (const row of toUnpublish) {
-      await this.update(row.id, row.authorId, { status: 'DRAFT' })
-      await Page.query().where('id', row.id).update({ scheduled_unpublish_at: null })
+      try {
+        await this.update(row.id, row.authorId, { status: 'DRAFT' })
+        await Page.query().where('id', row.id).update({ scheduled_unpublish_at: null })
+      } catch {
+        // one page failing must not abort the rest of the scheduled run.
+      }
     }
 
     return { published: toPublish.length, unpublished: toUnpublish.length }

@@ -10,8 +10,12 @@ const pagesService = new PagesService()
 
 const EMPTY_DOC: Record<string, unknown> = { content: [], root: {} }
 
-/** Max recursion depth when resolving nested TemplateRef includes. */
-const MAX_REF_DEPTH = 5
+/** Max recursion depth when resolving nested TemplateRef includes. Matches the
+ *  client render guard in `template-ref.tsx` so both stop at the same depth. */
+const MAX_REF_DEPTH = 10
+
+/** Template types that can be a site-wide default (something consumes the flag). */
+const DEFAULTABLE_TYPES: TemplateType[] = ['HEADER', 'FOOTER', 'LAYOUT', 'EMAIL']
 
 export interface TemplateSummaryDto {
   id: string
@@ -78,8 +82,11 @@ function collectRefIds(node: unknown, acc: string[]): void {
     ) {
       acc.push(block.props.templateId as string)
     }
-    if (block.props) {
-      for (const value of Object.values(block.props)) collectRefIds(value, acc)
+    // Recurse EVERY value, not just `props`: a Puck 0.20 doc keeps nested
+    // content under a `zones` map with arbitrary keys, so a ref placed inside a
+    // slot would otherwise be missed by `usages()` and the reachability check.
+    for (const value of Object.values(node as Record<string, unknown>)) {
+      collectRefIds(value, acc)
     }
   }
 }
@@ -132,26 +139,34 @@ export default class TemplatesService {
     await row.save()
     if (dto.isDefault) await this.clearOtherDefaults(row.type, row.id)
     // Templates are shared — any edit can affect SSG pages that include it.
-    await pagesService.invalidateAllSnapshots()
+    // EMAIL templates are never part of a page snapshot, so skip the (expensive)
+    // full snapshot invalidation for them.
+    if (row.type !== 'EMAIL') await pagesService.invalidateAllSnapshots()
     return this.toDto(row)
   }
 
   async remove(id: string): Promise<void> {
     const usage = await this.usages(id)
     if (usage.total > 0) {
-      throw new Error(
-        `Template is in use by ${usage.pages} page(s) and ${usage.templates} template(s) — remove those references first`
-      )
+      const parts: string[] = []
+      if (usage.pages) parts.push(`${usage.pages} page(s)`)
+      if (usage.templates) parts.push(`${usage.templates} template(s)`)
+      if (usage.mails) parts.push(`${usage.mails} email(s)`)
+      throw new Error(`Template is in use by ${parts.join(', ')} — remove those references first`)
     }
     const row = await Template.query().where('id', id).whereNull('deleted_at').firstOrFail()
     row.deletedAt = DateTime.now()
     row.isDefault = false
     await row.save()
-    await pagesService.invalidateAllSnapshots()
+    // An EMAIL template isn't part of any page's SSG snapshot, so removing one
+    // never invalidates page HTML.
+    if (row.type !== 'EMAIL') await pagesService.invalidateAllSnapshots()
   }
 
-  /** Count pages + other templates that reference this template id. */
-  async usages(id: string): Promise<{ pages: number; templates: number; total: number }> {
+  /** Count pages + other templates + wired mail events that reference this id. */
+  async usages(
+    id: string
+  ): Promise<{ pages: number; templates: number; mails: number; total: number }> {
     /**
      * `CAST(... AS TEXT)` rather than pg's `::text`, which threw on SQLite —
      * the test suite's driver. `public_templates_controller` already used the
@@ -195,7 +210,7 @@ export default class TemplatesService {
     const mailRow = await MailEventSetting.query().where('template_id', id).count('* as total')
     const mails = Number((mailRow[0] as any)?.$extras?.total ?? 0)
 
-    return { pages, templates: templates + mails, total: pages + templates + mails }
+    return { pages, templates, mails, total: pages + templates + mails }
   }
 
   async duplicate(id: string): Promise<TemplateDto> {
@@ -205,6 +220,9 @@ export default class TemplatesService {
       name: `${source.name} (copy)`,
       type: source.type,
       content: sanitizePuckDocument(source.content),
+      // Carry the rendered HTML for EMAIL copies — it is the actual email body,
+      // so dropping it left the duplicate rendering nothing.
+      renderedHtml: source.type === 'EMAIL' ? source.renderedHtml : null,
       isDefault: false,
       collectionKey: source.collectionKey ?? null,
     })
@@ -223,6 +241,11 @@ export default class TemplatesService {
 
   async setDefault(id: string): Promise<TemplateDto> {
     const row = await Template.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    // COLLECTION/COMPONENT templates are picked by reference, never as a
+    // site-wide default — nothing would consume the flag.
+    if (!DEFAULTABLE_TYPES.includes(row.type)) {
+      throw new Error(`A ${row.type} template can't be a site default.`)
+    }
     row.isDefault = true
     await row.save()
     await this.clearOtherDefaults(row.type, row.id)

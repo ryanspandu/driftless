@@ -298,11 +298,22 @@ export function FieldTypePicker({
   value,
   onChange,
   className,
+  exclude,
 }: {
   value: CmsFieldType | null;
   onChange: (type: CmsFieldType) => void;
   className?: string;
+  /** Field types to hide from the picker (e.g. RELATION when creating a collection). */
+  exclude?: ReadonlyArray<CmsFieldType>;
 }) {
+  const hidden = exclude && exclude.length ? new Set(exclude) : null;
+  const defaultItems = hidden
+    ? DEFAULT_TYPES.filter((m) => !hidden.has(m.type))
+    : DEFAULT_TYPES;
+  const customItems = hidden
+    ? CUSTOM_TYPES.filter((m) => !hidden.has(m.type))
+    : CUSTOM_TYPES;
+
   // Open the tab that holds the current selection so it's visible on mount.
   const selectedMeta = value ? FIELD_TYPE_META_BY_TYPE[value] : undefined;
   const defaultTab = selectedMeta?.category ?? "default";
@@ -314,10 +325,10 @@ export function FieldTypePicker({
         <TabsTrigger value="custom">Advanced</TabsTrigger>
       </TabsList>
       <TabsContent value="default" className="mt-0">
-        <FieldTypeGrid items={DEFAULT_TYPES} value={value} onChange={onChange} />
+        <FieldTypeGrid items={defaultItems} value={value} onChange={onChange} />
       </TabsContent>
       <TabsContent value="custom" className="mt-0">
-        <FieldTypeGrid items={CUSTOM_TYPES} value={value} onChange={onChange} />
+        <FieldTypeGrid items={customItems} value={value} onChange={onChange} />
       </TabsContent>
     </Tabs>
   );

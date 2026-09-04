@@ -35,6 +35,7 @@ import { Button } from '~/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '~/components/ui/tooltip'
 import { cn } from '~/lib/utils'
+import { safeColor } from '~/lib/css-safe'
 import { LayersTree } from './layers-tree'
 import { DetailPanel } from './detail-panel'
 import { SettingsDialog, type PageMeta } from './settings-dialog'
@@ -270,10 +271,17 @@ export function BuilderShell({
   // the admin runs under the strict prod CSP too. `savedColors` also feeds swatches.
   const cspNonce = (usePage().props as { cspNonce?: string }).cspNonce
   const paletteCss = useMemo(() => {
+    // Operator-supplied colours flow into a raw <style>, so sanitise each one
+    // (same rule as the public render) — a stray `}` must not break the rule.
     const decls: string[] = []
-    if (themeColors?.primary) decls.push(`--primary:${themeColors.primary}`)
-    if (themeColors?.secondary) decls.push(`--secondary:${themeColors.secondary}`)
-    for (const c of savedColors) decls.push(`--color-${c.slug}:${c.value}`)
+    const primary = safeColor(themeColors?.primary)
+    const secondary = safeColor(themeColors?.secondary)
+    if (primary) decls.push(`--primary:${primary}`)
+    if (secondary) decls.push(`--secondary:${secondary}`)
+    for (const c of savedColors) {
+      const value = safeColor(c.value)
+      if (value) decls.push(`--color-${c.slug}:${value}`)
+    }
     return decls.length ? `.theme-light{${decls.join(';')}}` : ''
   }, [themeColors, savedColors])
 

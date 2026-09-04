@@ -278,6 +278,9 @@ export default function NewCmsCollectionPage() {
             relationTargets={(collectionsQuery.data ?? []).filter((c) => c.source === 'DYNAMIC')}
             siblingFields={fields}
             onAdd={onAddField}
+            // Relations need a join table that only exists once the collection is
+            // created — add them afterwards from the collection editor.
+            allowRelation={false}
           />
         }
       />

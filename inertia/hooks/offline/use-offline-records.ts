@@ -65,14 +65,34 @@ export function useOfflineRecords(
     refreshInFlightRef.current = true
     setIsFetching(true)
     try {
-      const page = await cmsRecords.list(collectionKey, {
-        pageSize: 100,
-      });
-      setApiRows(page.items);
+      // The server caps pageSize at 100, so a single request only ever mirrored
+      // the first 100 rows — records past that were invisible and uneditable.
+      // Page through the whole collection into the offline store (bounded so a
+      // pathologically large collection can't pull forever; the cap is logged).
+      const PAGE_SIZE = 100;
+      const MAX_PAGES = 100; // up to 10k rows mirrored locally
+      const all: CmsRecordDto[] = [];
+      let page = 1;
+      let total = Infinity;
+      for (; page <= MAX_PAGES && all.length < total; page++) {
+        const res = await cmsRecords.list(collectionKey, {
+          page,
+          pageSize: PAGE_SIZE,
+        });
+        total = res.total;
+        all.push(...res.items);
+        if (res.items.length < PAGE_SIZE) break;
+      }
+      if (all.length < total && process.env.NODE_ENV !== "production") {
+        console.warn(
+          `[offline-records:${collectionKey}] mirrored ${all.length}/${total} rows (page cap hit)`,
+        );
+      }
+      setApiRows(all);
       if (store && !(store instanceof NullLocalStore)) {
         await store.putServerRows(
           entity,
-          page.items.map((r) => ({
+          all.map((r) => ({
             id: r.id,
             data: r,
             serverUpdatedAt: r.updatedAt,

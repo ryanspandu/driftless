@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
 import { useGlobalCode, useUpdateGlobalCode } from '~/hooks/api/use-page-code'
@@ -23,10 +23,26 @@ export function GlobalCodePanel({
   const updateMut = useUpdateGlobalCode()
   const server = query.data?.snippets
   const [draft, setDraft] = useState<CodeSnippet[] | null>(null)
+  // Serialised snapshot of the server data the draft was last seeded from — used
+  // to tell "unedited" from "edited" when the server changes underneath us.
+  const lastServerRef = useRef<string | null>(null)
 
-  // Seed the editable draft once the server data arrives.
+  // Seed the draft on first load, and re-seed when the server changes AND the
+  // user hasn't edited (draft still matches the last snapshot). Without this the
+  // draft went stale: it never re-synced, so it reported a false "dirty" against
+  // newer data and a save would clobber it.
   useEffect(() => {
-    if (server && draft === null) setDraft(server)
+    if (!server) return
+    const incoming = JSON.stringify(server)
+    if (draft === null) {
+      setDraft(server)
+      lastServerRef.current = incoming
+      return
+    }
+    if (incoming !== lastServerRef.current && JSON.stringify(draft) === lastServerRef.current) {
+      setDraft(server)
+      lastServerRef.current = incoming
+    }
   }, [server, draft])
 
   const snippets = draft ?? server ?? []
@@ -38,6 +54,7 @@ export function GlobalCodePanel({
     try {
       const res = await updateMut.mutateAsync(draft)
       setDraft(res.snippets)
+      lastServerRef.current = JSON.stringify(res.snippets)
       toast.success('Global code saved')
     } catch {
       toast.error('Failed to save global code')

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -8,6 +8,7 @@ import { useWebsiteSettings, useUpdateWebsiteSettings } from '~/hooks/api/use-we
 import { WEBSITE_SETTING_SECTIONS } from '~/types/api'
 import { ColorPickerInput } from '~/puck/style-controls'
 import { parseSavedColors, slugifyColorName, type SavedColor } from '~/puck/saved-colors'
+import { safeColor, safeFontFamily, safeFontFaceUrl } from '~/lib/css-safe'
 
 /**
  * The site Appearance editor — default font + Primary/Secondary palette + named
@@ -17,6 +18,10 @@ import { parseSavedColors, slugifyColorName, type SavedColor } from '~/puck/save
  */
 
 /** A curated set of Google Fonts (label → family + stylesheet href). */
+/** Sentinel select value for the uploaded custom font — never a real font name,
+ *  so a custom font named like a Google font can't collide in the dropdown. */
+const CUSTOM_FONT_VALUE = '__custom_font__'
+
 const FONT_OPTIONS: { label: string; family: string; url: string }[] = [
   { label: 'System default', family: '', url: '' },
   {
@@ -165,8 +170,13 @@ export function AppearancePanel() {
 
   useEffect(() => setDefaults(readThemeDefaults()), [])
 
+  // Seed the form from server state ONCE, on first load. A later background
+  // refetch (react-query) would otherwise re-run this and revert the operator's
+  // unsaved edits. Their form is the source of truth after the initial hydrate.
+  const seededRef = useRef(false)
   useEffect(() => {
-    if (!theme) return
+    if (!theme || seededRef.current) return
+    seededRef.current = true
     setFontFamily(theme.font_family ?? '')
     setFontUrl(theme.font_css_url ?? '')
     setFontFaceUrl(theme.font_face_url ?? '')
@@ -180,7 +190,7 @@ export function AppearancePanel() {
   const customActive = hasCustomFont && fontFamily === fontCustomName
 
   const selectedFont = customActive
-    ? fontCustomName
+    ? CUSTOM_FONT_VALUE
     : (FONT_OPTIONS.find((f) => f.family === fontFamily)?.label ?? 'System default')
 
   const fontOptions = [
@@ -188,7 +198,9 @@ export function AppearancePanel() {
     ...(hasCustomFont
       ? [
           {
-            value: fontCustomName,
+            // A fixed sentinel value, NOT the font name — otherwise a custom font
+            // named like a Google font (e.g. "Inter") collides in the select.
+            value: CUSTOM_FONT_VALUE,
             label: fontCustomName,
             icon: (
               <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
@@ -201,7 +213,7 @@ export function AppearancePanel() {
   ]
 
   function pickFont(value: string) {
-    if (hasCustomFont && value === fontCustomName) {
+    if (hasCustomFont && value === CUSTOM_FONT_VALUE) {
       setFontFamily(fontCustomName)
       setFontUrl('')
       return
@@ -263,6 +275,22 @@ export function AppearancePanel() {
     e.preventDefault()
     setFormError(null)
     const section = WEBSITE_SETTING_SECTIONS.THEME
+    // The public render sanitises colours (hex / rgb() / named); a value it would
+    // drop (e.g. hsl(), color-mix()) previews in the admin but never ships, so
+    // reject it here instead of silently losing it on the live site.
+    const badColors = [
+      ['Primary', primary],
+      ['Secondary', secondary],
+      ...colors.map((c) => [c.name || c.slug || 'colour', c.value] as [string, string]),
+    ].filter(([, v]) => v && v.trim() && !safeColor(v))
+    if (badColors.length) {
+      setFormError(
+        `These colours aren't supported on the public site and won't render: ${badColors
+          .map(([n]) => n)
+          .join(', ')}. Use a hex (#rrggbb), rgb()/rgba(), or a named colour.`
+      )
+      return
+    }
     try {
       await update.mutateAsync({
         patches: [
@@ -362,11 +390,13 @@ export function AppearancePanel() {
         </p>
       </div>
 
-      {/* Load the custom font into this page so the preview below is accurate. */}
-      {hasCustomFont ? (
+      {/* Load the custom font into this page so the preview below is accurate.
+          Both values reach a raw <style>, so sanitise them (same rules as the
+          public render) — a stray quote/paren must not break out of the rule. */}
+      {hasCustomFont && safeFontFamily(fontCustomName) && safeFontFaceUrl(fontFaceUrl) ? (
         <style
           dangerouslySetInnerHTML={{
-            __html: `@font-face{font-family:'${fontCustomName}';src:url('${fontFaceUrl}');font-display:swap}`,
+            __html: `@font-face{font-family:'${safeFontFamily(fontCustomName)}';src:url('${safeFontFaceUrl(fontFaceUrl)}');font-display:swap}`,
           }}
         />
       ) : null}

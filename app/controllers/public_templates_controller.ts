@@ -35,7 +35,15 @@ async function isPubliclyReachable(template: Template): Promise<boolean> {
    */
   if (template.type === 'EMAIL') return false
 
-  if (template.isDefault) return true
+  // Only HEADER/FOOTER/LAYOUT are rendered publicly as a site default. A default
+  // COLLECTION/COMPONENT template has no public consumer, so being the default
+  // must not, on its own, expose its block tree.
+  if (
+    template.isDefault &&
+    (template.type === 'HEADER' || template.type === 'FOOTER' || template.type === 'LAYOUT')
+  ) {
+    return true
+  }
 
   const needle = `%${template.id}%`
 

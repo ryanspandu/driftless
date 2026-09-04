@@ -172,6 +172,7 @@ export interface IntegrationSettingsAdmin {
   googleClientId: string | null
   googleClientSecretMasked: string | null
   hasGoogleClientSecretInDb: boolean
+  googleClientSecretUnreadable: boolean
   googleRedirectUriHint: string
   envGoogleOAuthFallback: boolean
   captchaEnabled: boolean
@@ -179,6 +180,7 @@ export interface IntegrationSettingsAdmin {
   captchaSiteKey: string | null
   captchaSecretMasked: string | null
   hasCaptchaSecretInDb: boolean
+  captchaSecretUnreadable: boolean
   captchaOnLogin: boolean
   captchaOnRegister: boolean
   envCaptchaFallback: boolean

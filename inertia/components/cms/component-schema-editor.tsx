@@ -4,6 +4,7 @@ import { Button } from '~/components/ui/button'
 import { Checkbox } from '~/components/ui/checkbox'
 import { Input } from '~/components/ui/input'
 import { AppSelect } from '~/components/ui/app-select'
+import { keyHint } from '~/components/cms/schema-builder'
 
 export interface ComponentSubField {
   key: string
@@ -32,8 +33,6 @@ export const COMPONENT_SUBFIELD_TYPE_OPTIONS: {
   { value: 'DATETIME', label: 'Date & time' },
   { value: 'MEDIA', label: 'Media' },
 ]
-
-const KEY_RE = /^[a-z][a-z0-9_]{0,31}$/
 
 function slugifyKey(s: string): string {
   return s
@@ -64,7 +63,8 @@ export function componentSchemaError(config: Record<string, unknown>): string | 
   const seen = new Set<string>()
   for (const f of fields) {
     if (!f.label.trim()) return 'Every sub-field needs a label.'
-    if (!KEY_RE.test(f.key)) return `Invalid sub-field key "${f.key || '?'}".`
+    const km = keyHint(f.key)
+    if (km) return `Sub-field key "${f.key || '?'}": ${km}`
     if (seen.has(f.key)) return `Duplicate sub-field key "${f.key}".`
     seen.add(f.key)
   }

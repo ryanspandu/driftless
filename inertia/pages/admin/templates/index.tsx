@@ -184,13 +184,18 @@ export default function TemplatesPage() {
                 <SquarePen className="size-4" />
                 Open builder
               </DropdownMenuItem>
-              {/* A collection template is picked per CollectionList — there is
-                  no site-wide slot for a default to fill. */}
-              {row.original.type !== 'COLLECTION' ? (
+              {/* Only HEADER/FOOTER/LAYOUT/EMAIL have something that consumes a
+                  site default; COLLECTION/COMPONENT are picked by reference. */}
+              {['HEADER', 'FOOTER', 'LAYOUT', 'EMAIL'].includes(row.original.type) ? (
                 <DropdownMenuItem
                   className="gap-2"
                   disabled={row.original.isDefault}
-                  onClick={() => void setDefaultMut.mutateAsync(row.original.id)}
+                  onClick={() =>
+                    void setDefaultMut
+                      .mutateAsync(row.original.id)
+                      .then(() => toast.success('Set as default'))
+                      .catch((e) => toast.error(apiErrorMessage(e, 'Failed to set default')))
+                  }
                 >
                   <Star className="size-4" />
                   Set default
@@ -198,7 +203,12 @@ export default function TemplatesPage() {
               ) : null}
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => void duplicateMut.mutateAsync(row.original.id)}
+                onClick={() =>
+                  void duplicateMut
+                    .mutateAsync(row.original.id)
+                    .then(() => toast.success('Template duplicated'))
+                    .catch((e) => toast.error(apiErrorMessage(e, 'Failed to duplicate')))
+                }
               >
                 <Copy className="size-4" />
                 Duplicate

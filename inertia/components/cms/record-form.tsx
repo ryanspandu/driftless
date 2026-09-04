@@ -59,7 +59,10 @@ function prepareSubmitPayload(
     }
   }
 
-  return { status, data: out };
+  // When the draft/publish workflow is off the status control is hidden, so the
+  // internal `status` state is meaningless — records must go out PUBLISHED or the
+  // public site (which filters to PUBLISHED) would never show them.
+  return { status: collection.draftsOn ? status : "PUBLISHED", data: out };
 }
 
 export interface RecordFormProps {

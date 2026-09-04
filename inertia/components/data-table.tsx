@@ -206,6 +206,12 @@ export type DataTableProps<TData> = {
   getRowId?: (originalRow: TData, index: number) => string;
   /** Called when selection changes (for bulk actions, etc.). */
   onRowSelectionChange?: (selection: RowSelectionState) => void;
+  /**
+   * Controlled selection. Pass this together with `onRowSelectionChange` to own
+   * the selection state — clearing it (e.g. after a bulk action) then unchecks
+   * the rows. Left undefined, the table keeps its own uncontrolled selection.
+   */
+  rowSelection?: RowSelectionState;
   /** Hide the default Sync column (default: false). */
   hideSyncColumn?: boolean;
   /**
@@ -273,6 +279,7 @@ function DataTableInner<TData>({
   enableBulkSelect = true,
   getRowId: getRowIdProp,
   onRowSelectionChange: onRowSelectionChangeProp,
+  rowSelection: controlledRowSelection,
   hideSyncColumn = false,
   getSyncStatus,
   lastSyncedAt,
@@ -286,7 +293,10 @@ function DataTableInner<TData>({
     pageIndex: 0,
     pageSize: defaultPageSize,
   });
-  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  const [internalRowSelection, setInternalRowSelection] =
+    React.useState<RowSelectionState>({});
+  const isControlledSelection = controlledRowSelection !== undefined;
+  const rowSelection = controlledRowSelection ?? internalRowSelection;
 
   const globalFilter = urlSynced?.globalFilter ?? localGlobalFilter;
   const sorting = urlSynced?.sorting ?? localSorting;
@@ -493,9 +503,21 @@ function DataTableInner<TData>({
     return [selectColumn, ...cols];
   }, [columns, enableBulkSelect, hideSyncColumn, resolveSyncStatus]);
 
-  React.useEffect(() => {
-    onRowSelectionChangeRef.current?.(rowSelection);
-  }, [rowSelection]);
+  // Keep the latest selection in a ref so the change handler can resolve
+  // TanStack's functional updaters without a stale closure.
+  const rowSelectionRef = React.useRef(rowSelection);
+  rowSelectionRef.current = rowSelection;
+  const handleRowSelectionChange = React.useCallback(
+    (updater: RowSelectionState | ((old: RowSelectionState) => RowSelectionState)) => {
+      const next =
+        typeof updater === "function" ? updater(rowSelectionRef.current) : updater;
+      // Only own the state when uncontrolled; a controlled parent updates it via
+      // the callback below (so clearing the parent's copy unchecks the rows).
+      if (!isControlledSelection) setInternalRowSelection(next);
+      onRowSelectionChangeRef.current?.(next);
+    },
+    [isControlledSelection]
+  );
 
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table is designed around this hook
   const table = useReactTable({
@@ -505,7 +527,7 @@ function DataTableInner<TData>({
     onGlobalFilterChange,
     onPaginationChange,
     onSortingChange,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: handleRowSelectionChange,
     enableRowSelection: enableBulkSelect,
     getRowId: enableBulkSelect ? resolveRowId : undefined,
     getCoreRowModel: getCoreRowModel(),

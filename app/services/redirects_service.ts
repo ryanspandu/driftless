@@ -72,6 +72,26 @@ export default class RedirectsService {
 
   // ── Admin CRUD ─────────────────────────────────────────────────────────────
 
+  /**
+   * Reject a 2-cycle: creating `from → to` when `to → from` already exists would
+   * bounce a request back and forth forever. (`capturePathChange` already avoids
+   * this for automatic redirects; the admin CRUD paths didn't.)
+   */
+  private async assertNoReverseCycle(
+    fromNorm: string,
+    toRaw: string,
+    selfId?: string
+  ): Promise<void> {
+    const toNorm = normalizeFromPath(toRaw)
+    if (!toNorm) return
+    let q = Redirect.query().where('from_path', toNorm)
+    if (selfId) q = q.whereNot('id', selfId)
+    const reverse = await q.first()
+    if (reverse && normalizeFromPath(reverse.toPath) === fromNorm) {
+      throw new Error('That would create a redirect loop — the destination already redirects back here.')
+    }
+  }
+
   async list(): Promise<RedirectDto[]> {
     const rows = await Redirect.query().orderBy('updated_at', 'desc')
     return rows.map((r) => this.toDto(r))
@@ -85,6 +105,7 @@ export default class RedirectsService {
     if (normalizeFromPath(to) === from) throw new Error('A redirect cannot point at itself.')
     const exists = await Redirect.query().where('from_path', from).first()
     if (exists) throw new Error('A redirect for that path already exists.')
+    await this.assertNoReverseCycle(from, to)
 
     const row = await Redirect.create({
       id: newUlid(),
@@ -116,6 +137,7 @@ export default class RedirectsService {
     if (normalizeFromPath(row.toPath) === row.fromPath) {
       throw new Error('A redirect cannot point at itself.')
     }
+    await this.assertNoReverseCycle(row.fromPath, row.toPath, id)
     row.updatedAt = DateTime.now()
     await row.save()
     return this.toDto(row)

@@ -14,6 +14,7 @@ import type { PageMeta } from '~/puck/settings-dialog'
 import {
   usePage as usePageRecord,
   usePublishPage,
+  useUpdatePage,
   useSaveDraft,
   useDiscardDraft,
 } from '~/hooks/api/use-pages'
@@ -129,6 +130,7 @@ function BuilderInner({
   regionOf?: string | null
 }) {
   const publishMut = usePublishPage()
+  const updateMut = useUpdatePage()
   const saveDraftMut = useSaveDraft()
   const discardMut = useDiscardDraft()
   const bpQuery = useBreakpoints()
@@ -181,6 +183,31 @@ function BuilderInner({
   })
 
   const save = async (data: Data) => {
+    // A future "Publish at" means schedule, not publish now: stage the design as
+    // a draft and keep the page DRAFT with the timestamp, so the `pages:run-schedule`
+    // cron promotes it when due. Publishing immediately (the old behaviour) would
+    // leave nothing for the scheduler to act on, so the schedule never fired.
+    const scheduledAt = meta.scheduledPublishAt ? new Date(meta.scheduledPublishAt) : null
+    const scheduleForLater =
+      scheduledAt !== null && !Number.isNaN(scheduledAt.valueOf()) && scheduledAt.getTime() > Date.now()
+
+    if (scheduleForLater) {
+      try {
+        await saveDraftMut.mutateAsync({
+          id,
+          content: data as unknown as Record<string, unknown>,
+          seo: meta.seo,
+        })
+        await updateMut.mutateAsync({ id, ...metaFields(), status: 'DRAFT' })
+        setMeta((m) => ({ ...m, status: 'DRAFT' }))
+        toast.success(`Publish scheduled for ${scheduledAt!.toLocaleString()}`)
+      } catch (error) {
+        toast.error('Failed to schedule')
+        throw error
+      }
+      return
+    }
+
     try {
       await publishMut.mutateAsync({
         id,

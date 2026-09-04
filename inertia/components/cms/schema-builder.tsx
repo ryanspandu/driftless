@@ -75,15 +75,55 @@ export function emptyFieldDraft(): SchemaFieldDraft {
   }
 }
 
-/** Validates the same regex the backend accepts: `^[a-z][a-z0-9_]{0,31}$`. */
+const KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/
+
+/**
+ * SQL/reserved identifiers the backend rejects (mirrors `RESERVED` in
+ * `app/services/cms_service.ts`). Checked client-side so a key like `status` or
+ * `order` is caught in the form instead of only failing on save.
+ */
+const RESERVED_KEYS = new Set([
+  'select',
+  'from',
+  'where',
+  'table',
+  'insert',
+  'update',
+  'delete',
+  'user',
+  'role',
+  'order',
+  'group',
+  'union',
+  'join',
+  'index',
+  'primary',
+  'foreign',
+  'constraint',
+  'default',
+  'null',
+  'true',
+  'false',
+  'status',
+  'id',
+  'created_at',
+  'updated_at',
+  'author_id',
+  'deleted_at',
+])
+
+/** Matches the backend: the `^[a-z][a-z0-9_]{0,31}$` regex AND no reserved word. */
 export function isValidKey(value: string): boolean {
-  return /^[a-z][a-z0-9_]{0,31}$/.test(value)
+  return KEY_PATTERN.test(value) && !RESERVED_KEYS.has(value)
 }
 
 export function keyHint(value: string): string | null {
   if (!value) return 'Required.'
-  if (!isValidKey(value)) {
+  if (!KEY_PATTERN.test(value)) {
     return 'Lowercase letters, digits, underscore. Start with a letter. 32 chars max.'
+  }
+  if (RESERVED_KEYS.has(value)) {
+    return `"${value}" is a reserved word — pick another key.`
   }
   return null
 }

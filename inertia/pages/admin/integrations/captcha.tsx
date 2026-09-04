@@ -61,7 +61,10 @@ export default function CaptchaIntegrationPage() {
     try {
       await update.mutateAsync({
         captchaEnabled,
-        captchaProvider: captchaEnabled ? captchaProvider : null,
+        // Keep the chosen provider even when disabled — nulling it made a later
+        // re-enable silently fall back to Turnstile with keys meant for another
+        // provider.
+        captchaProvider: captchaProvider || null,
         captchaSiteKey: captchaSiteKey.trim() || null,
         ...(clearCaptchaSecret
           ? { captchaSecret: '' }
@@ -182,6 +185,12 @@ export default function CaptchaIntegrationPage() {
                   {query.data?.captchaSecretMasked ? (
                     <p className="text-xs text-muted-foreground">
                       Stored: {query.data.captchaSecretMasked}
+                    </p>
+                  ) : null}
+                  {query.data?.captchaSecretUnreadable ? (
+                    <p className="text-xs text-destructive">
+                      A secret is stored but can’t be decrypted (the app key may have changed).
+                      Re-enter it to fix.
                     </p>
                   ) : null}
                   {query.data?.hasCaptchaSecretInDb ? (

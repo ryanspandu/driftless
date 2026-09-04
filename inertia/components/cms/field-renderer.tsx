@@ -220,9 +220,15 @@ export function FieldRenderer({
           <Input
             type={field.type === "DATE" ? "date" : "datetime-local"}
             value={dateInputValue(value, field.type)}
-            onChange={(e) =>
-              onChange(e.target.value === "" ? null : e.target.value)
-            }
+            onChange={(e) => {
+              // DATE stays a tz-agnostic calendar string; DATETIME is stored as
+              // a UTC ISO instant so it round-trips without drifting.
+              if (field.type === "DATE") {
+                onChange(e.target.value === "" ? null : e.target.value);
+              } else {
+                onChange(dateTimeInputToIso(e.target.value));
+              }
+            }}
             disabled={disabled}
           />
         </div>
@@ -490,7 +496,7 @@ function ComponentField({
     typeof field.config.componentKey === "string"
       ? field.config.componentKey
       : "";
-  const { data: components } = useCmsComponentsList();
+  const { data: components, isLoading: componentsLoading } = useCmsComponentsList();
   const repeatable = field.config.repeatable === true;
 
   // Resolve the schema: a saved component from the registry, or inline fields.
@@ -500,6 +506,11 @@ function ComponentField({
     : readComponentFields(field.config);
 
   if (subFields.length === 0) {
+    // Don't cry "missing" while the components list is still loading — that
+    // resolves to an empty schema momentarily on every open.
+    if (componentKey && componentsLoading) {
+      return <p className="text-xs text-muted-foreground">Loading component…</p>;
+    }
     return (
       <p className="text-xs text-destructive">
         {componentKey
@@ -649,9 +660,24 @@ function dateInputValue(value: unknown, type: "DATE" | "DATETIME"): string {
   if (typeof value !== "string" || !value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
+  // DATE is timezone-agnostic — the stored calendar date is what to show.
   if (type === "DATE") return d.toISOString().slice(0, 10);
-  const iso = d.toISOString();
-  return iso.slice(0, 16);
+  // A `datetime-local` input works in LOCAL wall-clock, so render the stored
+  // instant in local components. Slicing `toISOString()` (UTC) instead shifted
+  // the shown time by the viewer's offset on every load/save (the tz drift).
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  );
+}
+
+/** Convert a `datetime-local` input's local wall-clock string back to a UTC ISO
+ *  instant for storage. Returns null for an empty input. */
+function dateTimeInputToIso(local: string): string | null {
+  if (!local) return null;
+  const d = new Date(local); // a tz-less string is parsed as local time
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 function JsonEditor({

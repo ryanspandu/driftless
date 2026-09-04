@@ -9,7 +9,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Loader2, Plus, Trash2, Workflow, X } from 'lucide-react'
+import { GripVertical, Loader2, Pencil, Plus, Trash2, Workflow, X } from 'lucide-react'
 import type { AddCmsFieldRequest, CmsCollectionDto, CmsFieldType } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -68,6 +68,8 @@ export function ExistingFieldsCard({
   actionsDisabled,
   onReorderFieldKeys,
   onRemove,
+  onEditField,
+  editSiblings,
   headerAction,
   description,
 }: {
@@ -75,6 +77,13 @@ export function ExistingFieldsCard({
   actionsDisabled: boolean
   onReorderFieldKeys?: (orderedKeys: string[]) => void
   onRemove: (fieldKey: string) => void
+  /** When provided, each field gets an Edit button that saves label/config. */
+  onEditField?: (
+    fieldKey: string,
+    body: { label: string; config: Record<string, unknown> }
+  ) => Promise<unknown>
+  /** Sibling fields the per-type config panel needs (e.g. SLUG source). */
+  editSiblings?: SiblingField[]
   headerAction?: ReactNode
   description?: ReactNode
 }) {
@@ -83,6 +92,9 @@ export function ExistingFieldsCard({
       activationConstraint: { distance: 8 },
     })
   )
+
+  const [editing, setEditing] = useState<FieldRowData | null>(null)
+  const onEdit = onEditField ? (field: FieldRowData) => setEditing(field) : undefined
 
   const dataFields = fields.filter((f) => f.type !== 'RELATION')
   const relationFields = fields.filter((f) => f.type === 'RELATION')
@@ -130,6 +142,7 @@ export function ExistingFieldsCard({
                   actionsDisabled={actionsDisabled}
                   reorderDisabled={!onReorderFieldKeys}
                   onRemove={onRemove}
+                  onEdit={onEdit}
                 />
               ))}
             </div>
@@ -151,11 +164,23 @@ export function ExistingFieldsCard({
                 field={field}
                 actionsDisabled={actionsDisabled}
                 onRemove={onRemove}
+                onEdit={onEdit}
               />
             ))}
           </div>
         ) : null}
       </CardContent>
+
+      {onEditField ? (
+        <EditFieldDialog
+          field={editing}
+          siblingFields={editSiblings ?? []}
+          onOpenChange={(open) => {
+            if (!open) setEditing(null)
+          }}
+          onSave={(body) => onEditField(editing!.key, body)}
+        />
+      ) : null}
     </Card>
   )
 }
@@ -164,10 +189,12 @@ function RelationFieldRow({
   field,
   actionsDisabled,
   onRemove,
+  onEdit,
 }: {
   field: FieldRowData
   actionsDisabled: boolean
   onRemove: (fieldKey: string) => void
+  onEdit?: (field: FieldRowData) => void
 }) {
   const targetKey = typeof field.config.targetKey === 'string' ? field.config.targetKey : '?'
   const relationType =
@@ -184,16 +211,30 @@ function RelationFieldRow({
           </Badge>
         </div>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-8 shrink-0 text-destructive"
-        disabled={actionsDisabled}
-        onClick={() => onRemove(field.key)}
-        aria-label={`Remove ${field.key}`}
-      >
-        <Trash2 className="size-4" />
-      </Button>
+      <div className="flex shrink-0 items-center">
+        {onEdit ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            disabled={actionsDisabled}
+            onClick={() => onEdit(field)}
+            aria-label={`Edit ${field.key}`}
+          >
+            <Pencil className="size-4" />
+          </Button>
+        ) : null}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-destructive"
+          disabled={actionsDisabled}
+          onClick={() => onRemove(field.key)}
+          aria-label={`Remove ${field.key}`}
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </div>
     </div>
   )
 }
@@ -203,11 +244,13 @@ function SortableExistingFieldRow({
   actionsDisabled,
   reorderDisabled,
   onRemove,
+  onEdit,
 }: {
   field: FieldRowData
   actionsDisabled: boolean
   reorderDisabled: boolean
   onRemove: (fieldKey: string) => void
+  onEdit?: (field: FieldRowData) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: field.id,
@@ -256,17 +299,162 @@ function SortableExistingFieldRow({
           ) : null}
         </div>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-8 shrink-0 text-destructive"
-        disabled={actionsDisabled}
-        onClick={() => onRemove(field.key)}
-        aria-label={`Remove ${field.key}`}
-      >
-        <Trash2 className="size-4" />
-      </Button>
+      <div className="flex shrink-0 items-center">
+        {onEdit ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            disabled={actionsDisabled}
+            onClick={() => onEdit(field)}
+            aria-label={`Edit ${field.key}`}
+          >
+            <Pencil className="size-4" />
+          </Button>
+        ) : null}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-destructive"
+          disabled={actionsDisabled}
+          onClick={() => onRemove(field.key)}
+          aria-label={`Remove ${field.key}`}
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </div>
     </div>
+  )
+}
+
+/**
+ * Edit an existing field's label and per-type config (SELECT options, SLUG
+ * source, NUMBER min/max…). Key, type and constraints are immutable once the
+ * column exists, so they are shown read-only. RELATION/COMPONENT edit the label
+ * only — their storage can't be restructured in place.
+ */
+function EditFieldDialog({
+  field,
+  siblingFields,
+  onOpenChange,
+  onSave,
+}: {
+  field: FieldRowData | null
+  siblingFields: SiblingField[]
+  onOpenChange: (open: boolean) => void
+  onSave: (body: { label: string; config: Record<string, unknown> }) => Promise<unknown>
+}) {
+  const [label, setLabel] = useState('')
+  const [config, setConfig] = useState<Record<string, unknown>>({})
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const id = useId()
+
+  // Seed the form from the field each time the dialog opens on a new field.
+  const activeKey = field?.key ?? null
+  const [seededFor, setSeededFor] = useState<string | null>(null)
+  if (field && seededFor !== activeKey) {
+    setSeededFor(activeKey)
+    setLabel(field.label)
+    setConfig(field.config ?? {})
+    setError(null)
+  }
+
+  const open = field !== null
+  const editsConfig = field ? field.type !== 'RELATION' && field.type !== 'COMPONENT' : false
+  const canSave = label.trim().length > 0 && !saving
+
+  const handleClose = (next: boolean) => {
+    if (saving) return
+    if (!next) setSeededFor(null)
+    onOpenChange(next)
+  }
+
+  const handleSave = async () => {
+    setError(null)
+    setSaving(true)
+    try {
+      await onSave({ label: label.trim(), config })
+      handleClose(false)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <button
+          type="button"
+          onClick={() => handleClose(false)}
+          disabled={saving}
+          aria-label="Close"
+          className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        >
+          <X className="size-4" />
+        </button>
+        <DialogHeader>
+          <DialogTitle>Edit field</DialogTitle>
+          <DialogDescription>
+            Update the label{editsConfig ? ' and options' : ''}. The key and type can’t change once
+            the column exists.
+          </DialogDescription>
+        </DialogHeader>
+
+        {field ? (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
+              <FieldTypeIconTile type={field.type} className="size-10" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold leading-tight">
+                  {FIELD_TYPE_META_BY_TYPE[field.type]?.label ?? field.type}
+                </p>
+                <code className="font-mono text-xs text-muted-foreground">{field.key}</code>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor={`${id}-label`}>Label</Label>
+              <Input
+                id={`${id}-label`}
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                autoComplete="off"
+                autoFocus
+              />
+            </div>
+
+            {editsConfig ? (
+              <FieldConfigPanel
+                field={{ type: field.type, config }}
+                siblings={siblingFields}
+                onConfigChange={setConfig}
+              />
+            ) : null}
+
+            {error ? (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        <DialogFooter>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={!canSave}
+            className="gap-2 min-w-[7rem]"
+          >
+            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -283,6 +471,8 @@ export function AddFieldDialog({
   relationTargets,
   siblingFields,
   onAdd,
+  allowRelation = true,
+  allowRequired = true,
 }: {
   disabled: boolean
   existingKeys: string[]
@@ -290,6 +480,12 @@ export function AddFieldDialog({
   /** Existing fields — used as SLUG sources and by the per-type config panel. */
   siblingFields: SiblingField[]
   onAdd: (body: AddCmsFieldRequest) => Promise<unknown>
+  /** RELATION needs a join table that only `createCollection` can't build, so
+   *  hide it when staging fields for a not-yet-created collection. */
+  allowRelation?: boolean
+  /** Adding a field to an existing collection must be optional (the server
+   *  rejects `required`), so hide the Required checkbox in that mode. */
+  allowRequired?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<SchemaFieldDraft>(emptyFieldDraft())
@@ -422,7 +618,11 @@ export function AddFieldDialog({
           </DialogHeader>
 
           {step === 'type' ? (
-            <FieldTypePicker value={picked ? draft.type : null} onChange={handlePickType} />
+            <FieldTypePicker
+              value={picked ? draft.type : null}
+              onChange={handlePickType}
+              exclude={allowRelation ? undefined : ['RELATION']}
+            />
           ) : (
             <div className="space-y-6">
               <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
@@ -626,31 +826,35 @@ export function AddFieldDialog({
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border/80 bg-muted/35 p-4">
-                <p className="mb-3 text-xs font-medium text-muted-foreground">Constraints</p>
-                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8 sm:gap-y-2">
-                  <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-                    <Checkbox
-                      checked={draft.required}
-                      onCheckedChange={(v) =>
-                        setDraft((prev) => ({ ...prev, required: v === true }))
-                      }
-                    />
-                    <span>Required</span>
-                  </label>
-                  {['TEXT', 'SLUG', 'NUMBER'].includes(draft.type) ? (
-                    <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-                      <Checkbox
-                        checked={draft.unique}
-                        onCheckedChange={(v) =>
-                          setDraft((prev) => ({ ...prev, unique: v === true }))
-                        }
-                      />
-                      <span>Unique</span>
-                    </label>
-                  ) : null}
+              {allowRequired || ['TEXT', 'SLUG', 'NUMBER'].includes(draft.type) ? (
+                <div className="rounded-lg border border-border/80 bg-muted/35 p-4">
+                  <p className="mb-3 text-xs font-medium text-muted-foreground">Constraints</p>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8 sm:gap-y-2">
+                    {allowRequired ? (
+                      <label className="flex cursor-pointer items-center gap-2.5 text-sm">
+                        <Checkbox
+                          checked={draft.required}
+                          onCheckedChange={(v) =>
+                            setDraft((prev) => ({ ...prev, required: v === true }))
+                          }
+                        />
+                        <span>Required</span>
+                      </label>
+                    ) : null}
+                    {['TEXT', 'SLUG', 'NUMBER'].includes(draft.type) ? (
+                      <label className="flex cursor-pointer items-center gap-2.5 text-sm">
+                        <Checkbox
+                          checked={draft.unique}
+                          onCheckedChange={(v) =>
+                            setDraft((prev) => ({ ...prev, unique: v === true }))
+                          }
+                        />
+                        <span>Unique</span>
+                      </label>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               {error ? (
                 <p className="text-sm text-destructive" role="alert">

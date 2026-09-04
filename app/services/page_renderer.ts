@@ -130,7 +130,10 @@ export default class PageRenderer {
     // override if set, else the site default for that type.
     const layoutContent = page.layoutId
       ? ((await templatesService.find(page.layoutId).catch(() => null))?.content ?? null)
-      : null
+      : // No per-page layout → fall back to the site default LAYOUT (mirrors how
+        // header/footer resolve their defaults). Previously a default LAYOUT was
+        // never applied to any page.
+        ((await templatesService.getDefault('LAYOUT').catch(() => null))?.content ?? null)
 
     let headerContent: Record<string, unknown> | null = null
     let footerContent: Record<string, unknown> | null = null

@@ -17,8 +17,9 @@ import { GlobalCodePanel } from '~/puck/global-code-panel'
 import { AppearancePanel } from '~/components/appearance-panel'
 
 const SITE_DEFAULT_FAVICON = '/logo.svg'
-const SITE_DEFAULT_DESCRIPTION =
-  'Driftless — a fast, modern content hub. Discover published articles and updates.'
+// Must match the server default (`WEB_DEFAULTS.site_meta.site_description` in
+// settings_service.ts), so the form shows the same default the public site uses.
+const SITE_DEFAULT_DESCRIPTION = 'A modern CMS'
 
 /**
  * Public website settings — distinct from the admin-shell settings at
@@ -220,12 +221,14 @@ function FormsSection() {
   const update = useUpdateWebsiteSettings()
   const forms = data?.sections?.[WEBSITE_SETTING_SECTIONS.FORMS]
   const [webhookUrl, setWebhookUrl] = useState('')
+  const [notifyEmail, setNotifyEmail] = useState('')
   const [saved, setSaved] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!forms) return
     setWebhookUrl(forms.webhook_url ?? '')
+    setNotifyEmail(forms.notify_email ?? '')
   }, [forms])
 
   async function onSubmit(e: FormEvent) {
@@ -236,9 +239,17 @@ function FormsSection() {
       setFormError('Webhook URL must start with https://')
       return
     }
+    const email = notifyEmail.trim()
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setFormError('Notification email is not a valid address.')
+      return
+    }
     try {
       await update.mutateAsync({
-        patches: [{ section: WEBSITE_SETTING_SECTIONS.FORMS, key: 'webhook_url', value: url }],
+        patches: [
+          { section: WEBSITE_SETTING_SECTIONS.FORMS, key: 'webhook_url', value: url },
+          { section: WEBSITE_SETTING_SECTIONS.FORMS, key: 'notify_email', value: email },
+        ],
       })
       setSaved(true)
       window.setTimeout(() => setSaved(false), 2500)
@@ -272,6 +283,23 @@ function FormsSection() {
               On each non-spam submission we POST JSON{' '}
               <code>{'{ form, page, email, data, at }'}</code> here (5s timeout, fire-and-forget).
               Leave empty to disable.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="formsNotifyEmail">Notification email (optional)</Label>
+            <Input
+              id="formsNotifyEmail"
+              type="email"
+              value={notifyEmail}
+              onChange={(e) => setNotifyEmail(e.target.value)}
+              placeholder="team@example.com"
+              autoComplete="off"
+              disabled={isPending}
+            />
+            <p className="text-xs text-muted-foreground">
+              Emailed on each non-spam submission when email delivery is configured. Leave empty to
+              disable.
             </p>
           </div>
 

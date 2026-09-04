@@ -142,6 +142,12 @@ export default function GoogleIntegrationPage() {
                       Stored: {query.data.googleClientSecretMasked}
                     </p>
                   ) : null}
+                  {query.data?.googleClientSecretUnreadable ? (
+                    <p className="text-xs text-destructive">
+                      A secret is stored but can’t be decrypted (the app key may have changed).
+                      Re-enter it to fix.
+                    </p>
+                  ) : null}
                   {query.data?.hasGoogleClientSecretInDb ? (
                     <div className="flex items-center gap-2">
                       <Checkbox

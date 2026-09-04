@@ -11,7 +11,8 @@ import { AlignCenter, AlignLeft, AlignRight, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '~/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
-import { useUpdateWebsiteSettings } from '~/hooks/api/use-website-settings'
+import { useUpdateWebsiteSettings, useWebsiteSettings } from '~/hooks/api/use-website-settings'
+import { parseSavedColors } from './saved-colors'
 import { ColorPicker } from './color-picker'
 import { SavedColorsContext, savedColorRef, slugifyColorName } from './saved-colors'
 
@@ -427,6 +428,7 @@ function AddSwatchPopover({
 }) {
   const saved = useContext(SavedColorsContext)
   const update = useUpdateWebsiteSettings()
+  const settingsQuery = useWebsiteSettings()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [color, setColor] = useState('#000000')
@@ -442,15 +444,25 @@ function AddSwatchPopover({
     setOpen(next)
   }
 
-  const save = () => {
+  const save = async () => {
     const trimmed = name.trim()
     if (!trimmed || !color) return
-    const used = new Set(saved.map((c) => c.slug))
+    // Merge onto the FRESHEST server list, not our possibly-stale context copy,
+    // so a swatch another writer added since this builder loaded isn't clobbered.
+    let latest = saved
+    try {
+      const fresh = await settingsQuery.refetch()
+      const raw = fresh.data?.sections?.theme?.saved_colors
+      if (raw !== undefined) latest = parseSavedColors(raw)
+    } catch {
+      // Network hiccup — fall back to the context copy.
+    }
+    const used = new Set(latest.map((c) => c.slug))
     const base = slugifyColorName(trimmed) || 'color'
     let slug = base
     let i = 2
     while (used.has(slug)) slug = `${base}-${i++}`
-    const next = [...saved, { slug, name: trimmed, value: color }]
+    const next = [...latest, { slug, name: trimmed, value: color }]
     update.mutate(
       { patches: [{ section: 'theme', key: 'saved_colors', value: JSON.stringify(next) }] },
       {

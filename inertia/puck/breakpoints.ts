@@ -86,6 +86,10 @@ export function readBreakpoints(raw: unknown): Breakpoint[] {
       maxWidth = Math.round(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, n)))
     }
 
+    // Reserve the base id for the root (null-width) tier, so the unshift below
+    // can never create two tiers sharing the base id.
+    if (id === BASE_BREAKPOINT_ID && maxWidth !== null) continue
+
     const label = typeof o.label === 'string' && o.label.trim() ? o.label.trim().slice(0, 40) : id
     seen.add(id)
     out.push({ id, label, maxWidth, custom: o.custom === true })

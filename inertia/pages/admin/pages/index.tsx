@@ -407,6 +407,7 @@ export default function PagesPage() {
         hideSyncColumn
         searchPlaceholder="Search by title or path…"
         toolbarActions={trashButton}
+        rowSelection={selection}
         onRowSelectionChange={setSelection}
         emptyMessage={listQuery.isLoading ? 'Loading…' : 'No pages yet — create your first page.'}
       />

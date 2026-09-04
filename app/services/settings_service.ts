@@ -162,18 +162,38 @@ export interface ResponsiveBreakpoint {
   custom?: boolean
 }
 
+const BREAKPOINT_MIN_WIDTH = 200
+const BREAKPOINT_MAX_WIDTH = 3840
+const MAX_BREAKPOINTS = 12
+const BASE_BREAKPOINT_ID = 'desktop'
+
+/** Base tier first, then by DESCENDING max-width — mirrors client orderBreakpoints. */
+function orderBreakpoints(bps: ResponsiveBreakpoint[]): ResponsiveBreakpoint[] {
+  return [...bps].sort((a, b) => {
+    if (a.maxWidth === null) return -1
+    if (b.maxWidth === null) return 1
+    return b.maxWidth - a.maxWidth
+  })
+}
+
 /**
  * Validate a stored/incoming breakpoint list. Clamps widths, validates ids,
  * drops duplicates/overflow, and guarantees a base tier. The client re-runs its
  * own `readBreakpoints` on render, so this is the server-side authority for what
  * gets persisted; the two must agree (guarded by a drift test).
+ *
+ * Kept byte-for-byte equivalent to `readBreakpoints` (inertia/puck/breakpoints.ts):
+ * filter-THEN-cap (not slice-then-filter, which dropped valid tiers past index
+ * 12), reserve the base id so the root tier can't be duplicated, and order the
+ * result desktop-first.
  */
-function sanitizeBreakpoints(input: unknown): ResponsiveBreakpoint[] {
+export function sanitizeBreakpoints(input: unknown): ResponsiveBreakpoint[] {
   const arr = Array.isArray(input) ? input : []
   const seen = new Set<string>()
   const out: ResponsiveBreakpoint[] = []
-  for (const item of arr.slice(0, 12)) {
-    const o = (item ?? {}) as Record<string, unknown>
+  for (const item of arr) {
+    if (!item || typeof item !== 'object') continue
+    const o = item as Record<string, unknown>
     const id = typeof o.id === 'string' ? o.id.trim() : ''
     if (!/^[a-z0-9_-]{1,40}$/i.test(id) || seen.has(id)) continue
     let maxWidth: number | null
@@ -182,16 +202,20 @@ function sanitizeBreakpoints(input: unknown): ResponsiveBreakpoint[] {
     } else {
       const n = Number(o.maxWidth)
       if (!Number.isFinite(n)) continue
-      maxWidth = Math.round(Math.max(200, Math.min(3840, n)))
+      maxWidth = Math.round(Math.max(BREAKPOINT_MIN_WIDTH, Math.min(BREAKPOINT_MAX_WIDTH, n)))
     }
+    // Reserve the base id for the root (null-width) tier, so the unshift below
+    // can never create two tiers sharing the base id.
+    if (id === BASE_BREAKPOINT_ID && maxWidth !== null) continue
     const label = typeof o.label === 'string' && o.label.trim() ? o.label.trim().slice(0, 40) : id
     seen.add(id)
     out.push({ id, label, maxWidth, custom: o.custom === true })
+    if (out.length >= MAX_BREAKPOINTS) break
   }
   if (!out.some((b) => b.maxWidth === null)) {
-    out.unshift({ id: 'desktop', label: 'Desktop', maxWidth: null })
+    out.unshift({ id: BASE_BREAKPOINT_ID, label: 'Desktop', maxWidth: null })
   }
-  return out
+  return orderBreakpoints(out)
 }
 
 function sanitizeSnippets(input: unknown): GlobalCodeSnippet[] {
@@ -291,7 +315,7 @@ export interface PublicTheme {
 }
 
 /** A CSS colour we are willing to inject: hex, a short safe keyword, or rgb()/rgba(). */
-function safeColor(value: string | undefined): string {
+export function safeColor(value: string | undefined): string {
   const v = (value ?? '').trim()
   if (!v) return ''
   if (/^#[0-9a-fA-F]{3,8}$/.test(v)) return v
@@ -362,6 +386,8 @@ export interface IntegrationSettingsAdmin {
   googleClientId: string | null
   googleClientSecretMasked: string | null
   hasGoogleClientSecretInDb: boolean
+  /** A secret is stored but could not be decrypted (e.g. APP_KEY changed). */
+  googleClientSecretUnreadable: boolean
   googleRedirectUriHint: string
   envGoogleOAuthFallback: boolean
   captchaEnabled: boolean
@@ -369,6 +395,8 @@ export interface IntegrationSettingsAdmin {
   captchaSiteKey: string | null
   captchaSecretMasked: string | null
   hasCaptchaSecretInDb: boolean
+  /** A secret is stored but could not be decrypted (e.g. APP_KEY changed). */
+  captchaSecretUnreadable: boolean
   captchaOnLogin: boolean
   captchaOnRegister: boolean
   envCaptchaFallback: boolean
@@ -669,6 +697,9 @@ export class IntegrationSettingsService {
       googleClientId: row.googleClientId,
       googleClientSecretMasked: maskSecret(googleSecretPlain),
       hasGoogleClientSecretInDb: !!googleSecretPlain,
+      // Distinguish "no secret set" from "a secret is stored but undecryptable"
+      // so the operator knows to re-enter it rather than assuming it is empty.
+      googleClientSecretUnreadable: !!row.googleClientSecretEnc && !googleSecretPlain,
       googleRedirectUriHint: this.buildGoogleRedirectUri(),
       envGoogleOAuthFallback: !!(
         env.get('GOOGLE_CLIENT_ID', '') && env.get('GOOGLE_CLIENT_SECRET', '')
@@ -678,9 +709,14 @@ export class IntegrationSettingsService {
       captchaSiteKey: row.captchaSiteKey,
       captchaSecretMasked: maskSecret(captchaSecretPlain),
       hasCaptchaSecretInDb: !!captchaSecretPlain,
+      captchaSecretUnreadable: !!row.captchaSecretEnc && !captchaSecretPlain,
       captchaOnLogin: row.captchaOnLogin,
       captchaOnRegister: row.captchaOnRegister,
-      envCaptchaFallback: !!(env.get('TURNSTILE_SITE_KEY', '') || env.get('HCAPTCHA_SITE_KEY', '')),
+      // Only the Turnstile env key is actually consumed by the public captcha
+      // resolver (getAuthPublicConfig), so an HCAPTCHA_SITE_KEY env alone must
+      // NOT report captcha as configured — that made the integrations hub show
+      // "On" while the server treated captcha as off.
+      envCaptchaFallback: !!env.get('TURNSTILE_SITE_KEY', ''),
       ga4Enabled: row.ga4Enabled,
       ga4MeasurementId: row.ga4MeasurementId,
       envGa4Fallback: !!env.get('GA4_MEASUREMENT_ID', ''),
