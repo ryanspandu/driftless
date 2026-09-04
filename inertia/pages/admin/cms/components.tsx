@@ -1,10 +1,16 @@
-import { useEffect, useState } from 'react'
-import { Boxes, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Boxes, Loader2, MoreHorizontal, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import type { CmsComponentDto, CmsComponentField } from '~/types/api'
+import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
-import { Card, CardContent } from '~/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '~/components/ui/dropdown_menu'
 import {
   Dialog,
   DialogContent,
@@ -19,6 +25,7 @@ import {
   componentSchemaError,
 } from '~/components/cms/component-schema-editor'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
+import { formatAdminTableDateTime } from '~/lib/utils'
 import {
   useCmsComponentsList,
   useCreateCmsComponent,
@@ -27,6 +34,78 @@ import {
 } from '~/hooks/api/use-cms-components'
 
 const KEY_RE = /^[a-z][a-z0-9_]{0,31}$/
+
+/** Card mirroring the Collections page: icon tile + name + meta + actions menu. */
+function ComponentCard({
+  component,
+  onEdit,
+  onDelete,
+}: {
+  component: CmsComponentDto
+  onEdit: (c: CmsComponentDto) => void
+  onDelete: (c: CmsComponentDto) => void
+}) {
+  return (
+    <div className="group relative flex flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:border-primary/50 hover:shadow-md">
+      <div className="absolute right-2.5 top-2.5">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button variant="ghost" size="icon" className="size-8 text-muted-foreground" />}
+            aria-label={`${component.label} actions`}
+          >
+            <MoreHorizontal className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => onEdit(component)}>
+              <Pencil className="size-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              className="gap-2 cursor-pointer"
+              onClick={() => onDelete(component)}
+            >
+              <Trash2 className="size-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onEdit(component)}
+        className="rounded-md pr-8 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="flex items-start gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/50 text-indigo-600 dark:text-indigo-400">
+            <Boxes className="size-5" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold leading-tight text-foreground">
+              {component.label}
+            </span>
+            <span className="mt-0.5 block truncate font-mono text-xs text-muted-foreground">
+              {component.key}
+            </span>
+          </span>
+        </span>
+      </button>
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+        <Badge variant="secondary" className="text-[11px]">
+          Component
+        </Badge>
+        <span>
+          {component.fields.length} field{component.fields.length === 1 ? '' : 's'}
+        </span>
+        <span className="ml-auto tabular-nums">
+          {formatAdminTableDateTime(component.updatedAt)}
+        </span>
+      </div>
+    </div>
+  )
+}
 
 function slugifyKey(s: string): string {
   return s
@@ -39,7 +118,7 @@ function slugifyKey(s: string): string {
 
 export default function CmsComponentsPage() {
   const listQuery = useCmsComponentsList()
-  const components = listQuery.data ?? []
+  const components = useMemo(() => listQuery.data ?? [], [listQuery.data])
   const createMut = useCreateCmsComponent()
   const updateMut = useUpdateCmsComponent()
   const deleteMut = useDeleteCmsComponent()
@@ -48,6 +127,15 @@ export default function CmsComponentsPage() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<CmsComponentDto | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return components
+    return components.filter(
+      (c) => c.label.toLowerCase().includes(q) || c.key.toLowerCase().includes(q)
+    )
+  }, [components, search])
 
   const openNew = () => {
     setEditing(null)
@@ -88,57 +176,42 @@ export default function CmsComponentsPage() {
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
+      <div className="relative max-w-sm">
+        <Search
+          className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden
+        />
+        <Input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search components…"
+          className="h-9 pl-9"
+          autoComplete="off"
+        />
+      </div>
+
       {listQuery.isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[0, 1, 2].map((i) => (
-            <Card key={i}>
-              <CardContent className="h-24 animate-pulse p-4" />
-            </Card>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-[104px] animate-pulse rounded-xl border border-border bg-muted/40"
+            />
           ))}
         </div>
-      ) : components.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            No components yet. Create one to reuse a field group across collections.
-          </CardContent>
-        </Card>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border py-16 text-center">
+          <p className="text-sm text-muted-foreground">
+            {search.trim()
+              ? `No components match “${search.trim()}”.`
+              : 'No components yet. Create one to reuse a field group across collections.'}
+          </p>
+        </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {components.map((c) => (
-            <Card key={c.id}>
-              <CardContent className="flex items-start gap-3 p-4">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
-                  <Boxes className="size-5" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{c.label}</p>
-                  <code className="text-xs text-muted-foreground">{c.key}</code>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {c.fields.length} field{c.fields.length === 1 ? '' : 's'}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    onClick={() => openEdit(c)}
-                    aria-label={`Edit ${c.label}`}
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-destructive"
-                    onClick={() => handleDelete(c)}
-                    aria-label={`Delete ${c.label}`}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((c) => (
+            <ComponentCard key={c.id} component={c} onEdit={openEdit} onDelete={handleDelete} />
           ))}
         </div>
       )}
@@ -173,6 +246,8 @@ function ComponentEditorDialog({
   const isEdit = !!editing
   const [label, setLabel] = useState('')
   const [key, setKey] = useState('')
+  // The key follows the label until the user edits the key directly.
+  const [keyTouched, setKeyTouched] = useState(false)
   const [config, setConfig] = useState<Record<string, unknown>>({ fields: [] })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -188,6 +263,7 @@ function ComponentEditorDialog({
       setKey('')
       setConfig({ fields: [] })
     }
+    setKeyTouched(false)
     setError(null)
   }, [open, editing])
 
@@ -241,7 +317,7 @@ function ComponentEditorDialog({
                 onChange={(e) => {
                   const next = e.target.value
                   setLabel(next)
-                  if (!isEdit && !key) setKey(slugifyKey(next))
+                  if (!isEdit && !keyTouched) setKey(slugifyKey(next))
                 }}
               />
             </div>
@@ -252,7 +328,10 @@ function ComponentEditorDialog({
                 disabled={isEdit}
                 placeholder="seo"
                 className="font-mono text-sm"
-                onChange={(e) => setKey(slugifyKey(e.target.value))}
+                onChange={(e) => {
+                  setKeyTouched(true)
+                  setKey(slugifyKey(e.target.value))
+                }}
               />
               {keyDuplicate ? (
                 <p className="text-xs text-destructive">Key already exists.</p>

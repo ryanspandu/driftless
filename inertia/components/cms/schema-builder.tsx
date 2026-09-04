@@ -1,4 +1,3 @@
-
 import {
   closestCenter,
   DndContext,
@@ -6,93 +5,97 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-} from "@dnd-kit/core";
+} from '@dnd-kit/core'
 import {
   arrayMove,
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2 } from "lucide-react";
-import { ulid } from "ulid";
-import type { CmsFieldType } from "~/types/api";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { AppSelect } from "~/components/ui/app-select";
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { GripVertical, Trash2 } from 'lucide-react'
+import { ulid } from 'ulid'
+import type { CmsFieldType } from '~/types/api'
+import { Badge } from '~/components/ui/badge'
+import { Button } from '~/components/ui/button'
+import { Checkbox } from '~/components/ui/checkbox'
+import { Input } from '~/components/ui/input'
+import { Label } from '~/components/ui/label'
+import { AppSelect } from '~/components/ui/app-select'
 
-export const FIELD_TYPE_CHOICES: ReadonlyArray<{ type: CmsFieldType; label: string; hint: string }> = [
-  { type: "TEXT", label: "Text", hint: "Single-line string" },
-  { type: "TEXTAREA", label: "Long text", hint: "Multi-line string" },
-  { type: "EMAIL", label: "Email", hint: "Email address with format validation" },
-  { type: "RICHTEXT", label: "Rich text", hint: "Formatted document (TipTap JSON)" },
-  { type: "SLUG", label: "Slug", hint: "URL-friendly, unique, auto-generated from a source field" },
-  { type: "NUMBER", label: "Number", hint: "Integer or decimal" },
-  { type: "INTEGER", label: "Integer", hint: "Whole numbers only" },
-  { type: "DECIMAL", label: "Decimal", hint: "Numbers with a fractional part" },
-  { type: "BOOL", label: "Boolean", hint: "On/off switch" },
-  { type: "DATE", label: "Date", hint: "Calendar date" },
-  { type: "DATETIME", label: "Date & time", hint: "Date + time (UTC)" },
-  { type: "SELECT", label: "Select", hint: "Pick from a list of options" },
-  { type: "PASSWORD", label: "Password", hint: "Hashed secret, never shown after saving" },
-  { type: "MEDIA", label: "Media", hint: "Reference a media asset" },
-  { type: "JSON", label: "JSON", hint: "Freeform structured data" },
-  { type: "REPEATABLE", label: "Repeatable", hint: "Array of sub-fields" },
-];
+export const FIELD_TYPE_CHOICES: ReadonlyArray<{
+  type: CmsFieldType
+  label: string
+  hint: string
+}> = [
+  { type: 'TEXT', label: 'Text', hint: 'Single-line string' },
+  { type: 'TEXTAREA', label: 'Long text', hint: 'Multi-line string' },
+  { type: 'EMAIL', label: 'Email', hint: 'Email address with format validation' },
+  { type: 'RICHTEXT', label: 'Rich text', hint: 'Formatted document (TipTap JSON)' },
+  { type: 'SLUG', label: 'Slug', hint: 'URL-friendly, unique, auto-generated from a source field' },
+  { type: 'NUMBER', label: 'Number', hint: 'Integer or decimal' },
+  { type: 'INTEGER', label: 'Integer', hint: 'Whole numbers only' },
+  { type: 'DECIMAL', label: 'Decimal', hint: 'Numbers with a fractional part' },
+  { type: 'BOOL', label: 'Boolean', hint: 'On/off switch' },
+  { type: 'DATE', label: 'Date', hint: 'Calendar date' },
+  { type: 'DATETIME', label: 'Date & time', hint: 'Date + time (UTC)' },
+  { type: 'SELECT', label: 'Select', hint: 'Pick from a list of options' },
+  { type: 'PASSWORD', label: 'Password', hint: 'Hashed secret, never shown after saving' },
+  { type: 'MEDIA', label: 'Media', hint: 'Reference a media asset' },
+  { type: 'JSON', label: 'JSON', hint: 'Freeform structured data' },
+  { type: 'REPEATABLE', label: 'Repeatable', hint: 'Array of sub-fields' },
+]
 
 export const FIELD_TYPE_SELECT_OPTIONS = FIELD_TYPE_CHOICES.map((c) => ({
   value: c.type,
   label: c.label,
-}));
+}))
 
 /** Draft field shape used by the create-collection wizard. Order is derived from array position. */
 export interface SchemaFieldDraft {
   /** Client-only stable id for drag-and-drop (not sent to the API). */
-  clientRowId: string;
-  key: string;
-  label: string;
-  type: CmsFieldType;
-  required: boolean;
-  unique: boolean;
-  config: Record<string, unknown>;
+  clientRowId: string
+  key: string
+  label: string
+  type: CmsFieldType
+  required: boolean
+  unique: boolean
+  config: Record<string, unknown>
 }
 
 export function emptyFieldDraft(): SchemaFieldDraft {
   return {
     clientRowId: ulid(),
-    key: "",
-    label: "",
-    type: "TEXT",
+    key: '',
+    label: '',
+    type: 'TEXT',
     required: false,
     unique: false,
     config: {},
-  };
+  }
 }
 
 /** Validates the same regex the backend accepts: `^[a-z][a-z0-9_]{0,31}$`. */
 export function isValidKey(value: string): boolean {
-  return /^[a-z][a-z0-9_]{0,31}$/.test(value);
+  return /^[a-z][a-z0-9_]{0,31}$/.test(value)
 }
 
 export function keyHint(value: string): string | null {
-  if (!value) return "Required.";
+  if (!value) return 'Required.'
   if (!isValidKey(value)) {
-    return "Lowercase letters, digits, underscore. Start with a letter. 32 chars max.";
+    return 'Lowercase letters, digits, underscore. Start with a letter. 32 chars max.'
   }
-  return null;
+  return null
 }
 
 interface SchemaBuilderProps {
-  fields: SchemaFieldDraft[];
-  onChange: (fields: SchemaFieldDraft[]) => void;
+  fields: SchemaFieldDraft[]
+  onChange: (fields: SchemaFieldDraft[]) => void
   /** Controls whether per-row structural edits (type, key) are allowed. */
-  allowTypeChange?: boolean;
-  allowKeyChange?: boolean;
-  allowReorder?: boolean;
-  allowRemove?: boolean;
+  allowTypeChange?: boolean
+  allowKeyChange?: boolean
+  allowReorder?: boolean
+  allowRemove?: boolean
 }
 
 export function SchemaBuilder({
@@ -106,36 +109,32 @@ export function SchemaBuilder({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
-    }),
-  );
+    })
+  )
 
   const onDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = fields.findIndex((f) => f.clientRowId === active.id);
-    const newIndex = fields.findIndex((f) => f.clientRowId === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-    onChange(arrayMove(fields, oldIndex, newIndex));
-  };
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = fields.findIndex((f) => f.clientRowId === active.id)
+    const newIndex = fields.findIndex((f) => f.clientRowId === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
+    onChange(arrayMove(fields, oldIndex, newIndex))
+  }
 
   const update = (index: number, patch: Partial<SchemaFieldDraft>) => {
-    const next = fields.slice();
-    next[index] = { ...next[index], ...patch };
-    onChange(next);
-  };
+    const next = fields.slice()
+    next[index] = { ...next[index], ...patch }
+    onChange(next)
+  }
 
   const remove = (index: number) => {
-    const next = fields.slice();
-    next.splice(index, 1);
-    onChange(next);
-  };
+    const next = fields.slice()
+    next.splice(index, 1)
+    onChange(next)
+  }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={onDragEnd}
-    >
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext
         items={fields.map((f) => f.clientRowId)}
         strategy={verticalListSortingStrategy}
@@ -160,7 +159,7 @@ export function SchemaBuilder({
         </div>
       </SortableContext>
     </DndContext>
-  );
+  )
 }
 
 function SortableSchemaFieldRow({
@@ -176,41 +175,33 @@ function SortableSchemaFieldRow({
   onUpdate,
   onRemove,
 }: {
-  sortableId: string;
-  disabled: boolean;
-  field: SchemaFieldDraft;
-  index: number;
-  fields: SchemaFieldDraft[];
-  allowTypeChange: boolean;
-  allowKeyChange: boolean;
-  allowReorder: boolean;
-  allowRemove: boolean;
-  onUpdate: (index: number, patch: Partial<SchemaFieldDraft>) => void;
-  onRemove: (index: number) => void;
+  sortableId: string
+  disabled: boolean
+  field: SchemaFieldDraft
+  index: number
+  fields: SchemaFieldDraft[]
+  allowTypeChange: boolean
+  allowKeyChange: boolean
+  allowReorder: boolean
+  allowRemove: boolean
+  onUpdate: (index: number, patch: Partial<SchemaFieldDraft>) => void
+  onRemove: (index: number) => void
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: sortableId, disabled });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: sortableId,
+    disabled,
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.65 : undefined,
-  };
+  }
 
-  const keyError = allowKeyChange ? keyHint(field.key) : null;
+  const keyError = allowKeyChange ? keyHint(field.key) : null
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="rounded-lg border bg-card p-4 shadow-sm"
-    >
+    <div ref={setNodeRef} style={style} className="rounded-lg border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         {allowReorder ? (
           <button
@@ -237,15 +228,11 @@ function SortableSchemaFieldRow({
               <Label className="text-xs">Key</Label>
               <Input
                 value={field.key}
-                onChange={(e) =>
-                  onUpdate(index, { key: e.target.value.toLowerCase() })
-                }
+                onChange={(e) => onUpdate(index, { key: e.target.value.toLowerCase() })}
                 disabled={!allowKeyChange}
                 placeholder="lowercase_key"
               />
-              {keyError ? (
-                <p className="text-xs text-destructive">{keyError}</p>
-              ) : null}
+              {keyError ? <p className="text-xs text-destructive">{keyError}</p> : null}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Type</Label>
@@ -271,24 +258,20 @@ function SortableSchemaFieldRow({
             <label className="flex items-center gap-2 text-sm">
               <Checkbox
                 checked={field.required}
-                onCheckedChange={(v) =>
-                  onUpdate(index, { required: v === true })
-                }
+                onCheckedChange={(v) => onUpdate(index, { required: v === true })}
               />
               Required
             </label>
-            {["TEXT", "SLUG", "NUMBER"].includes(field.type) ? (
+            {['TEXT', 'SLUG', 'NUMBER'].includes(field.type) ? (
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox
                   checked={field.unique}
-                  onCheckedChange={(v) =>
-                    onUpdate(index, { unique: v === true })
-                  }
+                  onCheckedChange={(v) => onUpdate(index, { unique: v === true })}
                 />
                 Unique
               </label>
             ) : null}
-            {field.type === "SLUG" ? (
+            {field.type === 'SLUG' ? (
               <Badge variant="outline" className="text-xs">
                 auto-generates from source field
               </Badge>
@@ -316,32 +299,35 @@ function SortableSchemaFieldRow({
         ) : null}
       </div>
     </div>
-  );
+  )
 }
 
-function FieldConfigPanel({
+/**
+ * Per-type config controls (SELECT options, SLUG source, NUMBER min/max/…).
+ * Exported and typed loosely so the shared Add-field dialog can reuse it with
+ * either staged drafts or a persisted collection's fields.
+ */
+export function FieldConfigPanel({
   field,
   siblings,
   onConfigChange,
 }: {
-  field: SchemaFieldDraft;
-  siblings: SchemaFieldDraft[];
-  onConfigChange: (config: Record<string, unknown>) => void;
+  field: { type: CmsFieldType; config: Record<string, unknown> }
+  siblings: { type: CmsFieldType; key: string; label: string }[]
+  onConfigChange: (config: Record<string, unknown>) => void
 }) {
-  if (field.type === "SELECT") {
-    const options = Array.isArray(field.config.options)
-      ? (field.config.options as string[])
-      : [];
+  if (field.type === 'SELECT') {
+    const options = Array.isArray(field.config.options) ? (field.config.options as string[]) : []
     return (
       <div className="space-y-1">
         <Label className="text-xs">Options (comma separated)</Label>
         <Input
-          value={options.join(", ")}
+          value={options.join(', ')}
           onChange={(e) =>
             onConfigChange({
               ...field.config,
               options: e.target.value
-                .split(",")
+                .split(',')
                 .map((s) => s.trim())
                 .filter(Boolean),
             })
@@ -349,30 +335,25 @@ function FieldConfigPanel({
           placeholder="DRAFT, PUBLISHED, ARCHIVED"
         />
       </div>
-    );
+    )
   }
-  if (field.type === "SLUG") {
-    const source =
-      typeof field.config.source === "string"
-        ? (field.config.source as string)
-        : "";
+  if (field.type === 'SLUG') {
+    const source = typeof field.config.source === 'string' ? (field.config.source as string) : ''
     return (
       <div className="space-y-1">
         <Label className="text-xs">Source field (auto-generate from)</Label>
         <AppSelect
-          value={source || "__none"}
+          value={source || '__none'}
           onChange={(v) =>
             onConfigChange({
               ...field.config,
-              source: v === "__none" ? null : v,
+              source: v === '__none' ? null : v,
             })
           }
           options={[
-            { value: "__none", label: "None" },
+            { value: '__none', label: 'None' },
             ...siblings
-              .filter(
-                (f) => ["TEXT", "TEXTAREA"].includes(f.type) && f.key,
-              )
+              .filter((f) => ['TEXT', 'TEXTAREA'].includes(f.type) && f.key)
               .map((f) => ({
                 value: f.key,
                 label: f.label || f.key,
@@ -382,25 +363,25 @@ function FieldConfigPanel({
           isSearchable
         />
       </div>
-    );
+    )
   }
-  if (field.type === "NUMBER") {
+  if (field.type === 'NUMBER') {
     const config = field.config as {
-      min?: number | null;
-      max?: number | null;
-      integer?: boolean;
-    };
+      min?: number | null
+      max?: number | null
+      integer?: boolean
+    }
     return (
       <div className="grid gap-3 md:grid-cols-3">
         <div className="space-y-1">
           <Label className="text-xs">Min</Label>
           <Input
             type="number"
-            value={config.min ?? ""}
+            value={config.min ?? ''}
             onChange={(e) =>
               onConfigChange({
                 ...field.config,
-                min: e.target.value === "" ? null : Number(e.target.value),
+                min: e.target.value === '' ? null : Number(e.target.value),
               })
             }
           />
@@ -409,11 +390,11 @@ function FieldConfigPanel({
           <Label className="text-xs">Max</Label>
           <Input
             type="number"
-            value={config.max ?? ""}
+            value={config.max ?? ''}
             onChange={(e) =>
               onConfigChange({
                 ...field.config,
-                max: e.target.value === "" ? null : Number(e.target.value),
+                max: e.target.value === '' ? null : Number(e.target.value),
               })
             }
           />
@@ -421,14 +402,12 @@ function FieldConfigPanel({
         <label className="mt-6 flex items-center gap-2 text-sm">
           <Checkbox
             checked={!!config.integer}
-            onCheckedChange={(v) =>
-              onConfigChange({ ...field.config, integer: v === true })
-            }
+            onCheckedChange={(v) => onConfigChange({ ...field.config, integer: v === true })}
           />
           Integer only
         </label>
       </div>
-    );
+    )
   }
-  return null;
+  return null
 }

@@ -1,7 +1,11 @@
 import { Link } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { Loader2, Plus } from 'lucide-react'
-import type { CreateCmsCollectionFieldRequest, CreateCmsCollectionRequest } from '~/types/api'
+import { Loader2 } from 'lucide-react'
+import type {
+  AddCmsFieldRequest,
+  CreateCmsCollectionFieldRequest,
+  CreateCmsCollectionRequest,
+} from '~/types/api'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { Checkbox } from '~/components/ui/checkbox'
@@ -11,13 +15,17 @@ import {
   emptyFieldDraft,
   isValidKey,
   keyHint,
-  SchemaBuilder,
   type SchemaFieldDraft,
 } from '~/components/cms/schema-builder'
+import {
+  AddFieldDialog,
+  ExistingFieldsCard,
+  type FieldRowData,
+} from '~/components/cms/collection-schema-fields'
 import { ApiError } from '~/lib/api'
 import { useCmsCollectionsList, useCreateCmsCollection } from '~/hooks/api/use-cms-collections'
 import { ComboboxInput } from '~/components/ui/combobox-input'
-import { CollectionIconField } from '~/components/cms/collection-icon-field'
+import { CollectionIconPicker } from '~/components/cms/collection-icon-popover'
 import { BackButton } from '~/components/admin/back-button'
 import { useRouter } from '~/hooks/use-inertia-url'
 
@@ -99,7 +107,44 @@ export default function NewCmsCollectionPage() {
     !duplicateKey &&
     !createMut.isPending
 
-  const addField = () => setFields((prev) => [...prev, emptyFieldDraft()])
+  // Staged field editor — same shared UI as the collection editor, but the
+  // fields live in local state and are submitted together on "Create".
+  const fieldRows: FieldRowData[] = fields.map((f) => ({
+    id: f.clientRowId,
+    label: f.label,
+    key: f.key,
+    type: f.type,
+    required: f.required,
+    unique: f.unique,
+    config: f.config,
+  }))
+
+  const onAddField = (body: AddCmsFieldRequest) => {
+    setFields((prev) => [
+      ...prev,
+      {
+        ...emptyFieldDraft(),
+        key: body.key,
+        label: body.label,
+        type: body.type,
+        required: body.required ?? false,
+        unique: body.unique ?? false,
+        config: body.config ?? {},
+      },
+    ])
+    return Promise.resolve()
+  }
+
+  const onRemoveField = (fieldKey: string) =>
+    setFields((prev) => prev.filter((f) => f.key !== fieldKey))
+
+  const onReorderFields = (orderedKeys: string[]) =>
+    setFields((prev) => {
+      const byKey = new Map(prev.map((f) => [f.key, f]))
+      const next = orderedKeys.map((k) => byKey.get(k)).filter((f): f is SchemaFieldDraft => !!f)
+      for (const f of prev) if (!orderedKeys.includes(f.key)) next.push(f)
+      return next
+    })
 
   const onSubmit = async () => {
     setError(null)
@@ -196,8 +241,9 @@ export default function NewCmsCollectionPage() {
               Pick an existing group or type a new one.
             </p>
           </div>
-          <div className="space-y-1 md:col-span-2">
-            <CollectionIconField id="coll-icon" value={icon} onChange={setIcon} />
+          <div className="space-y-1.5">
+            <Label>Icon</Label>
+            <CollectionIconPicker value={icon} onChange={setIcon} />
           </div>
           <div className="col-span-full flex flex-wrap items-center gap-6">
             <label className="flex items-center gap-2 text-sm">
@@ -219,26 +265,23 @@ export default function NewCmsCollectionPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Fields</CardTitle>
-            <CardDescription>
-              {fields.length} field{fields.length === 1 ? '' : 's'}. Order determines display order.
-            </CardDescription>
-          </div>
-          <Button onClick={addField} className="gap-2" type="button">
-            <Plus className="size-4" />
-            Add field
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <SchemaBuilder fields={fields} onChange={setFields} />
-          {duplicateKey ? (
-            <p className="text-xs text-destructive">Field keys must be unique.</p>
-          ) : null}
-        </CardContent>
-      </Card>
+      <ExistingFieldsCard
+        fields={fieldRows}
+        actionsDisabled={createMut.isPending}
+        onReorderFieldKeys={onReorderFields}
+        onRemove={onRemoveField}
+        description={`${fields.length} field${fields.length === 1 ? '' : 's'}. Drag the handle to reorder — order determines display order.`}
+        headerAction={
+          <AddFieldDialog
+            disabled={createMut.isPending}
+            existingKeys={fields.map((f) => f.key)}
+            relationTargets={(collectionsQuery.data ?? []).filter((c) => c.source === 'DYNAMIC')}
+            siblingFields={fields}
+            onAdd={onAddField}
+          />
+        }
+      />
+      {duplicateKey ? <p className="text-xs text-destructive">Field keys must be unique.</p> : null}
 
       {error ? <p className="text-sm text-destructive">Error: {error}</p> : null}
 
