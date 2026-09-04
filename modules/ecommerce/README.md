@@ -481,6 +481,45 @@ the live figures through `POST /api/shop/availability`.
 `/shop` is a reserved first segment in `pages_public_controller`, so a CMS page cannot be
 created at a path the storefront owns.
 
+### Products as a bindable collection
+
+The catalogue is exposed to the page builder as a **built-in collection**, so a
+`CollectionList` (and a Collection Template, and the Settings tab's per-record "Get text
+from" bindings) can bind to **Products** the same way it binds to CMS **Posts** — the
+operator picks "Products" from the collection dropdown and the block renders live catalogue
+rows. It shows up in the pickers grouped under **E-commerce**, alongside Content's Posts and
+the dynamic CMS collections.
+
+The adapter is [`services/builtin_collection.ts`](../../modules/ecommerce/services/builtin_collection.ts):
+`productsCollection` (key `products`, group `E-commerce`) — a **read-only** view over the
+`Product` model exposing `title`, `subtitle`, `price`, `image`, `slug`, `url` and a few more
+as bindable fields, listing only `active`, non-deleted products. It is a view for _display_,
+not the admin editor: products have their own admin pages, so the generic CMS record editor
+never writes here.
+
+**It is gated on the module being active, in two places:**
+
+- **Registration** — `registerProductsCollection()` runs from the module's `boot()` hook,
+  which only fires for an **enabled** module. Core never imports this file; it owns the
+  registry (`app/cms/builtin_collections.ts`) and the module registers _into_ it, so the
+  dependency stays one-way.
+- **Per call** — `available: () => modules.isEnabled('ecommerce')`. Switching the store off
+  at runtime makes "Products" vanish from every picker and its records 404, **without a
+  restart** — `listBuiltinCollections()` filters on `available()` on every read, and
+  `builtinCollection()` returns null when it fails.
+
+The code path end to end: `boot()` → `registerProductsCollection()` →
+`registerBuiltinCollection()` (core registry) → `CmsService.listBindableCollections()` merges
+the built-ins ahead of the dynamic collections → `GET /api/admin/pages/collections` (in
+`pages_controller`) → the builder's `useBindableCollections()` hook feeds the picker. A
+disabled store is simply absent from that list rather than erroring.
+
+One deliberate limit: the bound record carries the **base price in the store currency**, not
+a per-shopper converted one — the record is shared across visitors and may be baked into an
+SSR snapshot, and there is no currency in a builder binding to key on. A `ProductList` block
+(a volatile resolver) remains the place for live, currency-aware pricing and stock; see
+[Puck blocks](#puck-blocks) above.
+
 ### Product pages: one template, every product
 
 `/shop/p/:slug` renders a **builder page** chosen in Store settings, bound to the URL's

@@ -117,25 +117,1125 @@ export class AuthAccessTokenSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
-export class CmsAbcSchema extends BaseModel {
-  static $columns = ['authorId', 'content', 'createdAt', 'deletedAt', 'id', 'slug', 'status', 'title', 'updatedAt'] as const
-  $columns = CmsAbcSchema.$columns
+export class CmsArticleSchema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'tag', 'title', 'updatedAt'] as const
+  $columns = CmsArticleSchema.$columns
   @column()
   declare authorId: string | null
-  @column()
-  declare content: string | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
-  @column.dateTime()
-  declare deletedAt: DateTime | null
+  @column()
+  declare deletedAt: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
-  declare slug: string
+  declare status: string
+  @column()
+  declare tag: string | null
+  @column()
+  declare title: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785225937770Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785225937770Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
   @column()
   declare status: string
   @column()
   declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785246642820Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785246642820Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785246938004Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785246938004Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785248111723Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785248111723Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785252806977Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785252806977Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785254115593Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785254115593Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785254610159Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785254610159Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785256226497Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785256226497Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785256488411Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785256488411Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785256585928Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785256585928Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785258136602Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785258136602Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785260117151Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785260117151Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785261257689Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785261257689Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785284557591Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785284557591Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785301054057Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785301054057Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785309371310Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785309371310Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785312460500Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785312460500Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785318452354Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785318452354Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1785318893286Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1785318893286Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1787820851000Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1787820851000Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1787821025605Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1787821025605Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788275664729Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788275664729Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788278218566Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788278218566Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788290046132Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788290046132Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788294841287Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788294841287Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788299065283Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788299065283Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788299652312Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788299652312Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788299922604Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788299922604Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788308828740Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788308828740Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788308925587Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788308925587Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788309028399Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788309028399Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788309168085Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788309168085Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788310020253Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788310020253Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788310940616Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788310940616Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788311179194Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788311179194Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788312120147Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788312120147Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788320174870Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788320174870Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788324562696Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788324562696Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788326371155Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788326371155Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788328813108Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788328813108Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788329953941Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788329953941Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788330113853Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788330113853Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788331758605Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788331758605Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788359114199Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788359114199Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788360555776Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788360555776Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788363672766Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788363672766Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788398427669Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788398427669Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788414785891Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788414785891Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788420888065Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788420888065Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788421909502Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788421909502Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788423283973Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788423283973Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788424804840Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788424804840Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788428428147Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788428428147Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788429721526Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788429721526Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788447763566Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788447763566Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788451037625Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788451037625Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsArticles1788452688846Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsArticles1788452688846Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsAuthorSchema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'name', 'status', 'updatedAt'] as const
+  $columns = CmsAuthorSchema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare name: string | null
+  @column()
+  declare status: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }
@@ -225,6 +1325,27 @@ export class CmsFieldSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class CmsPostSchema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'tag', 'title', 'updatedAt'] as const
+  $columns = CmsPostSchema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare tag: string | null
+  @column()
+  declare title: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class CmsRevisionSchema extends BaseModel {
   static $columns = ['authorId', 'collectionKey', 'createdAt', 'data', 'deletedAt', 'id', 'recordId', 'status'] as const
   $columns = CmsRevisionSchema.$columns
@@ -244,6 +1365,1138 @@ export class CmsRevisionSchema extends BaseModel {
   declare recordId: string
   @column()
   declare status: string
+}
+
+export class CmsRevtest1785225938475Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785225938475Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785246643625Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785246643625Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785246938698Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785246938698Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785248112316Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785248112316Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785252807532Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785252807532Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785254116147Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785254116147Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785254611247Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785254611247Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785256227005Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785256227005Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785256489224Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785256489224Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785256586503Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785256586503Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785258137177Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785258137177Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785260117908Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785260117908Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785261258145Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785261258145Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785284558467Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785284558467Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785301054740Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785301054740Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785309372289Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785309372289Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785312461774Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785312461774Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785318452901Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785318452901Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1785318893966Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1785318893966Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1787820851168Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1787820851168Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1787821025791Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1787821025791Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788275664889Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788275664889Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788278218725Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788278218725Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788290046294Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788290046294Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788294841459Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788294841459Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788299065457Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788299065457Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788299652480Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788299652480Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788299922775Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788299922775Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788308828923Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788308828923Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788308925773Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788308925773Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788309028589Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788309028589Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788309168274Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788309168274Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788310020438Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788310020438Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788310940800Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788310940800Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788311179376Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788311179376Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788312120348Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788312120348Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788320175080Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788320175080Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788324562895Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788324562895Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788326371384Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788326371384Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788328813357Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788328813357Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788329954205Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788329954205Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788330114063Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788330114063Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788331758829Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788331758829Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788359114393Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788359114393Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788360555990Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788360555990Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788363672973Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788363672973Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788398427882Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788398427882Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788414786098Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788414786098Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788420888297Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788420888297Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788421909826Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788421909826Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788423284223Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788423284223Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788424805401Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788424805401Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788428428364Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788428428364Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788429721812Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788429721812Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788447763797Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788447763797Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788451037983Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788451037983Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsRevtest1788452689092Schema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsRevtest1788452689092Schema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsStorySchema extends BaseModel {
+  static $columns = ['author', 'authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsStorySchema.$columns
+  @column()
+  declare author: string | null
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CmsStoriesTagSchema extends BaseModel {
+  static $columns = ['sourceId', 'targetId'] as const
+  $columns = CmsStoriesTagSchema.$columns
+  @column({ isPrimary: true })
+  declare sourceId: string
+  @column()
+  declare targetId: string
+}
+
+export class CmsTagSchema extends BaseModel {
+  static $columns = ['authorId', 'createdAt', 'deletedAt', 'id', 'status', 'title', 'updatedAt'] as const
+  $columns = CmsTagSchema.$columns
+  @column()
+  declare authorId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deletedAt: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class ContentSchema extends BaseModel {
@@ -1406,6 +3659,33 @@ export class MailSettingSchema extends BaseModel {
   declare updatedAt: DateTime
   @column()
   declare username: string | null
+}
+
+export class McpAuditLogSchema extends BaseModel {
+  static $columns = ['action', 'createdAt', 'durationMs', 'id', 'ip', 'method', 'path', 'status', 'tokenId', 'tokenName', 'userId'] as const
+  $columns = McpAuditLogSchema.$columns
+  @column()
+  declare action: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare durationMs: number
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare ip: string | null
+  @column()
+  declare method: string
+  @column()
+  declare path: string
+  @column()
+  declare status: number
+  @column()
+  declare tokenId: string | null
+  @column()
+  declare tokenName: string | null
+  @column()
+  declare userId: number | null
 }
 
 export class MediaSchema extends BaseModel {

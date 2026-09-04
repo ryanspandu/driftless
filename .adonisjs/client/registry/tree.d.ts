@@ -526,6 +526,55 @@ export interface ApiDefinition {
       order: typeof routes['shop.page.order']
     }
   }
+  mcp: {
+    page: typeof routes['mcp.page']
+    tokens: {
+      index: typeof routes['mcp.tokens.index']
+      store: typeof routes['mcp.tokens.store']
+      destroy: typeof routes['mcp.tokens.destroy']
+    }
+    audit: typeof routes['mcp.audit']
+    rpc: typeof routes['mcp.rpc']
+    catalog: typeof routes['mcp.catalog']
+    collections: {
+      index: typeof routes['mcp.collections.index']
+      show: typeof routes['mcp.collections.show']
+      store: typeof routes['mcp.collections.store']
+      update: typeof routes['mcp.collections.update']
+      destroy: typeof routes['mcp.collections.destroy']
+      fields: {
+        add: typeof routes['mcp.collections.fields.add']
+        update: typeof routes['mcp.collections.fields.update']
+        delete: typeof routes['mcp.collections.fields.delete']
+        reorder: typeof routes['mcp.collections.fields.reorder']
+      }
+    }
+    pages: {
+      index: typeof routes['mcp.pages.index']
+      validate: typeof routes['mcp.pages.validate']
+      show: typeof routes['mcp.pages.show']
+      store: typeof routes['mcp.pages.store']
+      update: typeof routes['mcp.pages.update']
+      content: typeof routes['mcp.pages.content']
+      publish: typeof routes['mcp.pages.publish']
+      discard: typeof routes['mcp.pages.discard']
+    }
+    templates: {
+      index: typeof routes['mcp.templates.index']
+      show: typeof routes['mcp.templates.show']
+      store: typeof routes['mcp.templates.store']
+      update: typeof routes['mcp.templates.update']
+      destroy: typeof routes['mcp.templates.destroy']
+      default: typeof routes['mcp.templates.default']
+    }
+    appearance: typeof routes['mcp.appearance']
+    breakpoints: typeof routes['mcp.breakpoints']
+    globalcode: typeof routes['mcp.globalcode']
+    media: {
+      index: typeof routes['mcp.media.index']
+      store: typeof routes['mcp.media.store']
+    }
+  }
   ctrl: {
     page: typeof routes['ctrl.page']
     index: typeof routes['ctrl.index']

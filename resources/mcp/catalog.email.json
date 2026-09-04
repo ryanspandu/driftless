@@ -1,0 +1,340 @@
+{
+  "target": "email",
+  "generatedAt": "2026-09-04T08:04:42.380Z",
+  "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] }. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children by putting an array of Blocks in a slot prop (see each block's \"slots\"). Every block also accepts the shared \"styleProps\". Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled, so prefer core blocks unless the site uses that module.",
+  "blocks": [
+    {
+      "type": "EmailBody",
+      "label": "Order / details block",
+      "category": "Data",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "paddingY": {
+          "type": "text",
+          "label": "Space above / below (px)"
+        },
+        "fontSize": {
+          "type": "text",
+          "label": "Font size (px)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "EmailButton",
+      "label": "Button",
+      "category": "Content",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "label": {
+          "type": "text",
+          "label": "Label"
+        },
+        "href": {
+          "type": "text",
+          "label": "Link URL (absolute)"
+        },
+        "color": {
+          "type": "text",
+          "label": "Text colour (hex)"
+        },
+        "paddingY": {
+          "type": "text",
+          "label": "Space above / below (px)"
+        },
+        "fontSize": {
+          "type": "text",
+          "label": "Font size (px)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "EmailColumns",
+      "label": "Two columns",
+      "category": "Layout",
+      "module": null,
+      "slots": [
+        "left",
+        "right"
+      ],
+      "fields": {
+        "paddingY": {
+          "type": "text",
+          "label": "Space above / below (px)"
+        },
+        "fontSize": {
+          "type": "text",
+          "label": "Font size (px)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "EmailDivider",
+      "label": "Divider",
+      "category": "Layout",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "color": {
+          "type": "text",
+          "label": "Colour (hex)"
+        },
+        "paddingY": {
+          "type": "text",
+          "label": "Space above / below (px)"
+        },
+        "fontSize": {
+          "type": "text",
+          "label": "Font size (px)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "EmailHeading",
+      "label": "Heading",
+      "category": "Content",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "text": {
+          "type": "text",
+          "label": "Text"
+        },
+        "level": {
+          "type": "select",
+          "label": "Level",
+          "options": [
+            {
+              "label": "H1",
+              "value": "1"
+            },
+            {
+              "label": "H2",
+              "value": "2"
+            }
+          ]
+        },
+        "paddingY": {
+          "type": "text",
+          "label": "Space above / below (px)"
+        },
+        "fontSize": {
+          "type": "text",
+          "label": "Font size (px)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "EmailImage",
+      "label": "Image",
+      "category": "Media",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "src": {
+          "type": "text",
+          "label": "Image URL (absolute)"
+        },
+        "alt": {
+          "type": "text",
+          "label": "Alt text"
+        },
+        "paddingY": {
+          "type": "text",
+          "label": "Space above / below (px)"
+        },
+        "fontSize": {
+          "type": "text",
+          "label": "Font size (px)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "EmailSpacer",
+      "label": "Spacer",
+      "category": "Layout",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "height": {
+          "type": "text",
+          "label": "Height (px)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "EmailText",
+      "label": "Paragraph",
+      "category": "Content",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "text": {
+          "type": "textarea",
+          "label": "Text"
+        },
+        "paddingY": {
+          "type": "text",
+          "label": "Space above / below (px)"
+        },
+        "fontSize": {
+          "type": "text",
+          "label": "Font size (px)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    }
+  ]
+}

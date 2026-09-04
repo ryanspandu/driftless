@@ -1,0 +1,2866 @@
+{
+  "target": "collection",
+  "generatedAt": "2026-09-04T08:04:42.380Z",
+  "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] }. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children by putting an array of Blocks in a slot prop (see each block's \"slots\"). Every block also accepts the shared \"styleProps\". Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled, so prefer core blocks unless the site uses that module.",
+  "blocks": [
+    {
+      "type": "AccountBlock",
+      "label": "Account",
+      "category": "Commerce",
+      "module": "ecommerce",
+      "slots": [],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "AffiliateBlock",
+      "label": "Affiliate program",
+      "category": "Commerce",
+      "module": "ecommerce",
+      "slots": [],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "BackgroundVideo",
+      "label": "Background Video",
+      "category": "Advanced",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {
+        "src": {
+          "type": "text",
+          "label": "Video URL (.mp4 / .webm)"
+        },
+        "poster": {
+          "type": "text",
+          "label": "Poster URL"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "BlockQuote",
+      "label": "Block Quote",
+      "category": "Typography",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "text": {
+          "type": "textarea",
+          "label": "Quote"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Button",
+      "label": "Button",
+      "category": "Basic",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "label": {
+          "type": "text",
+          "label": "Label"
+        },
+        "href": {
+          "type": "text",
+          "label": "Link (href)"
+        },
+        "variant": {
+          "type": "select",
+          "label": "Variant",
+          "options": [
+            {
+              "label": "Primary",
+              "value": "primary"
+            },
+            {
+              "label": "Secondary",
+              "value": "secondary"
+            },
+            {
+              "label": "Outline",
+              "value": "outline"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Callout",
+      "label": "Callout",
+      "category": "Custom",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "text": {
+          "type": "textarea",
+          "label": "Text"
+        },
+        "tone": {
+          "type": "select",
+          "label": "Tone",
+          "options": [
+            {
+              "label": "Info",
+              "value": "info"
+            },
+            {
+              "label": "Warning",
+              "value": "warning"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Carousel",
+      "label": "Carousel",
+      "category": "Advanced",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {
+        "mode": {
+          "type": "select",
+          "label": "Mode",
+          "options": [
+            {
+              "label": "Slideshow (auto-advance)",
+              "value": "slide"
+            },
+            {
+              "label": "Marquee (continuous scroll)",
+              "value": "marquee"
+            }
+          ]
+        },
+        "perView": {
+          "type": "number",
+          "label": "Slides visible"
+        },
+        "gap": {
+          "type": "text",
+          "label": "Gap"
+        },
+        "interval": {
+          "type": "number",
+          "label": "Auto-advance every (s)"
+        },
+        "speed": {
+          "type": "number",
+          "label": "Marquee speed (s per loop)"
+        },
+        "arrows": {
+          "type": "radio",
+          "label": "Arrows",
+          "options": [
+            {
+              "label": "Show",
+              "value": "true"
+            },
+            {
+              "label": "Hide",
+              "value": "false"
+            }
+          ]
+        },
+        "dots": {
+          "type": "radio",
+          "label": "Dots",
+          "options": [
+            {
+              "label": "Show",
+              "value": "true"
+            },
+            {
+              "label": "Hide",
+              "value": "false"
+            }
+          ]
+        },
+        "pauseOnHover": {
+          "type": "radio",
+          "label": "Pause on hover",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "true"
+            },
+            {
+              "label": "No",
+              "value": "false"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "CartBlock",
+      "label": "Basket",
+      "category": "Commerce",
+      "module": "ecommerce",
+      "slots": [],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "CartWidget",
+      "label": "Basket Link",
+      "category": "Commerce",
+      "module": "ecommerce",
+      "slots": [],
+      "fields": {
+        "label": {
+          "type": "text",
+          "label": "Label"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Checkbox",
+      "label": "Checkbox",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "label": {
+          "type": "text",
+          "label": "Label"
+        },
+        "name": {
+          "type": "text",
+          "label": "Name"
+        },
+        "required": {
+          "type": "radio",
+          "label": "Required",
+          "options": [
+            {
+              "label": "No",
+              "value": "false"
+            },
+            {
+              "label": "Yes",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "CheckoutBlock",
+      "label": "Checkout",
+      "category": "Commerce",
+      "module": "ecommerce",
+      "slots": [],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "CodeBlock",
+      "label": "Code Block",
+      "category": "Advanced",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "code": {
+          "type": "textarea",
+          "label": "Code"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "CodeEmbed",
+      "label": "Code Embed",
+      "category": "Advanced",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "html": {
+          "type": "textarea",
+          "label": "HTML"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Columns",
+      "label": "Columns",
+      "category": "Other",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {
+        "count": {
+          "type": "select",
+          "label": "Columns",
+          "options": [
+            {
+              "label": "2",
+              "value": "2"
+            },
+            {
+              "label": "3",
+              "value": "3"
+            },
+            {
+              "label": "4",
+              "value": "4"
+            }
+          ]
+        },
+        "gap": {
+          "type": "text",
+          "label": "Gap"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Container",
+      "label": "Container",
+      "category": "Structure",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "CustomElement",
+      "label": "Custom Element",
+      "category": "Advanced",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {
+        "tag": {
+          "type": "text",
+          "label": "Tag name (e.g. my-widget)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "DivBlock",
+      "label": "Div Block",
+      "category": "Basic",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Divider",
+      "label": "Divider",
+      "category": "Other",
+      "module": null,
+      "slots": [],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Dropdown",
+      "label": "Dropdown",
+      "category": "Advanced",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {
+        "label": {
+          "type": "text",
+          "label": "Button label"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Facebook",
+      "label": "Facebook",
+      "category": "Advanced",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "url": {
+          "type": "text",
+          "label": "Facebook page/post URL"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "FileUpload",
+      "label": "File Upload",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "name": {
+          "type": "text",
+          "label": "Name"
+        },
+        "accept": {
+          "type": "text",
+          "label": "Accept (e.g. image/*)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "ForgotPasswordForm",
+      "label": "Forgot Password Form",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "emailLabel": {
+          "type": "text",
+          "label": "Email label"
+        },
+        "submitLabel": {
+          "type": "text",
+          "label": "Button label"
+        },
+        "showLoginLink": {
+          "type": "radio",
+          "label": "Sign-in link",
+          "options": [
+            {
+              "label": "Show",
+              "value": "true"
+            },
+            {
+              "label": "Hide",
+              "value": "false"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "FormBlock",
+      "label": "Form Block",
+      "category": "Forms",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {
+        "handler": {
+          "type": "select",
+          "label": "Submits to",
+          "options": [
+            {
+              "label": "Nothing / custom action URL",
+              "value": "none"
+            },
+            {
+              "label": "Collect submissions (inbox)",
+              "value": "collect"
+            },
+            {
+              "label": "Sign in — name inputs: login, password",
+              "value": "login"
+            },
+            {
+              "label": "Sign up — name inputs: email, username, password",
+              "value": "register"
+            },
+            {
+              "label": "Forgot password — name input: email",
+              "value": "forgotPassword"
+            },
+            {
+              "label": "Reset password — name inputs: password, passwordConfirmation",
+              "value": "resetPassword"
+            }
+          ]
+        },
+        "formName": {
+          "type": "text",
+          "label": "Form name (Collect only — labels submissions in the inbox)"
+        },
+        "successMessage": {
+          "type": "text",
+          "label": "Success message (Collect only)"
+        },
+        "action": {
+          "type": "text",
+          "label": "Action URL (ignored when Submits to is set)"
+        },
+        "method": {
+          "type": "select",
+          "label": "Method",
+          "options": [
+            {
+              "label": "POST",
+              "value": "post"
+            },
+            {
+              "label": "GET",
+              "value": "get"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "FormButton",
+      "label": "Form Button",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "label": {
+          "type": "text",
+          "label": "Label"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Grid",
+      "label": "Grid",
+      "category": "Other",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {
+        "columns": {
+          "type": "select",
+          "label": "Columns",
+          "options": [
+            {
+              "label": "1",
+              "value": "1"
+            },
+            {
+              "label": "2",
+              "value": "2"
+            },
+            {
+              "label": "3",
+              "value": "3"
+            },
+            {
+              "label": "4",
+              "value": "4"
+            },
+            {
+              "label": "5",
+              "value": "5"
+            },
+            {
+              "label": "6",
+              "value": "6"
+            }
+          ]
+        },
+        "rows": {
+          "type": "select",
+          "label": "Rows",
+          "options": [
+            {
+              "label": "1",
+              "value": "1"
+            },
+            {
+              "label": "2",
+              "value": "2"
+            },
+            {
+              "label": "3",
+              "value": "3"
+            },
+            {
+              "label": "4",
+              "value": "4"
+            }
+          ]
+        },
+        "gap": {
+          "type": "text",
+          "label": "Gap"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Heading",
+      "label": "Heading",
+      "category": "Typography",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "text": {
+          "type": "text",
+          "label": "Text"
+        },
+        "level": {
+          "type": "select",
+          "label": "Level",
+          "options": [
+            {
+              "label": "H1",
+              "value": "1"
+            },
+            {
+              "label": "H2",
+              "value": "2"
+            },
+            {
+              "label": "H3",
+              "value": "3"
+            },
+            {
+              "label": "H4",
+              "value": "4"
+            },
+            {
+              "label": "H5",
+              "value": "5"
+            },
+            {
+              "label": "H6",
+              "value": "6"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "HFlex",
+      "label": "H Flex",
+      "category": "Structure",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Image",
+      "label": "Image",
+      "category": "Media",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "src": {
+          "type": "custom",
+          "label": "Image"
+        },
+        "alt": {
+          "type": "text",
+          "label": "Alt text"
+        },
+        "sizes": {
+          "type": "text",
+          "label": "Sizes (advanced, e.g. \"(max-width: 768px) 100vw, 50vw\")"
+        },
+        "priority": {
+          "type": "radio",
+          "label": "Above the fold",
+          "options": [
+            {
+              "label": "No (lazy-load)",
+              "value": "false"
+            },
+            {
+              "label": "Yes (load eagerly)",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Input",
+      "label": "Input",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "name": {
+          "type": "text",
+          "label": "Name"
+        },
+        "inputType": {
+          "type": "select",
+          "label": "Type",
+          "options": [
+            {
+              "label": "text",
+              "value": "text"
+            },
+            {
+              "label": "email",
+              "value": "email"
+            },
+            {
+              "label": "tel",
+              "value": "tel"
+            },
+            {
+              "label": "number",
+              "value": "number"
+            },
+            {
+              "label": "password",
+              "value": "password"
+            },
+            {
+              "label": "url",
+              "value": "url"
+            },
+            {
+              "label": "date",
+              "value": "date"
+            }
+          ]
+        },
+        "placeholder": {
+          "type": "text",
+          "label": "Placeholder"
+        },
+        "required": {
+          "type": "radio",
+          "label": "Required",
+          "options": [
+            {
+              "label": "No",
+              "value": "false"
+            },
+            {
+              "label": "Yes",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Label",
+      "label": "Label",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "text": {
+          "type": "text",
+          "label": "Text"
+        },
+        "forId": {
+          "type": "text",
+          "label": "For (input id)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Lightbox",
+      "label": "Lightbox",
+      "category": "Advanced",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "thumbnail": {
+          "type": "text",
+          "label": "Thumbnail URL"
+        },
+        "full": {
+          "type": "text",
+          "label": "Full image URL"
+        },
+        "alt": {
+          "type": "text",
+          "label": "Alt text"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "LinkBlock",
+      "label": "Link Block",
+      "category": "Basic",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {
+        "href": {
+          "type": "text",
+          "label": "Link (href)"
+        },
+        "newTab": {
+          "type": "radio",
+          "label": "Open in",
+          "options": [
+            {
+              "label": "Same tab",
+              "value": "false"
+            },
+            {
+              "label": "New tab",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "List",
+      "label": "List",
+      "category": "Basic",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {
+        "ordered": {
+          "type": "radio",
+          "label": "Type",
+          "options": [
+            {
+              "label": "Bulleted",
+              "value": "false"
+            },
+            {
+              "label": "Numbered",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "ListItem",
+      "label": "List Item",
+      "category": "Basic",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "LoginBlock",
+      "label": "Sign in",
+      "category": "Commerce",
+      "module": "ecommerce",
+      "slots": [],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "LoginForm",
+      "label": "Login Form",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "loginLabel": {
+          "type": "text",
+          "label": "Identifier label"
+        },
+        "passwordLabel": {
+          "type": "text",
+          "label": "Password label"
+        },
+        "submitLabel": {
+          "type": "text",
+          "label": "Button label"
+        },
+        "showGoogle": {
+          "type": "radio",
+          "label": "Google sign-in",
+          "options": [
+            {
+              "label": "Show",
+              "value": "true"
+            },
+            {
+              "label": "Hide",
+              "value": "false"
+            }
+          ]
+        },
+        "showForgotLink": {
+          "type": "radio",
+          "label": "Forgot password link",
+          "options": [
+            {
+              "label": "Show",
+              "value": "true"
+            },
+            {
+              "label": "Hide",
+              "value": "false"
+            }
+          ]
+        },
+        "showSignupLink": {
+          "type": "radio",
+          "label": "Sign-up link",
+          "options": [
+            {
+              "label": "Show",
+              "value": "true"
+            },
+            {
+              "label": "Hide",
+              "value": "false"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "LottieAnimation",
+      "label": "Lottie Animation",
+      "category": "Media",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "src": {
+          "type": "text",
+          "label": "Lottie URL (.json / .lottie)"
+        },
+        "loop": {
+          "type": "radio",
+          "label": "Loop",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "true"
+            },
+            {
+              "label": "No",
+              "value": "false"
+            }
+          ]
+        },
+        "autoplay": {
+          "type": "radio",
+          "label": "Autoplay",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "true"
+            },
+            {
+              "label": "No",
+              "value": "false"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Map",
+      "label": "Map",
+      "category": "Advanced",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "query": {
+          "type": "text",
+          "label": "Address, or paste a Google Maps embed URL"
+        },
+        "height": {
+          "type": "text",
+          "label": "Height"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Navbar",
+      "label": "Navbar",
+      "category": "Advanced",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {
+        "brand": {
+          "type": "text",
+          "label": "Brand"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "OrderStatusBlock",
+      "label": "Order Status",
+      "category": "Commerce",
+      "module": "ecommerce",
+      "slots": [],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Paragraph",
+      "label": "Paragraph",
+      "category": "Typography",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "text": {
+          "type": "textarea",
+          "label": "Text"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "ProductDetail",
+      "label": "Product Detail",
+      "category": "Commerce",
+      "module": "ecommerce",
+      "slots": [],
+      "fields": {
+        "slug": {
+          "type": "text",
+          "label": "Product slug (leave blank on a product template)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "ProductList",
+      "label": "Product List",
+      "category": "Commerce",
+      "module": "ecommerce",
+      "slots": [],
+      "fields": {
+        "heading": {
+          "type": "text",
+          "label": "Heading"
+        },
+        "source": {
+          "type": "object",
+          "label": "Products"
+        },
+        "limit": {
+          "type": "number",
+          "label": "Max items"
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columns",
+          "options": [
+            {
+              "label": "2",
+              "value": "2"
+            },
+            {
+              "label": "3",
+              "value": "3"
+            },
+            {
+              "label": "4",
+              "value": "4"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "QuickStack",
+      "label": "Quick Stack",
+      "category": "Structure",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {
+        "columns": {
+          "type": "select",
+          "label": "Columns",
+          "options": [
+            {
+              "label": "1",
+              "value": "1"
+            },
+            {
+              "label": "2",
+              "value": "2"
+            },
+            {
+              "label": "3",
+              "value": "3"
+            },
+            {
+              "label": "4",
+              "value": "4"
+            },
+            {
+              "label": "5",
+              "value": "5"
+            },
+            {
+              "label": "6",
+              "value": "6"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "RadioButton",
+      "label": "Radio Button",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "label": {
+          "type": "text",
+          "label": "Label"
+        },
+        "name": {
+          "type": "text",
+          "label": "Group name"
+        },
+        "value": {
+          "type": "text",
+          "label": "Value"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Recaptcha",
+      "label": "reCAPTCHA",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "RegisterBlock",
+      "label": "Sign up",
+      "category": "Commerce",
+      "module": "ecommerce",
+      "slots": [],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "RegisterForm",
+      "label": "Sign-up Form",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "usernameLabel": {
+          "type": "text",
+          "label": "Username label"
+        },
+        "emailLabel": {
+          "type": "text",
+          "label": "Email label"
+        },
+        "passwordLabel": {
+          "type": "text",
+          "label": "Password label"
+        },
+        "submitLabel": {
+          "type": "text",
+          "label": "Button label"
+        },
+        "showNameFields": {
+          "type": "radio",
+          "label": "First / last name",
+          "options": [
+            {
+              "label": "Show",
+              "value": "true"
+            },
+            {
+              "label": "Hide",
+              "value": "false"
+            }
+          ]
+        },
+        "showLoginLink": {
+          "type": "radio",
+          "label": "Sign-in link",
+          "options": [
+            {
+              "label": "Show",
+              "value": "true"
+            },
+            {
+              "label": "Hide",
+              "value": "false"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "ResetPasswordForm",
+      "label": "Reset Password Form",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "passwordLabel": {
+          "type": "text",
+          "label": "New password label"
+        },
+        "confirmLabel": {
+          "type": "text",
+          "label": "Confirm label"
+        },
+        "submitLabel": {
+          "type": "text",
+          "label": "Button label"
+        },
+        "expiredMessage": {
+          "type": "textarea",
+          "label": "Expired-link message"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Reviews",
+      "label": "Reviews",
+      "category": "Advanced",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "heading": {
+          "type": "text",
+          "label": "Heading"
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columns",
+          "options": [
+            {
+              "label": "1",
+              "value": "1"
+            },
+            {
+              "label": "2",
+              "value": "2"
+            },
+            {
+              "label": "3",
+              "value": "3"
+            },
+            {
+              "label": "4",
+              "value": "4"
+            }
+          ]
+        },
+        "showAggregate": {
+          "type": "radio",
+          "label": "Show average",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "true"
+            },
+            {
+              "label": "No",
+              "value": "false"
+            }
+          ]
+        },
+        "reviews": {
+          "type": "array",
+          "label": "Reviews"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "RichText",
+      "label": "Rich text",
+      "category": "Typography",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "html": {
+          "type": "custom",
+          "label": "Content"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Rive",
+      "label": "Rive",
+      "category": "Media",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "src": {
+          "type": "text",
+          "label": "Rive URL (.riv)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Search",
+      "label": "Search",
+      "category": "Advanced",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "action": {
+          "type": "text",
+          "label": "Search action URL"
+        },
+        "placeholder": {
+          "type": "text",
+          "label": "Placeholder"
+        },
+        "buttonLabel": {
+          "type": "text",
+          "label": "Button label"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Section",
+      "label": "Section",
+      "category": "Structure",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Select",
+      "label": "Select",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "name": {
+          "type": "text",
+          "label": "Name"
+        },
+        "options": {
+          "type": "array",
+          "label": "Options"
+        },
+        "required": {
+          "type": "radio",
+          "label": "Required",
+          "options": [
+            {
+              "label": "No",
+              "value": "false"
+            },
+            {
+              "label": "Yes",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Slider",
+      "label": "Slider",
+      "category": "Advanced",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "slides": {
+          "type": "array",
+          "label": "Slides"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Spacer",
+      "label": "Spacer",
+      "category": "Other",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "height": {
+          "type": "text",
+          "label": "Height"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "SplineScene",
+      "label": "Spline Scene",
+      "category": "Media",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "scene": {
+          "type": "text",
+          "label": "Spline URL (.splinecode)"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Tabs",
+      "label": "Tabs",
+      "category": "Advanced",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "tabs": {
+          "type": "array",
+          "label": "Tabs"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "TemplateRef",
+      "label": "Template Reference",
+      "category": "Other",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "templateId": {
+          "type": "custom",
+          "label": "Template"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Text",
+      "label": "Text Block",
+      "category": "Typography",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "text": {
+          "type": "textarea",
+          "label": "Text"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "TextArea",
+      "label": "Text Area",
+      "category": "Forms",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "name": {
+          "type": "text",
+          "label": "Name"
+        },
+        "placeholder": {
+          "type": "text",
+          "label": "Placeholder"
+        },
+        "rows": {
+          "type": "number",
+          "label": "Rows"
+        },
+        "required": {
+          "type": "radio",
+          "label": "Required",
+          "options": [
+            {
+              "label": "No",
+              "value": "false"
+            },
+            {
+              "label": "Yes",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "TextLink",
+      "label": "Text Link",
+      "category": "Typography",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "text": {
+          "type": "text",
+          "label": "Text"
+        },
+        "href": {
+          "type": "text",
+          "label": "Link (href)"
+        },
+        "newTab": {
+          "type": "radio",
+          "label": "Open in",
+          "options": [
+            {
+              "label": "Same tab",
+              "value": "false"
+            },
+            {
+              "label": "New tab",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "VFlex",
+      "label": "V Flex",
+      "category": "Structure",
+      "module": null,
+      "slots": [
+        "content"
+      ],
+      "fields": {},
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "Video",
+      "label": "Video",
+      "category": "Media",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "src": {
+          "type": "text",
+          "label": "Video URL (.mp4 / .webm)"
+        },
+        "poster": {
+          "type": "text",
+          "label": "Poster image URL"
+        },
+        "autoplay": {
+          "type": "radio",
+          "label": "Autoplay",
+          "options": [
+            {
+              "label": "No",
+              "value": "false"
+            },
+            {
+              "label": "Yes (muted)",
+              "value": "true"
+            }
+          ]
+        },
+        "loop": {
+          "type": "radio",
+          "label": "Loop",
+          "options": [
+            {
+              "label": "No",
+              "value": "false"
+            },
+            {
+              "label": "Yes",
+              "value": "true"
+            }
+          ]
+        },
+        "controls": {
+          "type": "radio",
+          "label": "Controls",
+          "options": [
+            {
+              "label": "Show",
+              "value": "true"
+            },
+            {
+              "label": "Hide",
+              "value": "false"
+            }
+          ]
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "XTwitter",
+      "label": "X (Twitter)",
+      "category": "Advanced",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "url": {
+          "type": "text",
+          "label": "Tweet URL"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
+      "type": "YouTube",
+      "label": "YouTube",
+      "category": "Media",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "url": {
+          "type": "text",
+          "label": "YouTube URL or video ID"
+        }
+      },
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    }
+  ]
+}

@@ -4291,6 +4291,426 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/dashboard_controller').default['stats']>>>
     }
   }
+  'mcp.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/mcp'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_controller').default['page']>>>
+    }
+  }
+  'mcp.tokens.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/mcp/tokens'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_controller').default['tokens']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_controller').default['tokens']>>>
+    }
+  }
+  'mcp.tokens.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/mcp/tokens'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_controller').default['createToken']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_controller').default['createToken']>>>
+    }
+  }
+  'mcp.tokens.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/mcp/tokens/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_controller').default['deleteToken']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_controller').default['deleteToken']>>>
+    }
+  }
+  'mcp.audit': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/mcp/audit'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_controller').default['audit']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_controller').default['audit']>>>
+    }
+  }
+  'mcp.rpc': {
+    methods: ["GET","POST","DELETE"]
+    pattern: '/api/mcp/v1/rpc'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_rpc_controller').default['handle']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/mcp_rpc_controller').default['handle']>>>
+    }
+  }
+  'mcp.catalog': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/catalog'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/catalog_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/catalog_controller').default['show']>>>
+    }
+  }
+  'mcp.collections.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/collections'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['index']>>>
+    }
+  }
+  'mcp.collections.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/collections/:key'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['show']>>>
+    }
+  }
+  'mcp.collections.store': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/collections'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['store']>>>
+    }
+  }
+  'mcp.collections.update': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/collections/:key'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['update']>>>
+    }
+  }
+  'mcp.collections.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/mcp/v1/collections/:key'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['destroy']>>>
+    }
+  }
+  'mcp.collections.fields.add': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/collections/:key/fields'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['addField']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['addField']>>>
+    }
+  }
+  'mcp.collections.fields.update': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/collections/:key/fields/:field'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { key: ParamValue; field: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['updateField']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['updateField']>>>
+    }
+  }
+  'mcp.collections.fields.delete': {
+    methods: ["DELETE"]
+    pattern: '/api/mcp/v1/collections/:key/fields/:field'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { key: ParamValue; field: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['deleteField']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['deleteField']>>>
+    }
+  }
+  'mcp.collections.fields.reorder': {
+    methods: ["PATCH"]
+    pattern: '/api/mcp/v1/collections/:key/fields/reorder'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['reorderFields']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['reorderFields']>>>
+    }
+  }
+  'mcp.pages.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/pages'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['index']>>>
+    }
+  }
+  'mcp.pages.validate': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/pages/validate'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['validate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['validate']>>>
+    }
+  }
+  'mcp.pages.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/pages/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['show']>>>
+    }
+  }
+  'mcp.pages.store': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/pages'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['store']>>>
+    }
+  }
+  'mcp.pages.update': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/pages/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['update']>>>
+    }
+  }
+  'mcp.pages.content': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/pages/:id/content'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['setContent']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['setContent']>>>
+    }
+  }
+  'mcp.pages.publish': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/pages/:id/publish'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['publish']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['publish']>>>
+    }
+  }
+  'mcp.pages.discard': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/pages/:id/discard-draft'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['discardDraft']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['discardDraft']>>>
+    }
+  }
+  'mcp.templates.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/templates'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['index']>>>
+    }
+  }
+  'mcp.templates.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/templates/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['show']>>>
+    }
+  }
+  'mcp.templates.store': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/templates'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['store']>>>
+    }
+  }
+  'mcp.templates.update': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/templates/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['update']>>>
+    }
+  }
+  'mcp.templates.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/mcp/v1/templates/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['destroy']>>>
+    }
+  }
+  'mcp.templates.default': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/templates/:id/default'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['setDefault']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['setDefault']>>>
+    }
+  }
+  'mcp.appearance': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/appearance'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['setAppearance']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['setAppearance']>>>
+    }
+  }
+  'mcp.breakpoints': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/breakpoints'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['setBreakpoints']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['setBreakpoints']>>>
+    }
+  }
+  'mcp.globalcode': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/global-code'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['setGlobalCode']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['setGlobalCode']>>>
+    }
+  }
+  'mcp.media.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/media'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/media_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/media_controller').default['index']>>>
+    }
+  }
+  'mcp.media.store': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/media'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/media_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/media_controller').default['store']>>>
+    }
+  }
   'ctrl.page': {
     methods: ["GET","HEAD"]
     pattern: '/admin/tasks'

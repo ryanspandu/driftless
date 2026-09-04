@@ -29,7 +29,7 @@ field on the other screen, both defaulting to `Driftless`, with nothing explaini
 | `/admin/settings/application` | via hub | Modules (install / enable / remove) | `modules` table |
 | `/admin/integrations` (+ 4 sub-pages) | **not in sidebar** | Google OAuth, CAPTCHA, GA4, Clarity | `integration_settings` (secrets in `*_enc`) |
 | `/admin/settings/api-tokens` | via hub | Personal access tokens for `/api/v1` | `auth_access_tokens` |
-| `/admin/website-settings` | **UI → Website settings** | Public site title, description, favicon, site-wide meta, global custom code | `web_settings`: `site_meta`, `page_code` |
+| `/admin/website-settings` | **UI → Website settings** | Public site title, description, favicon, site-wide meta, appearance (font + palette), forms webhook, global custom code | `web_settings`: `site_meta`, `theme`, `forms`, `page_code` |
 
 The page title of `/admin/settings/application` is **"Modules"**. The route name is a leftover;
 link to it as *Settings → Modules*.
@@ -58,15 +58,31 @@ is `''`, so empty always means "back to the default" and no screen needs a reset
 | `app_config` | `landing_enabled`, `hidden_nav`, `registration_enabled` | General |
 | `site_meta` | `site_title`, `site_description`, `favicon_url`, `meta` | Website settings |
 | `page_code` | `snippets` | Website settings **and** the builder's Settings dialog |
+| `theme` | `font_family`, `font_css_url`, `font_face_url`, `font_custom_name`, `primary_color`, `secondary_color`, `saved_colors` (JSON `[{slug,name,value}]`) | Website settings (**Appearance** tab) **and** the builder's Settings dialog |
+
+`accent_color` was **removed** from `theme` (it briefly sat alongside primary/secondary):
+`--accent` remains in `app.css` for shadcn components but is no longer operator-editable.
+Do not confuse it with `email_branding.accent_color`, which is unrelated and still live.
 
 **Add a section to `WEB_DEFAULTS` before any screen writes it.** `admin_branding` was written by
 the UI while absent from `WEB_DEFAULTS`, so `getMergedSections()` could not seed it, the API
 returned nothing for it until somebody pressed Save, and its defaults lived duplicated in the
 front end.
 
-`page_code.snippets` is the one key with two editors, and that is fine — one data source, two
-entrances (site-wide code is also reachable from the builder, where an author is already thinking
-about code). Two editors on one key is acceptable; two keys for one concept is not.
+`page_code.snippets` and the whole `theme` section are the keys with two editors, and that is fine
+— one data source, two entrances (both are also reachable from the builder, where an author is
+already thinking about code / the page's look). The **Appearance** panel
+(`inertia/components/appearance-panel.tsx`) is that shared editor for `theme`, rendered on the
+Website settings **Appearance** tab and in the builder's Page-settings dialog. Two editors on one
+key is acceptable; two keys for one concept is not.
+
+Two `theme` specifics worth knowing. **Any write to section `theme` invalidates every SSG
+snapshot** — the palette/font is baked into snapshots via shared props, so `settings_controller`
+calls `pagesService.invalidateAllSnapshots()` whenever a patch targets `theme`. And **the server
+sanitises `theme` at read time**, not just on write: `settings_service.ts` runs `safeColor`,
+`sanitizeSavedColors`, and the font guards inside `mapPublicTheme()` to build the `PublicTheme`
+that gets injected as CSS — the server stays the security boundary, since these values become a
+`<style>` block on public pages.
 
 ## Traps
 

@@ -54,6 +54,53 @@ When adding an integration, verify it in a production-like CSP environment and
 make the smallest corresponding directive change. Do not add `unsafe-inline` to
 `script-src` or a broad `https:` source to `script-src`/`frame-src`.
 
+### Generated stylesheets and the nonce
+
+The strict production policy is `style-src 'self' '@nonce'
+https://fonts.googleapis.com` with `style-src-attr 'unsafe-inline'`. The
+`unsafe-inline` on `style-src-attr` is why inline `style=""` attributes (a
+`Box`'s base props and its live state-preview) need no nonce; only `<style>`
+**elements** do. Those elements come from the page builder itself, so each must
+carry the request nonce:
+
+- A published `Box` emits a generated `<style>` for its responsive `@media`
+  rules and interaction-state (`:hover`/`:focus`/`:active`) rules. The nonce
+  reaches it through a React context: `NonceContext`
+  ([`inertia/puck/breakpoints.ts`](../../inertia/puck/breakpoints.ts)),
+  provided by `PublicPageView` from `usePage().props.cspNonce`
+  ([`inertia/puck/public-page-view.tsx`](../../inertia/puck/public-page-view.tsx))
+  and consumed in
+  [`inertia/puck/style-fields.tsx`](../../inertia/puck/style-fields.tsx),
+  which stamps `nonce` onto that generated element.
+- The builder canvas injects a nonced `<style>` with the operator palette and
+  the saved `--color-<slug>` values scoped to `.theme-light`
+  ([`inertia/puck/builder-shell.tsx`](../../inertia/puck/builder-shell.tsx)).
+- `SiteThemeStyle`
+  ([`inertia/components/layout-shell.tsx`](../../inertia/components/layout-shell.tsx))
+  is nonced the same way.
+
+The nonce is a per-request Shield value. `inertia_middleware` shares it as
+`cspNonce` (`ctx.inertia.always(ctx.response.nonce)`) and
+[`resources/views/inertia_layout.edge`](../../resources/views/inertia_layout.edge)
+exposes it as `<meta name="csp-nonce">`.
+
+### SSG snapshots and the nonce sentinel
+
+`renderMode='SSG'` pages cache their full rendered HTML
+([`app/services/page_renderer.ts`](../../app/services/page_renderer.ts) →
+`pages.rendered_html`) and re-serve it verbatim. But Shield sets a **fresh**
+nonce in every response's CSP header, so a nonce baked into the snapshot would
+never match and every nonced `<style>`/`<script>` in it would be dropped.
+
+The fix is a restamp. On cache-write the render-time nonce is replaced with a
+sentinel, `CSP_NONCE_SENTINEL` (`__CSP_NONCE__`, exported from
+`page_renderer.ts`); on serve,
+[`app/controllers/pages_public_controller.ts`](../../app/controllers/pages_public_controller.ts)
+swaps the sentinel back to the current request's nonce. The request that first
+renders the snapshot still receives its real nonce, matching the header Shield
+already set for it. SSR/CSR responses render fresh with `no-store`, so they use
+the real per-request nonce directly and need no sentinel.
+
 ## Media uploads and SVG
 
 User media is stored outside `public/` by default at `storage/media` and served

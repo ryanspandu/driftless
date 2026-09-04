@@ -18,11 +18,13 @@ builder layout ([builder-layers.md](./builder-layers.md)).
      footer template pickers.
    - **SEO & Meta** — meta title, description, OG image, canonical, no-index, +
      free-form per-page meta tags.
+   - **Appearance** — the site-wide font + colour palette (shared `AppearancePanel`,
+     saved explicitly — **not** tied to Publish). See [Appearance](#appearance-site-font--colour-palette).
    - **Page code** — per-page custom CSS/JS snippets.
    - **Global code** — site-wide CSS/JS snippets (same data as Website settings).
 
    The **Templates builder** reuses the same dialog but passes no `pageMeta`, so it
-   shows only the two code sections (templates have no title/SEO).
+   shows only Appearance + the two code sections (templates have no title/SEO).
 
 2. **Website settings page** — sidebar **UI → Website settings**
    (`/admin/website-settings`,
@@ -30,6 +32,8 @@ builder layout ([builder-layers.md](./builder-layers.md)).
    Tabs:
    - **Site & SEO** — site title, meta description, favicon (`ImageSettingControl`),
      + **global meta tags** (free-form).
+   - **Appearance** (`?tab=appearance`) — the shared `AppearancePanel`: default font +
+     colour palette. Identical to the builder dialog's Appearance section.
    - **Custom code** — the same site-wide CSS/JS editor (`GlobalCodePanel`).
 
    This page is distinct from `/admin/settings` ("Settings"), which is now a **hub of links
@@ -57,6 +61,7 @@ builder layout ([builder-layers.md](./builder-layers.md)).
 | **Global code** | `web_settings` section `page_code`, key `snippets` | JSON `CodeSnippet[]` (sanitized server-side). |
 | **Global meta tags** | `web_settings` section `site_meta`, key `meta` | JSON `SiteMetaTag[]`. |
 | Site title/desc/favicon | `web_settings` section `site_meta` | Pre-existing keys. |
+| **Appearance** (font + palette) | `web_settings` section `theme` | `font_family`, `font_css_url`, `font_face_url`, `font_custom_name`, `primary_color`, `secondary_color`, `saved_colors` (JSON `[{slug,name,value}]`). Sanitized server-side. See [settings-ia.md](./settings-ia.md#web_settings--one-key-one-owning-screen). |
 
 ```ts
 // inertia/puck/custom-code.ts
@@ -78,6 +83,43 @@ edited via the dialog, and sent with **Publish** (`useUpdatePage` already accept
 `title/path/status/renderMode/layout+header+footer ids/seo`). Custom-code snippets
 write to `root.props.codeSnippets` (so they save with `content`). **Global** code +
 meta save immediately via their own APIs (independent of Publish).
+
+---
+
+## Appearance (site font + colour palette)
+
+The **Appearance** editor sets the public site + storefront's default font and colour
+palette. It is a **shared panel** — [`inertia/components/appearance-panel.tsx`](../../inertia/components/appearance-panel.tsx)
+(`AppearancePanel`) — rendered in **two** surfaces: the Website settings
+**Appearance** tab (`?tab=appearance`) and the builder Settings dialog's **Appearance**
+section. Both edit the same site-wide `web_settings` section `theme`, and — like
+`GlobalCodePanel` — the panel **saves explicitly via its own "Save appearance" button**,
+independent of page Publish. It does not touch the dashboard theme (that stays outside
+the `.theme-light` scope).
+
+What it edits:
+
+- **Default font** — a curated Google Fonts list (family + stylesheet href), or a
+  **custom font upload** (`POST /api/admin/media`) surfaced with a "Custom" badge and
+  applied via `@font-face` (keyed by `font_custom_name`).
+- **Primary** + **Secondary** colours — via `ColorPickerInput` (no native `<input
+  type=color>`). **Accent was removed**: `--accent` still lives in `app.css` for shadcn
+  components but is no longer operator-editable.
+- **Saved colours** — user-named colour variables you create / name / delete
+  ([`inertia/puck/saved-colors.ts`](../../inertia/puck/saved-colors.ts), `SavedColor =
+  {slug,name,value}`). Each becomes a reusable **swatch in the builder**; a block that
+  picks one stores the live reference `var(--color-<slug>)` (`savedColorRef`), so
+  re-editing the saved colour updates every block that uses it. Slugs are stable across
+  saves; new names are slugified + deduped.
+
+**How it applies on public pages:** `SiteThemeStyle` in
+[`inertia/components/layout-shell.tsx`](../../inertia/components/layout-shell.tsx) reads
+`siteTheme` from the Inertia page props and emits a `<style>` scoped to `.theme-light`
+(so it restyles the public site + storefront but never the dashboard): custom
+`--primary` / `--secondary`, one `--color-<slug>` per saved colour, and the active
+font (an uploaded font as `@font-face`, a Google font as a `<link rel=stylesheet>`).
+Values arrive already sanitised server-side (see Backend). Writing section `theme`
+invalidates **all** SSG snapshots (the theme is baked into them via shared props).
 
 ---
 
@@ -133,10 +175,16 @@ public page (no chrome).
 - **`WebSettingsService`** ([settings_service.ts](../../app/services/settings_service.ts)):
   - `getGlobalCode()` / `setGlobalCode()` — `page_code.snippets`, sanitized.
   - `getSiteMetaTags()` + `metaTags` in `mapPublicAppearance()` — `site_meta.meta`.
-  - Types `GlobalCodeSnippet`, `SiteMetaTag`.
+  - `getPublicTheme()` / `mapPublicTheme()` — read + sanitise section `theme` into
+    `PublicTheme` for injection (`safeColor`, `sanitizeSavedColors`, `safeFontFamily`,
+    `safeFontUrl`, `safeFontFaceUrl`). The server is the security boundary here.
+  - Types `GlobalCodeSnippet`, `SiteMetaTag`, `PublicTheme`.
 - **`SettingsController`** ([settings_controller.ts](../../app/controllers/admin/settings_controller.ts)):
   - `getPageCode` / `updatePageCode` (global code; `updatePageCode` busts **all** SSG
     snapshots via `PagesService.invalidateAllSnapshots`).
+  - The generic `web_settings` patch endpoint also busts **all** SSG snapshots when any
+    patch targets section `theme` (the palette/font is baked into snapshots via shared
+    props) — same `invalidateAllSnapshots` call.
   - `websiteSettingsPage` (renders `admin/website-settings`).
 - **Routes** ([start/routes.ts](../../start/routes.ts)):
   - `GET /api/admin/settings/page-code` (read; admin-area auth) ·
@@ -151,7 +199,10 @@ public page (no chrome).
 
 | File | Role |
 |------|------|
-| `inertia/puck/settings-dialog.tsx` | Builder Settings dialog (General/SEO/Page code/Global code) + `PageMeta` type |
+| `inertia/puck/settings-dialog.tsx` | Builder Settings dialog (General/SEO/Appearance/Page code/Global code) + `PageMeta` type |
+| `inertia/components/appearance-panel.tsx` | Shared `AppearancePanel` — font + palette + saved colours (explicit Save) |
+| `inertia/puck/saved-colors.ts` | `SavedColor` model + `savedColorRef` / `parseSavedColors` / `slugifyColorName` + `SavedColorsContext` |
+| `inertia/components/layout-shell.tsx` | `SiteThemeStyle` — injects the public font/palette scoped to `.theme-light` |
 | `inertia/puck/custom-code.ts` | `CodeSnippet` model + helpers + legacy migration |
 | `inertia/puck/code-editor.tsx` / `code-editor-inner.tsx` | Lazy CodeMirror editor |
 | `inertia/puck/snippet-manager.tsx` | Shared list-first snippet manager |

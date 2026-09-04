@@ -71,6 +71,27 @@ export function withModuleBlocks(config: Config): Config {
 }
 
 /**
+ * Which module owns each contributed block, keyed by component name.
+ *
+ * Derived from the glob path (`modules/<name>/ui/puck/blocks.tsx`), so it needs
+ * no extra declaration from the module. Used by the MCP catalog emitter to tag
+ * a block's provenance — an AI then knows that, say, `ProductList` comes from
+ * `ecommerce` and needs that module enabled to render. Core blocks are absent
+ * from this map.
+ */
+export function moduleBlockOwners(): Record<string, string> {
+  const owners: Record<string, string> = {}
+  for (const [path, mod] of Object.entries(contributions)) {
+    const name = path.match(/modules\/([^/]+)\/ui\/puck\/blocks/)?.[1] ?? 'module'
+    for (const component of Object.keys(mod?.default?.components ?? {})) {
+      // First contributor wins, mirroring the collision rule in withModuleBlocks.
+      if (!(component in owners)) owners[component] = name
+    }
+  }
+  return owners
+}
+
+/**
  * Every module's block icons, folded into one map keyed by component name.
  *
  * Merged into core's `ICONS` in `overrides.tsx`, where core's own entries win —

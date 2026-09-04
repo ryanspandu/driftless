@@ -1,0 +1,91 @@
+import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+import app from '@adonisjs/core/services/app'
+
+/**
+ * A single block the builder understands, in the machine-readable form an AI
+ * client needs to compose a valid Puck document. Emitted by `node ace
+ * mcp:catalog` from the React Puck config (`inertia/puck/config.tsx` et al.) —
+ * see `commands/mcp_catalog.ts`. The Adonis runtime never imports the React
+ * config; it reads the emitted JSON instead, so the server stays free of the
+ * front-end bundle.
+ */
+export interface CatalogBlock {
+  type: string
+  label: string
+  category: string
+  /**
+   * The module that contributes this block, or `null` for a core block. A
+   * module block only renders while its module is enabled, so prefer core
+   * blocks unless the site uses that module.
+   */
+  module: string | null
+  /** Prop names whose value is a nested array of blocks (Puck `slot` fields). */
+  slots: string[]
+  /** Field name → a compact descriptor (type + label + options for selects). */
+  fields: Record<string, CatalogField>
+  /** Shared style prop names (border, spacing, …) every block also accepts. */
+  styleProps: string[]
+}
+
+export interface CatalogField {
+  type: string
+  label?: string
+  options?: Array<{ label: string; value: string | number }>
+}
+
+export interface Catalog {
+  /** Which builder surface this catalog describes. */
+  target: CatalogTarget
+  generatedAt: string
+  /** How a Puck document is shaped, spelled out for the AI. */
+  contentShape: string
+  blocks: CatalogBlock[]
+}
+
+export type CatalogTarget = 'page' | 'collection' | 'email'
+
+const CATALOG_FILES: Record<CatalogTarget, string> = {
+  page: 'catalog.page.json',
+  collection: 'catalog.collection.json',
+  email: 'catalog.email.json',
+}
+
+const here = dirname(fileURLToPath(import.meta.url))
+
+function catalogDir(): string {
+  // `resources/mcp/` at the repo root — written by the emitter, read here.
+  // Resolve from the app root so it works in dev (TS) and built (JS) alike.
+  try {
+    return app.makePath('resources', 'mcp')
+  } catch {
+    return join(here, '..', '..', '..', 'resources', 'mcp')
+  }
+}
+
+const cache = new Map<CatalogTarget, Catalog | null>()
+
+/**
+ * Load one target's catalog, or `null` if it has not been emitted yet. A null
+ * result makes the structural validator non-enforcing rather than rejecting
+ * every write — a fresh checkout that has not run `node ace mcp:catalog` can
+ * still build pages, just without block-type checking.
+ */
+export async function loadCatalog(target: CatalogTarget): Promise<Catalog | null> {
+  if (cache.has(target)) return cache.get(target)!
+  try {
+    const raw = await readFile(join(catalogDir(), CATALOG_FILES[target]), 'utf8')
+    const parsed = JSON.parse(raw) as Catalog
+    cache.set(target, parsed)
+    return parsed
+  } catch {
+    cache.set(target, null)
+    return null
+  }
+}
+
+/** Force the next `loadCatalog` to re-read from disk (used after re-emitting). */
+export function clearCatalogCache(): void {
+  cache.clear()
+}

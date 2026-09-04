@@ -5,7 +5,10 @@ self-contained folder co-locating back-end (routes, controllers, services, model
 migrations) and front-end (`ui/`).
 
 > Status: **implemented.** Reference examples: `modules/tasks/` (app),
-> `modules/announcements/` (plugin), `modules/ecommerce/` (a large app).
+> `modules/announcements/` (plugin), `modules/ecommerce/` (a large app),
+> `modules/mcp/` (an app that adds a token-authed **builder-API** at
+> `/api/mcp/v1/*` plus a bundled MCP server so an AI can build the whole site —
+> see [modules/mcp/README.md](../../modules/mcp/README.md)).
 
 ## Apps and plugins are the same thing
 
@@ -16,11 +19,11 @@ rollback paths and two safe modes once the marketplace arrived.
 
 So there is one implementation, and **`kind` on the manifest carries the difference**:
 
-|            | `kind: 'app'` (default)                    | `kind: 'plugin'`                             |
-| ---------- | ------------------------------------------ | -------------------------------------------- |
-| Intent     | first-party or vetted feature area         | third-party add-on                           |
-| Surface    | the full manifest                          | no `boot`, `maintenance`, `reservedSegments` |
-| Everything else | identical — same table, same toggle, same guard, same discovery |                          |
+|                 | `kind: 'app'` (default)                                         | `kind: 'plugin'`                             |
+| --------------- | --------------------------------------------------------------- | -------------------------------------------- |
+| Intent          | first-party or vetted feature area                              | third-party add-on                           |
+| Surface         | the full manifest                                               | no `boot`, `maintenance`, `reservedSegments` |
+| Everything else | identical — same table, same toggle, same guard, same discovery |                                              |
 
 The narrower plugin surface is a **policy** the installer enforces when validating a
 manifest, not a separate implementation. Both register routes at boot and are guarded
@@ -32,20 +35,20 @@ A marketplace makes one failure routine: a package that imports cleanly and then
 against a live container. If that stopped the process, the operator would be locked out of
 the very screen that removes it. Three layers stop it.
 
-**1. Nothing a module does can stop boot.** `discoverModules()` already wrapped each *import*
+**1. Nothing a module does can stop boot.** `discoverModules()` already wrapped each _import_
 in try/catch; `bootModules()` now does the same for each `boot(app)` hook. A module that
 throws is recorded in `bootFailures`, and `ModulesProvider` then **quarantines** it —
 `enabled = false` plus the reason in `modules.boot_error` — so the next restart skips it
-instead of repeating the failure forever. The provider still rethrows *infrastructure*
+instead of repeating the failure forever. The provider still rethrows _infrastructure_
 failures (unreachable database, missing table); only a module's own fault is contained.
 
 **2. Safe mode boots with no modules at all.**
 
-| Trigger | For |
-|---|---|
-| `DRIFTLESS_SAFE_MODE=1` | whoever controls the supervisor config |
-| `tmp/SAFE_MODE` (file) | whoever only has a shell — and the installer, which drops it around risky steps |
-| `DRIFTLESS_DISABLE_MODULES=a,b` | the surgical version: keep the site running, keep one package out |
+| Trigger                         | For                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------- |
+| `DRIFTLESS_SAFE_MODE=1`         | whoever controls the supervisor config                                          |
+| `tmp/SAFE_MODE` (file)          | whoever only has a shell — and the installer, which drops it around risky steps |
+| `DRIFTLESS_DISABLE_MODULES=a,b` | the surgical version: keep the site running, keep one package out               |
 
 One early return in `discoverModules()` and everything follows: no routes, no boot hooks, no
 permissions minted, no reserved segments, no nav.
@@ -72,11 +75,11 @@ cached with a short TTL rather than for the process lifetime.
 Enforced during discovery, so a package that fails it is refused with a readable reason
 rather than loading and breaking later in a way that looks like a bug in the CMS.
 
-| Field | Meaning |
-|---|---|
+| Field               | Meaning                                                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------------------------- |
 | `engines.driftless` | semver range against `CMS_VERSION`. Omit for bundled packages; set it for anything installed separately |
-| `requires.modules` | name → semver range. **Declared and checked, never resolved** — nothing is installed automatically |
-| `kind: 'plugin'` | may **not** declare `boot`, `maintenance` or `reservedSegments` |
+| `requires.modules`  | name → semver range. **Declared and checked, never resolved** — nothing is installed automatically      |
+| `kind: 'plugin'`    | may **not** declare `boot`, `maintenance` or `reservedSegments`                                         |
 
 Those three reach furthest outside a package: `boot` runs arbitrary code against the live
 container, `reservedSegments` claims public URLs, and `maintenance` runs on a schedule with
@@ -111,7 +114,7 @@ is not a performance choice, it is the only thing that works:
 
 - `MODULES` is resolved by a top-level `await` at import, and `config/database.ts` builds
   `migrationPaths` when the config loads. A folder that arrived after boot is invisible to the
-  running web process **twice over** — `getModule()` returns undefined *and* its migrations are
+  running web process **twice over** — `getModule()` returns undefined _and_ its migrations are
   not in the path list. Only a fresh process can see it.
 - The queue worker cannot be used for the same reason: `queue:work` boots the app identically,
   so its `MODULES` is frozen too.
@@ -123,7 +126,7 @@ process dying mid-install is a non-event because the row is the state.
 
 The job stops at `awaiting_restart`, never at `succeeded`. Whether it worked is decided after
 the restart by `ModuleInstallJobService.resumeOnBoot()`, which is the only observer that can
-check the module now loads *and* is enabled. A process about to be replaced cannot certify its
+check the module now loads _and_ is enabled. A process about to be replaced cannot certify its
 own outcome.
 
 A module that is already loaded and ships no `ui/` needs no restart at all — that job finishes
@@ -133,7 +136,7 @@ immediately.
 
 `app/services/restart_watcher.ts` polls every ~10s (jittered) and restarts when either the
 `current` symlink has moved out from under this process, or an install is waiting on a
-restart. The jitter *is* the rolling-restart mechanism under PM2 cluster and templated systemd
+restart. The jitter _is_ the rolling-restart mechanism under PM2 cluster and templated systemd
 units: workers notice independently and leave at different moments, with no coordination.
 
 `requestRestart()` refuses when nothing would bring the process back — see the docblock in
@@ -147,12 +150,12 @@ order has been paid), revokes the permissions **no other installed module declar
 
 ## Lifecycle
 
-| Event | What happens |
-|---|---|
-| Folder removed | `reconcile()` prunes the row — **gated on safe mode**, or one recovery boot would delete every module's enabled state |
-| `version` moves forward | `onUpgrade(fromVersion)` runs after migrations, before enable. A failure is logged but does **not** disable a module that works |
-| `version` moves backward | nothing — there is no upgrade path to run in reverse |
-| `boot()` throws | quarantined: disabled, with the reason in `modules.boot_error` |
+| Event                    | What happens                                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Folder removed           | `reconcile()` prunes the row — **gated on safe mode**, or one recovery boot would delete every module's enabled state           |
+| `version` moves forward  | `onUpgrade(fromVersion)` runs after migrations, before enable. A failure is logged but does **not** disable a module that works |
+| `version` moves backward | nothing — there is no upgrade path to run in reverse                                                                            |
+| `boot()` throws          | quarantined: disabled, with the reason in `modules.boot_error`                                                                  |
 
 ## Health
 
@@ -199,17 +202,17 @@ edit, and an installer unpacking a zip cannot edit core source.
 
 So core never names a module. It discovers contributions by **shape**:
 
-| Contribution | How core finds it | Where |
-|---|---|---|
-| The module itself | directory holding `module.ts` / `module.js` | `modules/registry.ts` |
-| Admin & storefront pages | `import.meta.glob('../modules/*/ui/**/*.tsx')` | `inertia/app.tsx` |
-| Page-builder blocks | `import.meta.glob('../../modules/*/ui/puck/blocks.tsx')` | `inertia/puck/module-blocks.ts` |
-| Page-builder block icons | the `icons` map on that same default export | `inertia/puck/module-blocks.ts` → `inertia/puck/overrides.tsx` |
-| Breadcrumb labels | `import.meta.glob('../../modules/*/ui/labels.ts')` | `inertia/lib/module-labels.ts` |
-| Tests | `modules/*/tests/**/*.spec.ts` | `adonisrc.ts`, suite `modules` |
-| Migrations | directory scan | `config/database.ts` |
-| Permissions, nav, reserved URL segments | manifest fields | `modules/registry.ts` |
-| Emails the module sends | `registerMailEvent(...)` from `boot()` | `app/services/mail_events.ts` — see [mail.md](./mail.md#mail-events--what-can-be-sent-and-whether-it-is) |
+| Contribution                            | How core finds it                                        | Where                                                                                                    |
+| --------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| The module itself                       | directory holding `module.ts` / `module.js`              | `modules/registry.ts`                                                                                    |
+| Admin & storefront pages                | `import.meta.glob('../modules/*/ui/**/*.tsx')`           | `inertia/app.tsx`                                                                                        |
+| Page-builder blocks                     | `import.meta.glob('../../modules/*/ui/puck/blocks.tsx')` | `inertia/puck/module-blocks.ts`                                                                          |
+| Page-builder block icons                | the `icons` map on that same default export              | `inertia/puck/module-blocks.ts` → `inertia/puck/overrides.tsx`                                           |
+| Breadcrumb labels                       | `import.meta.glob('../../modules/*/ui/labels.ts')`       | `inertia/lib/module-labels.ts`                                                                           |
+| Tests                                   | `modules/*/tests/**/*.spec.ts`                           | `adonisrc.ts`, suite `modules`                                                                           |
+| Migrations                              | directory scan                                           | `config/database.ts`                                                                                     |
+| Permissions, nav, reserved URL segments | manifest fields                                          | `modules/registry.ts`                                                                                    |
+| Emails the module sends                 | `registerMailEvent(...)` from `boot()`                   | `app/services/mail_events.ts` — see [mail.md](./mail.md#mail-events--what-can-be-sent-and-whether-it-is) |
 
 Two rules follow, and both are enforced:
 
@@ -318,7 +321,7 @@ The e-commerce module is the worked example — see
   package automatically — `npm run release` runs `npm run build`, which runs `prebuild`).
 
   > `@source "../../modules"` does **not** work, and fails silently. Tailwind skips gitignored
-  > paths for a directory source *and* for a broad glob, but honours a path naming the ignored
+  > paths for a directory source _and_ for a broad glob, but honours a path naming the ignored
   > directory itself. Installed marketplace packages are gitignored by design, and a module
   > whose UI is not scanned keeps ~95% of its styling — only classes no other file in the
   > project happens to use disappear. That is how `pl-12` vanished from the ecommerce money
@@ -327,6 +330,7 @@ The e-commerce module is the worked example — see
   **Vite alias** `@modules`. **tsconfig**: root excludes `modules/**/ui/**`;
   `modules/tsconfig.json` is in the `typecheck` script. Module UI imports `~/components/*`,
   `~/lib/*`, `~/hooks/*` freely.
+
 - **Sidebar** `inertia/components/admin/sidebar.tsx`: `useModulesMenu()` →
   `/api/admin/modules/menu`, rendered under an **"Apps"** section (collapsible parent or flat
   link), permission-filtered client-side via `useAbility()`. Icons resolved by name via
@@ -369,7 +373,7 @@ value is empty.
   with an error. The "Setup required" badge and the Install row action carry the message.
 - Row actions are permission-gated: Install behind `module:install`, Uninstall behind
   `module:uninstall`. ADMIN holds the first and not the second.
-- **Found on disk** — a callout *above* the tabs listing folders in `modules/` this server never
+- **Found on disk** — a callout _above_ the tabs listing folders in `modules/` this server never
   imported. Above rather than inside a tab because an unloaded module has no `kind`; reading it
   would mean importing an unknown manifest into the live process.
 

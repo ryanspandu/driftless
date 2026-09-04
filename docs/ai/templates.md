@@ -7,7 +7,14 @@
 > → Notifications. Never served by `/api/public/templates/:id`. Full reasoning
 > in [mail.md](./mail.md#designing-an-email-in-the-page-builder).
 
-> **A page's header/footer has three states, not two.** `— Default —` uses the site default
+> **`COLLECTION` is a sixth type: a reusable item card scoped to one CMS collection.**
+> Where a `CollectionList` block learns its collection from an ancestor list, a COLLECTION
+> template *is* the item — its **whole canvas** binds to one collection (document-level scope),
+> stored in `templates.collection_key` (`Template.collectionKey`; the column is meaningful only
+> for this type — `TemplatesService.collectionKeyFor` nulls it elsewhere and *requires* it here).
+> It is never served or rendered on its own: a `CollectionList` in **"template" mode** points its
+> `templateId` at one and repeats it once per record. Details in
+> [its section below](#collection-templates--per-collection-item-cards). `— Default —` uses the site default
 > template, `— None —` renders no header/footer at all, and picking one overrides just that
 > page. "None" is stored as `pages.hide_header` / `hide_footer` rather than a sentinel id,
 > because those id columns carry a real foreign key to `templates` — and because a null id
@@ -34,7 +41,8 @@ Built on Puck (see [pages-builder.md](pages-builder.md)).
 
 ## Locked decisions
 
-- **Template types:** `HEADER`, `FOOTER`, `COMPONENT`, `LAYOUT`.
+- **Template types:** `HEADER`, `FOOTER`, `COMPONENT`, `LAYOUT` (plus `EMAIL` and
+  `COLLECTION`, added later — see their callouts near the top).
 - **Header/footer application:** all three, with precedence (layout → per-page → site default).
 - **Reference semantics:** **live include** (editing a template propagates everywhere it's used)
   — plus a "Duplicate / insert as copy" action for one-off snapshots.
@@ -159,3 +167,56 @@ When rendering a public page:
 - SSG cache invalidation scope on shared-template edits (start broad, refine with usage tracking).
 - Migration is non-destructive: migrate data first, verify, then drop `page_globals`/`page_templates`.
 - Deleting an in-use template must be blocked or warn (usage lookup).
+
+## COLLECTION templates — per-collection item cards
+
+A **`COLLECTION`** template is a reusable builder document that designs **one item card** for a
+single CMS collection. Unlike a per-block Collection List (which learns its collection from the
+list it sits in), a COLLECTION template's *entire* document is bound to its collection — a
+**document-level collection scope**. It is never a standalone page; a `CollectionList` in
+"template" mode repeats it once per record.
+
+**Kind + bound collection (`app/models/template.ts`).** `TemplateType` gains `COLLECTION`, and a
+nullable `collectionKey` column (`templates.collection_key`) records which collection the card is
+for. `TemplatesService.collectionKeyFor` enforces the invariant: the key is kept **only** for
+`COLLECTION` (nulled for every other type, so a header can't claim a collection), and creating a
+COLLECTION template **without** a collection throws (`'A collection template must be bound to a
+collection'`). `collectionKey` rides on the summary/DTO and is preserved by `duplicate`.
+
+**Creation.** In the **Templates** admin, pick type "Collection item" and choose a *bindable*
+collection (`useBindableCollections`) — `template-form-dialog.tsx`. Templates list gets a
+**Collections** tab (`?tab=collection`). The common path is a deep link straight from a Collection
+List's Template picker: `/admin/templates?new=COLLECTION&collection=<key>` opens the create dialog
+pre-filled (type + collection). Row actions omit "Set default" for COLLECTION (a card has no
+site-wide default — it's chosen per list).
+
+**Block set (`inertia/puck/collection-config.tsx`).** `collectionPuckConfig` is the page block set
+**minus** two blocks that make no sense inside a repeated card: `CollectionList` (a list inside
+every list item would fetch N times and make the bind scope ambiguous) and `PageOutlet` (a card has
+no page body to slot). Everything else — including Settings-tab field binding — works as on a page.
+Resolved lazily via getters, same import-order reason as `puckConfig`.
+
+**Document scope in the builder (`inertia/pages/admin/templates/builder.tsx`).** When the template
+is COLLECTION, the builder picks `collectionPuckConfig` and wraps the canvas in two providers
+(the iframe is disabled, so both reach it):
+- `CollectionScopeContext.Provider value={collectionKey}` — the document-level scope. Consumed by
+  `useCollectionScope()` (`inertia/puck/record-binding.tsx`): the Settings tab / "Get text/image
+  from" bind pickers fall back to this when a block has **no** enclosing Collection List ancestor,
+  so a bare card still offers its collection's fields.
+- `RecordContext.Provider` seeded with the **newest published record** of the collection
+  (`useRecords`, limit 1) as `editing: true`, so bound elements preview real data on the canvas
+  (bindings/`{{tokens}}` stay legible when the collection has no record yet). A "Item card ·
+  `<key>`" badge marks the mode.
+
+**Rendering (`inertia/puck/collection-list.tsx`).** A COLLECTION template only renders through a
+`CollectionList` whose `template` prop is `'template'` and whose `templateId` names it. The list
+picker (`collection-template-field.tsx`) offers **only** COLLECTION templates whose `collectionKey`
+matches the list's own collection. `useCollectionTemplate` loads the doc **once** for the whole
+list — from the preloaded `TemplateContext` (SSR/SSG) or a single client fetch — and renders
+`<Render config={collectionPuckConfig-or-page} data={template.content} />` once per record, each
+wrapped in that record's `RecordContext` so bindings resolve per row.
+
+**Public resolution / SSG.** `TemplatesService.collectRefIds` treats a `CollectionList`'s
+`templateId` exactly like a `TemplateRef`'s (same `"templateId":"<id>"` needle), so the recursive
+`resolveRefs` preloads the card into `TemplateContext`, `usages()` counts pages/templates that
+repeat it (delete-guarded), and editing it invalidates SSG snapshots like any shared template.

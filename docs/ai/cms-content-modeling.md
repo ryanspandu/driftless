@@ -121,6 +121,19 @@ step. In the field list, relations render in their **own "Relations" section**
 **Limitations:** revisions don't capture m2m/o2m (no row column → stored as null);
 the record picker is capped at 100 target entries.
 
+### Public render: id → label
+
+On the **public** render path, relation values in bound blocks and the Collection
+List are resolved from the stored record id(s) to the related record's human
+**label** (many-relations are joined into one string). The `recordLabel` heuristic
+picks the first non-empty of `title → name → label → slug`, else the first string
+field, else the id (`cms_service.ts`). Resolution is opt-in via
+`listRecords`/`findRecord` `{ resolveRelations: true }` (→ `resolveRelationLabels`),
+passed only from `public_cms_controller.ts` and `page_data_resolver.ts`. The
+**admin/API path keeps raw ids** (so pickers and revisions round-trip). A **text**
+bind slot may bind a RELATION field (rendered as the label); **link** slots may not
+(a link needs a real URL) — see `detail-panel.tsx`.
+
 ---
 
 ## 4. Components

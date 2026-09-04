@@ -147,7 +147,7 @@ function ImageView({ src, alt, sizes, priority, binding, ...s }: ImageViewProps)
   )
 }
 
-const baseConfig: Config = {
+export const baseConfig: Config = {
   root: {
     // Keep the rendered page in the light theme: the canvas previews the public
     // page (always light) even while the editor chrome follows the admin's dark

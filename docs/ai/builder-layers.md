@@ -100,10 +100,14 @@ instead of the Puck root fields. Controls live in
 
 Sections (collapsible, in order): **Content · Flex Child · Layout · Spacing ·
 Size · Position · Typography (+ More type options) · Background · Borders ·
-Effects · Advanced**. Webflow conventions matched: bold section headers + chevron,
-compact `[label | control]` rows, the **label turns blue when the prop is set**,
+Effects · Interactions · Advanced**. Webflow conventions matched: bold section headers +
+chevron, compact `[label | control]` rows, the **label turns blue when the prop is set**,
 unit dropdowns (PX/%/REM…), segmented controls, colour swatches, sliders, and the
 nested margin/padding (Spacing) + inset (Position) + radius (Borders) box widgets.
+Above the sections, the **Style** tab carries a **Base / Hover / Focus / Active**
+state selector — see [Interaction states](#interaction-states-base--hover--focus--active).
+Every colour field opens a custom HSV(A) picker with brand + saved-colour swatches —
+see [Colour picker](#colour-picker--saved-colour-swatches).
 
 Key implementation facts:
 - Every style prop is a **plain CSS string on the component's own props** (e.g.
@@ -133,6 +137,83 @@ silently falls back to a text box (or, for `array`, breaks). Handled: `custom`
 (calls `field.render`), `select`, `radio` (button group), `array` (`ArrayControl`
 — add/remove items, recurses into `arrayFields`), `textarea`, `number`, and `text`
 (default). When adding a block with a new field type, add its case here too.
+
+## Interaction states (Base / Hover / Focus / Active)
+
+The **Style** tab has a segmented **Base / Hover / Focus / Active** control (only on
+the base breakpoint — states are width-agnostic). Each non-base state renders the
+**same full section set** as Base (Layout, Spacing, Size, Typography, Background,
+Borders, Effects, …), pre-filled with the Base values as a baseline so it never looks
+like a cut-down panel; only the props you actually change become overrides.
+
+- **Storage.** Non-base edits write to `props.states.<state>` via `updateState`
+  (detail-panel.tsx) instead of the flat/`responsive` layer. The layer is **pruned**
+  back to inherit: a value that is empty **or equal to the Base value** (`v === props[k]`)
+  is dropped, and an emptied state deletes its key — so `props.states` stays minimal
+  and an untouched block keeps its exact prop set. Additive JSON, **no migration**.
+- **Panel wiring.** `styleViewProps` = `{ ...props, ...activeStateLayer }` and
+  `styleUpdate` = `updateState` are what the sections receive while a non-base tab is
+  active (`inStyleState = onBase && styleState !== 'base'`); on Base they are the normal
+  `viewProps`/`update`. The active state is **owned by `BuilderShell`** (`previewState`
+  / `setPreviewState`), passed into `DetailPanel` as props, and reset to `base` on
+  selection **or** breakpoint change. The `Interactions` (scroll-animation) section is
+  separate and **base-only** — `scrollAnimation` is excluded from `RESPONSIVE_KEYS`.
+- **Live canvas preview (editor only).** `BuilderShell` provides `StatePreviewContext`
+  (`{ id, state }` — `breakpoints.ts`) around `Puck.Preview`; `{ id: null }` on Base is a
+  constant so ordinary selection changes don't invalidate every canvas `Box`. In
+  `style-fields.tsx`, `Box` overlays the selected state's declarations **inline**
+  (`previewLayer`/`effectiveBag`) when it is the selected block on a non-base tab — no
+  `<style>`, so CSP-safe and no nonce.
+- **Published page.** `Box` emits one generated CSS rule per defined state via
+  `statesCss` — `[data-b="<id>"]:hover / :focus-visible / :active` (`STATE_PSEUDO`;
+  `:focus-visible`, not `:focus`, so keyboard-only focus). `readStates` reads the layers.
+  A default `transition` is emitted on the base selector when the author set none. Blocks
+  with any state (or responsive override) join the generated-`<style>` path keyed by
+  `data-b`; the `<style>` carries the per-request nonce (`NonceContext`).
+
+## Colour picker & saved-colour swatches
+
+`ColorControl` (style-controls.tsx) no longer uses the native `<input type="color">`
+(an unthemable OS dialog). It opens a self-contained **HSV(A) `ColorPicker`**
+([color-picker.tsx](../../inertia/puck/color-picker.tsx)) in a popover:
+saturation/value square + hue slider + alpha slider, all painted with **inline `style`
+gradients** (allowed under the strict prod CSP via `style-src-attr 'unsafe-inline'`, so
+no `<style>`, no nonce). It parses hex / `rgb(a)` / `transparent` / named / `var(--token)`
+(the last two resolved through a hidden probe element) and emits `#rrggbb` when opaque,
+else `rgba(…)`.
+
+- **Swatch row:** Primary + Secondary (`var(--primary)` / `var(--secondary)`, so a block
+  "coloured Primary" follows Appearance) + the operator's **saved colours**
+  (`var(--color-<slug>)`, from `SavedColorsContext`; stores the `var()` ref, shows the
+  hex) + White / Black / None utilities.
+- **`AddSwatchPopover`** — the "+" at the end of the row: names the current colour and
+  saves it site-wide (writes `theme.saved_colors` via `useUpdateWebsiteSettings`), then
+  switches the field to the new `var(--color-<slug>)`. `SavedColorsContext` refetches so
+  the swatch appears at once. Slug is de-duplicated (`-2`, `-3`, …).
+- **`ColorPickerInput`** = well + picker + hex field, **without** the swatch row — the
+  shared piece reused by the Appearance panel so neither path falls back to the native
+  input.
+- **Context wiring:** `BuilderShell` provides `SavedColorsContext` (the value also builds
+  the `.theme-light` palette `<style>`, nonced, so the canvas previews the real site
+  colours). Saved colours are covered more in [page-settings.md](./page-settings.md).
+
+## Panel chrome (dropdowns, brand theme, sticky headers)
+
+- **`AppSelect` everywhere.** Builder dropdowns use `~/components/ui/app-select`
+  (react-select, themed, portal menu) via the panel wrapper `PanelSelect`
+  ([panel-select.tsx](../../inertia/puck/panel-select.tsx)) — no native `<select>`,
+  except the one unit dropdown in `NumberUnitControl` (allow-listed in
+  `tests/unit/builder_ui_conventions.spec.ts`). Emotion's injected `<style>` is nonced
+  via `RsCacheProvider` (reads `meta[name="csp-nonce"]`) so it survives the strict prod
+  CSP.
+- **Brand-violet accent.** The builder accent is the app primary violet
+  (`--primary: #5225e6`, app.css). `[data-builder]{--ring: var(--primary)}` scopes the
+  focus ring to the editor shell; the preview canvas re-declares `--ring` inside
+  `.theme-light`, so rendered blocks keep the public-site ring.
+- **Sticky chrome.** The Detail-panel header (block name + Content/Style/Settings tabs +
+  the Base/Hover/Focus/Active state tabs) is a `sticky top-0` block in detail-panel.tsx,
+  pinned while the sections scroll. The Components-tab **search box** is likewise
+  `sticky top-0` in builder-shell.tsx.
 
 ## Open decisions
 

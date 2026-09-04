@@ -94,6 +94,64 @@ a builder page.
 The e-commerce module's `/shop/p/:slug` is the worked example — see
 [ecommerce.md](../../modules/ecommerce/README.md#product-pages-one-template-every-product).
 
+## Entrance animations ("Interactions")
+
+A Webflow-style scroll/load reveal any block can opt into via a single
+`props.scrollAnimation` object (`inertia/puck/scroll-animation.ts`, `interface
+ScrollAnimation`). The editor's **Interactions** section (`detail-panel.tsx`
+`InteractionsSection`) writes it; it is `undefined` until a `type` is picked.
+
+| Field                          | Values                                                                        |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| `type`                         | `fade` · `fade-up`/`-down`/`-left`/`-right` · `zoom-in`/`-out` · `flip`        |
+| `easing` / `duration` / `delay`| free CSS values (fed to the transition as `--sa-*` custom properties)          |
+| `distance`                     | slide presets only (the translate amount)                                     |
+| `once`                         | Once (default) vs Replay                                                       |
+| `trigger` (NEW)                | `scroll` (default) vs `load`                                                   |
+| `position` (NEW)               | scroll only — `top` / `center` / `bottom` (default)                           |
+
+**Runtime** — `initScrollAnimations`, run from `inertia/components/public-page-frame.tsx`
+on mount (re-keyed on the page URL) over `document.body`. The published markup ships
+in its **final, visible** state — SSR / SSG / no-JS therefore stay visible and
+SEO-safe. The hidden start state lives only in CSS gated on `.sa-active` (`inertia/css/app.css`,
+`.sa-active [data-scroll-animation]`), a class the runtime adds on mount; each element
+then reveals by gaining `.sa-in` and CSS transitions it from the hidden to the final
+state.
+
+- `trigger: 'scroll'` — a shared `IntersectionObserver` (one per distinct
+  threshold + position). `position` maps to `rootMargin`: `bottom` = `-8%` (enters
+  early from the bottom, the default), `center` = `-50%`, `top` = `-85%` (late).
+  `data-sa-threshold` sets how much of the element must be visible. `once`/Replay
+  controls whether it re-hides on exit.
+- `trigger: 'load'` — no observer; revealed immediately on mount (double-rAF so the
+  transition plays rather than snapping).
+- `prefers-reduced-motion: reduce` disables the whole thing (runtime bails + a CSS
+  override); so does a missing `IntersectionObserver`.
+
+Attributes `scrollAnimationAttrs` emits onto the DOM element: `data-scroll-animation`
+(the type), `data-sa-once`, `data-sa-threshold`, `data-sa-trigger` (only when `load`),
+`data-sa-position`. No CSP nonce is needed — runtime and CSS both ship in the bundle.
+The editor suppresses animations entirely (`isEditing` → no attrs, runtime never
+loads there); preview them on a published or preview page.
+
+## Relation labels in bound blocks
+
+When a Collection List (or any bound block) surfaces a RELATION field, the **public**
+render resolves the stored target id(s) into the related record's human label; the
+admin/editor path keeps the raw ids. Label heuristic (`recordLabel` in
+`app/services/cms_service.ts`): first non-empty of title → name → label → slug, else
+any string field, else the id. Many-relations join their labels with `", "`; empty or
+dangling targets render `""`.
+
+`listRecords` / `findRecord` take `{ resolveRelations: true }` to opt in
+(`resolveRelationLabels`, batched per target collection — no N+1). The public callers
+pass it: `app/controllers/public_cms_controller.ts` and
+`app/services/page_data_resolver.ts` (SSR/SSG pre-fetch).
+
+In the builder's bind picker (`detail-panel.tsx` `fieldsForKind`), a **text** slot may
+bind a RELATION field (rendered as the label); a **link** slot may not (a link needs a
+real URL, so relations are filtered out).
+
 ## Decisions (locked)
 
 | Aspect             | Decision                                                                                                                                                                                                                                                                |

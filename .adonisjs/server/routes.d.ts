@@ -169,6 +169,41 @@ export type ScannedRoutes = {
     'ecommerce.api.commissions.export': { paramsTuple?: []; params?: {} }
     'ecommerce.api.withdrawals.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.stats': { paramsTuple?: []; params?: {} }
+    'mcp.page': { paramsTuple?: []; params?: {} }
+    'mcp.tokens.index': { paramsTuple?: []; params?: {} }
+    'mcp.tokens.store': { paramsTuple?: []; params?: {} }
+    'mcp.tokens.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.audit': { paramsTuple?: []; params?: {} }
+    'mcp.rpc': { paramsTuple?: []; params?: {} }
+    'mcp.catalog': { paramsTuple?: []; params?: {} }
+    'mcp.collections.index': { paramsTuple?: []; params?: {} }
+    'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.collections.store': { paramsTuple?: []; params?: {} }
+    'mcp.collections.update': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.collections.destroy': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.collections.fields.add': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.collections.fields.update': { paramsTuple: [ParamValue,ParamValue]; params: {'key': ParamValue,'field': ParamValue} }
+    'mcp.collections.fields.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'key': ParamValue,'field': ParamValue} }
+    'mcp.collections.fields.reorder': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.pages.index': { paramsTuple?: []; params?: {} }
+    'mcp.pages.validate': { paramsTuple?: []; params?: {} }
+    'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.store': { paramsTuple?: []; params?: {} }
+    'mcp.pages.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.content': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.publish': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.discard': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.templates.index': { paramsTuple?: []; params?: {} }
+    'mcp.templates.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.templates.store': { paramsTuple?: []; params?: {} }
+    'mcp.templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.templates.default': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.appearance': { paramsTuple?: []; params?: {} }
+    'mcp.breakpoints': { paramsTuple?: []; params?: {} }
+    'mcp.globalcode': { paramsTuple?: []; params?: {} }
+    'mcp.media.index': { paramsTuple?: []; params?: {} }
+    'mcp.media.store': { paramsTuple?: []; params?: {} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
     'ctrl.index': { paramsTuple?: []; params?: {} }
     'ctrl.assignees': { paramsTuple?: []; params?: {} }
@@ -259,6 +294,18 @@ export type ScannedRoutes = {
     'ecommerce.api.withdrawals.index': { paramsTuple?: []; params?: {} }
     'ecommerce.api.commissions.export': { paramsTuple?: []; params?: {} }
     'ecommerce.api.stats': { paramsTuple?: []; params?: {} }
+    'mcp.page': { paramsTuple?: []; params?: {} }
+    'mcp.tokens.index': { paramsTuple?: []; params?: {} }
+    'mcp.audit': { paramsTuple?: []; params?: {} }
+    'mcp.rpc': { paramsTuple?: []; params?: {} }
+    'mcp.catalog': { paramsTuple?: []; params?: {} }
+    'mcp.collections.index': { paramsTuple?: []; params?: {} }
+    'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.pages.index': { paramsTuple?: []; params?: {} }
+    'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.templates.index': { paramsTuple?: []; params?: {} }
+    'mcp.templates.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.media.index': { paramsTuple?: []; params?: {} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
     'ctrl.index': { paramsTuple?: []; params?: {} }
     'ctrl.assignees': { paramsTuple?: []; params?: {} }
@@ -345,6 +392,17 @@ export type ScannedRoutes = {
     'ecommerce.api.withdrawals.index': { paramsTuple?: []; params?: {} }
     'ecommerce.api.commissions.export': { paramsTuple?: []; params?: {} }
     'ecommerce.api.stats': { paramsTuple?: []; params?: {} }
+    'mcp.page': { paramsTuple?: []; params?: {} }
+    'mcp.tokens.index': { paramsTuple?: []; params?: {} }
+    'mcp.audit': { paramsTuple?: []; params?: {} }
+    'mcp.catalog': { paramsTuple?: []; params?: {} }
+    'mcp.collections.index': { paramsTuple?: []; params?: {} }
+    'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.pages.index': { paramsTuple?: []; params?: {} }
+    'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.templates.index': { paramsTuple?: []; params?: {} }
+    'mcp.templates.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.media.index': { paramsTuple?: []; params?: {} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
     'ctrl.index': { paramsTuple?: []; params?: {} }
     'ctrl.assignees': { paramsTuple?: []; params?: {} }
@@ -400,6 +458,17 @@ export type ScannedRoutes = {
     'ecommerce.api.affiliates.reject': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.commissions.pay': { paramsTuple?: []; params?: {} }
     'ecommerce.api.withdrawals.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.tokens.store': { paramsTuple?: []; params?: {} }
+    'mcp.rpc': { paramsTuple?: []; params?: {} }
+    'mcp.collections.store': { paramsTuple?: []; params?: {} }
+    'mcp.collections.fields.add': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.pages.validate': { paramsTuple?: []; params?: {} }
+    'mcp.pages.store': { paramsTuple?: []; params?: {} }
+    'mcp.pages.publish': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.discard': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.templates.store': { paramsTuple?: []; params?: {} }
+    'mcp.templates.default': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.media.store': { paramsTuple?: []; params?: {} }
     'ctrl.store': { paramsTuple?: []; params?: {} }
   }
   PUT: {
@@ -425,6 +494,14 @@ export type ScannedRoutes = {
     'ecommerce.api.settings.update': { paramsTuple?: []; params?: {} }
     'ecommerce.api.discounts.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.affiliates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.collections.update': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.collections.fields.update': { paramsTuple: [ParamValue,ParamValue]; params: {'key': ParamValue,'field': ParamValue} }
+    'mcp.pages.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.content': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.appearance': { paramsTuple?: []; params?: {} }
+    'mcp.breakpoints': { paramsTuple?: []; params?: {} }
+    'mcp.globalcode': { paramsTuple?: []; params?: {} }
     'ctrl.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   DELETE: {
@@ -440,9 +517,15 @@ export type ScannedRoutes = {
     'ecommerce.api.assets.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.categories.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ecommerce.api.discounts.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.tokens.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.rpc': { paramsTuple?: []; params?: {} }
+    'mcp.collections.destroy': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.collections.fields.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'key': ParamValue,'field': ParamValue} }
+    'mcp.templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ctrl.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PATCH: {
+    'mcp.collections.fields.reorder': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'ctrl.move': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
 }
