@@ -567,14 +567,16 @@ export function BoxModelControl({
 
 const DEFAULT_UNITS = ['px', '%', 'rem', 'em', 'vw', 'vh', 'auto']
 
-function parseNumUnit(v: string): { num: string; unit: string } {
+function parseNumUnit(v: string): { num: string; unit: string; complex: boolean } {
   const s = (v ?? '').trim()
-  if (!s) return { num: '', unit: 'px' }
-  if (s === 'auto') return { num: '', unit: 'auto' }
-  if (s === 'none') return { num: '', unit: 'none' }
+  if (!s) return { num: '', unit: 'px', complex: false }
+  if (s === 'auto') return { num: '', unit: 'auto', complex: false }
+  if (s === 'none') return { num: '', unit: 'none', complex: false }
   const m = s.match(/^(-?[\d.]+)\s*([a-z%]*)$/i)
-  if (m) return { num: m[1], unit: m[2] || 'px' }
-  return { num: s, unit: 'px' } // complex value (e.g. calc()) — keep it editable
+  if (m) return { num: m[1], unit: m[2] || 'px', complex: false }
+  // A complex value (calc()/min()/var()/…) has no single number+unit — edit it
+  // raw and never append a unit to it (that produced e.g. `calc(100% - 20px)rem`).
+  return { num: s, unit: '', complex: true }
 }
 
 function composeNumUnit(num: string, unit: string): string {
@@ -593,7 +595,25 @@ export function NumberUnitControl({
   onChange: (value: string) => void
   units?: string[]
 }) {
-  const { num, unit } = parseNumUnit(value ?? '')
+  const { num, unit, complex } = parseNumUnit(value ?? '')
+
+  // A complex value (calc()/min()/var()/…) is edited as raw text with no unit
+  // dropdown — the number+unit UI cannot represent it, and appending a unit to
+  // it corrupts the value.
+  if (complex) {
+    return (
+      <div className="flex items-stretch overflow-hidden rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring">
+        <CommitInput
+          type="text"
+          value={value ?? ''}
+          onCommit={(next) => onChange(next)}
+          aria-label="Value"
+          className="h-7 w-full min-w-0 bg-transparent px-1.5 text-xs outline-none"
+        />
+      </div>
+    )
+  }
+
   const unitless = unit === 'auto' || unit === 'none'
   const unitOptions = units.includes(unit) ? units : [unit, ...units]
   return (

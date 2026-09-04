@@ -93,7 +93,13 @@ export function useBlockData<T>(
   const fromServer = key ? (preloaded[key] as T | undefined) : undefined
 
   const [data, setData] = useState<T | null>(fromServer ?? null)
-  const [loading, setLoading] = useState(false)
+  // When there IS a key but no server-resolved value (a volatile block withheld
+  // from the SSG snapshot, or a CSR/preview page), the data will be fetched — so
+  // start in `loading`. Otherwise the server render bakes a block's negative
+  // empty state ("Nothing to show" / "no longer available") into the cached
+  // snapshot for a page that actually has products. A neutral skeleton is what
+  // belongs in the snapshot until the client fills it in.
+  const [loading, setLoading] = useState(key != null && fromServer === undefined)
 
   useEffect(() => {
     if (!key || fromServer !== undefined) {

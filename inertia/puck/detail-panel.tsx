@@ -64,11 +64,18 @@ const BINDABLE_SLOTS: Record<
   Text: [{ slot: 'text', label: 'Get text from', kind: 'text' }],
   Paragraph: [{ slot: 'text', label: 'Get text from', kind: 'text' }],
   Heading: [{ slot: 'text', label: 'Get text from', kind: 'text' }],
+  RichText: [{ slot: 'html', label: 'Get content from', kind: 'text' }],
+  BlockQuote: [{ slot: 'text', label: 'Get quote from', kind: 'text' }],
   Image: [{ slot: 'src', label: 'Get image from', kind: 'image' }],
   Button: [
     { slot: 'label', label: 'Get label from', kind: 'text' },
     { slot: 'href', label: 'Get link from', kind: 'link' },
   ],
+  TextLink: [
+    { slot: 'text', label: 'Get text from', kind: 'text' },
+    { slot: 'href', label: 'Get link from', kind: 'link' },
+  ],
+  LinkBlock: [{ slot: 'href', label: 'Get link from', kind: 'link' }],
 }
 
 /**
@@ -517,10 +524,22 @@ function DetailPanelImpl({
     for (const [k, v] of Object.entries(allStates)) states[k] = { ...v }
     const layer = { ...(states[styleState] ?? {}) }
     for (const [k, v] of Object.entries(patch)) {
-      // Drop empties AND values equal to Base — a state that matches Base is not an
-      // override, so it stays inherited and `props.states` stays minimal.
-      if (v === undefined || v === '' || v === null || v === props[k]) delete layer[k]
-      else layer[k] = v
+      // Drop values equal to Base — a state that matches Base is not an override,
+      // so it stays inherited and `props.states` stays minimal.
+      if (v === undefined || v === null || v === props[k]) {
+        delete layer[k]
+        continue
+      }
+      if (v === '') {
+        // Cleared in a state: if Base sets this property, keep an explicit reset
+        // (`unset`) so the state can turn it OFF — e.g. remove a base underline
+        // on hover. If Base is also empty, it is not an override.
+        const base = props[k]
+        if (base === undefined || base === null || base === '') delete layer[k]
+        else layer[k] = 'unset'
+        continue
+      }
+      layer[k] = v
     }
     if (Object.keys(layer).length) states[styleState] = layer
     else delete states[styleState]

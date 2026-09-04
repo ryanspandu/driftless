@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type CSSProperties } from 'react'
 import { Star } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { Box } from './style-fields'
@@ -76,20 +76,44 @@ export function LightboxView({
 }: { thumbnail?: string; full?: string; alt?: string } & StyleBag) {
   const [open, setOpen] = useState(false)
   const fullSrc = full || thumbnail
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
+
+  // Modal semantics: Escape closes, focus moves into the dialog on open and back
+  // to the trigger on close. Without this the block was fully keyboard/AT-inert.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    closeRef.current?.focus()
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      triggerRef.current?.focus()
+    }
+  }, [open])
+
   return (
     <Box s={s}>
       {thumbnail ? (
-        <img
-          src={thumbnail}
-          alt={alt || ''}
+        <button
+          type="button"
+          ref={triggerRef}
           onClick={() => setOpen(true)}
-          className="h-auto max-w-full cursor-zoom-in"
-        />
+          aria-label={alt ? `View image: ${alt}` : 'View image'}
+          className="block cursor-zoom-in border-0 bg-transparent p-0"
+        >
+          <img src={thumbnail} alt={alt || ''} className="h-auto max-w-full" />
+        </button>
       ) : (
         <div className={placeholderCls}>Add an image</div>
       )}
       {open ? (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={alt || 'Image'}
           onClick={() => setOpen(false)}
           style={{
             position: 'fixed',
@@ -102,6 +126,25 @@ export function LightboxView({
             cursor: 'zoom-out',
           }}
         >
+          <button
+            type="button"
+            ref={closeRef}
+            onClick={() => setOpen(false)}
+            aria-label="Close"
+            style={{
+              position: 'fixed',
+              top: 16,
+              right: 16,
+              background: 'transparent',
+              border: 0,
+              color: '#fff',
+              fontSize: 28,
+              lineHeight: 1,
+              cursor: 'pointer',
+            }}
+          >
+            ×
+          </button>
           <img src={fullSrc} alt={alt || ''} style={{ maxWidth: '90vw', maxHeight: '90vh' }} />
         </div>
       ) : null}
@@ -157,10 +200,22 @@ export function SliderView({ slides, ...s }: { slides?: unknown } & StyleBag) {
   return (
     <Box s={s} style={{ position: 'relative' }}>
       <img src={items[idx].src} alt={items[idx].alt || ''} className="h-auto w-full" />
-      <button type="button" onClick={() => go(-1)} aria-label="Previous" className={arrowCls} style={{ left: 8 }}>
+      <button
+        type="button"
+        onClick={() => go(-1)}
+        aria-label="Previous"
+        className={arrowCls}
+        style={{ left: 8 }}
+      >
         ‹
       </button>
-      <button type="button" onClick={() => go(1)} aria-label="Next" className={arrowCls} style={{ right: 8 }}>
+      <button
+        type="button"
+        onClick={() => go(1)}
+        aria-label="Next"
+        className={arrowCls}
+        style={{ right: 8 }}
+      >
         ›
       </button>
       <div className="absolute inset-x-0 bottom-3 flex justify-center gap-2">
@@ -278,9 +333,9 @@ export function CarouselView({
         className="carousel-track"
         style={
           {
-            display: 'flex',
-            flexWrap: editing ? 'wrap' : 'nowrap',
-            gap: 'var(--ca-gap)',
+            'display': 'flex',
+            'flexWrap': editing ? 'wrap' : 'nowrap',
+            'gap': 'var(--ca-gap)',
             '--ca-per': String(per),
             '--ca-gap': g,
           } as CSSProperties
@@ -301,7 +356,9 @@ function Stars({ value }: { value: number }) {
           key={n}
           className={cn(
             'size-4',
-            n <= value ? 'fill-amber-400 text-amber-400' : 'fill-transparent text-muted-foreground/40'
+            n <= value
+              ? 'fill-amber-400 text-amber-400'
+              : 'fill-transparent text-muted-foreground/40'
           )}
         />
       ))}

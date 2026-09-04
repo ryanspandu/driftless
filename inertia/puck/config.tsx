@@ -105,6 +105,69 @@ function ButtonView({ label, href, variant, binding, ...s }: ButtonViewProps) {
   )
 }
 
+type TextLinkViewProps = {
+  text?: string
+  href?: string
+  newTab?: string
+  binding?: Binding
+} & StyleBag
+
+function TextLinkView({ text, href, newTab, binding, ...s }: TextLinkViewProps) {
+  // Bound field wins; else the static href (with `{{token}}` support).
+  const fieldHref = useBoundField(binding?.href)
+  const staticHref = useBoundString(href ?? '')
+  const boundHref = fieldHref == null ? staticHref : fieldHref
+  return (
+    <Box
+      as="a"
+      s={s}
+      href={boundHref || '#'}
+      className="underline underline-offset-2"
+      {...(newTab === 'true' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+    >
+      <FieldOrText field={binding?.text}>{text}</FieldOrText>
+    </Box>
+  )
+}
+
+type LinkBlockViewProps = {
+  content?: ComponentType
+  href?: string
+  newTab?: string
+  binding?: Binding
+} & StyleBag
+
+function LinkBlockView({ content: Content, href, newTab, binding, ...s }: LinkBlockViewProps) {
+  const fieldHref = useBoundField(binding?.href)
+  const staticHref = useBoundString(href ?? '')
+  const boundHref = fieldHref == null ? staticHref : fieldHref
+  return (
+    <Box
+      as="a"
+      s={s}
+      href={boundHref || '#'}
+      {...(newTab === 'true' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+    >
+      {Content ? <Content /> : null}
+    </Box>
+  )
+}
+
+type RichTextViewBlockProps = { html?: string; binding?: Binding } & StyleBag
+
+function RichTextBlockView({ html, binding, ...s }: RichTextViewBlockProps) {
+  // A bound RICHTEXT field's value is sanitised HTML; render it per record. The
+  // editor placeholder `[html]` is not HTML, so fall back to empty for it.
+  const fieldHtml = useBoundField(binding?.html)
+  const resolved =
+    fieldHtml == null ? (html ?? '') : /^\[[^\]]+\]$/.test(fieldHtml) ? '' : fieldHtml
+  return (
+    <Box s={s}>
+      <RichTextView html={resolved} />
+    </Box>
+  )
+}
+
 type ImageViewProps = {
   src?: unknown
   alt?: string
@@ -119,7 +182,11 @@ function ImageView({ src, alt, sizes, priority, binding, ...s }: ImageViewProps)
   // (with `{{token}}` support).
   const fieldSrc = useBoundField(binding?.src)
   const staticUrl = useBoundString(img.url)
-  const url = fieldSrc == null ? staticUrl : fieldSrc
+  // A bound-but-empty field returns the editor placeholder `[fieldKey]`; that is
+  // not a URL, so treat it as "no image" (show the empty-state box) instead of
+  // rendering a broken <img src="[fieldKey]">.
+  const boundUrl = fieldSrc != null && /^\[[^\]]+\]$/.test(fieldSrc) ? '' : fieldSrc
+  const url = boundUrl == null ? staticUrl : boundUrl
   const boundAlt = useBoundString(alt)
   // srcset only applies to the picked static image, never a bound field URL.
   const useSrcset = img.srcset && fieldSrc == null && url === img.url
@@ -146,6 +213,29 @@ function ImageView({ src, alt, sizes, priority, binding, ...s }: ImageViewProps)
     </Box>
   )
 }
+
+/**
+ * HTML void elements — they take no children. Rendering a slot into one throws
+ * a React invariant ("<img> is a void element tag and must not have children")
+ * that, because the page is one React tree, blanks the ENTIRE page. The Custom
+ * Element block guards against this.
+ */
+const VOID_TAGS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+])
 
 export const baseConfig: Config = {
   root: {
@@ -430,17 +520,7 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { text: 'Link text', href: '#', newTab: 'false' },
-      render: ({ text, href, newTab, ...s }) => (
-        <Box
-          as="a"
-          s={s}
-          href={href || '#'}
-          className="underline underline-offset-2"
-          {...(newTab === 'true' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-        >
-          {text}
-        </Box>
-      ),
+      render: (props) => <TextLinkView {...(props as TextLinkViewProps)} />,
     },
 
     // Block Quote — a <blockquote> with the conventional left rule + italic.
@@ -448,14 +528,14 @@ export const baseConfig: Config = {
       label: 'Block Quote',
       fields: { text: { type: 'textarea', label: 'Quote' }, ...styleFields },
       defaultProps: { text: 'Block quote — a notable quotation from the page content.' },
-      render: ({ text, ...s }) => (
+      render: ({ text, binding, ...s }) => (
         <Box
           as="blockquote"
           s={s}
           className="border-l-4 border-border pl-4 italic"
           style={{ whiteSpace: 'pre-line' }}
         >
-          {text}
+          <FieldOrText field={(binding as Binding | undefined)?.text}>{text}</FieldOrText>
         </Box>
       ),
     },
@@ -551,16 +631,7 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { href: '#', newTab: 'false', display: 'block', content: [] },
-      render: ({ content: Content, href, newTab, ...s }) => (
-        <Box
-          as="a"
-          s={s}
-          href={href || '#'}
-          {...(newTab === 'true' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-        >
-          <Content />
-        </Box>
-      ),
+      render: (props) => <LinkBlockView {...(props as LinkBlockViewProps)} />,
     },
 
     Image: {
@@ -774,11 +845,7 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { html: '<p>Write rich text here…</p>' },
-      render: ({ html, ...s }) => (
-        <Box s={s}>
-          <RichTextView html={html} />
-        </Box>
-      ),
+      render: (props) => <RichTextBlockView {...(props as RichTextViewBlockProps)} />,
     },
 
     CollectionList: {
@@ -1579,6 +1646,11 @@ export const baseConfig: Config = {
       defaultProps: { tag: 'div', content: [] },
       render: ({ content: Content, tag, ...s }) => {
         const safeTag = typeof tag === 'string' && /^[a-z][a-z0-9-]*$/.test(tag) ? tag : 'div'
+        // A void tag (img/br/hr/input/…) cannot hold the slot; render it childless
+        // instead of crashing the whole page with a React void-element invariant.
+        if (VOID_TAGS.has(safeTag)) {
+          return <Box as={safeTag as ElementType} s={s} />
+        }
         return (
           <Box as={safeTag as ElementType} s={s}>
             <Content />

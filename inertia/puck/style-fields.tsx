@@ -218,8 +218,12 @@ function styleToCss(s: StyleBag): CSSProperties {
   if (layers) {
     css.backgroundColor = str(s, 'bg')
     Object.assign(css, layers)
-  } else {
-    css.background = str(s, 'bg')
+  } else if (str(s, 'bg')) {
+    // Use the `background-color` longhand, never the `background` shorthand: a
+    // state/breakpoint delta that changes only `bg` carries no `backgrounds`
+    // layers, and the shorthand would reset (wipe) the base block's
+    // background-image on that selector. The longhand overrides only the colour.
+    css.backgroundColor = str(s, 'bg')
   }
 
   /**
@@ -240,8 +244,15 @@ function styleToCss(s: StyleBag): CSSProperties {
 
   const borderWidth = str(s, 'borderWidth')
   const borderStyle = str(s, 'borderStyle')
+  const borderColor = str(s, 'borderColor')
   if (borderWidth || borderStyle) {
-    css.border = `${borderWidth || '1px'} ${borderStyle || 'solid'} ${str(s, 'borderColor') || 'currentColor'}`
+    css.border = `${borderWidth || '1px'} ${borderStyle || 'solid'} ${borderColor || 'currentColor'}`
+  } else if (borderColor) {
+    // A state/breakpoint delta that recolours the border carries only
+    // `borderColor` (width/style match base and are pruned). Emit the colour
+    // longhand so it overrides the base border's colour instead of being
+    // dropped — otherwise the change is silently lost on the published page.
+    css.borderColor = borderColor
   }
 
   const shadow = str(s, 'boxShadow')
@@ -318,13 +329,27 @@ function isSafeCssValue(v: string): boolean {
   )
 }
 
+/**
+ * Percent-encode `<`/`>` that appear *inside* a `url(...)` — an inline SVG data
+ * URI (`url("data:image/svg+xml,<svg…>")`) is otherwise rejected wholesale by
+ * `isSafeCssValue` on the stylesheet path (while the inline path keeps it),
+ * dropping the background only for responsive/state blocks. Encoding is
+ * equivalent inside a URI and still neutralises any `</style>` breakout; angle
+ * brackets outside a `url()` are left untouched so they stay rejected.
+ */
+function encodeUrlAngles(v: string): string {
+  return v.replace(/url\(([^)]*)\)/gi, (_m, inner: string) => {
+    return `url(${inner.replace(/</g, '%3C').replace(/>/g, '%3E')})`
+  })
+}
+
 /** Serialise a React style object to a sanitised CSS declaration string. */
 function styleObjectToCssText(obj: CSSProperties): string {
   let out = ''
   for (const key of Object.keys(obj)) {
     const raw = (obj as Record<string, unknown>)[key]
     if (raw == null || raw === '') continue
-    const value = String(raw)
+    const value = encodeUrlAngles(String(raw))
     if (!isSafeCssValue(value)) continue
     const prop = key.startsWith('--') ? key : key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
     out += `${prop}:${value};`

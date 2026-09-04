@@ -58,6 +58,18 @@ export function ProductCard({
 }) {
   const image = product.images[0]?.url ?? product.variants[0]?.imageUrl ?? null
   const first = product.variants[0]
+  // The strikethrough must belong to the SAME variant as the displayed "from"
+  // price (the cheapest), not variants[0] — otherwise a card can show "from £8"
+  // struck through against a pricier variant's "£25". Only show it when it is a
+  // genuine discount on that variant.
+  const cheapest = product.variants.reduce<(typeof product.variants)[number] | undefined>(
+    (min, v) => (!min || v.price.amount < min.price.amount ? v : min),
+    undefined
+  )
+  const compareAt =
+    cheapest?.compareAt && cheapest.compareAt.amount > cheapest.price.amount
+      ? cheapest.compareAt
+      : null
 
   return (
     // Must match the route in `modules/ecommerce/routes.ts`; a card linking to
@@ -84,9 +96,9 @@ export function ProductCard({
           {product.priceFrom ? (
             <span className="text-sm tabular-nums">{product.priceFrom.formatted}</span>
           ) : null}
-          {first?.compareAt ? (
+          {compareAt ? (
             <span className="text-xs tabular-nums text-muted-foreground line-through">
-              {first.compareAt.formatted}
+              {compareAt.formatted}
             </span>
           ) : null}
         </div>

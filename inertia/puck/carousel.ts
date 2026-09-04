@@ -21,8 +21,7 @@
  */
 
 const REDUCED = () =>
-  typeof window !== 'undefined' &&
-  !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 function trackGap(track: HTMLElement): number {
   const cs = getComputedStyle(track)
@@ -149,24 +148,49 @@ function initSlide(
     cleanups.push(() => dots.remove())
   }
 
+  // The seamless-loop snap: when we advance onto a lead clone (index >= n) the
+  // track shows a copy of the start, then after the transition index is snapped
+  // back into range with no animation. That pending snap MUST be cancellable and
+  // MUST be resolved before any other move, or (a) a user action within its
+  // ~520ms window gets clobbered by the snap firing late (L6), and (b) a further
+  // advance runs off the end of the finite clones into blank space (M7).
+  let resetTimer = 0
+  const clearReset = () => {
+    if (resetTimer) {
+      window.clearTimeout(resetTimer)
+      resetTimer = 0
+    }
+  }
+  const settle = () => {
+    if (index >= n) {
+      clearReset()
+      index -= n // snap off the clone onto its real slide (no visual change)
+      apply(false)
+    }
+  }
   const goTo = (i: number) => {
+    settle()
     index = i
     apply(true)
     syncDots()
     restart()
   }
   const next = () => {
+    settle()
     index++
     apply(true)
     syncDots()
     if (index >= n) {
-      window.setTimeout(() => {
+      resetTimer = window.setTimeout(() => {
+        resetTimer = 0
         index = 0
         apply(false)
+        syncDots()
       }, 520)
     }
   }
   const prev = () => {
+    settle()
     if (index <= 0) {
       // jump to the mirror end without animation, then step back
       index = n
@@ -191,7 +215,16 @@ function initSlide(
       b.className = `ca-arrow ca-arrow-${dir}`
       b.setAttribute('aria-label', label)
       b.textContent = glyph
-      b.addEventListener('click', () => (dir === 'next' ? goTo(index + 1) : prev()))
+      b.addEventListener('click', () => {
+        if (dir === 'next') {
+          // Use next() (seamless wrap), never goTo(index+1) which walks off the
+          // finite clones into blank space; then reset the autoplay clock.
+          next()
+          restart()
+        } else {
+          prev()
+        }
+      })
       viewport.appendChild(b)
       cleanups.push(() => b.remove())
     }
@@ -226,6 +259,7 @@ function initSlide(
 
   return () => {
     stop()
+    clearReset()
     viewport.removeEventListener('mouseenter', onEnter)
     viewport.removeEventListener('mouseleave', onLeave)
     window.removeEventListener('resize', onResize)

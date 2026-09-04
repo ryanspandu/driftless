@@ -47,7 +47,8 @@ function flag(value: unknown, fallback = true): boolean {
  */
 function useAuthConfig(): AuthPublicConfig | undefined {
   const preloaded = useContext(BlockDataContext)[AUTH_CONFIG_KEY] as AuthPublicConfig | undefined
-  const query = useAuthPublicConfig()
+  // Skip the client fetch entirely when the server already preloaded the config.
+  const query = useAuthPublicConfig({ enabled: !preloaded })
   return preloaded ?? query.data
 }
 
@@ -654,6 +655,7 @@ export function FormBlockView({
   const editing = editingFlag(s)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [collectError, setCollectError] = useState<string | null>(null)
   const target = handler && handler !== 'none' ? FORM_HANDLERS[handler] : undefined
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -681,6 +683,7 @@ export function FormBlockView({
     const form = e.currentTarget
     const fields = Object.fromEntries(new FormData(form).entries())
     setLoading(true)
+    setCollectError(null)
     fetch('/api/forms/submit', {
       method: 'POST',
       headers: {
@@ -694,11 +697,20 @@ export function FormBlockView({
         fields,
       }),
     })
-      .then(() => {
-        setDone(true)
-        form.reset()
+      .then((res) => {
+        // fetch() resolves for 4xx/5xx too — only a 2xx is a real submission.
+        // A 429 (rate-limited) or 403 (missing CSRF on a cached page) must NOT
+        // show success and wipe the user's input.
+        if (res.ok) {
+          setDone(true)
+          form.reset()
+        } else if (res.status === 429) {
+          setCollectError('Too many submissions. Please wait a moment and try again.')
+        } else {
+          setCollectError('Sorry — your message could not be sent. Please try again.')
+        }
       })
-      .catch(() => setDone(true))
+      .catch(() => setCollectError('Could not send. Check your connection and try again.'))
       .finally(() => setLoading(false))
   }
 
@@ -722,6 +734,11 @@ export function FormBlockView({
           aria-hidden="true"
           style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
         />
+        {collectError ? (
+          <p role="alert" className="mt-2 text-sm text-destructive" data-form-error="">
+            {collectError}
+          </p>
+        ) : null}
       </Box>
     )
   }

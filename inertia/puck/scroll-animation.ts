@@ -211,9 +211,30 @@ export function initScrollAnimations(root: HTMLElement): () => void {
     }
   }
 
+  // Safety net: a `top`/`center` reveal low on a page too short to scroll it into
+  // its trigger band would stay hidden forever. Reveal anything still hidden once
+  // the page is at (or simply cannot scroll past) its bottom.
+  let onScrollBottom: (() => void) | null = null
+  let rafBottom = 0
+  if (scrollEls.length && 'IntersectionObserver' in window) {
+    const atBottom = () =>
+      window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4
+    const revealStuck = () => {
+      if (!atBottom()) return
+      for (const el of scrollEls) el.classList.add('sa-in')
+      if (onScrollBottom) window.removeEventListener('scroll', onScrollBottom)
+    }
+    onScrollBottom = revealStuck
+    window.addEventListener('scroll', revealStuck, { passive: true })
+    // Handle a page that is not scrollable at all (fits in the viewport).
+    rafBottom = requestAnimationFrame(() => requestAnimationFrame(revealStuck))
+  }
+
   return () => {
     if (raf1) cancelAnimationFrame(raf1)
     if (raf2) cancelAnimationFrame(raf2)
+    if (rafBottom) cancelAnimationFrame(rafBottom)
+    if (onScrollBottom) window.removeEventListener('scroll', onScrollBottom)
     for (const observer of observers) observer.disconnect()
     root.classList.remove('sa-active')
     for (const el of els) el.classList.remove('sa-in')

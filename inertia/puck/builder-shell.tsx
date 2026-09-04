@@ -402,9 +402,19 @@ export function BuilderShell({
   )
 
   const metaJson = useMemo(() => JSON.stringify(pageMeta ?? null), [pageMeta])
+  // SEO is the only page-setting the autosave actually persists (as a draft),
+  // so draft-dirtiness is tracked separately from full page-setting dirtiness.
+  const seoJson = useMemo(() => JSON.stringify(pageMeta?.seo ?? null), [pageMeta])
   const [savedData, setSavedData] = useState(data)
   const [savedMeta, setSavedMeta] = useState(metaJson)
+  const [savedSeo, setSavedSeo] = useState(seoJson)
   const dirty = data !== savedData || metaJson !== savedMeta
+  // What autosave can save (design + SEO) vs. General settings (title/path/
+  // layout/header/footer) which only persist on Publish. Conflating them let a
+  // title change trigger an autosave that showed "Draft saved" while silently
+  // dropping the title.
+  const draftDirty = data !== savedData || seoJson !== savedSeo
+  const settingsDirty = metaJson !== savedMeta
 
   /**
    * Autosave to a draft. Debounced on idle; the live page is never touched (the
@@ -418,16 +428,18 @@ export function BuilderShell({
   // when it was last saved even before this session autosaves anything.
   const [savedAt, setSavedAt] = useState<Date | null>(draftSavedAt ? new Date(draftSavedAt) : null)
   const [publishMenuOpen, setPublishMenuOpen] = useState(false)
-  const lastAutosaved = useRef<{ data: Data; meta: string } | null>(null)
+  const lastAutosaved = useRef<{ data: Data; seo: string } | null>(null)
   useEffect(() => {
-    if (!onAutosave || !dirty) return
+    // Only draft-relevant changes (design + SEO) autosave. A General-settings
+    // change alone must NOT show "Draft saved" — it is not saved until Publish.
+    if (!onAutosave || !draftDirty) return
     const snap = lastAutosaved.current
-    if (snap && snap.data === data && snap.meta === metaJson) return
+    if (snap && snap.data === data && snap.seo === seoJson) return
     const t = window.setTimeout(async () => {
       setSaveState('saving')
       try {
         await onAutosave(data, (pageMeta?.seo ?? {}) as Record<string, unknown>)
-        lastAutosaved.current = { data, meta: metaJson }
+        lastAutosaved.current = { data, seo: seoJson }
         setSaveState('saved')
         setSavedAt(new Date())
       } catch {
@@ -435,7 +447,7 @@ export function BuilderShell({
       }
     }, 1500)
     return () => window.clearTimeout(t)
-  }, [data, metaJson, dirty, onAutosave, pageMeta])
+  }, [data, seoJson, draftDirty, onAutosave, pageMeta])
 
   useEffect(() => {
     if (!dirty) return
@@ -470,13 +482,15 @@ export function BuilderShell({
   const publish = async () => {
     const attemptedData = data
     const attemptedMeta = metaJson
+    const attemptedSeo = seoJson
     try {
       await onPublish(attemptedData)
       setSavedData(attemptedData)
       setSavedMeta(attemptedMeta)
+      setSavedSeo(attemptedSeo)
       // The draft was promoted; forget the autosave snapshot so a later edit
       // re-arms autosave from a clean slate.
-      lastAutosaved.current = { data: attemptedData, meta: attemptedMeta }
+      lastAutosaved.current = { data: attemptedData, seo: attemptedSeo }
       setSaveState('idle')
     } catch {
       // Already reported by the caller; keep the unsaved state.
@@ -677,6 +691,8 @@ export function BuilderShell({
                         'Saving draft…'
                       ) : saveState === 'error' ? (
                         'Autosave failed — edit to retry'
+                      ) : settingsDirty ? (
+                        'Unsaved page settings — Publish to save'
                       ) : saveState === 'saved' ? (
                         savedAt ? (
                           <span className="flex flex-col">

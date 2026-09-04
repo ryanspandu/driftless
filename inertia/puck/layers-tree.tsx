@@ -67,10 +67,18 @@ function buildTree(items: RawItem[] | undefined, config: Config): TreeNode[] {
     const props = (item.props ?? {}) as Record<string, unknown>
     const id = typeof props.id === 'string' ? props.id : null
     if (!id) continue
+    // Only the PRIMARY slot is shown in the tree. Flat-merging every slot of a
+    // multi-slot container (e.g. CollectionList's `item` + `empty`) listed both
+    // slots' children as undifferentiated siblings — misrepresenting structure —
+    // and `dropInside` targets the first slot anyway, so showing only it keeps
+    // the tree consistent with where a drop lands. (Single-slot blocks — nearly
+    // all of them — are unaffected; secondary-slot blocks stay editable on the
+    // canvas.)
     const slots = slotFieldsFor(item.type, config)
-    const children = slots.flatMap((slot) =>
-      buildTree(props[slot] as RawItem[] | undefined, config)
-    )
+    const primarySlot = slots[0]
+    const children = primarySlot
+      ? buildTree(props[primarySlot] as RawItem[] | undefined, config)
+      : []
     const custom = typeof props._label === 'string' ? props._label.trim() : ''
     const configLabel = (config.components?.[item.type] as { label?: string } | undefined)?.label
     out.push({

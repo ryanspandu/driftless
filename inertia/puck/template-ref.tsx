@@ -25,6 +25,20 @@ import type { AppSelectOption } from '~/components/ui/app-select'
  */
 export const TemplateContext = createContext<Record<string, Record<string, unknown>>>({})
 
+/**
+ * The chain of template ids currently being rendered (outermost → innermost).
+ *
+ * A TemplateRef whose content embeds another TemplateRef renders recursively
+ * through the SAME config. Without a guard, a template that references itself
+ * (A→A) or a cycle (A→B→A) recurses until the React tree overflows the stack and
+ * blanks/500s the page. Each TemplateRefView pushes its id here before rendering
+ * its content and refuses to render an id already in the chain (or past a depth
+ * cap). The server-side `resolveRefs` guards data resolution, but the render
+ * tree needs its own guard.
+ */
+const TemplateAncestryContext = createContext<string[]>([])
+const MAX_TEMPLATE_DEPTH = 10
+
 interface TemplateMeta {
   id: string
   name: string
@@ -133,6 +147,7 @@ export function usePuckConfig(): Config | undefined {
 
 export function TemplateRefView({ templateId }: { templateId?: string }) {
   const preloaded = useContext(TemplateContext)
+  const ancestry = useContext(TemplateAncestryContext)
   const fromContext = templateId ? preloaded[templateId] : undefined
 
   /**
@@ -185,9 +200,20 @@ export function TemplateRefView({ templateId }: { templateId?: string }) {
   const content = fromContext ?? mine?.content
 
   if (!templateId) return <div className={notice}>Pick a template in the right panel</div>
+  // Cycle / runaway-depth guard — refuse to render a template already above us.
+  if (ancestry.includes(templateId)) {
+    return <div className={notice}>Template reference cycle detected</div>
+  }
+  if (ancestry.length >= MAX_TEMPLATE_DEPTH) {
+    return <div className={notice}>Template nesting too deep</div>
+  }
   if (state === 'error') return <div className={notice}>Could not load template</div>
   if (!resolved || !config) return <div className={notice}>Loading…</div>
   if (!hasBlocks(content)) return <div className={notice}>This template is empty</div>
 
-  return <Render config={config} data={toData(content)} />
+  return (
+    <TemplateAncestryContext.Provider value={[...ancestry, templateId]}>
+      <Render config={config} data={toData(content)} />
+    </TemplateAncestryContext.Provider>
+  )
 }

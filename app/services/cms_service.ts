@@ -7,6 +7,7 @@ import CmsComponent, { type CmsComponentField } from '#models/cms_component'
 import CmsRevision from '#models/cms_revision'
 import { newUlid } from '#services/ulid_service'
 import CmsPermissionsService from '#services/cms_permissions_service'
+import PagesService from '#services/pages_service'
 import { sanitizeRichText } from '#services/html_sanitizer_service'
 import { nativeFieldColumn, nativeTableName } from '#cms/native_registry'
 import {
@@ -1139,6 +1140,17 @@ export default class CmsService {
     return row?.id != null ? String(row.id) : null
   }
 
+  /**
+   * A record write can change what any SSG page's CollectionList shows, but the
+   * page snapshot is cached HTML that bakes in page-1 records. Nothing else
+   * invalidates it on a record change, so a static page would serve stale
+   * records indefinitely. Coarse-but-correct: drop every page snapshot (they
+   * rebuild lazily on next visit), matching how template/settings changes work.
+   */
+  private async invalidatePageSnapshots(): Promise<void> {
+    await new PagesService().invalidateAllSnapshots()
+  }
+
   async createRecord(
     collectionKey: string,
     authorId: number | null,
@@ -1230,6 +1242,7 @@ export default class CmsService {
     const row = await db.from(table).where('id', insertedId).first()
     const result = this.rowToRecordDto(row, collection)
     await this.resolveMultiRelations(collection, [result])
+    await this.invalidatePageSnapshots()
     return result
   }
 
@@ -1311,6 +1324,7 @@ export default class CmsService {
     const row = await db.from(table).where('id', id).first()
     const result = this.rowToRecordDto(row, collection)
     await this.resolveMultiRelations(collection, [result])
+    await this.invalidatePageSnapshots()
     return result
   }
 
@@ -1320,6 +1334,7 @@ export default class CmsService {
       throw new Error('User records must be deleted via Admin → Users')
     }
     await db.from(table).where('id', id).update({ deleted_at: new Date().toISOString() })
+    await this.invalidatePageSnapshots()
   }
 
   /** Soft-deleted records for a collection (the Trash). */
@@ -1338,6 +1353,7 @@ export default class CmsService {
     await db.from(table).where('id', id).update({ deleted_at: null })
     const row = await db.from(table).where('id', id).first()
     if (!row) throw new Error('Record not found')
+    await this.invalidatePageSnapshots()
     return this.rowToRecordDto(row, collection)
   }
 

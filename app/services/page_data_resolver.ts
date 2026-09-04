@@ -116,7 +116,10 @@ export async function resolvePageCollections(
       )
       map[key] = result.items
     } catch {
-      map[key] = []
+      // Leave the key ABSENT on a resolve failure — do NOT store `[]`. An empty
+      // array is a legitimate "collection is empty" preload that suppresses the
+      // client fetch; a swallowed error must instead fall through to the client
+      // fetch so a transient failure doesn't strand the list permanently empty.
     }
   }
   return map
