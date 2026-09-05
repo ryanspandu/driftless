@@ -1059,7 +1059,7 @@ export default class CmsService {
      * `false` for the admin editor and the external v1 API, which both need the
      * raw ids (editing writes them back; the v1 DTO is a stable contract).
      */
-    opts?: { resolveRelations?: boolean }
+    opts?: { resolveRelations?: boolean; resolveMedia?: boolean }
   ): Promise<{
     items: CmsRecordDto[]
     page: number
@@ -1164,6 +1164,7 @@ export default class CmsService {
     const items = rows.map((r: any) => this.rowToRecordDto(r, collection))
     await this.resolveMultiRelations(collection, items)
     if (opts?.resolveRelations) await this.resolveRelationLabels(collection, items)
+    if (opts?.resolveMedia) await this.resolveMediaUrls(collection, items)
     return {
       items,
       page,
@@ -1176,7 +1177,7 @@ export default class CmsService {
   async findRecord(
     collectionKey: string,
     id: string,
-    opts?: { resolveRelations?: boolean }
+    opts?: { resolveRelations?: boolean; resolveMedia?: boolean }
   ): Promise<CmsRecordDto> {
     const builtin = await builtinCollection(collectionKey)
     if (builtin) {
@@ -1191,6 +1192,7 @@ export default class CmsService {
     const dto = this.rowToRecordDto(row, collection)
     await this.resolveMultiRelations(collection, [dto])
     if (opts?.resolveRelations) await this.resolveRelationLabels(collection, [dto])
+    if (opts?.resolveMedia) await this.resolveMediaUrls(collection, [dto])
     return dto
   }
 
@@ -1278,6 +1280,53 @@ export default class CmsService {
         } else {
           dto.data[field.key] = ''
         }
+      }
+    }
+  }
+
+  /**
+   * Swap each MEDIA field's stored **media id** for the media's public URL, so a
+   * record bound to an image field renders on a public page (a CollectionList
+   * card, say) without the caller having to paste a full URL. Values that are
+   * already a URL (http(s):// or root-relative `/…`) are left untouched, so a
+   * pasted URL keeps working; an unknown/deleted id is left as-is (a broken
+   * image beats swallowing the field). Public render paths only (opt-in via
+   * `resolveMedia`); admin/v1 keep the raw id. Batched to avoid N+1.
+   */
+  private async resolveMediaUrls(collection: CmsCollection, dtos: CmsRecordDto[]): Promise<void> {
+    if (!dtos.length) return
+    const mediaFields = collection.fields.filter((f) => f.type === 'MEDIA')
+    if (!mediaFields.length) return
+
+    const isUrl = (s: string) => /^(https?:)?\/\//.test(s) || s.startsWith('/')
+    const ids = new Set<string>()
+    for (const field of mediaFields) {
+      for (const dto of dtos) {
+        const v = dto.data[field.key]
+        if (typeof v === 'string' && v && !isUrl(v)) ids.add(v)
+      }
+    }
+    if (!ids.size) return
+
+    const { default: MediaService } = await import('#services/media_service')
+    const media = new MediaService()
+    const urlById = new Map<string, string>()
+    await Promise.all(
+      [...ids].map(async (id) => {
+        try {
+          const dto = await media.findOne(id)
+          if (dto?.url) urlById.set(id, dto.url)
+        } catch {
+          // Unknown/deleted media id — leave the stored value untouched.
+        }
+      })
+    )
+    if (!urlById.size) return
+
+    for (const field of mediaFields) {
+      for (const dto of dtos) {
+        const v = dto.data[field.key]
+        if (typeof v === 'string' && urlById.has(v)) dto.data[field.key] = urlById.get(v)!
       }
     }
   }

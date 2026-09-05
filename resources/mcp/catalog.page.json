@@ -1,6 +1,6 @@
 {
   "target": "page",
-  "generatedAt": "2026-09-05T08:30:38.417Z",
+  "generatedAt": "2026-09-05T08:50:14.936Z",
   "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] } — only the ROOT uses a top-level \"content\" array. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children INSIDE props, keyed by the slot name (see each block's \"slots\") — e.g. { type: \"Section\", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a top-level \"content\" on the block (a sibling of props) — that renders EMPTY. Every block also accepts the shared \"styleProps\" — each is a plain CSS string value (e.g. padding: \"16px 24px\", bg: \"#ffffff\", textColor: \"#111827\", borderRadius: \"8px\"); object/number shapes are dropped on render. A field with type \"object\" documents its shape under \"objectFields\"; a field with type \"array\" documents each item's shape under \"arrayFields\" (+ \"defaultItemProps\" as an example). Each block's \"defaultProps\" is a ready-to-use worked example of valid props. Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled — see the catalog's \"enabledModules\" and prefer core blocks unless the site uses that module.",
   "guidance": {
     "rules": [
@@ -964,7 +964,7 @@
         "pageSize": 0,
         "empty": []
       },
-      "useFor": "Lists PUBLISHED records of a CMS collection you created (blogs, articles, generic content). Leave template:\"builtin\" (the default) to get a ready-made card — set cardStyle (\"card\"|\"plain\"|\"overlay\"), columns and imageAspect; the record's image field must hold a URL string. Only set template:\"template\" if you have created a COLLECTION template to repeat. Do NOT use this for e-commerce products — use ProductList.",
+      "useFor": "Lists PUBLISHED records of a CMS collection you created (blogs, articles, generic content). Leave template:\"builtin\" (the default) to get a ready-made card — set cardStyle (\"card\"|\"plain\"|\"overlay\"), columns and imageAspect; the record's image field can be a MEDIA field (a media id, resolved to its URL) or a TEXT field holding an image URL. Only set template:\"template\" if you have created a COLLECTION template to repeat. Do NOT use this for e-commerce products — use ProductList.",
       "styleProps": [
         "padding",
         "margin",

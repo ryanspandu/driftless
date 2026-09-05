@@ -28,8 +28,9 @@ export default class PublicCmsController {
           sortDir: qs.sortDir === 'asc' ? 'asc' : qs.sortDir === 'desc' ? 'desc' : undefined,
           search: typeof qs.search === 'string' ? qs.search : undefined,
         },
-        // Public render path: show related records' labels, not raw ids.
-        { resolveRelations: true }
+        // Public render path: related records' labels (not raw ids) and MEDIA
+        // fields resolved to their public URL so image bindings render.
+        { resolveRelations: true, resolveMedia: true }
       )
       return response.json({
         items: result.items,
@@ -45,7 +46,10 @@ export default class PublicCmsController {
 
   async record({ params, response }: HttpContext) {
     try {
-      const record = await cmsService.findRecord(params.key, params.id, { resolveRelations: true })
+      const record = await cmsService.findRecord(params.key, params.id, {
+        resolveRelations: true,
+        resolveMedia: true,
+      })
       if (record.status !== 'PUBLISHED') {
         return response.notFound({ message: 'Record not found' })
       }

@@ -116,8 +116,9 @@ export async function resolvePageCollections(
           filterField: q.filterField || undefined,
           filterValue: q.filterValue || undefined,
         },
-        // SSR/SSG preload mirrors the public endpoint: relation labels, not ids.
-        { resolveRelations: true }
+        // SSR/SSG preload mirrors the public endpoint: relation labels, not ids,
+        // and MEDIA fields resolved to their public URL so image bindings render.
+        { resolveRelations: true, resolveMedia: true }
       )
       map[key] = result.items
     } catch {
