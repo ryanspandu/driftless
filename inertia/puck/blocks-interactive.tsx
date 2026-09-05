@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentType, type CSSProperties } from 'react'
-import { Star } from 'lucide-react'
+import { ChevronDown, Star } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { Box } from './style-fields'
 
@@ -430,6 +430,51 @@ export function ReviewsView({
               </div>
             </div>
           </div>
+        ))}
+      </div>
+    </Box>
+  )
+}
+
+/**
+ * FAQ-style accordion. Built on native `<details>`/`<summary>` so it expands and
+ * collapses without any JavaScript — it works identically on the published page,
+ * during SSR, and inside the editor canvas (where scripted interactivity is
+ * suppressed). The chevron rotates via the CSS `open:` state, no hydration
+ * needed.
+ */
+type FaqItem = { question?: string; answer?: string }
+
+export function AccordionView({
+  items,
+  heading,
+  ...s
+}: { items?: unknown; heading?: string } & StyleBag) {
+  const list = (Array.isArray(items) ? items : []) as FaqItem[]
+  if (!list.length) {
+    return (
+      <Box s={s}>
+        <div className={placeholderCls}>Add FAQ items</div>
+      </Box>
+    )
+  }
+  return (
+    <Box s={s}>
+      {heading ? <h2 className="mb-4 text-2xl font-semibold">{heading}</h2> : null}
+      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+        {list.map((it, i) => (
+          <details key={i} className="pk-accordion group px-4 [&_summary::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-base font-medium">
+              <span>{it.question || `Question ${i + 1}`}</span>
+              <ChevronDown className="size-5 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+            </summary>
+            <div
+              className="pb-4 text-sm leading-relaxed text-muted-foreground"
+              style={{ whiteSpace: 'pre-line' }}
+            >
+              {it.answer || ''}
+            </div>
+          </details>
         ))}
       </div>
     </Box>

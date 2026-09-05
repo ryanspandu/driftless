@@ -13,6 +13,7 @@ import { normalizeImageValue, buildSrcset } from '~/puck/image-source'
 import { useBoundString, useBoundField, FieldOrText, type Binding } from '~/puck/record-binding'
 import { LottieAnimationView, SplineSceneView, RiveView } from '~/puck/media-embeds'
 import {
+  AccordionView,
   CarouselView,
   DropdownView,
   LightboxView,
@@ -300,6 +301,7 @@ export const baseConfig: Config = {
         'Slider',
         'Carousel',
         'Tabs',
+        'Accordion',
         'Map',
         'Reviews',
         'Facebook',
@@ -1918,6 +1920,41 @@ export const baseConfig: Config = {
         ],
       },
       render: (props) => <ReviewsView {...props} />,
+    },
+
+    Accordion: {
+      label: 'Accordion (FAQ)',
+      fields: {
+        heading: { type: 'text', label: 'Heading' },
+        items: {
+          type: 'array',
+          label: 'Items',
+          arrayFields: {
+            question: { type: 'text', label: 'Question' },
+            answer: { type: 'textarea', label: 'Answer' },
+          },
+          defaultItemProps: { question: '', answer: '' },
+        },
+        ...styleFields,
+      },
+      defaultProps: {
+        heading: 'Frequently asked questions',
+        items: [
+          {
+            question: 'What is your return policy?',
+            answer: 'Returns are accepted within 30 days of delivery, no questions asked.',
+          },
+          {
+            question: 'How long does shipping take?',
+            answer: 'Most orders arrive within 3–5 business days.',
+          },
+          {
+            question: 'Do you ship internationally?',
+            answer: 'Yes — international shipping rates are calculated at checkout.',
+          },
+        ],
+      },
+      render: (props) => <AccordionView {...props} />,
     },
 
     Spacer: {

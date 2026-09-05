@@ -17,6 +17,36 @@ html {
   scroll-behavior: smooth;
 }
 
+/*
+ * Accordion (Puck FAQ block) — smooth expand/collapse by default.
+ *
+ * A native <details> toggles instantly. `::details-content` is the UA wrapper
+ * around everything but the <summary>; animating its `block-size` from 0 to
+ * `auto` (unlocked by `interpolate-size: allow-keywords`, which is inherited)
+ * gives a real height animation with no JavaScript, so it works during SSR and
+ * inside the builder canvas alike. `content-visibility` is transitioned with
+ * `allow-discrete` so the content stays painted through the close animation.
+ * Browsers without `::details-content` simply ignore this and fall back to the
+ * instant toggle. Suppressed under reduced-motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .pk-accordion {
+    interpolate-size: allow-keywords;
+  }
+
+  .pk-accordion::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size 0.28s ease,
+      content-visibility 0.28s allow-discrete;
+  }
+
+  .pk-accordion[open]::details-content {
+    block-size: auto;
+  }
+}
+
 /* Dark applies inside a `.dark` ancestor, EXCEPT inside a `.theme-light` scope.
    The public/FE shell carries `.theme-light` so the admin dark-mode toggle never
    bleeds into the landing page — only the dashboard and auth follow the theme. */
