@@ -1,6 +1,6 @@
 {
   "target": "collection",
-  "generatedAt": "2026-09-05T09:03:39.596Z",
+  "generatedAt": "2026-09-05T09:15:06.988Z",
   "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] } — only the ROOT uses a top-level \"content\" array. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children INSIDE props, keyed by the slot name (see each block's \"slots\") — e.g. { type: \"Section\", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a top-level \"content\" on the block (a sibling of props) — that renders EMPTY. Every block also accepts the shared \"styleProps\" — each is a plain CSS string value (e.g. padding: \"16px 24px\", bg: \"#ffffff\", textColor: \"#111827\", borderRadius: \"8px\"); object/number shapes are dropped on render. A field with type \"object\" documents its shape under \"objectFields\"; a field with type \"array\" documents each item's shape under \"arrayFields\" (+ \"defaultItemProps\" as an example). Each block's \"defaultProps\" is a ready-to-use worked example of valid props. Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled — see the catalog's \"enabledModules\" and prefer core blocks unless the site uses that module.",
   "guidance": {
     "rules": [
@@ -10,6 +10,7 @@
       "Prefer the purpose-built block over composing from scratch: Reviews for testimonials, Accordion for FAQ, Slider/Carousel for hero or rotating strips, ProductList for products.",
       "For a products / shop section use the commerce ProductList block (real cards with price + image), and CREATE the products it shows with the create_product tool — inline `price` (minor units, e.g. 4900 = $49.00) auto-creates a sellable \"Default\" variant; set status:\"active\" so they appear. Do NOT fake products with a CMS collection + CollectionList — that yields plain title/excerpt cards. ProductList and the product tools need the \"ecommerce\" module: confirm it is listed in this catalog’s \"enabledModules\" first; if absent, ask the operator to enable it rather than faking it.",
       "Use real images: upload_media returns an asset `url` — use that exact string verbatim (an Image block’s `src`, or a product image’s `mediaUrl`). Avoid random stock/placeholder URLs — they read as off-brand and rarely match the design.",
+      "For an IMMERSIVE hero / CTA band — a full-bleed background image with text ON TOP — do NOT split into text-column + image-column. Instead set the Section’s `backgrounds` prop (works on any block): an array of layers painted front-to-back. e.g. `backgrounds: [ { \"type\":\"linear\", \"angle\":\"90\", \"stops\":[{\"color\":\"rgba(0,0,0,0.55)\",\"pos\":\"0%\"},{\"color\":\"rgba(0,0,0,0)\",\"pos\":\"60%\"}] }, { \"type\":\"image\", \"url\":\"<upload_media url>\", \"sizeMode\":\"cover\", \"posX\":\"center\", \"posY\":\"center\", \"repeat\":\"no-repeat\" } ]` — the gradient/overlay layer (or `{ \"type\":\"overlay\", \"color\":\"rgba(0,0,0,0.4)\" }`) is listed BEFORE the image for text legibility. Give the Section a `minHeight`, keep `bg` as the base colour, and put the overlay content in a Container aligned as the design shows (often lower-left). A floating card that overlaps the section below (a trust bar) is done with a negative top `margin` on that card.",
       "Nest children INSIDE props, keyed by the slot name (see each block’s \"slots\") — never in a top-level \"content\" on a child block; only the document root uses a top-level content array."
     ]
   },
@@ -1486,7 +1487,7 @@
         "name": "star",
         "size": "28px"
       },
-      "useFor": "A single line-icon. Use for trust-bar / feature glyphs — set \"name\" (see this block's field options for the valid keys, e.g. palette, truck, shield-check, leaf) and colour it with the textColor styleProp.",
+      "useFor": "A single icon for trust-bar / feature glyphs. Set \"name\" to a curated key (see this block's field options, e.g. palette, truck, shield-check, leaf) for a monochrome line-icon coloured by the textColor styleProp — OR to an EMOJI (e.g. \"🎨\", \"🧩\", \"📦\", \"⏱️\") for a full-colour glyph, which is often how a design's colourful icons are best matched.",
       "styleProps": [
         "padding",
         "margin",

@@ -82,7 +82,7 @@ const BLOCK_HINTS: Record<string, string> = {
   Carousel: 'A multi-per-view sliding track. Use for logo strips or a row of scrolling cards.',
   Reviews:
     'Testimonials as rating cards (author, rating, text, avatar). Use for a "what customers say" section — do NOT hand-build testimonial cards. Set layout:"carousel" for a horizontal slider of cards (vs the default "grid").',
-  Icon: 'A single line-icon. Use for trust-bar / feature glyphs — set "name" (see this block\'s field options for the valid keys, e.g. palette, truck, shield-check, leaf) and colour it with the textColor styleProp.',
+  Icon: 'A single icon for trust-bar / feature glyphs. Set "name" to a curated key (see this block\'s field options, e.g. palette, truck, shield-check, leaf) for a monochrome line-icon coloured by the textColor styleProp — OR to an EMOJI (e.g. "🎨", "🧩", "📦", "⏱️") for a full-colour glyph, which is often how a design\'s colourful icons are best matched.',
   Accordion: 'An expandable question/answer list. Use for any FAQ or "common questions" section.',
   Tabs: 'Tabbed content panels for switching between related bodies of content.',
   CollectionList:
@@ -104,6 +104,7 @@ const GUIDANCE_RULES: string[] = [
   'Prefer the purpose-built block over composing from scratch: Reviews for testimonials, Accordion for FAQ, Slider/Carousel for hero or rotating strips, ProductList for products.',
   'For a products / shop section use the commerce ProductList block (real cards with price + image), and CREATE the products it shows with the create_product tool — inline `price` (minor units, e.g. 4900 = $49.00) auto-creates a sellable "Default" variant; set status:"active" so they appear. Do NOT fake products with a CMS collection + CollectionList — that yields plain title/excerpt cards. ProductList and the product tools need the "ecommerce" module: confirm it is listed in this catalog’s "enabledModules" first; if absent, ask the operator to enable it rather than faking it.',
   'Use real images: upload_media returns an asset `url` — use that exact string verbatim (an Image block’s `src`, or a product image’s `mediaUrl`). Avoid random stock/placeholder URLs — they read as off-brand and rarely match the design.',
+  'For an IMMERSIVE hero / CTA band — a full-bleed background image with text ON TOP — do NOT split into text-column + image-column. Instead set the Section’s `backgrounds` prop (works on any block): an array of layers painted front-to-back. e.g. `backgrounds: [ { "type":"linear", "angle":"90", "stops":[{"color":"rgba(0,0,0,0.55)","pos":"0%"},{"color":"rgba(0,0,0,0)","pos":"60%"}] }, { "type":"image", "url":"<upload_media url>", "sizeMode":"cover", "posX":"center", "posY":"center", "repeat":"no-repeat" } ]` — the gradient/overlay layer (or `{ "type":"overlay", "color":"rgba(0,0,0,0.4)" }`) is listed BEFORE the image for text legibility. Give the Section a `minHeight`, keep `bg` as the base colour, and put the overlay content in a Container aligned as the design shows (often lower-left). A floating card that overlaps the section below (a trust bar) is done with a negative top `margin` on that card.',
   'Nest children INSIDE props, keyed by the slot name (see each block’s "slots") — never in a top-level "content" on a child block; only the document root uses a top-level content array.',
 ]
 
@@ -116,7 +117,7 @@ const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string 
       'Container',
       'HFlex( VFlex(Heading, Paragraph, HFlex(Button,Button)) , Image )',
     ],
-    note: "Usually two columns via HFlex with child widths: a left VFlex (copy + CTA row) and a right Image (or Slider). If the design shows extra hero media — a small video/thumbnail card — add an Image/Video for it in the position shown; match the design's column split and where each piece sits rather than assuming text-left/image-right.",
+    note: 'TWO SHAPES — pick the one the design shows. (a) Split: HFlex with child widths — a left VFlex (copy + CTA row) and a right Image. (b) Immersive full-bleed: ONE Section with a background image via its `backgrounds` prop (plus a gradient/overlay layer for legibility) and a `minHeight`, the content (optional thumbnail, Heading, Paragraph, HFlex of buttons) overlaid inside a Container aligned where the design puts it (often lower-left). A trust bar overlapping the hero bottom uses a negative top margin. Match the design; do not default to text-left/image-right.',
   },
   {
     section: 'Trust bar / logos / stats',

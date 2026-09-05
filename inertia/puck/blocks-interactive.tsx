@@ -79,12 +79,24 @@ const ICONS: Record<string, ComponentType<{ size?: number | string; strokeWidth?
 export const ICON_NAMES = Object.keys(ICONS)
 
 /**
- * A single line-icon (lucide). Colour comes from the surrounding `textColor`
- * (icons stroke in `currentColor`); `size` is a px string. SSR-safe, no hooks.
+ * A single icon. `name` is either a curated lucide key (a monochrome line-icon
+ * coloured by the surrounding `textColor`) OR an emoji, which renders as a
+ * full-colour glyph — the way to get the colourful icons a lot of designs use.
+ * `size` is a px string. SSR-safe, no hooks.
  */
 export function IconView({ name, size, ...s }: { name?: string; size?: string } & StyleBag) {
-  const Cmp = ICONS[(name || '').trim()] ?? Star
+  const key = (name || '').trim()
   const px = typeof size === 'string' && size.trim() ? Number.parseInt(size, 10) || 28 : 28
+  if (/\p{Extended_Pictographic}/u.test(key)) {
+    return (
+      <Box s={s}>
+        <span style={{ fontSize: px, lineHeight: 1 }} aria-hidden>
+          {key}
+        </span>
+      </Box>
+    )
+  }
+  const Cmp = ICONS[key] ?? Star
   return (
     <Box s={s}>
       <Cmp size={px} strokeWidth={1.75} />
