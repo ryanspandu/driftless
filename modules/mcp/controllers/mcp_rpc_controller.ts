@@ -5,7 +5,12 @@ import env from '#start/env'
 import server from '@adonisjs/core/services/server'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
-import { registerTools, type ToolDeps, type UploadSource } from '#modules/mcp/mcp_tools'
+import {
+  registerTools,
+  SERVER_INSTRUCTIONS,
+  type ToolDeps,
+  type UploadSource,
+} from '#modules/mcp/mcp_tools'
 import {
   assertFetchableImageUrl,
   originForPath,
@@ -46,7 +51,10 @@ export default class McpRpcController {
     const authorization = request.header('authorization') ?? ''
     const deps = this.buildDeps(origin, authorization)
 
-    const server = new McpServer({ name: 'driftless', version: '1.0.0' })
+    const server = new McpServer(
+      { name: 'driftless', version: '1.0.0' },
+      { instructions: SERVER_INSTRUCTIONS }
+    )
     registerTools(server, deps)
 
     const transport = new WebStandardStreamableHTTPServerTransport({

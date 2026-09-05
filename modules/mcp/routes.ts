@@ -179,6 +179,18 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .as('mcp.pages.publish')
             .use(read('builder:pages'))
           router
+            .post('/api/mcp/v1/pages/:id/preview-token', [PagesCtrl, 'previewToken'])
+            .as('mcp.pages.previewToken')
+            .use(read('builder:pages'))
+          router
+            .put('/api/mcp/v1/pages/:id/brief', [PagesCtrl, 'setBrief'])
+            .as('mcp.pages.brief')
+            .use(read('builder:pages'))
+          router
+            .get('/api/mcp/v1/pages/:id/coverage', [PagesCtrl, 'coverage'])
+            .as('mcp.pages.coverage')
+            .use(read('builder:read'))
+          router
             .post('/api/mcp/v1/pages/:id/discard-draft', [PagesCtrl, 'discardDraft'])
             .as('mcp.pages.discard')
             .use(read('builder:pages'))

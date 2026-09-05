@@ -1,7 +1,10 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type User from '#models/user'
 import PagesService from '#services/pages_service'
+import { WebSettingsService } from '#services/settings_service'
 import { validatePuckDocument } from '#modules/mcp/services/puck_content_validator'
+import { checkDesignCoverage } from '#modules/mcp/services/design_coverage'
+import { appUrl } from '#config/app'
 
 const pages = new PagesService()
 
@@ -135,6 +138,54 @@ export default class BuilderPagesController {
     const content = request.input('content')
     const result = await validatePuckDocument(content, 'page')
     return response.json(result)
+  }
+
+  /**
+   * Mint (or reuse) the no-login preview link for a page's DRAFT, so the AI (or
+   * the operator) can look at the staged build before publishing.
+   */
+  async previewToken({ params, response }: HttpContext) {
+    try {
+      const token = await pages.ensurePreviewToken(String(params.id))
+      const base = (appUrl ?? '').replace(/\/+$/, '')
+      return response.json({ token, url: `${base}/preview/${token}` })
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
+  }
+
+  /** Store (or clear with null) the structured design brief for a page. */
+  async setBrief({ params, request, response }: HttpContext) {
+    const brief = request.input('brief')
+    try {
+      const dto = await pages.setDesignBrief(String(params.id), brief ?? null)
+      return response.json({ designBrief: dto.designBrief })
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
+  }
+
+  /**
+   * Report where the built page drifts from its design brief — the primary
+   * fidelity gate (the MCP can't see the render). Checks the DRAFT if present,
+   * else the published content.
+   */
+  async coverage({ params, response }: HttpContext) {
+    try {
+      const page = await pages.findOne(String(params.id))
+      const theme = await new WebSettingsService().getAppearance()
+      // Stored content is a Puck doc { root, content: [...] } — inspect the array.
+      const doc = (page.draftContent ?? page.content) as Record<string, unknown> | null
+      const contentArr = doc && Array.isArray(doc.content) ? doc.content : []
+      const report = checkDesignCoverage({
+        content: contentArr,
+        brief: page.designBrief,
+        themeEffective: theme.effective,
+      })
+      return response.json(report)
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
   }
 
   async discardDraft({ params, response }: HttpContext) {

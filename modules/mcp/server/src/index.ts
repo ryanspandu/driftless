@@ -17,7 +17,22 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { api, uploadMedia, ApiError } from './client.js'
 
-const server = new McpServer({ name: 'driftless', version: '1.0.0' })
+// MIRRORS SERVER_INSTRUCTIONS in `modules/mcp/mcp_tools.ts` — keep in sync.
+const SERVER_INSTRUCTIONS = `Driftless page builder. To reproduce a design reference (a screenshot/mockup) faithfully, follow this loop — structure is easy to get right; palette, imagery and icons are what make or break fidelity:
+
+1. get_block_catalog — read the blocks, recipes, and the live \`theme\` (what variant:"primary" renders as).
+2. If you have a reference image, upload_media(purpose:"reference") so you can crop real photos out of it.
+3. BRAND FIRST: extract the design's palette + fonts and call set_appearance (exact hex). Button primary, product CTAs, FormButton and cart/checkout all render the theme colours — skip this and every CTA ships the default purple.
+4. ASSET INVENTORY: for every image the design shows, get a REAL asset — crop_media it out of the reference, or upload_media a supplied file. NEVER substitute random stock/placeholder photos (they are rejected). A slot you can't fill must be reported, not faked.
+5. set_design_brief (palette, iconStyle, the design's sections + asset slots) so the build can be checked.
+6. Build with create_page / set_page_content. Use Icon with a curated name + textColor (or an uploaded icon src) — not emoji — unless the design uses emoji.
+7. validate_page_content (fix issues; heed warnings) AND check_design_coverage — fix every missing section, off-brand CTA/colour, emoji icon and image substitution it lists.
+8. get_preview_url and look at the draft (or ask the operator to) before publish_page. Then publish, and report any residual mismatches/substitutions you could not resolve.`
+
+const server = new McpServer(
+  { name: 'driftless', version: '1.0.0' },
+  { instructions: SERVER_INSTRUCTIONS }
+)
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean }
 
@@ -41,6 +56,50 @@ const PuckDoc = z
   .describe(
     'A Puck document: { root: { props: {} }, content: [ blocks ] }. Call get_block_catalog first.'
   )
+
+// The structured design brief (stored on the page, checked by coverage).
+const DesignBrief = z
+  .object({
+    source: z
+      .object({
+        kind: z.enum(['png', 'figma', 'text']).optional(),
+        referenceMediaId: z.string().optional().describe('The upload_media id of the reference image.'),
+      })
+      .optional(),
+    palette: z
+      .object({
+        primary: z.string().optional(),
+        secondary: z.string().optional(),
+        bg: z.string().optional(),
+        ink: z.string().optional(),
+        accent: z.array(z.string()).optional(),
+      })
+      .optional()
+      .describe('The design colours (hex). Apply them with set_appearance too.'),
+    typography: z.object({ heading: z.string().optional(), body: z.string().optional() }).optional(),
+    iconStyle: z.enum(['line', 'custom', 'emoji']).optional(),
+    sections: z
+      .array(
+        z.object({
+          key: z.string().describe('A short name for the design section (hero, trustBar, productGrid, …).'),
+          recipe: z.string().optional().describe('The matching GUIDANCE_RECIPES section name.'),
+          headline: z.string().optional().describe("The section's main heading text, for coverage matching."),
+          assets: z
+            .array(
+              z.object({
+                role: z.string(),
+                status: z.enum(['supplied', 'placeholder', 'missing']).optional(),
+                mediaId: z.string().optional(),
+                url: z.string().optional(),
+              })
+            )
+            .optional(),
+        })
+      )
+      .optional()
+      .describe("The design's sections in order, top to bottom."),
+  })
+  .passthrough()
 
 // ── Discovery ────────────────────────────────────────────────────────────────
 
@@ -319,9 +378,33 @@ server.tool(
 
 server.tool(
   'validate_page_content',
-  'Check a Puck document against the block catalog WITHOUT writing it. Use before publishing.',
+  'Check a Puck document against the block catalog WITHOUT writing it — returns `issues` (block publish) AND `warnings` (image-quality advisories: external/placeholder image URLs, empty image slots). Use before publishing.',
   { content: PuckDoc },
   ({ content }) => run(() => api.post('/api/mcp/v1/pages/validate', { content }))
+)
+
+server.tool(
+  'set_design_brief',
+  "Record the design brief for a page BEFORE building — the palette, fonts, icon style, and the design's sections + their asset slots. This is what check_design_coverage compares the built page against, so it is how the MCP catches a missing section, an off-brand CTA, or a substituted image without seeing the render. Pass `brief: null` to clear it.",
+  {
+    id: z.string(),
+    brief: DesignBrief.nullable(),
+  },
+  ({ id, brief }) => run(() => api.put(`/api/mcp/v1/pages/${id}/brief`, { brief }))
+)
+
+server.tool(
+  'check_design_coverage',
+  "Report where the built page drifts from its design brief: sections in the brief that aren't built, Buttons still on the theme colour when the brief wants another, emoji icons when the brief wants real ones, placeholder/external images, and colours outside the palette. Inspects the DRAFT if present. Run this after building and fix everything it lists BEFORE publishing.",
+  { id: z.string() },
+  ({ id }) => run(() => api.get(`/api/mcp/v1/pages/${id}/coverage`))
+)
+
+server.tool(
+  'get_preview_url',
+  "Get a no-login preview URL for a page's DRAFT so you (or the operator) can look at the staged build in a browser before publishing.",
+  { id: z.string() },
+  ({ id }) => run(() => api.post(`/api/mcp/v1/pages/${id}/preview-token`))
 )
 
 server.tool(

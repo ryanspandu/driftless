@@ -115,6 +115,15 @@ export default class Page extends BaseModel {
   @column.dateTime()
   declare draftUpdatedAt: DateTime | null
 
+  /**
+   * A structured design brief the AI records BEFORE building (palette, fonts,
+   * icon style, the design's sections + their asset slots), so the build can be
+   * checked for coverage against what the reference actually shows. Never
+   * rendered — advisory metadata for the MCP flow.
+   */
+  @column(nullableJsonColumn)
+  declare designBrief: Record<string, unknown> | null
+
   // Scheduled status transitions, applied by `pages:run-schedule`.
   @column.dateTime()
   declare scheduledPublishAt: DateTime | null

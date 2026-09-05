@@ -45,6 +45,8 @@ export interface PageDto extends PageSummaryDto {
   /** The staged design, when a draft exists (else null). */
   draftContent: Record<string, unknown> | null
   draftSeo: Record<string, unknown> | null
+  /** The structured design brief the AI recorded (null until set). */
+  designBrief: Record<string, unknown> | null
 }
 
 export interface PageRevisionDto {
@@ -646,7 +648,19 @@ export default class PagesService {
       seo: row.seo,
       draftContent: row.draftContent ?? null,
       draftSeo: row.draftSeo ?? null,
+      designBrief: row.designBrief ?? null,
     }
+  }
+
+  /** Store (or clear) the structured design brief for a page. */
+  async setDesignBrief(
+    id: string,
+    brief: Record<string, unknown> | null
+  ): Promise<PageDto> {
+    const row = await Page.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    row.designBrief = brief
+    await row.save()
+    return this.toDto(row)
   }
 
   private toRevisionDto(row: PageRevision): PageRevisionDto {
