@@ -75,7 +75,7 @@ const BLOCK_HINTS: Record<string, string> = {
   Heading: 'A section title (h1–h6). One per section.',
   Paragraph: 'Body copy — sub-headings, descriptions, supporting text.',
   Button:
-    'A call-to-action link. Group a primary + secondary CTA inside an HFlex to place them side by side.',
+    'A call-to-action link. variant:"primary"/"secondary" follow the SITE THEME colours (default purple until you set_appearance); "outline" is bordered; "custom" drops the theme colours so you set the exact design colour with the bg + textColor (+ borderRadius/padding) styleProps. Group a primary + secondary CTA inside an HFlex to place them side by side.',
   Image:
     'A single image. Use a REAL asset URL from upload_media — random placeholders look off-brand.',
   Slider: 'A full-bleed rotating hero (one slide at a time). Use for a hero banner carousel.',
@@ -99,6 +99,8 @@ const BLOCK_HINTS: Record<string, string> = {
 /** Hard do/don’t rules, served to every target (layout rules apply everywhere). */
 const GUIDANCE_RULES: string[] = [
   'Read this whole catalog first. Every block’s "defaultProps" is a valid, ready-to-use example — copy one and adapt it rather than guessing prop shapes.',
+  'BRAND PALETTE FIRST. Before composing any content, look at the design reference and extract its palette — the primary/CTA colour, secondary, page background, text/ink, and any accents — and its typeface(s). Then call set_appearance({ primaryColor, secondaryColor, fontFamily, fontCssUrl, savedColors:[{slug:"bg",name,value},{slug:"ink",…},{slug:"accent",…}] }) with those exact hex values BEFORE building. This matters because Button variant:"primary"/"secondary", every ProductList/product-card CTA, FormButton, and the cart/checkout buttons ALL render the SITE THEME colours — the catalog’s `theme.effective.primary` shows what they look like now (the default is purple #5225e6). If you skip this step every CTA on the page ships that default purple no matter what the design shows. After set_appearance, reference the saved colours in any block as var(--color-<slug>) (or var(--primary)/var(--secondary)) so sections stay consistent and re-themable. For a per-button colour that differs from the theme, set the Button to variant:"custom" and give it bg + textColor (+ borderRadius/padding) styleProps — those override the variant.',
+  'TYPOGRAPHY. Match the design’s type. Set the closest Google family with set_appearance({ fontFamily, fontCssUrl:"https://fonts.googleapis.com/css2?family=…" }), or upload the brand font with upload_media and pass fontFaceUrl + fontCustomName (set fontFamily = fontCustomName). Match heading weight/size per block with the fontWeight / textSize / lineHeight styleProps (headings default to 600).',
   'Structure every section as Section (full-width band; set bg + padding here) → Container (centres content) → the section’s blocks. Do not place bare content blocks at the page root.',
   'To put items SIDE BY SIDE, wrap them in a layout block — Grid or Columns for EQUAL-width columns, HFlex for a button/inline row OR an asymmetric split (give each child a `width` styleProp; flex honours it, equal grid tracks do not). Sibling blocks with no layout parent stack vertically.',
   'Prefer the purpose-built block over composing from scratch: Reviews for testimonials, Accordion for FAQ, Slider/Carousel for hero or rotating strips, ProductList for products.',
@@ -110,6 +112,11 @@ const GUIDANCE_RULES: string[] = [
 
 /** Per-section compositions — the bridge from "here are blocks" to "here is a page". Page target only. */
 const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string }> = [
+  {
+    section: 'Brand setup (do this FIRST, before any section)',
+    blocks: ['get_appearance', 'set_appearance(primaryColor, secondaryColor, fontFamily, savedColors)'],
+    note: 'Extract the design’s palette + typeface and apply them with set_appearance BEFORE composing. primary/secondary drive every CTA and product button; savedColors (bg, ink, accent, surface) become var(--color-<slug>) for use in any block’s bg/textColor/borderColor. Skipping this ships the default purple CTAs — the #1 reason a build looks off-brand.',
+  },
   {
     section: 'Hero',
     blocks: [
@@ -127,7 +134,7 @@ const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string 
       'Grid(columns:4)',
       'per cell: VFlex(Icon + Heading + Paragraph)',
     ],
-    note: 'A single Grid with 3–4 columns; each cell a VFlex of an Icon (set its "name"), a short Heading and a line of Paragraph. Use Icon for the glyphs — do not skip them.',
+    note: 'A single Grid with 3–4 columns; each cell a VFlex of an Icon, a short Heading and a line of Paragraph. Set each Icon’s "name" to a curated key and give it a textColor matching the design’s icon/accent colour (e.g. var(--color-accent) or the brand primary) — do not default to emoji. Use Icon for the glyphs; do not skip them.',
   },
   {
     section: 'Feature grid / how it works',
@@ -157,7 +164,7 @@ const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string 
   {
     section: 'CTA band',
     blocks: ['Section(bg)', 'Container', 'Heading', 'Button'],
-    note: 'A coloured Section band with a heading and one CTA button.',
+    note: 'A coloured Section band with a heading and one CTA button. Set the Section bg to the design’s band colour — usually var(--primary) or a saved colour — and make sure the Button reads against it (variant:"primary", or variant:"custom" with bg+textColor to match the design exactly).',
   },
   {
     section: 'Gallery',

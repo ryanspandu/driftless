@@ -1,10 +1,12 @@
 {
   "target": "page",
-  "generatedAt": "2026-09-05T09:15:06.988Z",
+  "generatedAt": "2026-09-05T14:14:12.860Z",
   "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] } — only the ROOT uses a top-level \"content\" array. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children INSIDE props, keyed by the slot name (see each block's \"slots\") — e.g. { type: \"Section\", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a top-level \"content\" on the block (a sibling of props) — that renders EMPTY. Every block also accepts the shared \"styleProps\" — each is a plain CSS string value (e.g. padding: \"16px 24px\", bg: \"#ffffff\", textColor: \"#111827\", borderRadius: \"8px\"); object/number shapes are dropped on render. A field with type \"object\" documents its shape under \"objectFields\"; a field with type \"array\" documents each item's shape under \"arrayFields\" (+ \"defaultItemProps\" as an example). Each block's \"defaultProps\" is a ready-to-use worked example of valid props. Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled — see the catalog's \"enabledModules\" and prefer core blocks unless the site uses that module.",
   "guidance": {
     "rules": [
       "Read this whole catalog first. Every block’s \"defaultProps\" is a valid, ready-to-use example — copy one and adapt it rather than guessing prop shapes.",
+      "BRAND PALETTE FIRST. Before composing any content, look at the design reference and extract its palette — the primary/CTA colour, secondary, page background, text/ink, and any accents — and its typeface(s). Then call set_appearance({ primaryColor, secondaryColor, fontFamily, fontCssUrl, savedColors:[{slug:\"bg\",name,value},{slug:\"ink\",…},{slug:\"accent\",…}] }) with those exact hex values BEFORE building. This matters because Button variant:\"primary\"/\"secondary\", every ProductList/product-card CTA, FormButton, and the cart/checkout buttons ALL render the SITE THEME colours — the catalog’s `theme.effective.primary` shows what they look like now (the default is purple #5225e6). If you skip this step every CTA on the page ships that default purple no matter what the design shows. After set_appearance, reference the saved colours in any block as var(--color-<slug>) (or var(--primary)/var(--secondary)) so sections stay consistent and re-themable. For a per-button colour that differs from the theme, set the Button to variant:\"custom\" and give it bg + textColor (+ borderRadius/padding) styleProps — those override the variant.",
+      "TYPOGRAPHY. Match the design’s type. Set the closest Google family with set_appearance({ fontFamily, fontCssUrl:\"https://fonts.googleapis.com/css2?family=…\" }), or upload the brand font with upload_media and pass fontFaceUrl + fontCustomName (set fontFamily = fontCustomName). Match heading weight/size per block with the fontWeight / textSize / lineHeight styleProps (headings default to 600).",
       "Structure every section as Section (full-width band; set bg + padding here) → Container (centres content) → the section’s blocks. Do not place bare content blocks at the page root.",
       "To put items SIDE BY SIDE, wrap them in a layout block — Grid or Columns for EQUAL-width columns, HFlex for a button/inline row OR an asymmetric split (give each child a `width` styleProp; flex honours it, equal grid tracks do not). Sibling blocks with no layout parent stack vertically.",
       "Prefer the purpose-built block over composing from scratch: Reviews for testimonials, Accordion for FAQ, Slider/Carousel for hero or rotating strips, ProductList for products.",
@@ -14,6 +16,14 @@
       "Nest children INSIDE props, keyed by the slot name (see each block’s \"slots\") — never in a top-level \"content\" on a child block; only the document root uses a top-level content array."
     ],
     "recipes": [
+      {
+        "section": "Brand setup (do this FIRST, before any section)",
+        "blocks": [
+          "get_appearance",
+          "set_appearance(primaryColor, secondaryColor, fontFamily, savedColors)"
+        ],
+        "note": "Extract the design’s palette + typeface and apply them with set_appearance BEFORE composing. primary/secondary drive every CTA and product button; savedColors (bg, ink, accent, surface) become var(--color-<slug>) for use in any block’s bg/textColor/borderColor. Skipping this ships the default purple CTAs — the #1 reason a build looks off-brand."
+      },
       {
         "section": "Hero",
         "blocks": [
@@ -31,7 +41,7 @@
           "Grid(columns:4)",
           "per cell: VFlex(Icon + Heading + Paragraph)"
         ],
-        "note": "A single Grid with 3–4 columns; each cell a VFlex of an Icon (set its \"name\"), a short Heading and a line of Paragraph. Use Icon for the glyphs — do not skip them."
+        "note": "A single Grid with 3–4 columns; each cell a VFlex of an Icon, a short Heading and a line of Paragraph. Set each Icon’s \"name\" to a curated key and give it a textColor matching the design’s icon/accent colour (e.g. var(--color-accent) or the brand primary) — do not default to emoji. Use Icon for the glyphs; do not skip them."
       },
       {
         "section": "Feature grid / how it works",
@@ -79,7 +89,7 @@
           "Heading",
           "Button"
         ],
-        "note": "A coloured Section band with a heading and one CTA button."
+        "note": "A coloured Section band with a heading and one CTA button. Set the Section bg to the design’s band colour — usually var(--primary) or a saved colour — and make sure the Button reads against it (variant:\"primary\", or variant:\"custom\" with bg+textColor to match the design exactly)."
       },
       {
         "section": "Gallery",
@@ -326,6 +336,10 @@
             {
               "label": "Outline",
               "value": "outline"
+            },
+            {
+              "label": "Custom (use bg/text colour)",
+              "value": "custom"
             }
           ]
         }
@@ -335,7 +349,7 @@
         "href": "#",
         "variant": "primary"
       },
-      "useFor": "A call-to-action link. Group a primary + secondary CTA inside an HFlex to place them side by side.",
+      "useFor": "A call-to-action link. variant:\"primary\"/\"secondary\" follow the SITE THEME colours (default purple until you set_appearance); \"outline\" is bordered; \"custom\" drops the theme colours so you set the exact design colour with the bg + textColor (+ borderRadius/padding) styleProps. Group a primary + secondary CTA inside an HFlex to place them side by side.",
       "styleProps": [
         "padding",
         "margin",
