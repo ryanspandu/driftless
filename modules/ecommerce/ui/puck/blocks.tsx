@@ -65,6 +65,9 @@ export default {
       label: 'Product List',
       fields: {
         heading: { type: 'text', label: 'Heading' },
+        subheading: { type: 'textarea', label: 'Sub-heading (right of the heading)' },
+        ctaLabel: { type: 'text', label: 'Header link label (e.g. View all)' },
+        ctaHref: { type: 'text', label: 'Header link URL' },
         source: {
           type: 'object',
           label: 'Products',
@@ -98,10 +101,26 @@ export default {
         },
         ...styleFields,
       },
-      defaultProps: { heading: '', source: {}, limit: 8, columns: '3' },
-      render: ({ heading, source, limit, columns, ...s }) => (
+      defaultProps: {
+        heading: '',
+        subheading: '',
+        ctaLabel: '',
+        ctaHref: '',
+        source: {},
+        limit: 8,
+        columns: '3',
+      },
+      render: ({ heading, subheading, ctaLabel, ctaHref, source, limit, columns, ...s }) => (
         <Box s={s}>
-          <ProductList heading={heading} source={source} limit={limit} columns={columns} />
+          <ProductList
+            heading={heading}
+            subheading={subheading}
+            ctaLabel={ctaLabel}
+            ctaHref={ctaHref}
+            source={source}
+            limit={limit}
+            columns={columns}
+          />
         </Box>
       ),
     },

@@ -155,7 +155,11 @@ export function ProductCard({
 
         <div className="flex items-baseline gap-2">
           {product.priceFrom ? (
-            <span className="text-sm tabular-nums">{product.priceFrom.formatted}</span>
+            <span
+              className={`text-sm tabular-nums ${compareAt ? 'font-semibold text-red-600' : ''}`}
+            >
+              {product.priceFrom.formatted}
+            </span>
           ) : null}
           {compareAt ? (
             <span className="text-xs tabular-nums text-muted-foreground line-through">
@@ -242,11 +246,17 @@ export function ProductList({
   limit,
   columns,
   heading,
+  subheading,
+  ctaLabel,
+  ctaHref,
 }: {
   source?: ProductSource
   limit?: number
   columns?: string
   heading?: string
+  subheading?: string
+  ctaLabel?: string
+  ctaHref?: string
 }) {
   const resolved = useMemo(
     () => ({
@@ -326,9 +336,45 @@ export function ProductList({
     )
   }
 
+  const hasCta = Boolean(ctaLabel && ctaHref)
+  const hasHeader = Boolean(heading || subheading || hasCta)
+
   return (
-    <div className="space-y-4">
-      {heading ? <h2 className="text-xl font-semibold tracking-tight">{heading}</h2> : null}
+    <div className="space-y-6">
+      {hasHeader ? (
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          {heading ? (
+            <h2 className="text-2xl font-semibold tracking-tight">{heading}</h2>
+          ) : (
+            <span />
+          )}
+          {subheading || hasCta ? (
+            <div className="flex max-w-md flex-col items-end gap-2 text-right">
+              {subheading ? <p className="text-sm text-muted-foreground">{subheading}</p> : null}
+              {hasCta ? (
+                <a
+                  href={ctaHref}
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-4 py-1.5 text-sm font-medium transition-colors hover:border-foreground hover:bg-foreground hover:text-background"
+                >
+                  {ctaLabel}
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="size-3.5"
+                    aria-hidden
+                  >
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <div className={`grid grid-cols-1 gap-6 ${COLUMN_CLASS[columns ?? '3']}`}>
         {products.map((product) => (
           <ProductCard key={product.id} product={product} liveAvailability={live} />
@@ -458,7 +504,11 @@ export function ProductDetail({ slug, editing }: { slug?: string; editing?: bool
         </div>
 
         <div className="flex items-baseline gap-3">
-          <span className="text-xl tabular-nums">{selected?.price.formatted}</span>
+          <span
+            className={`text-xl tabular-nums ${selected?.compareAt ? 'font-semibold text-red-600' : ''}`}
+          >
+            {selected?.price.formatted}
+          </span>
           {selected?.compareAt ? (
             <span className="tabular-nums text-muted-foreground line-through">
               {selected.compareAt.formatted}
