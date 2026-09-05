@@ -53,8 +53,8 @@ Settings → API tokens — with the abilities the work needs:
 | `builder:collections`    | create/update/delete collections + fields                    | `cms:manage`                 |
 | `builder:pages`          | create/update/publish pages                                  | `page:*`                     |
 | `builder:templates`      | create/update templates                                      | `template:*`                 |
-| `builder:settings`       | appearance, breakpoints, global code                         | `settings:manage`            |
-| `builder:media`          | upload media                                                 | `media:manage`               |
+| `builder:settings`       | write appearance, breakpoints, global code                   | `settings:manage`            |
+| `builder:media`          | upload / crop / edit media                                   | `media:manage`               |
 | `builder:products`       | create/update/delete products, variants, categories          | `ecommerce:products:manage`  |
 | `cms:read` / `cms:write` | list/create/update/delete **records** (reuses `/api/v1/cms`) | `cms:<collection>:*`         |
 
@@ -80,12 +80,17 @@ issues }`.
 | `POST /pages` · `PUT /pages/:id`                                                                   | `builder:pages`                  | `content` validated against the catalog   |
 | `PUT /pages/:id/content`                                                                           | `builder:pages`                  | stages a draft (like autosave)            |
 | `POST /pages/:id/publish`                                                                          | `builder:pages`                  | promotes the draft, or explicit `content` |
-| `POST /pages/validate`                                                                             | `builder:read`                   | validate a doc **without** writing        |
+| `POST /pages/validate`                                                                             | `builder:read`                   | validate a doc **without** writing; returns `issues` + `warnings` |
 | `POST /pages/:id/discard-draft`                                                                    | `builder:pages`                  |                                           |
+| `POST /pages/:id/preview-token`                                                                    | `builder:pages`                  | no-login draft preview `{ token, url }`   |
+| `PUT /pages/:id/brief`                                                                             | `builder:pages`                  | store the structured design brief         |
+| `GET /pages/:id/coverage`                                                                          | `builder:read`                   | brief-vs-build fidelity report            |
 | `GET /templates` · `GET /templates/:id`                                                            | `builder:read`                   |                                           |
 | `POST /templates` · `PUT /templates/:id` · `DELETE /templates/:id` · `POST /templates/:id/default` | `builder:templates`              |                                           |
-| `PUT /appearance` · `PUT /breakpoints` · `PUT /global-code`                                        | `builder:settings`               |                                           |
-| `GET /media` · `POST /media` (multipart `file`)                                                    | `builder:read` / `builder:media` |                                           |
+| `GET /appearance`                                                                                  | `builder:read`                   | theme + EFFECTIVE colours                 |
+| `PUT /appearance` · `PUT /breakpoints` · `PUT /global-code`                                        | `builder:settings`               | appearance validated on write (422 + `issues`) |
+| `GET /media` · `POST /media` (multipart `file`)                                                    | `builder:read` / `builder:media` | upload records provenance (origin/sourceUrl) |
+| `POST /media/:id/crop` · `PATCH /media/:id`                                                        | `builder:media`                  | crop a region into a new asset; edit meta |
 | `GET /products` · `GET /products/:id` · `GET /categories`                                          | `builder:read`                   | needs the `ecommerce` module              |
 | `POST /products` · `PUT\|DELETE /products/:id`                                                     | `builder:products`               | `price` (minor units) auto-adds a variant |
 | `POST /products/:id/variants` · `PUT\|DELETE /variants/:variantId`                                 | `builder:products`               |                                           |
@@ -149,9 +154,19 @@ The fastest path is the **admin page**: `/admin/mcp` → **Connect**. It shows
 copy-ready config for Claude and Codex with this site's URL already filled in;
 create a token there and paste it in. The rest of this section is the detail
 behind that modal. Either connection exposes the same tool set, which maps 1:1
-to the API and steers the flow: `get_block_catalog` → `create_collection` /
-`add_field` → `create_page` → `set_page_content` → `validate_page_content` →
-`publish_page`.
+to the API. The server ships `instructions` that mandate the design-fidelity
+loop for reproducing a reference:
+
+`get_block_catalog` (read the live `theme`) → `upload_media(purpose:"reference")`
+→ `set_appearance` (the design's palette + fonts) → asset inventory
+(`crop_media` the reference's own photos / `upload_media` supplied files — never
+stock placeholders) → `set_design_brief` → `create_page` / `set_page_content` →
+`validate_page_content` (issues + warnings) + `check_design_coverage` (fix every
+missing section / off-brand CTA / emoji icon / substituted image) →
+`get_preview_url` → `publish_page` → report residual mismatches.
+
+The plain build flow without a reference is just `get_block_catalog` →
+`create_page` → `set_page_content` → `validate_page_content` → `publish_page`.
 
 For a **store** (needs the `ecommerce` module — confirm it appears in the
 catalog's `enabledModules`): `get_block_catalog` → `create_category` (optional) →
