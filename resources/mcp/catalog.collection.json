@@ -1,6 +1,6 @@
 {
   "target": "collection",
-  "generatedAt": "2026-09-05T08:53:13.657Z",
+  "generatedAt": "2026-09-05T09:03:39.596Z",
   "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] } — only the ROOT uses a top-level \"content\" array. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children INSIDE props, keyed by the slot name (see each block's \"slots\") — e.g. { type: \"Section\", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a top-level \"content\" on the block (a sibling of props) — that renders EMPTY. Every block also accepts the shared \"styleProps\" — each is a plain CSS string value (e.g. padding: \"16px 24px\", bg: \"#ffffff\", textColor: \"#111827\", borderRadius: \"8px\"); object/number shapes are dropped on render. A field with type \"object\" documents its shape under \"objectFields\"; a field with type \"array\" documents each item's shape under \"arrayFields\" (+ \"defaultItemProps\" as an example). Each block's \"defaultProps\" is a ready-to-use worked example of valid props. Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled — see the catalog's \"enabledModules\" and prefer core blocks unless the site uses that module.",
   "guidance": {
     "rules": [
@@ -1341,6 +1341,173 @@
       ]
     },
     {
+      "type": "Icon",
+      "label": "Icon",
+      "category": "Basic",
+      "module": null,
+      "slots": [],
+      "fields": {
+        "name": {
+          "type": "select",
+          "label": "Icon",
+          "options": [
+            {
+              "label": "palette",
+              "value": "palette"
+            },
+            {
+              "label": "blocks",
+              "value": "blocks"
+            },
+            {
+              "label": "layers",
+              "value": "layers"
+            },
+            {
+              "label": "boxes",
+              "value": "boxes"
+            },
+            {
+              "label": "truck",
+              "value": "truck"
+            },
+            {
+              "label": "package",
+              "value": "package"
+            },
+            {
+              "label": "shield-check",
+              "value": "shield-check"
+            },
+            {
+              "label": "shield",
+              "value": "shield"
+            },
+            {
+              "label": "badge-check",
+              "value": "badge-check"
+            },
+            {
+              "label": "check",
+              "value": "check"
+            },
+            {
+              "label": "star",
+              "value": "star"
+            },
+            {
+              "label": "heart",
+              "value": "heart"
+            },
+            {
+              "label": "thumbs-up",
+              "value": "thumbs-up"
+            },
+            {
+              "label": "award",
+              "value": "award"
+            },
+            {
+              "label": "leaf",
+              "value": "leaf"
+            },
+            {
+              "label": "recycle",
+              "value": "recycle"
+            },
+            {
+              "label": "ruler",
+              "value": "ruler"
+            },
+            {
+              "label": "wrench",
+              "value": "wrench"
+            },
+            {
+              "label": "hammer",
+              "value": "hammer"
+            },
+            {
+              "label": "sofa",
+              "value": "sofa"
+            },
+            {
+              "label": "home",
+              "value": "home"
+            },
+            {
+              "label": "clock",
+              "value": "clock"
+            },
+            {
+              "label": "lock",
+              "value": "lock"
+            },
+            {
+              "label": "sparkles",
+              "value": "sparkles"
+            },
+            {
+              "label": "zap",
+              "value": "zap"
+            },
+            {
+              "label": "gift",
+              "value": "gift"
+            },
+            {
+              "label": "rotate-ccw",
+              "value": "rotate-ccw"
+            },
+            {
+              "label": "globe",
+              "value": "globe"
+            },
+            {
+              "label": "feather",
+              "value": "feather"
+            },
+            {
+              "label": "wind",
+              "value": "wind"
+            },
+            {
+              "label": "tag",
+              "value": "tag"
+            }
+          ]
+        },
+        "size": {
+          "type": "text",
+          "label": "Size (px)"
+        }
+      },
+      "defaultProps": {
+        "name": "star",
+        "size": "28px"
+      },
+      "useFor": "A single line-icon. Use for trust-bar / feature glyphs — set \"name\" (see this block's field options for the valid keys, e.g. palette, truck, shield-check, leaf) and colour it with the textColor styleProp.",
+      "styleProps": [
+        "padding",
+        "margin",
+        "maxWidth",
+        "width",
+        "minHeight",
+        "textSize",
+        "fontWeight",
+        "lineHeight",
+        "font",
+        "textColor",
+        "align",
+        "bg",
+        "borderWidth",
+        "borderColor",
+        "borderRadius",
+        "boxShadow",
+        "className"
+      ]
+    },
+    {
       "type": "Image",
       "label": "Image",
       "category": "Media",
@@ -2537,6 +2704,20 @@
             }
           ]
         },
+        "layout": {
+          "type": "radio",
+          "label": "Layout",
+          "options": [
+            {
+              "label": "Grid",
+              "value": "grid"
+            },
+            {
+              "label": "Carousel (slider)",
+              "value": "carousel"
+            }
+          ]
+        },
         "reviews": {
           "type": "array",
           "label": "Reviews",
@@ -2597,6 +2778,7 @@
         "heading": "What our customers say",
         "columns": "3",
         "showAggregate": "true",
+        "layout": "grid",
         "reviews": [
           {
             "author": "Alex Doe",
@@ -2621,7 +2803,7 @@
           }
         ]
       },
-      "useFor": "Testimonials as rating cards (author, rating, text, avatar). Use for a \"what customers say\" section — do NOT hand-build testimonial cards.",
+      "useFor": "Testimonials as rating cards (author, rating, text, avatar). Use for a \"what customers say\" section — do NOT hand-build testimonial cards. Set layout:\"carousel\" for a horizontal slider of cards (vs the default \"grid\").",
       "styleProps": [
         "padding",
         "margin",

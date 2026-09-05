@@ -870,6 +870,26 @@ html.dark [class*='_Button_']:not([class*='--secondary']) {
   }
 }
 
+/* Reviews block — carousel/slider layout: a horizontal scroll-snap track that
+   shows `--rv-cols` cards per view and scrolls to the rest (peeks on mobile). */
+.reviews-carousel {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+}
+.reviews-carousel > * {
+  flex: 0 0 calc((100% - (var(--rv-cols, 3) - 1) * 1rem) / var(--rv-cols, 3));
+  scroll-snap-align: start;
+}
+@media (max-width: 768px) {
+  .reviews-carousel > * {
+    flex-basis: 82%;
+  }
+}
+
 /*
  * CSP fallback for react-select's screen-reader live region.
  *

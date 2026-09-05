@@ -16,6 +16,8 @@ import {
   AccordionView,
   CarouselView,
   DropdownView,
+  IconView,
+  ICON_NAMES,
   LightboxView,
   NavbarView,
   ReviewsView,
@@ -254,7 +256,7 @@ export const baseConfig: Config = {
     },
     basic: {
       title: 'Basic',
-      components: ['DivBlock', 'List', 'ListItem', 'LinkBlock', 'Button'],
+      components: ['DivBlock', 'List', 'ListItem', 'LinkBlock', 'Button', 'Icon'],
     },
     typography: {
       title: 'Typography',
@@ -1873,6 +1875,14 @@ export const baseConfig: Config = {
             { label: 'No', value: 'false' },
           ],
         },
+        layout: {
+          type: 'radio',
+          label: 'Layout',
+          options: [
+            { label: 'Grid', value: 'grid' },
+            { label: 'Carousel (slider)', value: 'carousel' },
+          ],
+        },
         reviews: {
           type: 'array',
           label: 'Reviews',
@@ -1898,6 +1908,7 @@ export const baseConfig: Config = {
         heading: 'What our customers say',
         columns: '3',
         showAggregate: 'true',
+        layout: 'grid',
         reviews: [
           {
             author: 'Alex Doe',
@@ -1923,6 +1934,22 @@ export const baseConfig: Config = {
         ],
       },
       render: (props) => <ReviewsView {...props} />,
+    },
+
+    Icon: {
+      label: 'Icon',
+      fields: {
+        name: {
+          type: 'select',
+          label: 'Icon',
+          options: ICON_NAMES.map((n) => ({ label: n, value: n })),
+        },
+        size: { type: 'text', label: 'Size (px)' },
+        ...styleFields,
+      },
+      // Colour comes from `textColor` (the icon strokes in currentColor).
+      defaultProps: { name: 'star', size: '28px' },
+      render: (props) => <IconView {...props} />,
     },
 
     Accordion: {

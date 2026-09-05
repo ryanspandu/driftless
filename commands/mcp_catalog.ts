@@ -81,7 +81,8 @@ const BLOCK_HINTS: Record<string, string> = {
   Slider: 'A full-bleed rotating hero (one slide at a time). Use for a hero banner carousel.',
   Carousel: 'A multi-per-view sliding track. Use for logo strips or a row of scrolling cards.',
   Reviews:
-    'Testimonials as rating cards (author, rating, text, avatar). Use for a "what customers say" section — do NOT hand-build testimonial cards.',
+    'Testimonials as rating cards (author, rating, text, avatar). Use for a "what customers say" section — do NOT hand-build testimonial cards. Set layout:"carousel" for a horizontal slider of cards (vs the default "grid").',
+  Icon: 'A single line-icon. Use for trust-bar / feature glyphs — set "name" (see this block\'s field options for the valid keys, e.g. palette, truck, shield-check, leaf) and colour it with the textColor styleProp.',
   Accordion: 'An expandable question/answer list. Use for any FAQ or "common questions" section.',
   Tabs: 'Tabbed content panels for switching between related bodies of content.',
   CollectionList:
@@ -110,13 +111,22 @@ const GUIDANCE_RULES: string[] = [
 const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string }> = [
   {
     section: 'Hero',
-    blocks: ['Section', 'Container', 'Heading', 'Paragraph', 'HFlex(Button, Button)'],
-    note: 'Big title + sub-copy + a primary/secondary CTA row (HFlex). Add a Slider or Image alongside for a visual.',
+    blocks: [
+      'Section',
+      'Container',
+      'HFlex( VFlex(Heading, Paragraph, HFlex(Button,Button)) , Image )',
+    ],
+    note: "Usually two columns via HFlex with child widths: a left VFlex (copy + CTA row) and a right Image (or Slider). If the design shows extra hero media — a small video/thumbnail card — add an Image/Video for it in the position shown; match the design's column split and where each piece sits rather than assuming text-left/image-right.",
   },
   {
     section: 'Trust bar / logos / stats',
-    blocks: ['Section', 'Container', 'Grid(columns:4)', 'Image or Text ×N'],
-    note: 'A single Grid with 3–4 columns holding logos or short stat blocks.',
+    blocks: [
+      'Section',
+      'Container',
+      'Grid(columns:4)',
+      'per cell: VFlex(Icon + Heading + Paragraph)',
+    ],
+    note: 'A single Grid with 3–4 columns; each cell a VFlex of an Icon (set its "name"), a short Heading and a line of Paragraph. Use Icon for the glyphs — do not skip them.',
   },
   {
     section: 'Feature grid / how it works',
@@ -136,7 +146,7 @@ const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string 
   {
     section: 'Testimonials',
     blocks: ['Section', 'Container', 'Reviews(columns:3)'],
-    note: 'Reviews renders the rating cards; fill its "reviews" array.',
+    note: 'Reviews renders the rating cards; fill its "reviews" array. If the design shows a slider/carousel of testimonials, set the Reviews block layout:"carousel" (do NOT wrap it in a Carousel).',
   },
   {
     section: 'FAQ',

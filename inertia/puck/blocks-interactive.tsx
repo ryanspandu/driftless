@@ -1,7 +1,96 @@
 import { useEffect, useRef, useState, type ComponentType, type CSSProperties } from 'react'
-import { ChevronDown, Star } from 'lucide-react'
+import {
+  Award,
+  BadgeCheck,
+  Blocks,
+  Boxes,
+  ChevronDown,
+  CircleCheck,
+  Clock,
+  Feather,
+  Gift,
+  Globe,
+  Hammer,
+  Heart,
+  House,
+  Layers,
+  Leaf,
+  Lock,
+  Package,
+  Palette,
+  Recycle,
+  RotateCcw,
+  Ruler,
+  Shield,
+  ShieldCheck,
+  Sofa,
+  Sparkles,
+  Star,
+  Tag,
+  ThumbsUp,
+  Truck,
+  Wind,
+  Wrench,
+  Zap,
+} from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { Box } from './style-fields'
+
+/**
+ * Curated icon set for the `Icon` block — enough to dress a trust bar, a feature
+ * row or a stat without shipping all of lucide. Keyed by a stable kebab name the
+ * MCP catalog can enumerate; unknown names fall back to a star.
+ */
+const ICONS: Record<string, ComponentType<{ size?: number | string; strokeWidth?: number }>> = {
+  'palette': Palette,
+  'blocks': Blocks,
+  'layers': Layers,
+  'boxes': Boxes,
+  'truck': Truck,
+  'package': Package,
+  'shield-check': ShieldCheck,
+  'shield': Shield,
+  'badge-check': BadgeCheck,
+  'check': CircleCheck,
+  'star': Star,
+  'heart': Heart,
+  'thumbs-up': ThumbsUp,
+  'award': Award,
+  'leaf': Leaf,
+  'recycle': Recycle,
+  'ruler': Ruler,
+  'wrench': Wrench,
+  'hammer': Hammer,
+  'sofa': Sofa,
+  'home': House,
+  'clock': Clock,
+  'lock': Lock,
+  'sparkles': Sparkles,
+  'zap': Zap,
+  'gift': Gift,
+  'rotate-ccw': RotateCcw,
+  'globe': Globe,
+  'feather': Feather,
+  'wind': Wind,
+  'tag': Tag,
+}
+
+/** The icon keys the catalog advertises, so an AI knows the valid `name` values. */
+export const ICON_NAMES = Object.keys(ICONS)
+
+/**
+ * A single line-icon (lucide). Colour comes from the surrounding `textColor`
+ * (icons stroke in `currentColor`); `size` is a px string. SSR-safe, no hooks.
+ */
+export function IconView({ name, size, ...s }: { name?: string; size?: string } & StyleBag) {
+  const Cmp = ICONS[(name || '').trim()] ?? Star
+  const px = typeof size === 'string' && size.trim() ? Number.parseInt(size, 10) || 28 : 28
+  return (
+    <Box s={s}>
+      <Cmp size={px} strokeWidth={1.75} />
+    </Box>
+  )
+}
 
 /**
  * Interactive Advanced blocks (Dropdown, Lightbox, Navbar, Slider, Tabs). Defined
@@ -374,12 +463,14 @@ export function ReviewsView({
   columns,
   heading,
   showAggregate,
+  layout,
   ...s
 }: {
   reviews?: unknown
   columns?: string
   heading?: string
   showAggregate?: string
+  layout?: string
 } & StyleBag) {
   const items = (Array.isArray(reviews) ? reviews : []) as Review[]
   if (!items.length) {
@@ -390,6 +481,9 @@ export function ReviewsView({
     )
   }
   const cols = Math.max(1, Math.min(4, Number(columns) || 3))
+  // 'carousel' lays the same cards in a horizontal scroll-snap track (a slider);
+  // 'grid' (default) is the static responsive grid.
+  const trackClass = layout === 'carousel' ? 'reviews-carousel' : 'reviews-grid'
   const ratingOf = (r: Review) => Math.max(0, Math.min(5, Math.round(Number(r.rating) || 0)))
   const avg = items.reduce((sum, r) => sum + ratingOf(r), 0) / items.length
 
@@ -408,7 +502,7 @@ export function ReviewsView({
           ) : null}
         </div>
       ) : null}
-      <div className="reviews-grid" style={{ '--rv-cols': String(cols) } as CSSProperties}>
+      <div className={trackClass} style={{ '--rv-cols': String(cols) } as CSSProperties}>
         {items.map((r, i) => (
           <div
             key={i}
@@ -463,7 +557,10 @@ export function AccordionView({
       {heading ? <h2 className="mb-4 text-2xl font-semibold">{heading}</h2> : null}
       <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
         {list.map((it, i) => (
-          <details key={i} className="pk-accordion group px-4 [&_summary::-webkit-details-marker]:hidden">
+          <details
+            key={i}
+            className="pk-accordion group px-4 [&_summary::-webkit-details-marker]:hidden"
+          >
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-base font-medium">
               <span>{it.question || `Question ${i + 1}`}</span>
               <ChevronDown className="size-5 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
