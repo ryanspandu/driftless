@@ -82,7 +82,7 @@ const BLOCK_HINTS: Record<string, string> = {
   Carousel: 'A multi-per-view sliding track. Use for logo strips or a row of scrolling cards.',
   Reviews:
     'Testimonials as rating cards (author, rating, text, avatar). Use for a "what customers say" section — do NOT hand-build testimonial cards. Set layout:"carousel" for a horizontal slider of cards (vs the default "grid").',
-  Icon: 'A single icon for trust-bar / feature glyphs. Set "name" to a curated key (see this block\'s field options, e.g. palette, truck, shield-check, leaf) for a monochrome line-icon coloured by the textColor styleProp — OR to an EMOJI (e.g. "🎨", "🧩", "📦", "⏱️") for a full-colour glyph, which is often how a design\'s colourful icons are best matched.',
+  Icon: 'A single icon for trust-bar / feature glyphs. Match the design in FIDELITY ORDER: (1) if the design’s icons are visible in a reference image, crop_media them and set the Icon `src` to the crop url; (2) if you have the icon files, upload_media them and set `src`; (3) otherwise set "name" to the closest curated key (e.g. palette, truck, shield-check, leaf) and colour it with the `textColor` styleProp = the design’s icon/accent colour (for a tinted badge add bg + borderRadius:"999px" + padding). Use an EMOJI only when the design literally shows emoji, and report it as a substitution. `src` overrides `name`.',
   Accordion: 'An expandable question/answer list. Use for any FAQ or "common questions" section.',
   Tabs: 'Tabbed content panels for switching between related bodies of content.',
   CollectionList:
@@ -175,6 +175,16 @@ const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string 
     section: 'Gallery',
     blocks: ['Section', 'Container', 'Grid or Carousel', 'Image ×N'],
     note: 'Grid for a static gallery, Carousel for a scrolling one.',
+  },
+  {
+    section: 'Media card with a play button ("How it works" / video thumbnail)',
+    blocks: ['VFlex', 'Icon(name:"circle-play") + Paragraph(caption)'],
+    note: 'A VFlex with the design’s image as a `backgrounds` image layer, a `minHeight`, alignItems:"center" and justifyContent:"center"; inside it an Icon name:"circle-play" (or "play", coloured white via textColor, on a translucent circular badge with bg + borderRadius:"999px" + padding) and an optional Paragraph caption. Crop the thumbnail out of the reference with crop_media — do not use a raw stock photo.',
+  },
+  {
+    section: 'Dark image tiles with a caption ("See it styled")',
+    blocks: ['Section(bg:dark)', 'Container', 'Grid(columns:2-3)', 'per cell: VFlex + Paragraph'],
+    note: 'A dark Section; each Grid cell is a VFlex with the design’s photo as a `backgrounds` image layer, a minHeight, and a small Paragraph caption (light textColor) aligned bottom-left. NOTE: absolutely-positioned "+" hotspot markers pinned onto a photo are NOT expressible today — report that as a limitation rather than approximating it.',
   },
 ]
 

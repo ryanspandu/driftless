@@ -1953,10 +1953,22 @@ export const baseConfig: Config = {
           label: 'Icon',
           options: ICON_NAMES.map((n) => ({ label: n, value: n })),
         },
+        src: {
+          type: 'custom',
+          label: 'Custom icon image (overrides name)',
+          render: ({ value, onChange }) => (
+            <MediaField
+              value={typeof value === 'string' ? value : ''}
+              onChange={(url) => onChange((url || '') as never)}
+              onPick={(item) => onChange((item.url || '') as never)}
+            />
+          ),
+        },
         size: { type: 'text', label: 'Size (px)' },
         ...styleFields,
       },
-      // Colour comes from `textColor` (the icon strokes in currentColor).
+      // Colour comes from `textColor` (the icon strokes in currentColor); an
+      // uploaded `src` image overrides `name` for a design's own icon.
       defaultProps: { name: 'star', size: '28px' },
       render: (props) => <IconView {...props} />,
     },

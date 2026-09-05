@@ -13,11 +13,13 @@ import {
   Hammer,
   Heart,
   House,
+  CirclePlay,
   Layers,
   Leaf,
   Lock,
   Package,
   Palette,
+  Play,
   Recycle,
   RotateCcw,
   Ruler,
@@ -73,20 +75,42 @@ const ICONS: Record<string, ComponentType<{ size?: number | string; strokeWidth?
   'feather': Feather,
   'wind': Wind,
   'tag': Tag,
+  'play': Play,
+  'circle-play': CirclePlay,
 }
 
 /** The icon keys the catalog advertises, so an AI knows the valid `name` values. */
 export const ICON_NAMES = Object.keys(ICONS)
 
 /**
- * A single icon. `name` is either a curated lucide key (a monochrome line-icon
- * coloured by the surrounding `textColor`) OR an emoji, which renders as a
- * full-colour glyph — the way to get the colourful icons a lot of designs use.
- * `size` is a px string. SSR-safe, no hooks.
+ * A single icon. In fidelity order: an uploaded/cropped icon image via `src`
+ * (renders as an <img>, so a design's OWN icon can be used); else a curated
+ * lucide key `name` (a monochrome line-icon coloured by the surrounding
+ * `textColor`); else an emoji, which renders as a full-colour glyph. `size` is a
+ * px string. SSR-safe, no hooks.
  */
-export function IconView({ name, size, ...s }: { name?: string; size?: string } & StyleBag) {
+export function IconView({
+  name,
+  size,
+  src,
+  ...s
+}: { name?: string; size?: string; src?: string } & StyleBag) {
   const key = (name || '').trim()
   const px = typeof size === 'string' && size.trim() ? Number.parseInt(size, 10) || 28 : 28
+  const url = typeof src === 'string' ? src.trim() : ''
+  if (url) {
+    return (
+      <Box s={s}>
+        <img
+          src={url}
+          width={px}
+          height={px}
+          alt=""
+          style={{ display: 'block', objectFit: 'contain' }}
+        />
+      </Box>
+    )
+  }
   if (/\p{Extended_Pictographic}/u.test(key)) {
     return (
       <Box s={s}>

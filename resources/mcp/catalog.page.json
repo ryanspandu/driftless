@@ -1,6 +1,6 @@
 {
   "target": "page",
-  "generatedAt": "2026-09-05T14:24:47.192Z",
+  "generatedAt": "2026-09-05T14:33:57.405Z",
   "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] } — only the ROOT uses a top-level \"content\" array. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children INSIDE props, keyed by the slot name (see each block's \"slots\") — e.g. { type: \"Section\", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a top-level \"content\" on the block (a sibling of props) — that renders EMPTY. Every block also accepts the shared \"styleProps\" — each is a plain CSS string value (e.g. padding: \"16px 24px\", bg: \"#ffffff\", textColor: \"#111827\", borderRadius: \"8px\"); object/number shapes are dropped on render. A field with type \"object\" documents its shape under \"objectFields\"; a field with type \"array\" documents each item's shape under \"arrayFields\" (+ \"defaultItemProps\" as an example). Each block's \"defaultProps\" is a ready-to-use worked example of valid props. Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled — see the catalog's \"enabledModules\" and prefer core blocks unless the site uses that module.",
   "guidance": {
     "rules": [
@@ -109,6 +109,24 @@
           "Image ×N"
         ],
         "note": "Grid for a static gallery, Carousel for a scrolling one."
+      },
+      {
+        "section": "Media card with a play button (\"How it works\" / video thumbnail)",
+        "blocks": [
+          "VFlex",
+          "Icon(name:\"circle-play\") + Paragraph(caption)"
+        ],
+        "note": "A VFlex with the design’s image as a `backgrounds` image layer, a `minHeight`, alignItems:\"center\" and justifyContent:\"center\"; inside it an Icon name:\"circle-play\" (or \"play\", coloured white via textColor, on a translucent circular badge with bg + borderRadius:\"999px\" + padding) and an optional Paragraph caption. Crop the thumbnail out of the reference with crop_media — do not use a raw stock photo."
+      },
+      {
+        "section": "Dark image tiles with a caption (\"See it styled\")",
+        "blocks": [
+          "Section(bg:dark)",
+          "Container",
+          "Grid(columns:2-3)",
+          "per cell: VFlex + Paragraph"
+        ],
+        "note": "A dark Section; each Grid cell is a VFlex with the design’s photo as a `backgrounds` image layer, a minHeight, and a small Paragraph caption (light textColor) aligned bottom-left. NOTE: absolutely-positioned \"+\" hotspot markers pinned onto a photo are NOT expressible today — report that as a limitation rather than approximating it."
       }
     ]
   },
@@ -1852,8 +1870,20 @@
             {
               "label": "tag",
               "value": "tag"
+            },
+            {
+              "label": "play",
+              "value": "play"
+            },
+            {
+              "label": "circle-play",
+              "value": "circle-play"
             }
           ]
+        },
+        "src": {
+          "type": "custom",
+          "label": "Custom icon image (overrides name)"
         },
         "size": {
           "type": "text",
@@ -1864,7 +1894,7 @@
         "name": "star",
         "size": "28px"
       },
-      "useFor": "A single icon for trust-bar / feature glyphs. Set \"name\" to a curated key (see this block's field options, e.g. palette, truck, shield-check, leaf) for a monochrome line-icon coloured by the textColor styleProp — OR to an EMOJI (e.g. \"🎨\", \"🧩\", \"📦\", \"⏱️\") for a full-colour glyph, which is often how a design's colourful icons are best matched.",
+      "useFor": "A single icon for trust-bar / feature glyphs. Match the design in FIDELITY ORDER: (1) if the design’s icons are visible in a reference image, crop_media them and set the Icon `src` to the crop url; (2) if you have the icon files, upload_media them and set `src`; (3) otherwise set \"name\" to the closest curated key (e.g. palette, truck, shield-check, leaf) and colour it with the `textColor` styleProp = the design’s icon/accent colour (for a tinted badge add bg + borderRadius:\"999px\" + padding). Use an EMOJI only when the design literally shows emoji, and report it as a substitution. `src` overrides `name`.",
       "styleProps": [
         "padding",
         "margin",
