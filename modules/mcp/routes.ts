@@ -252,6 +252,14 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .post('/api/mcp/v1/media', [MediaCtrl, 'store'])
             .as('mcp.media.store')
             .use(read('builder:media'))
+          router
+            .post('/api/mcp/v1/media/:id/crop', [MediaCtrl, 'crop'])
+            .as('mcp.media.crop')
+            .use(read('builder:media'))
+          router
+            .patch('/api/mcp/v1/media/:id', [MediaCtrl, 'updateMeta'])
+            .as('mcp.media.update')
+            .use(read('builder:media'))
         })
         .use(middleware.permission({ resource: 'media' }))
 

@@ -40,6 +40,18 @@ export default class Media extends BaseModel {
   @column()
   declare authorId: number | null
 
+  /** Where the bytes came from: upload | url | crop | reference | placeholder. */
+  @column()
+  declare origin: string
+
+  /** The external URL fetched (origin='url'/'placeholder'), else null. */
+  @column()
+  declare sourceUrl: string | null
+
+  /** The media this was cropped from (origin='crop'), else null. */
+  @column()
+  declare sourceMediaId: string | null
+
   @column.dateTime()
   declare deletedAt: DateTime | null
 

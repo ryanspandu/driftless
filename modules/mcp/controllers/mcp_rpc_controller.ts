@@ -5,7 +5,13 @@ import env from '#start/env'
 import server from '@adonisjs/core/services/server'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
-import { registerTools, type ToolDeps } from '#modules/mcp/mcp_tools'
+import { registerTools, type ToolDeps, type UploadSource } from '#modules/mcp/mcp_tools'
+import {
+  assertFetchableImageUrl,
+  originForPath,
+  originForUrl,
+  MAX_MEDIA_BYTES,
+} from '#modules/mcp/services/image_url_guard'
 
 /**
  * In-app MCP endpoint (Phase 2, item #1).
@@ -117,23 +123,42 @@ export default class McpRpcController {
       return this.parseForwarded(res, `${method} ${path}`)
     }
 
-    const uploadMedia = async (source: { path?: string; url?: string }): Promise<unknown> => {
+    const uploadMedia = async (source: UploadSource): Promise<unknown> => {
       let bytes: Uint8Array
       let name: string
+      let mediaOrigin: string
+      let sourceUrl: string | null = null
       if (source.path) {
         bytes = await readFile(source.path)
         name = basename(source.path)
+        mediaOrigin = originForPath(source.purpose)
       } else if (source.url) {
-        const fetched = await fetch(source.url)
-        if (!fetched.ok) throw new Error(`Could not fetch ${source.url}: ${fetched.status}`)
+        // Reject placeholder hosts (unless purpose:"placeholder") and private
+        // network targets BEFORE fetching anything.
+        const { url, isPlaceholder } = assertFetchableImageUrl(source.url, source.purpose)
+        const fetched = await fetch(url)
+        if (!fetched.ok) throw new Error('Could not fetch that image URL.')
+        const ct = fetched.headers.get('content-type') ?? ''
+        if (!/^image\//i.test(ct)) {
+          throw new Error(`That URL did not return an image (content-type: ${ct || 'unknown'}).`)
+        }
+        const declared = Number(fetched.headers.get('content-length') ?? 0)
+        if (declared && declared > MAX_MEDIA_BYTES) throw new Error('Image exceeds the 25MB limit.')
         bytes = new Uint8Array(await fetched.arrayBuffer())
-        name = basename(new URL(source.url).pathname) || 'upload'
+        if (bytes.byteLength > MAX_MEDIA_BYTES) throw new Error('Image exceeds the 25MB limit.')
+        name = basename(url.pathname) || 'upload'
+        mediaOrigin = originForUrl(source.purpose, isPlaceholder)
+        sourceUrl = url.toString()
       } else {
         throw new Error('Provide either a local `path` or a `url` to upload.')
       }
       const form = new FormData()
       // Copy into a fresh ArrayBuffer-backed view so the Blob type is satisfied.
       form.append('file', new Blob([new Uint8Array(bytes)]), name)
+      form.append('origin', mediaOrigin)
+      if (sourceUrl) form.append('sourceUrl', sourceUrl)
+      if (source.alt) form.append('alt', source.alt)
+      if (source.title) form.append('title', source.title)
       const res = await fetch(`${origin}/api/mcp/v1/media`, {
         method: 'POST',
         headers: { Authorization: authorization },

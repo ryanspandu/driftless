@@ -38,10 +38,25 @@ export interface MediaDto {
   width: number | null
   height: number | null
   authorId: number | null
+  /** Where the bytes came from: upload | url | crop | reference | placeholder. */
+  origin: string
+  /** External URL fetched (origin url/placeholder), else null. */
+  sourceUrl: string | null
+  /** The media this was cropped from (origin crop), else null. */
+  sourceMediaId: string | null
   /** Responsive webp derivatives, ascending by width (empty for non-raster). */
   variants: MediaVariantDto[]
   createdAt: string
   updatedAt: string | null
+}
+
+/** Provenance metadata carried through an upload. */
+export interface MediaOriginMeta {
+  origin?: 'upload' | 'url' | 'crop' | 'reference' | 'placeholder'
+  sourceUrl?: string | null
+  sourceMediaId?: string | null
+  title?: string | null
+  alt?: string | null
 }
 
 /** Trim and collapse empty strings to null so metadata stays clean. */
@@ -121,11 +136,15 @@ export default class MediaService {
     search?: string
     dateFrom?: string
     dateTo?: string
+    origin?: string
   }): Promise<PaginatedMedia> {
     const page = Math.max(1, params.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20))
 
     const query = Media.query().whereNull('deleted_at')
+
+    const origin = params.origin?.trim()
+    if (origin) query.where('origin', origin)
 
     const search = params.search?.trim()
     if (search) {
@@ -284,7 +303,8 @@ export default class MediaService {
   async upload(
     file: MultipartFile,
     authorId: number | null,
-    dimensions?: { width: number | null; height: number | null }
+    dimensions?: { width: number | null; height: number | null },
+    meta?: MediaOriginMeta
   ): Promise<MediaDto> {
     if (!existsSync(this.uploadDir)) {
       mkdirSync(this.uploadDir, { recursive: true })
@@ -320,6 +340,10 @@ export default class MediaService {
       width: dimensions?.width ?? null,
       height: dimensions?.height ?? null,
       authorId,
+      origin: meta?.origin ?? 'upload',
+      sourceUrl: normalizeText(meta?.sourceUrl),
+      title: normalizeText(meta?.title),
+      alt: normalizeText(meta?.alt),
     })
 
     // Optimise raster images into responsive webp derivatives (best-effort).
@@ -383,6 +407,73 @@ export default class MediaService {
     if (RASTER_MIMES.has(media.mimeType)) {
       await this.generateVariants(media, join(this.uploadDir, media.filename))
     }
+    await media.load('variants')
+    return this.toDto(media)
+  }
+
+  /**
+   * Crop a rectangle out of an existing raster image into a BRAND-NEW media row
+   * (never overwrites the source — that's `replaceFile`). The whole point is to
+   * let an AI reuse a design reference's OWN photos: upload the mockup once, then
+   * crop the hero / thumbnail / product shots out of it as first-party assets
+   * instead of substituting random stock. Origin is recorded as 'crop' with a
+   * link back to the source. The rectangle is validated against the source's
+   * intrinsic size (metadata, not the stored width which may be null).
+   */
+  async cropToNew(
+    sourceId: string,
+    rect: { x: number; y: number; width: number; height: number; targetWidth?: number },
+    authorId: number | null,
+    meta?: { title?: string | null; alt?: string | null }
+  ): Promise<MediaDto> {
+    const source = await Media.query().where('id', sourceId).whereNull('deleted_at').firstOrFail()
+    if (!RASTER_MIMES.has(source.mimeType)) {
+      throw new Error('Can only crop a JPEG, PNG or WebP image')
+    }
+    const srcPath = this.resolveFilePath(source.filename)
+    if (!srcPath) throw new Error('Source image file is missing')
+
+    const dims = await sharp(srcPath).metadata()
+    const iw = dims.width ?? 0
+    const ih = dims.height ?? 0
+    const left = Math.round(rect.x)
+    const top = Math.round(rect.y)
+    const width = Math.round(rect.width)
+    const height = Math.round(rect.height)
+    if (![left, top, width, height].every((n) => Number.isFinite(n))) {
+      throw new Error('x, y, width and height must be numbers')
+    }
+    if (width < 1 || height < 1) throw new Error('Crop width and height must be at least 1px')
+    if (left < 0 || top < 0 || (iw && left + width > iw) || (ih && top + height > ih)) {
+      throw new Error(`Crop rectangle is outside the source image (${iw}×${ih})`)
+    }
+
+    if (!existsSync(this.uploadDir)) mkdirSync(this.uploadDir, { recursive: true })
+    const id = newUlid()
+    // Always emit a webp original for a crop — the source pixels are re-encoded
+    // regardless, and webp keeps the derivative pipeline uniform.
+    const filename = `${id}.webp`
+    let pipeline = sharp(srcPath).extract({ left, top, width, height })
+    if (rect.targetWidth && rect.targetWidth > 0 && rect.targetWidth < width) {
+      pipeline = pipeline.resize({ width: Math.round(rect.targetWidth) })
+    }
+    const info = await pipeline.webp({ quality: 82 }).toFile(join(this.uploadDir, filename))
+
+    const media = await Media.create({
+      id,
+      filename,
+      mimeType: 'image/webp',
+      size: info.size,
+      url: `${this.urlPrefix}/${filename}`,
+      width: info.width,
+      height: info.height,
+      authorId,
+      origin: 'crop',
+      sourceMediaId: source.id,
+      title: normalizeText(meta?.title),
+      alt: normalizeText(meta?.alt),
+    })
+    await this.generateVariants(media, join(this.uploadDir, filename))
     await media.load('variants')
     return this.toDto(media)
   }
@@ -467,6 +558,9 @@ export default class MediaService {
       width: media.width,
       height: media.height,
       authorId: media.authorId,
+      origin: media.origin ?? 'upload',
+      sourceUrl: media.sourceUrl ?? null,
+      sourceMediaId: media.sourceMediaId ?? null,
       variants,
       createdAt: media.createdAt.toISO()!,
       updatedAt: media.updatedAt?.toISO() ?? null,

@@ -444,17 +444,66 @@ server.tool(
 
 server.tool(
   'list_media',
-  'List already-uploaded media (images/files) — reuse an existing `url` instead of re-uploading.',
-  { page: z.number().optional(), pageSize: z.number().optional(), search: z.string().optional() },
-  ({ page, pageSize, search }) =>
-    run(() => api.get('/api/mcp/v1/media', { page, pageSize, search }))
+  'List already-uploaded media (images/files) — reuse an existing `url` instead of re-uploading. Filter by `origin` to find e.g. a design `reference` you uploaded or `placeholder` slots still needing real assets.',
+  {
+    page: z.number().optional(),
+    pageSize: z.number().optional(),
+    search: z.string().optional(),
+    origin: z
+      .enum(['upload', 'url', 'crop', 'reference', 'placeholder'])
+      .optional()
+      .describe('Filter by provenance.'),
+  },
+  ({ page, pageSize, search, origin }) =>
+    run(() => api.get('/api/mcp/v1/media', { page, pageSize, search, origin }))
 )
 
 server.tool(
   'upload_media',
-  'Upload an image/file from a local path or a URL. Returns the media record (its `url` is what you put in image blocks).',
-  { path: z.string().optional(), url: z.string().optional() },
-  ({ path, url }) => run(() => uploadMedia({ path, url }))
+  "Upload an image/file from a local path or a URL — the returned `url` is what you put in image blocks / product images. NEVER upload random stock or placeholder photos (picsum, loremflickr, unsplash-source, placehold.co, …) as brand/hero/product imagery — those hosts are rejected unless you pass purpose:\"placeholder\". To reuse a design's OWN photos, upload the reference image with purpose:\"reference\" then cut regions out with crop_media.",
+  {
+    path: z.string().optional().describe('A local file path (server-side).'),
+    url: z.string().optional().describe('A remote image URL to fetch and self-host.'),
+    purpose: z
+      .enum(['reference', 'brand', 'placeholder'])
+      .optional()
+      .describe('reference = a design mockup to crop from; brand = a real asset; placeholder = a labelled stand-in (the ONLY way to accept a placeholder-service URL).'),
+    alt: z.string().optional(),
+    title: z.string().optional(),
+  },
+  ({ path, url, purpose, alt, title }) => run(() => uploadMedia({ path, url, purpose, alt, title }))
+)
+
+server.tool(
+  'crop_media',
+  "Cut a rectangle out of an EXISTING image into a new first-party asset — the way to reuse a design reference's own photos (hero, thumbnail, product shots) instead of substituting stock. Coordinates are pixels in the source image's intrinsic resolution (list_media / upload_media report its width & height); the rectangle must sit inside it. Returns the new media record (use its `url`).",
+  {
+    mediaId: z.string().describe('The source media id (e.g. the uploaded reference).'),
+    x: z.number().describe('Left edge, px from the source image left.'),
+    y: z.number().describe('Top edge, px from the source image top.'),
+    width: z.number().describe('Crop width in px.'),
+    height: z.number().describe('Crop height in px.'),
+    targetWidth: z.number().optional().describe('Optionally downscale the crop to this width.'),
+    alt: z.string().optional(),
+    title: z.string().optional(),
+  },
+  ({ mediaId, x, y, width, height, targetWidth, alt, title }) =>
+    run(() =>
+      api.post(`/api/mcp/v1/media/${mediaId}/crop`, { x, y, width, height, targetWidth, alt, title })
+    )
+)
+
+server.tool(
+  'update_media',
+  'Set the alt text / title / description on an existing media asset.',
+  {
+    id: z.string(),
+    alt: z.string().nullable().optional(),
+    title: z.string().nullable().optional(),
+    description: z.string().nullable().optional(),
+  },
+  ({ id, alt, title, description }) =>
+    run(() => api.patch(`/api/mcp/v1/media/${id}`, { alt, title, description }))
 )
 
 // ── Commerce (products / variants / categories) ────────────────────────────────
