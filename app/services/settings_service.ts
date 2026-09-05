@@ -301,6 +301,25 @@ export interface PublicWebAppearance {
 }
 
 /** The public font + colour theme, already sanitised for direct CSS injection. */
+/**
+ * The colours a block renders with when the operator has set no override —
+ * mirrors the `--primary` / `--secondary` defaults in `inertia/css/app.css`.
+ * Kept here so `getAppearance` can tell an AI client what `variant:"primary"`
+ * resolves to on an unthemed site (the default purple), which is the thing that
+ * makes an un-themed CTA look off-brand.
+ */
+export const THEME_DEFAULTS = { primary: '#5225e6', secondary: 'oklch(0.97 0 0)' } as const
+
+/** The friendly appearance field names accepted by `setAppearanceValidated`. */
+export type AppearanceField =
+  | 'fontFamily'
+  | 'fontCssUrl'
+  | 'fontFaceUrl'
+  | 'fontCustomName'
+  | 'primaryColor'
+  | 'secondaryColor'
+  | 'savedColors'
+
 export interface PublicTheme {
   fontFamily: string
   fontCssUrl: string
@@ -314,13 +333,22 @@ export interface PublicTheme {
   savedColors: SavedColor[]
 }
 
-/** A CSS colour we are willing to inject: hex, a short safe keyword, or rgb()/rgba(). */
+/**
+ * A CSS colour we are willing to inject: hex, a short safe keyword, or a
+ * single-level CSS colour function — rgb/rgba/hsl/hsla/hwb/lab/lch/oklab/oklch/
+ * color, in either comma or modern space+slash syntax. The function args are
+ * restricted to a safe charset (digits, letters for `color(display-p3 …)`,
+ * `.`, `%`, `/`, `,`, sign and whitespace) and, crucially, contain no inner
+ * `(` — so `var(...)`, `url(...)`, `;`, `}` and quotes can never appear. That
+ * keeps the value injection-safe when dropped straight into a `--primary:…`
+ * declaration.
+ */
+const COLOR_FN = /^(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\([0-9a-zA-Z.,%/\s+-]{1,80}\)$/
 export function safeColor(value: string | undefined): string {
   const v = (value ?? '').trim()
   if (!v) return ''
   if (/^#[0-9a-fA-F]{3,8}$/.test(v)) return v
-  if (/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+)\s*)?\)$/.test(v))
-    return v
+  if (COLOR_FN.test(v)) return v
   if (/^[a-zA-Z]{3,20}$/.test(v)) return v // a colour keyword like "rebeccapurple"
   return ''
 }
@@ -502,6 +530,104 @@ export class WebSettingsService {
       secondaryColor: safeColor(t['secondary_color']),
       savedColors: sanitizeSavedColors(t['saved_colors']),
     }
+  }
+
+  /**
+   * The public theme plus the EFFECTIVE colours a block actually renders with:
+   * a `primary`/`secondary` that fall back to the app.css defaults when the
+   * operator has not overridden them. An AI client reads this before composing
+   * so it knows what `variant:"primary"` / product CTAs will look like (and
+   * whether it must call `setAppearance` to match a design's palette).
+   */
+  async getAppearance(): Promise<PublicTheme & { effective: { primary: string; secondary: string } }> {
+    const theme = await this.getPublicTheme()
+    return {
+      ...theme,
+      effective: {
+        primary: theme.primaryColor || THEME_DEFAULTS.primary,
+        secondary: theme.secondaryColor || THEME_DEFAULTS.secondary,
+      },
+    }
+  }
+
+  /**
+   * Validate an appearance patch BEFORE storing it, then apply it. Every field
+   * is optional and only touched when present; an empty string resets to the
+   * default (handled by `applyPatches`). A non-empty value that would be
+   * silently rejected by the read-time sanitisers (an unsupported colour format,
+   * a non-Google font URL, …) is returned as an issue instead — so the caller
+   * gets a 422 explaining why, rather than a 200 that leaves the site unchanged.
+   * On success returns the sanitised public theme (what will actually render).
+   */
+  async setAppearanceValidated(
+    input: Partial<Record<AppearanceField, unknown>>
+  ): Promise<
+    | { ok: true; theme: Awaited<ReturnType<WebSettingsService['getAppearance']>> }
+    | { ok: false; issues: Array<{ field: string; message: string }> }
+  > {
+    const issues: Array<{ field: string; message: string }> = []
+    const present = (f: AppearanceField): string | undefined =>
+      input[f] === undefined ? undefined : String(input[f] ?? '')
+
+    const checkColour = (f: AppearanceField) => {
+      const v = present(f)
+      if (v && !safeColor(v)) {
+        issues.push({
+          field: f,
+          message: `${f} must be a hex colour (#3a4a3e), an rgb()/hsl()/oklch() value, or a CSS colour keyword`,
+        })
+      }
+    }
+    checkColour('primaryColor')
+    checkColour('secondaryColor')
+
+    const fontFamily = present('fontFamily')
+    if (fontFamily && !safeFontFamily(fontFamily))
+      issues.push({ field: 'fontFamily', message: 'fontFamily may only contain letters, digits, spaces, _ and - (max 60 chars)' })
+    const fontCssUrl = present('fontCssUrl')
+    if (fontCssUrl && !safeFontUrl(fontCssUrl))
+      issues.push({ field: 'fontCssUrl', message: 'fontCssUrl must be a https://fonts.googleapis.com/… stylesheet href' })
+    const fontFaceUrl = present('fontFaceUrl')
+    if (fontFaceUrl && !safeFontFaceUrl(fontFaceUrl))
+      issues.push({ field: 'fontFaceUrl', message: 'fontFaceUrl must be a same-origin .woff2/.woff/.ttf/.otf path (upload it with upload_media first)' })
+    const fontCustomName = present('fontCustomName')
+    if (fontCustomName && !safeFontFamily(fontCustomName))
+      issues.push({ field: 'fontCustomName', message: 'fontCustomName may only contain letters, digits, spaces, _ and -' })
+
+    let savedColorsRaw: string | undefined
+    if (input.savedColors !== undefined) {
+      const arr = Array.isArray(input.savedColors) ? input.savedColors : []
+      arr.forEach((item, i) => {
+        const o = (item ?? {}) as Record<string, unknown>
+        const slug = typeof o.slug === 'string' ? o.slug.trim().toLowerCase() : ''
+        if (!/^[a-z0-9-]{1,40}$/.test(slug))
+          issues.push({ field: `savedColors[${i}].slug`, message: 'slug must match [a-z0-9-] (1–40 chars)' })
+        if (typeof o.value !== 'string' || !safeColor(o.value))
+          issues.push({ field: `savedColors[${i}].value`, message: 'value must be a valid CSS colour' })
+      })
+      savedColorsRaw = JSON.stringify(input.savedColors ?? [])
+    }
+
+    if (issues.length) return { ok: false, issues }
+
+    const map: Array<[AppearanceField, string]> = [
+      ['fontFamily', 'font_family'],
+      ['fontCssUrl', 'font_css_url'],
+      ['fontFaceUrl', 'font_face_url'],
+      ['fontCustomName', 'font_custom_name'],
+      ['primaryColor', 'primary_color'],
+      ['secondaryColor', 'secondary_color'],
+    ]
+    const patches: Array<{ section: string; key: string; value: string }> = []
+    for (const [field, key] of map) {
+      const v = present(field)
+      if (v !== undefined) patches.push({ section: 'theme', key, value: v })
+    }
+    if (savedColorsRaw !== undefined)
+      patches.push({ section: 'theme', key: 'saved_colors', value: savedColorsRaw })
+
+    await this.applyPatches(patches)
+    return { ok: true, theme: await this.getAppearance() }
   }
 
   /** Site-wide custom <meta> tags (used by the public render + appearance). */

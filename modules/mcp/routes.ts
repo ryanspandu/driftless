@@ -223,6 +223,10 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .group(() => {
           router
+            .get('/api/mcp/v1/appearance', [SettingsCtrl, 'getAppearance'])
+            .as('mcp.appearance.get')
+            .use(read('builder:read'))
+          router
             .put('/api/mcp/v1/appearance', [SettingsCtrl, 'setAppearance'])
             .as('mcp.appearance')
             .use(read('builder:settings'))

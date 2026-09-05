@@ -93,6 +93,22 @@ export interface Catalog {
    * a core block.
    */
   enabledModules?: string[]
+  /**
+   * The live public theme + EFFECTIVE colours (`variant:"primary"` resolves to
+   * `effective.primary`). Appended when the catalog is served, like
+   * `enabledModules`; never baked into the emitted file. Lets the AI match a
+   * design's palette (via set_appearance) instead of shipping the default purple.
+   */
+  theme?: {
+    fontFamily: string
+    fontCssUrl: string
+    fontFaceUrl: string
+    fontCustomName: string
+    primaryColor: string
+    secondaryColor: string
+    savedColors: Array<{ slug: string; name: string; value: string }>
+    effective: { primary: string; secondary: string }
+  }
 }
 
 export type CatalogTarget = 'page' | 'collection' | 'email'

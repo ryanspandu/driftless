@@ -387,17 +387,41 @@ server.tool(
 // ── Appearance + site config ───────────────────────────────────────────────────
 
 server.tool(
+  'get_appearance',
+  "Read the current public theme AND the EFFECTIVE colours a block renders with. `effective.primary` is what a Button variant:\"primary\", product CTAs, FormButton and cart/checkout render as — the default is purple #5225e6 on an un-themed site. Call this (or read `theme` in get_block_catalog) BEFORE composing so you can match a design's palette with set_appearance instead of shipping the default.",
+  {},
+  () => run(() => api.get('/api/mcp/v1/appearance'))
+)
+
+server.tool(
   'set_appearance',
-  'Set the public theme: font, primary/secondary colours, and named saved-colour variables. Only the fields you pass are changed.',
+  "Set the public theme: font, primary/secondary colours, and named saved-colour variables. Only the fields you pass are changed. Match a design's brand palette here FIRST — Button variant:\"primary\"/\"secondary\", product CTAs, FormButton and cart/checkout all render the theme colours. Values are validated: an unusable colour/font is rejected with 422 + issues (not silently ignored). Responds with the sanitised theme that will actually render.",
   {
-    fontFamily: z.string().optional(),
-    fontCssUrl: z.string().optional(),
-    primaryColor: z.string().optional(),
-    secondaryColor: z.string().optional(),
+    fontFamily: z
+      .string()
+      .optional()
+      .describe('Active font name: a Google family (with fontCssUrl) OR fontCustomName to activate an uploaded font. Letters/digits/spaces/_/- only.'),
+    fontCssUrl: z
+      .string()
+      .optional()
+      .describe('A https://fonts.googleapis.com/css2?family=… stylesheet href; fontFamily must be that family name.'),
+    fontFaceUrl: z
+      .string()
+      .optional()
+      .describe('Same-origin .woff2/.woff/.ttf/.otf path from upload_media; set fontFamily to fontCustomName to activate it.'),
+    fontCustomName: z
+      .string()
+      .optional()
+      .describe('Display name of the uploaded custom font (the @font-face family).'),
+    primaryColor: z
+      .string()
+      .optional()
+      .describe("Brand primary/CTA colour. Hex (#3a4a3e), rgb()/hsl()/oklch(), or a CSS keyword. Use the design's colour verbatim."),
+    secondaryColor: z.string().optional().describe('Brand secondary colour. Same formats as primaryColor.'),
     savedColors: z
       .array(z.object({ slug: z.string(), name: z.string(), value: z.string() }))
       .optional()
-      .describe('Named colour variables, published as var(--color-<slug>).'),
+      .describe("Named colour variables (bg, ink, accent, surface, …), published as var(--color-<slug>) — reference them in any block's bg/textColor/borderColor."),
   },
   (args) => run(() => api.put('/api/mcp/v1/appearance', args))
 )

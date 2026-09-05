@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { loadCatalog, type CatalogTarget } from '#modules/mcp/services/block_catalog'
 import ModulesService from '#services/modules_service'
+import { WebSettingsService } from '#services/settings_service'
 
 const TARGETS: CatalogTarget[] = ['page', 'collection', 'email']
 
@@ -23,6 +24,10 @@ export default class CatalogController {
     // module blocks will actually render (a static catalog file can't know this).
     const enabledMap = await new ModulesService().enabledMap()
     const enabledModules = [...enabledMap.entries()].filter(([, on]) => on).map(([name]) => name)
-    return response.json({ ...catalog, enabledModules })
+    // Attach the live theme + EFFECTIVE colours so the AI knows what
+    // `variant:"primary"` / product CTAs render as (default purple on an
+    // unthemed site) and can decide to call set_appearance to match a design.
+    const theme = await new WebSettingsService().getAppearance()
+    return response.json({ ...catalog, enabledModules, theme })
   }
 }

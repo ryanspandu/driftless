@@ -10,8 +10,20 @@ const settings = new WebSettingsService()
  */
 export default class BuilderSettingsController {
   /**
+   * The current public theme + the EFFECTIVE colours a block renders with (so an
+   * AI client knows what `variant:"primary"` looks like before it composes, and
+   * whether it must call setAppearance to match a design). Read-only.
+   */
+  async getAppearance({ response }: HttpContext) {
+    return response.json(await settings.getAppearance())
+  }
+
+  /**
    * Patch the public theme: font, primary/secondary colours, and the named
    * saved-colour variables. Only the fields present in the body are touched.
+   * Values are validated BEFORE storing — a colour/font we cannot inject is
+   * rejected with 422 + `issues` instead of a silent 200 that leaves the site
+   * unchanged. Responds with the sanitised theme (what will actually render).
    */
   async setAppearance({ request, response }: HttpContext) {
     const body = request.only([
@@ -24,31 +36,12 @@ export default class BuilderSettingsController {
       'savedColors',
     ]) as Record<string, unknown>
 
-    const map: Array<[string, string]> = [
-      ['fontFamily', 'font_family'],
-      ['fontCssUrl', 'font_css_url'],
-      ['fontFaceUrl', 'font_face_url'],
-      ['fontCustomName', 'font_custom_name'],
-      ['primaryColor', 'primary_color'],
-      ['secondaryColor', 'secondary_color'],
-    ]
-
-    const patches: Array<{ section: string; key: string; value: string }> = []
-    for (const [field, key] of map) {
-      if (body[field] !== undefined) {
-        patches.push({ section: 'theme', key, value: String(body[field] ?? '') })
-      }
-    }
-    if (body.savedColors !== undefined) {
-      const value =
-        typeof body.savedColors === 'string'
-          ? body.savedColors
-          : JSON.stringify(body.savedColors ?? [])
-      patches.push({ section: 'theme', key: 'saved_colors', value })
-    }
-
     try {
-      return response.json(await settings.applyPatches(patches))
+      const result = await settings.setAppearanceValidated(body)
+      if (!result.ok) {
+        return response.status(422).json({ message: 'Invalid appearance value', issues: result.issues })
+      }
+      return response.json(result.theme)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
