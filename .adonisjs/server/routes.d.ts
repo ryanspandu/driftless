@@ -177,10 +177,13 @@ export type ScannedRoutes = {
     'mcp.rpc': { paramsTuple?: []; params?: {} }
     'mcp.catalog': { paramsTuple?: []; params?: {} }
     'mcp.collections.index': { paramsTuple?: []; params?: {} }
+    'mcp.collections.trashed': { paramsTuple?: []; params?: {} }
     'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.collections.store': { paramsTuple?: []; params?: {} }
     'mcp.collections.update': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.collections.destroy': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.collections.restore': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.collections.force': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.collections.fields.add': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.collections.fields.update': { paramsTuple: [ParamValue,ParamValue]; params: {'key': ParamValue,'field': ParamValue} }
     'mcp.collections.fields.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'key': ParamValue,'field': ParamValue} }
@@ -300,6 +303,7 @@ export type ScannedRoutes = {
     'mcp.rpc': { paramsTuple?: []; params?: {} }
     'mcp.catalog': { paramsTuple?: []; params?: {} }
     'mcp.collections.index': { paramsTuple?: []; params?: {} }
+    'mcp.collections.trashed': { paramsTuple?: []; params?: {} }
     'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.pages.index': { paramsTuple?: []; params?: {} }
     'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -397,6 +401,7 @@ export type ScannedRoutes = {
     'mcp.audit': { paramsTuple?: []; params?: {} }
     'mcp.catalog': { paramsTuple?: []; params?: {} }
     'mcp.collections.index': { paramsTuple?: []; params?: {} }
+    'mcp.collections.trashed': { paramsTuple?: []; params?: {} }
     'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.pages.index': { paramsTuple?: []; params?: {} }
     'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -461,6 +466,7 @@ export type ScannedRoutes = {
     'mcp.tokens.store': { paramsTuple?: []; params?: {} }
     'mcp.rpc': { paramsTuple?: []; params?: {} }
     'mcp.collections.store': { paramsTuple?: []; params?: {} }
+    'mcp.collections.restore': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.collections.fields.add': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.pages.validate': { paramsTuple?: []; params?: {} }
     'mcp.pages.store': { paramsTuple?: []; params?: {} }
@@ -520,6 +526,7 @@ export type ScannedRoutes = {
     'mcp.tokens.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.rpc': { paramsTuple?: []; params?: {} }
     'mcp.collections.destroy': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.collections.force': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.collections.fields.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'key': ParamValue,'field': ParamValue} }
     'mcp.templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ctrl.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

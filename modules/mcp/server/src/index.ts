@@ -336,6 +336,13 @@ server.tool(
   ({ id }) => run(() => api.post(`/api/mcp/v1/pages/${id}/discard-draft`))
 )
 
+server.tool(
+  'delete_page',
+  'Move a page to Trash (reversible soft-delete). Prefer this over overwriting an existing page when you want a clean slate.',
+  { id: z.string() },
+  ({ id }) => run(() => api.del(`/api/mcp/v1/pages/${id}`))
+)
+
 // ── Templates ────────────────────────────────────────────────────────────────
 
 server.tool(

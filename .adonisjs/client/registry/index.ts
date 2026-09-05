@@ -2196,6 +2196,12 @@ const routes = {
     tokens: [{"old":"/api/mcp/v1/collections","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/collections","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/collections","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/collections","type":0,"val":"collections","end":""}],
     types: placeholder as Registry['mcp.collections.index']['types'],
   },
+  'mcp.collections.trashed': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/mcp/v1/collections/trashed',
+    tokens: [{"old":"/api/mcp/v1/collections/trashed","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/collections/trashed","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/collections/trashed","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/collections/trashed","type":0,"val":"collections","end":""},{"old":"/api/mcp/v1/collections/trashed","type":0,"val":"trashed","end":""}],
+    types: placeholder as Registry['mcp.collections.trashed']['types'],
+  },
   'mcp.collections.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/mcp/v1/collections/:key',
@@ -2219,6 +2225,18 @@ const routes = {
     pattern: '/api/mcp/v1/collections/:key',
     tokens: [{"old":"/api/mcp/v1/collections/:key","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/collections/:key","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/collections/:key","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/collections/:key","type":0,"val":"collections","end":""},{"old":"/api/mcp/v1/collections/:key","type":1,"val":"key","end":""}],
     types: placeholder as Registry['mcp.collections.destroy']['types'],
+  },
+  'mcp.collections.restore': {
+    methods: ["POST"],
+    pattern: '/api/mcp/v1/collections/:key/restore',
+    tokens: [{"old":"/api/mcp/v1/collections/:key/restore","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/collections/:key/restore","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/collections/:key/restore","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/collections/:key/restore","type":0,"val":"collections","end":""},{"old":"/api/mcp/v1/collections/:key/restore","type":1,"val":"key","end":""},{"old":"/api/mcp/v1/collections/:key/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['mcp.collections.restore']['types'],
+  },
+  'mcp.collections.force': {
+    methods: ["DELETE"],
+    pattern: '/api/mcp/v1/collections/:key/force',
+    tokens: [{"old":"/api/mcp/v1/collections/:key/force","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/collections/:key/force","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/collections/:key/force","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/collections/:key/force","type":0,"val":"collections","end":""},{"old":"/api/mcp/v1/collections/:key/force","type":1,"val":"key","end":""},{"old":"/api/mcp/v1/collections/:key/force","type":0,"val":"force","end":""}],
+    types: placeholder as Registry['mcp.collections.force']['types'],
   },
   'mcp.collections.fields.add': {
     methods: ["POST"],

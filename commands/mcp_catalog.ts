@@ -34,9 +34,12 @@ interface RawConfig {
 }
 
 const CONTENT_SHAPE =
-  'A Puck document is { root: { props: {} }, content: [ Block ] }. ' +
+  'A Puck document is { root: { props: {} }, content: [ Block ] } — only the ROOT uses a ' +
+  'top-level "content" array. ' +
   'A Block is { type: "<block type>", props: { id: "<unique>", ...fields } }. ' +
-  'Nest children by putting an array of Blocks in a slot prop (see each block\'s "slots"). ' +
+  'Nest children INSIDE props, keyed by the slot name (see each block\'s "slots") — e.g. ' +
+  '{ type: "Section", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a ' +
+  'top-level "content" on the block (a sibling of props) — that renders EMPTY. ' +
   'Every block also accepts the shared "styleProps" — each is a plain CSS string value ' +
   '(e.g. padding: "16px 24px", bg: "#ffffff", textColor: "#111827", borderRadius: "8px"); ' +
   'object/number shapes are dropped on render. ' +

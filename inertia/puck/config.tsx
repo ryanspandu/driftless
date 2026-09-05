@@ -396,6 +396,10 @@ export const baseConfig: Config = {
         <Box
           s={s}
           style={{
+            // Force the intrinsic display so the block lays out even when the
+            // `display` prop is absent (e.g. an API/MCP-composed Grid) — it used
+            // to depend on defaultProps and rendered as a plain block otherwise.
+            display: 'grid',
             gridTemplateColumns: `repeat(${Number(columns) || 2}, minmax(0, 1fr))`,
             gridTemplateRows:
               Number(rows) > 1 ? `repeat(${Number(rows)}, minmax(0, 1fr))` : undefined,
@@ -425,7 +429,10 @@ export const baseConfig: Config = {
       render: ({ content: Content, columns, ...s }) => (
         <Box
           s={s}
-          style={{ gridTemplateColumns: `repeat(${Number(columns) || 2}, minmax(0, 1fr))` }}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${Number(columns) || 2}, minmax(0, 1fr))`,
+          }}
         >
           <Content />
         </Box>
@@ -439,8 +446,10 @@ export const baseConfig: Config = {
       inline: true,
       fields: { content: { type: 'slot' }, ...styleFields },
       defaultProps: { display: 'flex', flexDirection: 'column', content: [] },
+      // Force the intrinsic flex layout so it works even without the `display`/
+      // `flexDirection` props (e.g. an API/MCP-composed block).
       render: ({ content: Content, ...s }) => (
-        <Box s={s}>
+        <Box s={s} style={{ display: 'flex', flexDirection: 'column' }}>
           <Content />
         </Box>
       ),
@@ -453,7 +462,7 @@ export const baseConfig: Config = {
       fields: { content: { type: 'slot' }, ...styleFields },
       defaultProps: { display: 'flex', flexDirection: 'row', content: [] },
       render: ({ content: Content, ...s }) => (
-        <Box s={s}>
+        <Box s={s} style={{ display: 'flex', flexDirection: 'row' }}>
           <Content />
         </Box>
       ),

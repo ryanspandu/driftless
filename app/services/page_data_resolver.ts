@@ -55,9 +55,14 @@ function collectRefs(node: unknown, acc: CollectionQuery[]): void {
   }
   if (node && typeof node === 'object') {
     const block = node as { type?: string; props?: Record<string, unknown> }
-    const source = block.props?.source as
-      | { collectionKey?: string; titleField?: string }
-      | undefined
+    // `source` is normally `{ collectionKey }`, but forgive a bare key string
+    // (must match the client coercion in collection-list.tsx) so SSR still
+    // preloads the records.
+    const rawSource = block.props?.source
+    const source =
+      typeof rawSource === 'string'
+        ? { collectionKey: rawSource }
+        : (rawSource as { collectionKey?: string; titleField?: string } | undefined)
     if (block.type === 'CollectionList' && source?.collectionKey) {
       acc.push(collectionQuery(source, block.props ?? {}))
     }

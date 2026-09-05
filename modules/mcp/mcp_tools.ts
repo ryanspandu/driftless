@@ -317,6 +317,12 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
     { id: z.string() },
     ({ id }) => run(() => call('POST', `/api/mcp/v1/pages/${id}/discard-draft`))
   )
+  server.tool(
+    'delete_page',
+    'Move a page to Trash (reversible soft-delete). Prefer this over overwriting an existing page when you want a clean slate.',
+    { id: z.string() },
+    ({ id }) => run(() => call('DELETE', `/api/mcp/v1/pages/${id}`))
+  )
 
   // ── Templates ──────────────────────────────────────────────────────────────
   server.tool(

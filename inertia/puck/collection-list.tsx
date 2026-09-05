@@ -433,7 +433,10 @@ export function CollectionList({
   /** True inside the builder canvas. */
   editing?: boolean
 }) {
-  const src: CollectionSource = source ?? {}
+  // Forgive `source` given as a bare collection key string (a natural mistake
+  // for API/AI callers) — the real shape is `{ collectionKey }`.
+  const src: CollectionSource =
+    typeof source === 'string' ? { collectionKey: source } : (source ?? {})
   // The server does all filtering/sorting/paging; the browser only ever holds
   // one page of records (this is the scalability fix).
   const q = collectionQuery(src, { limit, pageSize, sort, filterField, filterValue })
@@ -553,7 +556,8 @@ export function CollectionList({
   }
 
   if (!src.collectionKey)
-    return <div className={notice}>Select a collection in the right panel</div>
+    // Editor-only hint — never leak the "right panel" prompt onto a public page.
+    return editing ? <div className={notice}>Select a collection in the right panel</div> : null
   if (state === 'loading' && !records.length) return <div className={notice}>Loading…</div>
   if (state === 'error') return <div className={notice}>Could not load records</div>
   if (templateNotice) return <div className={notice}>{templateNotice}</div>
@@ -625,9 +629,12 @@ export function CollectionList({
     <div>
       <div style={containerStyle}>
         {visible.map((rec) => {
-          const title = recordString(rec, src.titleField)
-          const excerpt = recordString(rec, src.excerptField)
-          const image = withImage ? recordString(rec, src.imageField) : undefined
+          // Fall back to conventional field names when the source didn't map them
+          // (e.g. a `source` given as just a collection key) — otherwise the
+          // default card renders blank even though records loaded.
+          const title = recordString(rec, src.titleField ?? 'title')
+          const excerpt = recordString(rec, src.excerptField ?? 'excerpt')
+          const image = withImage ? recordString(rec, src.imageField ?? 'image') : undefined
           const linkValue = recordString(rec, src.linkField)
           const href = linkValue ? `${src.linkBase ?? ''}${linkValue}` : undefined
 

@@ -131,6 +131,19 @@ function walk(
     const props = node.props as Record<string, unknown>
     if (typeof props.id !== 'string' || !props.id) props.id = `${type}-${randomUUID()}`
 
+    // Forgive a very common authoring mistake: nesting a block's children in a
+    // TOP-LEVEL slot array (a sibling of `props`, mirroring the page root's
+    // `content`) instead of inside `props.<slot>`. The renderer only reads
+    // `props.<slot>`, so left as-is the block validates and publishes but renders
+    // EMPTY. Migrate the misplaced array into props so it actually renders.
+    for (const slot of block.slots) {
+      const misplaced = (node as Record<string, unknown>)[slot]
+      if (props[slot] === undefined && Array.isArray(misplaced)) {
+        props[slot] = misplaced
+        delete (node as Record<string, unknown>)[slot]
+      }
+    }
+
     // Recurse into every slot prop the catalog declares for this block.
     for (const slot of block.slots) {
       const value = props[slot]

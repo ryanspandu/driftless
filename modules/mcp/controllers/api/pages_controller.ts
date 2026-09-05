@@ -144,4 +144,14 @@ export default class BuilderPagesController {
       return response.status(404).json({ message: (e as Error).message })
     }
   }
+
+  /** Move a page to Trash (reversible soft-delete). */
+  async destroy({ params, response }: HttpContext) {
+    try {
+      await pages.remove(params.id)
+      return response.json({ success: true })
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
+  }
 }

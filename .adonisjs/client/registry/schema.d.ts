@@ -4387,6 +4387,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['index']>>>
     }
   }
+  'mcp.collections.trashed': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/collections/trashed'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['trashed']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['trashed']>>>
+    }
+  }
   'mcp.collections.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/mcp/v1/collections/:key'
@@ -4433,6 +4445,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['destroy']>>>
+    }
+  }
+  'mcp.collections.restore': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/collections/:key/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['restore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['restore']>>>
+    }
+  }
+  'mcp.collections.force': {
+    methods: ["DELETE"]
+    pattern: '/api/mcp/v1/collections/:key/force'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { key: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['forceDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/collections_controller').default['forceDestroy']>>>
     }
   }
   'mcp.collections.fields.add': {

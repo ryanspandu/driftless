@@ -178,6 +178,10 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .post('/api/mcp/v1/pages/:id/discard-draft', [PagesCtrl, 'discardDraft'])
             .as('mcp.pages.discard')
             .use(read('builder:pages'))
+          router
+            .delete('/api/mcp/v1/pages/:id', [PagesCtrl, 'destroy'])
+            .as('mcp.pages.destroy')
+            .use(read('builder:pages'))
         })
         .use(middleware.permission({ resource: 'page' }))
 

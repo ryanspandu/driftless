@@ -538,10 +538,13 @@ export interface ApiDefinition {
     catalog: typeof routes['mcp.catalog']
     collections: {
       index: typeof routes['mcp.collections.index']
+      trashed: typeof routes['mcp.collections.trashed']
       show: typeof routes['mcp.collections.show']
       store: typeof routes['mcp.collections.store']
       update: typeof routes['mcp.collections.update']
       destroy: typeof routes['mcp.collections.destroy']
+      restore: typeof routes['mcp.collections.restore']
+      force: typeof routes['mcp.collections.force']
       fields: {
         add: typeof routes['mcp.collections.fields.add']
         update: typeof routes['mcp.collections.fields.update']
