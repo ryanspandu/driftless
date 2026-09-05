@@ -51,6 +51,11 @@ export const MCP_ABILITY_OPTIONS: { id: string; label: string; hint: string }[] 
   { id: 'builder:templates', label: 'Templates', hint: 'create/update templates' },
   { id: 'builder:settings', label: 'Settings', hint: 'appearance, breakpoints, global code' },
   { id: 'builder:media', label: 'Media', hint: 'upload media' },
+  {
+    id: 'builder:products',
+    label: 'Products',
+    hint: 'create/update products, variants, categories (needs ecommerce)',
+  },
   { id: 'cms:read', label: 'Records (read)', hint: 'list/read collection records' },
   { id: 'cms:write', label: 'Records (write)', hint: 'create/update/delete records' },
   { id: '*', label: 'Full access', hint: 'every ability' },

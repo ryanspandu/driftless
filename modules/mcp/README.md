@@ -55,7 +55,11 @@ Settings → API tokens — with the abilities the work needs:
 | `builder:templates`      | create/update templates                                      | `template:*`                 |
 | `builder:settings`       | appearance, breakpoints, global code                         | `settings:manage`            |
 | `builder:media`          | upload media                                                 | `media:manage`               |
+| `builder:products`       | create/update/delete products, variants, categories          | `ecommerce:products:manage`  |
 | `cms:read` / `cms:write` | list/create/update/delete **records** (reuses `/api/v1/cms`) | `cms:<collection>:*`         |
+
+`builder:products` needs the **`ecommerce` module** enabled; with it off those
+routes 404. Reads use `builder:read` ∩ `ecommerce:products:read`.
 
 `*` (all abilities) works too. Records deliberately reuse the existing
 `/api/v1/cms/:key/records` endpoints rather than being duplicated here.
@@ -82,6 +86,10 @@ issues }`.
 | `POST /templates` · `PUT /templates/:id` · `DELETE /templates/:id` · `POST /templates/:id/default` | `builder:templates`              |                                           |
 | `PUT /appearance` · `PUT /breakpoints` · `PUT /global-code`                                        | `builder:settings`               |                                           |
 | `GET /media` · `POST /media` (multipart `file`)                                                    | `builder:read` / `builder:media` |                                           |
+| `GET /products` · `GET /products/:id` · `GET /categories`                                          | `builder:read`                   | needs the `ecommerce` module              |
+| `POST /products` · `PUT\|DELETE /products/:id`                                                     | `builder:products`               | `price` (minor units) auto-adds a variant |
+| `POST /products/:id/variants` · `PUT\|DELETE /variants/:variantId`                                 | `builder:products`               |                                           |
+| `POST /categories` · `PUT\|DELETE /categories/:id`                                                 | `builder:products`               |                                           |
 | `POST /api/v1/cms/:key/records` …                                                                  | `cms:write`                      | records — the existing v1 API             |
 
 ## Block catalog + content validation
@@ -144,6 +152,14 @@ behind that modal. Either connection exposes the same tool set, which maps 1:1
 to the API and steers the flow: `get_block_catalog` → `create_collection` /
 `add_field` → `create_page` → `set_page_content` → `validate_page_content` →
 `publish_page`.
+
+For a **store** (needs the `ecommerce` module — confirm it appears in the
+catalog's `enabledModules`): `get_block_catalog` → `create_category` (optional) →
+`upload_media` → `create_product` (`status:"active"`, inline `price` in minor
+units, `categoryIds`, `images`) → build the page with a `ProductList` block
+(`source.featured` or `source.categorySlug`) → `publish_page`. Create the
+products **before** placing `ProductList` — it renders only what already exists,
+so an empty store yields an empty grid.
 
 ### Option A — Remote (recommended, no install)
 

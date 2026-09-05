@@ -1,31 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import vine from '@vinejs/vine'
 import { apiFail } from '#helpers/api_error_response'
 import AuditLogService from '#services/audit_log_service'
 import type User from '#models/user'
 import CatalogService from '#modules/ecommerce/services/catalog_service'
-
-const createValidator = vine.compile(
-  vine.object({
-    name: vine.string().trim().minLength(1).maxLength(160),
-    slug: vine.string().trim().maxLength(160).optional(),
-    description: vine.string().trim().maxLength(2_000).nullable().optional(),
-    imageUrl: vine.string().trim().maxLength(1024).nullable().optional(),
-    parentId: vine.string().trim().nullable().optional(),
-    position: vine.number().withoutDecimals().optional(),
-  })
-)
-
-const updateValidator = vine.compile(
-  vine.object({
-    name: vine.string().trim().minLength(1).maxLength(160).optional(),
-    slug: vine.string().trim().maxLength(160).optional(),
-    description: vine.string().trim().maxLength(2_000).nullable().optional(),
-    imageUrl: vine.string().trim().maxLength(1024).nullable().optional(),
-    parentId: vine.string().trim().nullable().optional(),
-    position: vine.number().withoutDecimals().optional(),
-  })
-)
+import {
+  createCategoryValidator as createValidator,
+  updateCategoryValidator as updateValidator,
+} from '#modules/ecommerce/validators/catalog'
 
 const catalog = new CatalogService()
 const audit = new AuditLogService()

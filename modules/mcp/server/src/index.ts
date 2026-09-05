@@ -149,7 +149,9 @@ server.tool(
   'create_collection',
   'Create a content collection (model). Optionally seed its fields (all-or-nothing). Keys must be lowercase snake_case and not a built-in collection (posts; products when the store module is on) — call list_collections to see existing/reserved keys.',
   {
-    key: keySchema.describe(`Unique collection key — ${KEY_RULE} Also cannot be a built-in (posts/products).`),
+    key: keySchema.describe(
+      `Unique collection key — ${KEY_RULE} Also cannot be a built-in (posts/products).`
+    ),
     label: z.string(),
     icon: z.string().optional(),
     group: z.string().optional(),
@@ -420,7 +422,8 @@ server.tool(
   'list_media',
   'List already-uploaded media (images/files) — reuse an existing `url` instead of re-uploading.',
   { page: z.number().optional(), pageSize: z.number().optional(), search: z.string().optional() },
-  ({ page, pageSize, search }) => run(() => api.get('/api/mcp/v1/media', { page, pageSize, search }))
+  ({ page, pageSize, search }) =>
+    run(() => api.get('/api/mcp/v1/media', { page, pageSize, search }))
 )
 
 server.tool(
@@ -428,6 +431,168 @@ server.tool(
   'Upload an image/file from a local path or a URL. Returns the media record (its `url` is what you put in image blocks).',
   { path: z.string().optional(), url: z.string().optional() },
   ({ path, url }) => run(() => uploadMedia({ path, url }))
+)
+
+// ── Commerce (products / variants / categories) ────────────────────────────────
+// All require the `ecommerce` module to be enabled (else the builder-API 404s).
+// These are the RIGHT way to build a store: create_product renders through the
+// `ProductList` block — do NOT fake products with a CMS collection.
+const ImageInput = z.object({
+  mediaUrl: z.string().describe('Asset URL — get one from upload_media / list_media'),
+  alt: z.string().nullable().optional(),
+})
+const productOptional = {
+  subtitle: z.string().nullable().optional(),
+  description: z.record(z.any()).optional().describe('Rich-text/TipTap JSON; usually omit'),
+  status: z
+    .enum(['draft', 'active', 'archived'])
+    .optional()
+    .describe("'active' = publicly visible, 'draft' = hidden. Defaults to 'draft'."),
+  type: z.enum(['physical', 'digital']).optional(),
+  featured: z
+    .boolean()
+    .optional()
+    .describe('Featured products fill a ProductList with { source: { featured: true } }'),
+  categoryIds: z.array(z.string()).optional().describe('Category IDs from list_categories'),
+  images: z.array(ImageInput).optional(),
+  ctaMode: z.enum(['add_to_cart', 'buy_now', 'external']).optional(),
+  externalUrl: z.string().nullable().optional(),
+  externalLabel: z.string().nullable().optional(),
+  options: z
+    .array(z.object({ name: z.string(), values: z.array(z.string()) }))
+    .optional()
+    .describe(
+      'Variant option axes (max 3) — e.g. [{ name: "Size", values: ["S","M","L"] }]. Declare them here, then set each variant\'s optionValues to pick a combination.'
+    ),
+  position: z.number().optional(),
+}
+const variantOptional = {
+  sku: z.string().nullable().optional(),
+  compareAtAmount: z
+    .number()
+    .nullable()
+    .optional()
+    .describe('Was-price / strike-through, in minor units'),
+  stockOnHand: z.number().optional(),
+  optionValues: z.record(z.string()).optional().describe("e.g. { Size: 'L', Colour: 'Blue' }"),
+  trackInventory: z.boolean().optional(),
+  allowBackorder: z.boolean().optional(),
+  weightGrams: z.number().nullable().optional().describe('Shipping weight in grams'),
+  imageUrl: z.string().nullable().optional(),
+  position: z.number().optional().describe("Sort order among the product's variants"),
+}
+const categoryOptional = {
+  slug: z.string().optional(),
+  description: z.string().nullable().optional(),
+  imageUrl: z.string().nullable().optional(),
+  parentId: z.string().nullable().optional(),
+  position: z.number().optional(),
+}
+
+server.tool(
+  'list_products',
+  'List store products (needs the ecommerce module). Filter by status/category/search.',
+  {
+    search: z.string().optional(),
+    status: z.enum(['draft', 'active', 'archived', 'all']).optional(),
+    categoryId: z.string().optional(),
+    page: z.number().optional(),
+    pageSize: z.number().optional(),
+  },
+  (args) => run(() => api.get('/api/mcp/v1/products', args))
+)
+
+server.tool(
+  'get_product',
+  'Get one product by id, including its variants, images and categories.',
+  { id: z.string() },
+  ({ id }) => run(() => api.get(`/api/mcp/v1/products/${id}`))
+)
+
+server.tool(
+  'create_product',
+  "Create a store product (needs the ecommerce module). This is how you add products a `ProductList` block renders — do NOT fake products with a CMS collection. A product needs at least one variant to have a price: pass `price` (in MINOR units, e.g. 4900 = $49.00) and this auto-creates a sellable 'Default' variant (with optional `stock`); for size/colour options, omit `price` and call add_variant instead. Set status:'active' to make it publicly visible. Get image URLs from upload_media.",
+  {
+    title: z.string(),
+    price: z
+      .number()
+      .optional()
+      .describe('Minor units (4900 = $49.00). Auto-creates a "Default" variant.'),
+    stock: z
+      .number()
+      .optional()
+      .describe(
+        'On-hand quantity for the auto "Default" variant; omit to sell it as always-available (untracked)'
+      ),
+    ...productOptional,
+  },
+  (args) => run(() => api.post('/api/mcp/v1/products', args))
+)
+
+server.tool(
+  'update_product',
+  'Update a product (title, status, featured, categories, images, …). Only pass fields you want to change.',
+  { id: z.string(), title: z.string().optional(), ...productOptional },
+  ({ id, ...body }) => run(() => api.put(`/api/mcp/v1/products/${id}`, body))
+)
+
+server.tool(
+  'delete_product',
+  'Delete (archive) a product. Soft delete — orders that reference it are preserved.',
+  { id: z.string() },
+  ({ id }) => run(() => api.del(`/api/mcp/v1/products/${id}`))
+)
+
+server.tool(
+  'add_variant',
+  'Add a purchasable variant (a specific size/colour/price) to a product. `priceAmount` is in minor units (4900 = $49.00).',
+  { productId: z.string(), title: z.string(), priceAmount: z.number(), ...variantOptional },
+  ({ productId, ...body }) =>
+    run(() => api.post(`/api/mcp/v1/products/${productId}/variants`, body))
+)
+
+server.tool(
+  'update_variant',
+  'Update a variant (price, stock, options, …). Only pass fields you want to change.',
+  {
+    variantId: z.string(),
+    title: z.string().optional(),
+    priceAmount: z.number().optional(),
+    ...variantOptional,
+  },
+  ({ variantId, ...body }) => run(() => api.put(`/api/mcp/v1/variants/${variantId}`, body))
+)
+
+server.tool(
+  'delete_variant',
+  'Delete a variant. A product must keep at least one variant — deleting the last is refused.',
+  { variantId: z.string() },
+  ({ variantId }) => run(() => api.del(`/api/mcp/v1/variants/${variantId}`))
+)
+
+server.tool('list_categories', 'List product categories (needs the ecommerce module).', {}, () =>
+  run(() => api.get('/api/mcp/v1/categories'))
+)
+
+server.tool(
+  'create_category',
+  'Create a product category. Assign products to it with create_product/update_product `categoryIds` (the category id). The response returns the category `slug` — use it verbatim as a ProductList `source.categorySlug` to show only that category; pass `slug` explicitly if you already know the value you will filter by.',
+  { name: z.string(), ...categoryOptional },
+  (args) => run(() => api.post('/api/mcp/v1/categories', args))
+)
+
+server.tool(
+  'update_category',
+  'Update a category. Only pass fields you want to change.',
+  { id: z.string(), name: z.string().optional(), ...categoryOptional },
+  ({ id, ...body }) => run(() => api.put(`/api/mcp/v1/categories/${id}`, body))
+)
+
+server.tool(
+  'delete_category',
+  'Delete a category. Products are detached from it (not deleted).',
+  { id: z.string() },
+  ({ id }) => run(() => api.del(`/api/mcp/v1/categories/${id}`))
 )
 
 // ── Boot ───────────────────────────────────────────────────────────────────────

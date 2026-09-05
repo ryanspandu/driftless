@@ -10,6 +10,7 @@ const PagesCtrl = () => import('#modules/mcp/controllers/api/pages_controller')
 const TemplatesCtrl = () => import('#modules/mcp/controllers/api/templates_controller')
 const SettingsCtrl = () => import('#modules/mcp/controllers/api/settings_controller')
 const MediaCtrl = () => import('#modules/mcp/controllers/api/media_controller')
+const ProductsCtrl = () => import('#modules/mcp/controllers/api/products_controller')
 const RpcCtrl = () => import('#modules/mcp/controllers/mcp_rpc_controller')
 
 /**
@@ -75,6 +76,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
     .use(rpcThrottle)
 
   // ── Builder-API (token-authenticated) ─────────────────────────────────────
+  // The token-ability guard, applied per route. Named `read` for brevity, but it
+  // gates BOTH reads (`builder:read`) and writes (`builder:pages`, `builder:products`, …)
+  // — it is the token half of "token ability ∩ RBAC", not a read-only check.
   const read = (ability: string) => middleware.tokenAbility({ ability })
 
   router
@@ -246,6 +250,79 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .use(read('builder:media'))
         })
         .use(middleware.permission({ resource: 'media' }))
+
+      // Commerce — products, variants, categories. Provided by the OPTIONAL
+      // `ecommerce` module, so the whole group is additionally gated by
+      // `moduleEnabled({ name: 'ecommerce' })`: with ecommerce off these 404
+      // and the controller (which reaches CatalogService via dynamic import)
+      // never runs. RBAC splits read vs manage; token ability splits
+      // builder:read vs builder:products.
+      router
+        .group(() => {
+          // Reads — RBAC `ecommerce:products:read`.
+          router
+            .group(() => {
+              router
+                .get('/api/mcp/v1/products', [ProductsCtrl, 'index'])
+                .as('mcp.products.index')
+                .use(read('builder:read'))
+              router
+                .get('/api/mcp/v1/categories', [ProductsCtrl, 'indexCategories'])
+                .as('mcp.products.categories.index')
+                .use(read('builder:read'))
+              // `/products/:id` comes AFTER the static `/products` list (above) so
+              // the param route can't shadow the list. `/categories` is a separate
+              // top-level path — its position is order-independent.
+              router
+                .get('/api/mcp/v1/products/:id', [ProductsCtrl, 'show'])
+                .as('mcp.products.show')
+                .use(read('builder:read'))
+            })
+            .use(middleware.permission({ permission: 'ecommerce:products:read' }))
+
+          // Writes — RBAC `ecommerce:products:manage`.
+          router
+            .group(() => {
+              router
+                .post('/api/mcp/v1/products', [ProductsCtrl, 'store'])
+                .as('mcp.products.store')
+                .use(read('builder:products'))
+              router
+                .put('/api/mcp/v1/products/:id', [ProductsCtrl, 'update'])
+                .as('mcp.products.update')
+                .use(read('builder:products'))
+              router
+                .delete('/api/mcp/v1/products/:id', [ProductsCtrl, 'destroy'])
+                .as('mcp.products.destroy')
+                .use(read('builder:products'))
+              router
+                .post('/api/mcp/v1/products/:id/variants', [ProductsCtrl, 'storeVariant'])
+                .as('mcp.products.variants.store')
+                .use(read('builder:products'))
+              router
+                .put('/api/mcp/v1/variants/:variantId', [ProductsCtrl, 'updateVariant'])
+                .as('mcp.products.variants.update')
+                .use(read('builder:products'))
+              router
+                .delete('/api/mcp/v1/variants/:variantId', [ProductsCtrl, 'destroyVariant'])
+                .as('mcp.products.variants.destroy')
+                .use(read('builder:products'))
+              router
+                .post('/api/mcp/v1/categories', [ProductsCtrl, 'storeCategory'])
+                .as('mcp.products.categories.store')
+                .use(read('builder:products'))
+              router
+                .put('/api/mcp/v1/categories/:id', [ProductsCtrl, 'updateCategory'])
+                .as('mcp.products.categories.update')
+                .use(read('builder:products'))
+              router
+                .delete('/api/mcp/v1/categories/:id', [ProductsCtrl, 'destroyCategory'])
+                .as('mcp.products.categories.destroy')
+                .use(read('builder:products'))
+            })
+            .use(middleware.permission({ permission: 'ecommerce:products:manage' }))
+        })
+        .use(middleware.moduleEnabled({ name: 'ecommerce' }))
     })
     .use(middleware.auth({ guards: ['api'] }))
     .use(moduleEnabled)

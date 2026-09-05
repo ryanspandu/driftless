@@ -3,7 +3,6 @@ import { newUlid } from '#services/ulid_service'
 import { publicError } from '#exceptions/public_error'
 import VariantPrice from '#modules/ecommerce/models/variant_price'
 import CurrencyService from '#modules/ecommerce/services/currency_service'
-import vine from '@vinejs/vine'
 import { renderPage } from '#helpers/inertia_render'
 import { apiFail } from '#helpers/api_error_response'
 import AuditLogService from '#services/audit_log_service'
@@ -11,113 +10,12 @@ import type User from '#models/user'
 import { readFile } from 'node:fs/promises'
 import CatalogService from '#modules/ecommerce/services/catalog_service'
 import ProductImportService from '#modules/ecommerce/services/import_service'
-
-/**
- * Amounts arrive as **integer minor units**, never as a decimal string or a
- * float. The client's `MoneyInput` parses what someone types into an integer
- * before it ever leaves the browser, and the validator refuses anything else.
- */
-const moneyField = () => vine.number().min(0).max(Number.MAX_SAFE_INTEGER).withoutDecimals()
-
-const optionSchema = vine.object({
-  name: vine.string().trim().minLength(1).maxLength(64),
-  values: vine.array(vine.string().trim().maxLength(64)).maxLength(50),
-})
-
-const imageSchema = vine.object({
-  mediaUrl: vine.string().trim().maxLength(1024),
-  alt: vine.string().trim().maxLength(255).nullable().optional(),
-})
-
-const createProductValidator = vine.compile(
-  vine.object({
-    title: vine.string().trim().minLength(1).maxLength(255),
-    slug: vine.string().trim().maxLength(200).optional(),
-    subtitle: vine.string().trim().maxLength(255).nullable().optional(),
-    description: vine.object({}).allowUnknownProperties().optional(),
-    type: vine.enum(['physical', 'digital'] as const).optional(),
-    status: vine.enum(['draft', 'active', 'archived'] as const).optional(),
-    seo: vine.object({}).allowUnknownProperties().optional(),
-    options: vine.array(optionSchema).maxLength(3).optional(),
-    featured: vine.boolean().optional(),
-    /**
-     * What the buy button does. `external` also needs `externalUrl`, which the
-     * service enforces — the two are one decision, so validating them apart
-     * here would let a half-set state through.
-     */
-    ctaMode: vine.enum(['add_to_cart', 'buy_now', 'external'] as const).optional(),
-    externalUrl: vine.string().trim().maxLength(500).nullable().optional(),
-    externalLabel: vine.string().trim().maxLength(80).nullable().optional(),
-    position: vine.number().withoutDecimals().optional(),
-    categoryIds: vine.array(vine.string().trim()).maxLength(20).optional(),
-    images: vine.array(imageSchema).maxLength(20).optional(),
-  })
-)
-
-const updateProductValidator = vine.compile(
-  vine.object({
-    title: vine.string().trim().minLength(1).maxLength(255).optional(),
-    slug: vine.string().trim().maxLength(200).optional(),
-    subtitle: vine.string().trim().maxLength(255).nullable().optional(),
-    description: vine.object({}).allowUnknownProperties().optional(),
-    type: vine.enum(['physical', 'digital'] as const).optional(),
-    status: vine.enum(['draft', 'active', 'archived'] as const).optional(),
-    seo: vine.object({}).allowUnknownProperties().optional(),
-    options: vine.array(optionSchema).maxLength(3).optional(),
-    featured: vine.boolean().optional(),
-    /**
-     * What the buy button does. `external` also needs `externalUrl`, which the
-     * service enforces — the two are one decision, so validating them apart
-     * here would let a half-set state through.
-     */
-    ctaMode: vine.enum(['add_to_cart', 'buy_now', 'external'] as const).optional(),
-    externalUrl: vine.string().trim().maxLength(500).nullable().optional(),
-    externalLabel: vine.string().trim().maxLength(80).nullable().optional(),
-    position: vine.number().withoutDecimals().optional(),
-    categoryIds: vine.array(vine.string().trim()).maxLength(20).optional(),
-    images: vine.array(imageSchema).maxLength(20).optional(),
-  })
-)
-
-const createVariantValidator = vine.compile(
-  vine.object({
-    title: vine.string().trim().minLength(1).maxLength(255),
-    sku: vine.string().trim().maxLength(96).nullable().optional(),
-    priceAmount: moneyField(),
-    compareAtAmount: moneyField().nullable().optional(),
-    costAmount: moneyField().nullable().optional(),
-    weightGrams: vine.number().min(0).withoutDecimals().nullable().optional(),
-    // A record of string→string: `{ Size: 'L', Colour: 'Blue' }`. Typed
-    // explicitly rather than as an open object so the service receives the
-    // shape it declares.
-    optionValues: vine.record(vine.string().trim().maxLength(64)).optional(),
-    stockOnHand: vine.number().min(0).withoutDecimals().optional(),
-    trackInventory: vine.boolean().optional(),
-    allowBackorder: vine.boolean().optional(),
-    imageUrl: vine.string().trim().maxLength(1024).nullable().optional(),
-    position: vine.number().withoutDecimals().optional(),
-  })
-)
-
-const updateVariantValidator = vine.compile(
-  vine.object({
-    title: vine.string().trim().minLength(1).maxLength(255).optional(),
-    sku: vine.string().trim().maxLength(96).nullable().optional(),
-    priceAmount: moneyField().optional(),
-    compareAtAmount: moneyField().nullable().optional(),
-    costAmount: moneyField().nullable().optional(),
-    weightGrams: vine.number().min(0).withoutDecimals().nullable().optional(),
-    // A record of string→string: `{ Size: 'L', Colour: 'Blue' }`. Typed
-    // explicitly rather than as an open object so the service receives the
-    // shape it declares.
-    optionValues: vine.record(vine.string().trim().maxLength(64)).optional(),
-    stockOnHand: vine.number().min(0).withoutDecimals().optional(),
-    trackInventory: vine.boolean().optional(),
-    allowBackorder: vine.boolean().optional(),
-    imageUrl: vine.string().trim().maxLength(1024).nullable().optional(),
-    position: vine.number().withoutDecimals().optional(),
-  })
-)
+import {
+  createProductValidator,
+  updateProductValidator,
+  createVariantValidator,
+  updateVariantValidator,
+} from '#modules/ecommerce/validators/catalog'
 
 const catalog = new CatalogService()
 const importer = new ProductImportService()

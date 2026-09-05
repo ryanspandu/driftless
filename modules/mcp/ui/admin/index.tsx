@@ -46,7 +46,12 @@ const EXPIRY_SELECT_OPTIONS = EXPIRY_OPTIONS.map((o) => ({ value: o.value, label
 
 function abilityVariant(id: string): 'default' | 'success' | 'warning' {
   if (id === '*') return 'warning'
-  if (id.endsWith(':write') || id === 'builder:collections' || id === 'builder:pages')
+  if (
+    id.endsWith(':write') ||
+    id === 'builder:collections' ||
+    id === 'builder:pages' ||
+    id === 'builder:products'
+  )
     return 'default'
   return 'success'
 }
