@@ -524,6 +524,12 @@ server.tool(
       .describe(
         'On-hand quantity for the auto "Default" variant; omit to sell it as always-available (untracked)'
       ),
+    compareAtPrice: z
+      .number()
+      .optional()
+      .describe(
+        'Original "was" price in minor units, ABOVE `price` — shows a strike-through sale price on the card.'
+      ),
     ...productOptional,
   },
   (args) => run(() => api.post('/api/mcp/v1/products', args))

@@ -170,6 +170,32 @@ test.group('MCP commerce | products', (group) => {
     assert.isNull(variant.available)
   })
 
+  test('inline compareAtPrice sets a strike-through on the auto Default variant', async ({
+    client,
+    assert,
+  }) => {
+    await enableCommerce()
+    const t = await token(['builder:read', 'builder:products'])
+    const res = await client
+      .post('/api/mcp/v1/products')
+      .header('Authorization', bearer(t))
+      .json({ title: 'On Sale', status: 'active', price: 4900, compareAtPrice: 9900 })
+    res.assertStatus(201)
+    const variant = res.body().variants[0]
+    assert.equal(variant.price.amount, 4900)
+    assert.equal(variant.compareAt.amount, 9900)
+  })
+
+  test('compareAtPrice not above price is rejected (422)', async ({ client }) => {
+    await enableCommerce()
+    const t = await token(['builder:read', 'builder:products'])
+    const res = await client
+      .post('/api/mcp/v1/products')
+      .header('Authorization', bearer(t))
+      .json({ title: 'Bad sale', price: 4900, compareAtPrice: 4900 })
+    res.assertStatus(422)
+  })
+
   test('an invalid price is rejected BEFORE the product is created (no orphan)', async ({
     client,
     assert,

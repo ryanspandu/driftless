@@ -71,7 +71,8 @@ export default class BuilderProductsController {
    * a "Default" variant so one call yields a sellable product — a product with
    * no variant has no price and never shows one. `stock` seeds that variant's
    * on-hand quantity; omit it and the variant sells as untracked (always
-   * available) rather than out-of-stock.
+   * available) rather than out-of-stock. `compareAtPrice` (minor units, above
+   * `price`) sets a strike-through "was" price on the card.
    */
   async store({ request, response, auth }: HttpContext) {
     try {
@@ -89,6 +90,7 @@ export default class BuilderProductsController {
       let priceAmount = 0
       let stockOnHand = 0
       let stockSupplied = false
+      let compareAtAmount: number | undefined
       if (wantsVariant) {
         priceAmount = Number(rawPrice)
         if (!Number.isSafeInteger(priceAmount) || priceAmount < 0) {
@@ -107,6 +109,22 @@ export default class BuilderProductsController {
               .json({ message: '`stock` must be a non-negative whole number.' })
           }
         }
+        const rawCompare = request.input('compareAtPrice')
+        if (rawCompare !== undefined && rawCompare !== null && rawCompare !== '') {
+          compareAtAmount = Number(rawCompare)
+          if (!Number.isSafeInteger(compareAtAmount) || compareAtAmount < 0) {
+            return response.status(422).json({
+              message: '`compareAtPrice` must be a non-negative whole number of minor units.',
+            })
+          }
+          // The card only strikes through a compareAt that beats the real price;
+          // a lower/equal one would render nothing, so reject it as a mistake.
+          if (compareAtAmount <= priceAmount) {
+            return response.status(422).json({
+              message: '`compareAtPrice` must be higher than `price` to show a strike-through.',
+            })
+          }
+        }
       }
 
       const catalog = await this.catalog()
@@ -116,6 +134,7 @@ export default class BuilderProductsController {
         await catalog.createVariant(product.id, {
           title: 'Default',
           priceAmount,
+          compareAtAmount,
           stockOnHand,
           // No stock given → sell as untracked (always available). Otherwise a
           // price-only product would be created out-of-stock (0 tracked, no
