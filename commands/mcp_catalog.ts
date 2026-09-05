@@ -77,7 +77,7 @@ const BLOCK_HINTS: Record<string, string> = {
   Button:
     'A call-to-action link. variant:"primary"/"secondary" follow the SITE THEME colours (default purple until you set_appearance); "outline" is bordered; "custom" drops the theme colours so you set the exact design colour with the bg + textColor (+ borderRadius/padding) styleProps. Group a primary + secondary CTA inside an HFlex to place them side by side.',
   Image:
-    'A single image. Use a REAL asset URL from upload_media — random placeholders look off-brand.',
+    'A single image. `src` is a url string OR { url, width, height, srcset } (prefer the object form from the upload_media/crop_media response). Use a REAL asset — never a random stock/placeholder URL (they are rejected). To reuse a design’s own photo, upload the reference with purpose:"reference" then crop_media it.',
   Slider: 'A full-bleed rotating hero (one slide at a time). Use for a hero banner carousel.',
   Carousel: 'A multi-per-view sliding track. Use for logo strips or a row of scrolling cards.',
   Reviews:
@@ -105,7 +105,7 @@ const GUIDANCE_RULES: string[] = [
   'To put items SIDE BY SIDE, wrap them in a layout block — Grid or Columns for EQUAL-width columns, HFlex for a button/inline row OR an asymmetric split (give each child a `width` styleProp; flex honours it, equal grid tracks do not). Sibling blocks with no layout parent stack vertically.',
   'Prefer the purpose-built block over composing from scratch: Reviews for testimonials, Accordion for FAQ, Slider/Carousel for hero or rotating strips, ProductList for products.',
   'For a products / shop section use the commerce ProductList block (real cards with price + image), and CREATE the products it shows with the create_product tool — inline `price` (minor units, e.g. 4900 = $49.00) auto-creates a sellable "Default" variant; set status:"active" so they appear. Do NOT fake products with a CMS collection + CollectionList — that yields plain title/excerpt cards. ProductList and the product tools need the "ecommerce" module: confirm it is listed in this catalog’s "enabledModules" first; if absent, ask the operator to enable it rather than faking it.',
-  'Use real images: upload_media returns an asset `url` — use that exact string verbatim (an Image block’s `src`, or a product image’s `mediaUrl`). Avoid random stock/placeholder URLs — they read as off-brand and rarely match the design.',
+  'ASSETS ARE REAL PHOTOS, NOT GUESSES. NEVER substitute random stock or placeholder imagery (picsum, loremflickr, unsplash-source, placehold.co, dummyimage, …) for a hero, product, lifestyle or brand image — those hosts are REJECTED by upload_media and flagged by the validator. If the design’s actual assets were not supplied: (a) if you were given a design screenshot/mockup, upload it with upload_media(purpose:"reference") and cut the design’s OWN photos out with crop_media(mediaId, x, y, width, height) — coordinates in the reference’s pixels; (b) otherwise STOP and ask the operator for the image files/URLs; (c) only if told to proceed anyway, use upload_media(url, purpose:"placeholder") for a labelled stand-in and report every placeholder slot in your summary. Once you have an asset, use its returned `url` verbatim (Image `src`, a product image’s `mediaUrl`, or a Section `backgrounds` image layer url).',
   'For an IMMERSIVE hero / CTA band — a full-bleed background image with text ON TOP — do NOT split into text-column + image-column. Instead set the Section’s `backgrounds` prop (works on any block): an array of layers painted front-to-back. e.g. `backgrounds: [ { "type":"linear", "angle":"90", "stops":[{"color":"rgba(0,0,0,0.55)","pos":"0%"},{"color":"rgba(0,0,0,0)","pos":"60%"}] }, { "type":"image", "url":"<upload_media url>", "sizeMode":"cover", "posX":"center", "posY":"center", "repeat":"no-repeat" } ]` — the gradient/overlay layer (or `{ "type":"overlay", "color":"rgba(0,0,0,0.4)" }`) is listed BEFORE the image for text legibility. Give the Section a `minHeight`, keep `bg` as the base colour, and put the overlay content in a Container aligned as the design shows (often lower-left). A floating card that overlaps the section below (a trust bar) is done with a negative top `margin` on that card.',
   'Nest children INSIDE props, keyed by the slot name (see each block’s "slots") — never in a top-level "content" on a child block; only the document root uses a top-level content array.',
 ]
@@ -116,6 +116,11 @@ const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string 
     section: 'Brand setup (do this FIRST, before any section)',
     blocks: ['get_appearance', 'set_appearance(primaryColor, secondaryColor, fontFamily, savedColors)'],
     note: 'Extract the design’s palette + typeface and apply them with set_appearance BEFORE composing. primary/secondary drive every CTA and product button; savedColors (bg, ink, accent, surface) become var(--color-<slug>) for use in any block’s bg/textColor/borderColor. Skipping this ships the default purple CTAs — the #1 reason a build looks off-brand.',
+  },
+  {
+    section: 'Asset inventory (do this SECOND)',
+    blocks: ['upload_media(purpose:"reference")', 'crop_media ×N', 'list_media'],
+    note: 'Before composing, map every image the design shows to a real asset. If you have the design as an image, upload_media(purpose:"reference") once, then crop_media each hero/thumbnail/product photo out of it (pixel coords in the reference). For assets the operator supplied, upload_media them. Any slot you cannot fill with a real asset must be reported — do NOT paper over it with a stock photo.',
   },
   {
     section: 'Hero',
@@ -253,6 +258,11 @@ function buildCatalog(
     for (const name of cat.components ?? []) categoryOf.set(name, cat.title || catKey)
   }
 
+  // `backgrounds` is read by every block (via Box) but is not a declared
+  // styleField, so it was invisible in the catalog — advertise it alongside the
+  // other shared style props (its layer shape is documented in styleSchemas).
+  const stylePropsOut = styleProps.includes('backgrounds') ? styleProps : [...styleProps, 'backgrounds']
+
   const blocks = Object.entries(config.components ?? {})
     .map(([type, component]) => {
       const slots: string[] = []
@@ -261,6 +271,18 @@ function buildCatalog(
         if (styleSet.has(name)) continue // shared style prop — captured in styleProps
         if (field?.type === 'slot') {
           slots.push(name)
+          continue
+        }
+        // The Image `src` is a custom MediaField — opaque as `{type:'custom'}`.
+        // Spell out the value shape so the AI builds it from an upload_media
+        // response instead of guessing.
+        if (type === 'Image' && name === 'src') {
+          fields[name] = {
+            type: 'image',
+            label: 'Image',
+            shape: 'string | { url, width, height, srcset }',
+            note: 'Prefer the object form from upload_media/crop_media: { url, width, height, srcset } — srcset = variants.map(v => `${v.url} ${v.width}w`).join(", "). A bare url string also works.',
+          }
           continue
         }
         fields[name] = describeField(field)
@@ -281,7 +303,7 @@ function buildCatalog(
         defaultProps,
         // A "when to use this" hint for the blocks worth steering toward.
         ...(BLOCK_HINTS[type] ? { useFor: BLOCK_HINTS[type] } : {}),
-        styleProps,
+        styleProps: stylePropsOut,
       }
     })
     .sort((a, b) => a.type.localeCompare(b.type))
@@ -292,8 +314,28 @@ function buildCatalog(
       ? { rules: GUIDANCE_RULES, recipes: GUIDANCE_RECIPES }
       : { rules: GUIDANCE_RULES }
 
-  return { target, generatedAt, contentShape: CONTENT_SHAPE, guidance, blocks }
+  return {
+    target,
+    generatedAt,
+    contentShape: CONTENT_SHAPE,
+    guidance,
+    blocks,
+    styleSchemas: STYLE_SCHEMAS,
+  }
 }
+
+/**
+ * Shapes for the shared style props whose value is more than a plain CSS string,
+ * so the AI (and the validator) know their structure. `backgrounds` is the layer
+ * stack that powers an immersive hero.
+ */
+const STYLE_SCHEMAS = {
+  backgrounds:
+    'An array of layers painted FRONT-to-BACK (list an overlay/gradient BEFORE the image for legibility). Layer shapes: ' +
+    '{ type:"image", url:"<upload_media url>", sizeMode:"cover"|"contain", posX:"center", posY:"center", repeat:"no-repeat" } | ' +
+    '{ type:"linear", angle:"90", stops:[{ color:"rgba(0,0,0,0.55)", pos:"0%" }, { color:"rgba(0,0,0,0)", pos:"60%" }] } | ' +
+    '{ type:"overlay", color:"rgba(0,0,0,0.4)" }. Set on a Section (with minHeight + bg) for a full-bleed hero/CTA band.',
+} as const
 
 /**
  * Describe one Puck field for the catalog, recursively — so object fields expose

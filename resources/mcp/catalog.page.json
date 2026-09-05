@@ -1,6 +1,6 @@
 {
   "target": "page",
-  "generatedAt": "2026-09-05T14:14:12.860Z",
+  "generatedAt": "2026-09-05T14:24:47.192Z",
   "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] } — only the ROOT uses a top-level \"content\" array. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children INSIDE props, keyed by the slot name (see each block's \"slots\") — e.g. { type: \"Section\", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a top-level \"content\" on the block (a sibling of props) — that renders EMPTY. Every block also accepts the shared \"styleProps\" — each is a plain CSS string value (e.g. padding: \"16px 24px\", bg: \"#ffffff\", textColor: \"#111827\", borderRadius: \"8px\"); object/number shapes are dropped on render. A field with type \"object\" documents its shape under \"objectFields\"; a field with type \"array\" documents each item's shape under \"arrayFields\" (+ \"defaultItemProps\" as an example). Each block's \"defaultProps\" is a ready-to-use worked example of valid props. Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled — see the catalog's \"enabledModules\" and prefer core blocks unless the site uses that module.",
   "guidance": {
     "rules": [
@@ -11,7 +11,7 @@
       "To put items SIDE BY SIDE, wrap them in a layout block — Grid or Columns for EQUAL-width columns, HFlex for a button/inline row OR an asymmetric split (give each child a `width` styleProp; flex honours it, equal grid tracks do not). Sibling blocks with no layout parent stack vertically.",
       "Prefer the purpose-built block over composing from scratch: Reviews for testimonials, Accordion for FAQ, Slider/Carousel for hero or rotating strips, ProductList for products.",
       "For a products / shop section use the commerce ProductList block (real cards with price + image), and CREATE the products it shows with the create_product tool — inline `price` (minor units, e.g. 4900 = $49.00) auto-creates a sellable \"Default\" variant; set status:\"active\" so they appear. Do NOT fake products with a CMS collection + CollectionList — that yields plain title/excerpt cards. ProductList and the product tools need the \"ecommerce\" module: confirm it is listed in this catalog’s \"enabledModules\" first; if absent, ask the operator to enable it rather than faking it.",
-      "Use real images: upload_media returns an asset `url` — use that exact string verbatim (an Image block’s `src`, or a product image’s `mediaUrl`). Avoid random stock/placeholder URLs — they read as off-brand and rarely match the design.",
+      "ASSETS ARE REAL PHOTOS, NOT GUESSES. NEVER substitute random stock or placeholder imagery (picsum, loremflickr, unsplash-source, placehold.co, dummyimage, …) for a hero, product, lifestyle or brand image — those hosts are REJECTED by upload_media and flagged by the validator. If the design’s actual assets were not supplied: (a) if you were given a design screenshot/mockup, upload it with upload_media(purpose:\"reference\") and cut the design’s OWN photos out with crop_media(mediaId, x, y, width, height) — coordinates in the reference’s pixels; (b) otherwise STOP and ask the operator for the image files/URLs; (c) only if told to proceed anyway, use upload_media(url, purpose:\"placeholder\") for a labelled stand-in and report every placeholder slot in your summary. Once you have an asset, use its returned `url` verbatim (Image `src`, a product image’s `mediaUrl`, or a Section `backgrounds` image layer url).",
       "For an IMMERSIVE hero / CTA band — a full-bleed background image with text ON TOP — do NOT split into text-column + image-column. Instead set the Section’s `backgrounds` prop (works on any block): an array of layers painted front-to-back. e.g. `backgrounds: [ { \"type\":\"linear\", \"angle\":\"90\", \"stops\":[{\"color\":\"rgba(0,0,0,0.55)\",\"pos\":\"0%\"},{\"color\":\"rgba(0,0,0,0)\",\"pos\":\"60%\"}] }, { \"type\":\"image\", \"url\":\"<upload_media url>\", \"sizeMode\":\"cover\", \"posX\":\"center\", \"posY\":\"center\", \"repeat\":\"no-repeat\" } ]` — the gradient/overlay layer (or `{ \"type\":\"overlay\", \"color\":\"rgba(0,0,0,0.4)\" }`) is listed BEFORE the image for text legibility. Give the Section a `minHeight`, keep `bg` as the base colour, and put the overlay content in a Container aligned as the design shows (often lower-left). A floating card that overlaps the section below (a trust bar) is done with a negative top `margin` on that card.",
       "Nest children INSIDE props, keyed by the slot name (see each block’s \"slots\") — never in a top-level \"content\" on a child block; only the document root uses a top-level content array."
     ],
@@ -23,6 +23,15 @@
           "set_appearance(primaryColor, secondaryColor, fontFamily, savedColors)"
         ],
         "note": "Extract the design’s palette + typeface and apply them with set_appearance BEFORE composing. primary/secondary drive every CTA and product button; savedColors (bg, ink, accent, surface) become var(--color-<slug>) for use in any block’s bg/textColor/borderColor. Skipping this ships the default purple CTAs — the #1 reason a build looks off-brand."
+      },
+      {
+        "section": "Asset inventory (do this SECOND)",
+        "blocks": [
+          "upload_media(purpose:\"reference\")",
+          "crop_media ×N",
+          "list_media"
+        ],
+        "note": "Before composing, map every image the design shows to a real asset. If you have the design as an image, upload_media(purpose:\"reference\") once, then crop_media each hero/thumbnail/product photo out of it (pixel coords in the reference). For assets the operator supplied, upload_media them. Any slot you cannot fill with a real asset must be reported — do NOT paper over it with a stock photo."
       },
       {
         "section": "Hero",
@@ -169,7 +178,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -197,7 +207,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -225,7 +236,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -268,7 +280,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -303,7 +316,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -367,7 +381,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -417,7 +432,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -531,7 +547,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -560,7 +577,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -595,7 +613,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -650,7 +669,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -679,7 +699,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -714,7 +735,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -749,7 +771,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -995,7 +1018,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1053,7 +1077,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1086,7 +1111,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1124,7 +1150,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1156,7 +1183,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1184,7 +1212,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1222,7 +1251,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1257,7 +1287,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1297,7 +1328,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1352,7 +1384,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1446,7 +1479,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1481,7 +1515,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1575,7 +1610,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1642,7 +1678,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1677,7 +1714,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1844,7 +1882,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1855,8 +1894,10 @@
       "slots": [],
       "fields": {
         "src": {
-          "type": "custom",
-          "label": "Image"
+          "type": "image",
+          "label": "Image",
+          "shape": "string | { url, width, height, srcset }",
+          "note": "Prefer the object form from upload_media/crop_media: { url, width, height, srcset } — srcset = variants.map(v => `${v.url} ${v.width}w`).join(\", \"). A bare url string also works."
         },
         "alt": {
           "type": "text",
@@ -1887,7 +1928,7 @@
         "sizes": "",
         "priority": "false"
       },
-      "useFor": "A single image. Use a REAL asset URL from upload_media — random placeholders look off-brand.",
+      "useFor": "A single image. `src` is a url string OR { url, width, height, srcset } (prefer the object form from the upload_media/crop_media response). Use a REAL asset — never a random stock/placeholder URL (they are rejected). To reuse a design’s own photo, upload the reference with purpose:\"reference\" then crop_media it.",
       "styleProps": [
         "padding",
         "margin",
@@ -1905,7 +1946,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -1995,7 +2037,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2035,7 +2078,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2080,7 +2124,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2134,7 +2179,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2182,7 +2228,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2214,7 +2261,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2242,7 +2290,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2332,7 +2381,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2397,7 +2447,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2437,7 +2488,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2475,7 +2527,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2503,7 +2556,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2531,7 +2585,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2567,7 +2622,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2603,7 +2659,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2725,7 +2782,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2791,7 +2849,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2836,7 +2895,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2864,7 +2924,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2892,7 +2953,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -2972,7 +3034,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3022,7 +3085,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3189,7 +3253,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3224,7 +3289,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3259,7 +3325,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3304,7 +3371,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3337,7 +3405,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3415,7 +3484,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3465,7 +3535,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3500,7 +3571,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3535,7 +3607,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3594,7 +3667,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3629,7 +3703,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3664,7 +3739,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3724,7 +3800,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3779,7 +3856,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3814,7 +3892,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3899,7 +3978,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3934,7 +4014,8 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     },
     {
@@ -3969,8 +4050,12 @@
         "borderColor",
         "borderRadius",
         "boxShadow",
-        "className"
+        "className",
+        "backgrounds"
       ]
     }
-  ]
+  ],
+  "styleSchemas": {
+    "backgrounds": "An array of layers painted FRONT-to-BACK (list an overlay/gradient BEFORE the image for legibility). Layer shapes: { type:\"image\", url:\"<upload_media url>\", sizeMode:\"cover\"|\"contain\", posX:\"center\", posY:\"center\", repeat:\"no-repeat\" } | { type:\"linear\", angle:\"90\", stops:[{ color:\"rgba(0,0,0,0.55)\", pos:\"0%\" }, { color:\"rgba(0,0,0,0)\", pos:\"60%\" }] } | { type:\"overlay\", color:\"rgba(0,0,0,0.4)\" }. Set on a Section (with minHeight + bg) for a full-bleed hero/CTA band."
+  }
 }

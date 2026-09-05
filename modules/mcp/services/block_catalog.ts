@@ -87,6 +87,11 @@ export interface Catalog {
   guidance?: CatalogGuidance
   blocks: CatalogBlock[]
   /**
+   * Shapes for shared style props whose value is structured rather than a plain
+   * CSS string (currently `backgrounds`, the immersive-hero layer stack).
+   */
+  styleSchemas?: Record<string, string>
+  /**
    * Names of modules currently ENABLED at runtime. Appended when the catalog is
    * served (not baked into the emitted file). A block whose `module` is not in
    * this list won't render — the validator rejects it and the AI should prefer
