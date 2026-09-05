@@ -898,12 +898,15 @@ export const baseConfig: Config = {
             <CollectionSourceField value={value} onChange={onChange} />
           ),
         },
-        // 'card' (the old built-in preset) is no longer offered but pages saved
-        // with it still render through the legacy path in CollectionList.
+        // 'builtin' renders the ready-made card (image/title/excerpt styled by the
+        // `cardStyle`/`columns`/`imageAspect` fields below) with no template or
+        // slot design needed — the zero-config default. 'template' repeats a
+        // COLLECTION template per record; 'custom' repeats the designed `item` slot.
         template: {
           type: 'radio',
           label: 'Item design',
           options: [
+            { label: 'Built-in card', value: 'builtin' },
             { label: 'Select template', value: 'template' },
             { label: 'Custom (design below)', value: 'custom' },
           ],
@@ -997,7 +1000,7 @@ export const baseConfig: Config = {
       },
       defaultProps: {
         source: {},
-        template: 'template',
+        template: 'builtin',
         templateId: '',
         item: [],
         layout: 'grid',

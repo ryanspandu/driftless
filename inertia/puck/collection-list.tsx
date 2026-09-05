@@ -420,8 +420,11 @@ export function CollectionList({
   filterValue?: string
   pageSize?: string | number
   /**
-   * 'template' repeats a COLLECTION template per record, 'custom' the designed
-   * item slot; 'card' (legacy, no longer offered) the built-in card.
+   * 'builtin' (the default) renders the ready-made card styled by
+   * cardStyle/columns/imageAspect — no template or slot design needed.
+   * 'template' repeats a COLLECTION template per record; 'custom' the designed
+   * item slot. Any other value (legacy '' / 'card') also falls through to the
+   * built-in card.
    */
   template?: string
   /** The COLLECTION template to repeat when `template === 'template'`. */

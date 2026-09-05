@@ -85,7 +85,7 @@ const BLOCK_HINTS: Record<string, string> = {
   Accordion: 'An expandable question/answer list. Use for any FAQ or "common questions" section.',
   Tabs: 'Tabbed content panels for switching between related bodies of content.',
   CollectionList:
-    'Lists PUBLISHED records of a CMS collection you created (blogs, articles, generic content). Do NOT use this for e-commerce products — use ProductList.',
+    'Lists PUBLISHED records of a CMS collection you created (blogs, articles, generic content). Leave template:"builtin" (the default) to get a ready-made card — set cardStyle ("card"|"plain"|"overlay"), columns and imageAspect; the record\'s image field must hold a URL string. Only set template:"template" if you have created a COLLECTION template to repeat. Do NOT use this for e-commerce products — use ProductList.',
   // Commerce module blocks:
   ProductList:
     'THE correct block for a product/shop grid — renders real product CARDS (image, title, price, columns, sorting) from the store. CREATE the products it shows with the create_product tool (they must be status:"active" to appear) — an empty store renders an empty grid. Do NOT fake products with a CMS collection + CollectionList.',
