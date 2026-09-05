@@ -560,7 +560,11 @@ export interface ApiDefinition {
       update: typeof routes['mcp.pages.update']
       content: typeof routes['mcp.pages.content']
       publish: typeof routes['mcp.pages.publish']
+      previewToken: typeof routes['mcp.pages.previewToken']
+      brief: typeof routes['mcp.pages.brief']
+      coverage: typeof routes['mcp.pages.coverage']
       discard: typeof routes['mcp.pages.discard']
+      destroy: typeof routes['mcp.pages.destroy']
     }
     templates: {
       index: typeof routes['mcp.templates.index']
@@ -570,12 +574,34 @@ export interface ApiDefinition {
       destroy: typeof routes['mcp.templates.destroy']
       default: typeof routes['mcp.templates.default']
     }
-    appearance: typeof routes['mcp.appearance']
+    appearance: typeof routes['mcp.appearance'] & {
+      get: typeof routes['mcp.appearance.get']
+    }
     breakpoints: typeof routes['mcp.breakpoints']
     globalcode: typeof routes['mcp.globalcode']
     media: {
       index: typeof routes['mcp.media.index']
       store: typeof routes['mcp.media.store']
+      crop: typeof routes['mcp.media.crop']
+      update: typeof routes['mcp.media.update']
+    }
+    products: {
+      index: typeof routes['mcp.products.index']
+      categories: {
+        index: typeof routes['mcp.products.categories.index']
+        store: typeof routes['mcp.products.categories.store']
+        update: typeof routes['mcp.products.categories.update']
+        destroy: typeof routes['mcp.products.categories.destroy']
+      }
+      show: typeof routes['mcp.products.show']
+      store: typeof routes['mcp.products.store']
+      update: typeof routes['mcp.products.update']
+      destroy: typeof routes['mcp.products.destroy']
+      variants: {
+        store: typeof routes['mcp.products.variants.store']
+        update: typeof routes['mcp.products.variants.update']
+        destroy: typeof routes['mcp.products.variants.destroy']
+      }
     }
   }
   ctrl: {

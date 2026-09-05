@@ -3827,12 +3827,12 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/admin/ecommerce/products'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#modules/ecommerce/validators/catalog').createProductValidator)>>
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#modules/ecommerce/validators/catalog').createProductValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'ecommerce.api.products.import': {
@@ -3851,12 +3851,12 @@ export interface Registry {
     methods: ["PUT"]
     pattern: '/api/admin/ecommerce/products/:id'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#modules/ecommerce/validators/catalog').updateProductValidator)>>
       paramsTuple: [ParamValue]
       params: { id: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#modules/ecommerce/validators/catalog').updateProductValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['update']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'ecommerce.api.products.destroy': {
@@ -3875,24 +3875,24 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/admin/ecommerce/products/:id/variants'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#modules/ecommerce/validators/catalog').createVariantValidator)>>
       paramsTuple: [ParamValue]
       params: { id: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#modules/ecommerce/validators/catalog').createVariantValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['storeVariant']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['storeVariant']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['storeVariant']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'ecommerce.api.variants.update': {
     methods: ["PUT"]
     pattern: '/api/admin/ecommerce/variants/:variantId'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#modules/ecommerce/validators/catalog').updateVariantValidator)>>
       paramsTuple: [ParamValue]
       params: { variantId: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#modules/ecommerce/validators/catalog').updateVariantValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['updateVariant']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['updateVariant']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['updateVariant']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'ecommerce.api.variants.destroy': {
@@ -3995,24 +3995,24 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/admin/ecommerce/categories'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#modules/ecommerce/validators/catalog').createCategoryValidator)>>
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#modules/ecommerce/validators/catalog').createCategoryValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'ecommerce.api.categories.update': {
     methods: ["PUT"]
     pattern: '/api/admin/ecommerce/categories/:id'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#modules/ecommerce/validators/catalog').updateCategoryValidator)>>
       paramsTuple: [ParamValue]
       params: { id: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#modules/ecommerce/validators/catalog').updateCategoryValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['update']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'ecommerce.api.categories.destroy': {
@@ -4603,6 +4603,42 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['publish']>>>
     }
   }
+  'mcp.pages.previewToken': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/pages/:id/preview-token'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['previewToken']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['previewToken']>>>
+    }
+  }
+  'mcp.pages.brief': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/pages/:id/brief'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['setBrief']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['setBrief']>>>
+    }
+  }
+  'mcp.pages.coverage': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/pages/:id/coverage'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['coverage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['coverage']>>>
+    }
+  }
   'mcp.pages.discard': {
     methods: ["POST"]
     pattern: '/api/mcp/v1/pages/:id/discard-draft'
@@ -4613,6 +4649,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['discardDraft']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['discardDraft']>>>
+    }
+  }
+  'mcp.pages.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/mcp/v1/pages/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['destroy']>>>
     }
   }
   'mcp.templates.index': {
@@ -4687,6 +4735,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['setDefault']>>>
     }
   }
+  'mcp.appearance.get': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/appearance'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['getAppearance']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['getAppearance']>>>
+    }
+  }
   'mcp.appearance': {
     methods: ["PUT"]
     pattern: '/api/mcp/v1/appearance'
@@ -4745,6 +4805,174 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/media_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/media_controller').default['store']>>>
+    }
+  }
+  'mcp.media.crop': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/media/:id/crop'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/media_controller').default['crop']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/media_controller').default['crop']>>>
+    }
+  }
+  'mcp.media.update': {
+    methods: ["PATCH"]
+    pattern: '/api/mcp/v1/media/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/media_controller').default['updateMeta']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/media_controller').default['updateMeta']>>>
+    }
+  }
+  'mcp.products.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/products'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['index']>>>
+    }
+  }
+  'mcp.products.categories.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/categories'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['indexCategories']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['indexCategories']>>>
+    }
+  }
+  'mcp.products.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/products/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['show']>>>
+    }
+  }
+  'mcp.products.store': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/products'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['store']>>>
+    }
+  }
+  'mcp.products.update': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/products/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['update']>>>
+    }
+  }
+  'mcp.products.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/mcp/v1/products/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['destroy']>>>
+    }
+  }
+  'mcp.products.variants.store': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/products/:id/variants'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['storeVariant']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['storeVariant']>>>
+    }
+  }
+  'mcp.products.variants.update': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/variants/:variantId'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { variantId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['updateVariant']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['updateVariant']>>>
+    }
+  }
+  'mcp.products.variants.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/mcp/v1/variants/:variantId'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { variantId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['destroyVariant']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['destroyVariant']>>>
+    }
+  }
+  'mcp.products.categories.store': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/categories'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['storeCategory']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['storeCategory']>>>
+    }
+  }
+  'mcp.products.categories.update': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/categories/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['updateCategory']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['updateCategory']>>>
+    }
+  }
+  'mcp.products.categories.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/mcp/v1/categories/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['destroyCategory']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/products_controller').default['destroyCategory']>>>
     }
   }
   'ctrl.page': {

@@ -195,18 +195,37 @@ export type ScannedRoutes = {
     'mcp.pages.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.content': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.publish': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.previewToken': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.brief': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.coverage': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.discard': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.index': { paramsTuple?: []; params?: {} }
     'mcp.templates.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.store': { paramsTuple?: []; params?: {} }
     'mcp.templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.default': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.appearance.get': { paramsTuple?: []; params?: {} }
     'mcp.appearance': { paramsTuple?: []; params?: {} }
     'mcp.breakpoints': { paramsTuple?: []; params?: {} }
     'mcp.globalcode': { paramsTuple?: []; params?: {} }
     'mcp.media.index': { paramsTuple?: []; params?: {} }
     'mcp.media.store': { paramsTuple?: []; params?: {} }
+    'mcp.media.crop': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.media.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.products.index': { paramsTuple?: []; params?: {} }
+    'mcp.products.categories.index': { paramsTuple?: []; params?: {} }
+    'mcp.products.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.products.store': { paramsTuple?: []; params?: {} }
+    'mcp.products.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.products.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.products.variants.store': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.products.variants.update': { paramsTuple: [ParamValue]; params: {'variantId': ParamValue} }
+    'mcp.products.variants.destroy': { paramsTuple: [ParamValue]; params: {'variantId': ParamValue} }
+    'mcp.products.categories.store': { paramsTuple?: []; params?: {} }
+    'mcp.products.categories.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.products.categories.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
     'ctrl.index': { paramsTuple?: []; params?: {} }
     'ctrl.assignees': { paramsTuple?: []; params?: {} }
@@ -307,9 +326,14 @@ export type ScannedRoutes = {
     'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.pages.index': { paramsTuple?: []; params?: {} }
     'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.coverage': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.index': { paramsTuple?: []; params?: {} }
     'mcp.templates.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.appearance.get': { paramsTuple?: []; params?: {} }
     'mcp.media.index': { paramsTuple?: []; params?: {} }
+    'mcp.products.index': { paramsTuple?: []; params?: {} }
+    'mcp.products.categories.index': { paramsTuple?: []; params?: {} }
+    'mcp.products.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
     'ctrl.index': { paramsTuple?: []; params?: {} }
     'ctrl.assignees': { paramsTuple?: []; params?: {} }
@@ -405,9 +429,14 @@ export type ScannedRoutes = {
     'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.pages.index': { paramsTuple?: []; params?: {} }
     'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.coverage': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.index': { paramsTuple?: []; params?: {} }
     'mcp.templates.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.appearance.get': { paramsTuple?: []; params?: {} }
     'mcp.media.index': { paramsTuple?: []; params?: {} }
+    'mcp.products.index': { paramsTuple?: []; params?: {} }
+    'mcp.products.categories.index': { paramsTuple?: []; params?: {} }
+    'mcp.products.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ctrl.page': { paramsTuple?: []; params?: {} }
     'ctrl.index': { paramsTuple?: []; params?: {} }
     'ctrl.assignees': { paramsTuple?: []; params?: {} }
@@ -471,10 +500,15 @@ export type ScannedRoutes = {
     'mcp.pages.validate': { paramsTuple?: []; params?: {} }
     'mcp.pages.store': { paramsTuple?: []; params?: {} }
     'mcp.pages.publish': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.previewToken': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.discard': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.store': { paramsTuple?: []; params?: {} }
     'mcp.templates.default': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.media.store': { paramsTuple?: []; params?: {} }
+    'mcp.media.crop': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.products.store': { paramsTuple?: []; params?: {} }
+    'mcp.products.variants.store': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.products.categories.store': { paramsTuple?: []; params?: {} }
     'ctrl.store': { paramsTuple?: []; params?: {} }
   }
   PUT: {
@@ -504,10 +538,14 @@ export type ScannedRoutes = {
     'mcp.collections.fields.update': { paramsTuple: [ParamValue,ParamValue]; params: {'key': ParamValue,'field': ParamValue} }
     'mcp.pages.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.content': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.brief': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.appearance': { paramsTuple?: []; params?: {} }
     'mcp.breakpoints': { paramsTuple?: []; params?: {} }
     'mcp.globalcode': { paramsTuple?: []; params?: {} }
+    'mcp.products.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.products.variants.update': { paramsTuple: [ParamValue]; params: {'variantId': ParamValue} }
+    'mcp.products.categories.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ctrl.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   DELETE: {
@@ -528,11 +566,16 @@ export type ScannedRoutes = {
     'mcp.collections.destroy': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.collections.force': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.collections.fields.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'key': ParamValue,'field': ParamValue} }
+    'mcp.pages.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.products.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.products.variants.destroy': { paramsTuple: [ParamValue]; params: {'variantId': ParamValue} }
+    'mcp.products.categories.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ctrl.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PATCH: {
     'mcp.collections.fields.reorder': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
+    'mcp.media.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ctrl.move': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
 }
