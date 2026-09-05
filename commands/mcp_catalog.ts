@@ -51,6 +51,110 @@ const CONTENT_SHAPE =
   'renders while that module is enabled — see the catalog\'s "enabledModules" and prefer core ' +
   'blocks unless the site uses that module.'
 
+/**
+ * A one-line "when to reach for this" hint, keyed by block type. Merged onto the
+ * matching block as `useFor` so the AI picks the purpose-built block for a
+ * design section instead of composing it from scratch (or picking a wrong one).
+ * Only blocks worth steering toward are listed; any type absent here just has no
+ * hint. Types that only exist when a module is enabled (ProductList, …) are
+ * still safe to list — they simply won't match if the block isn't present.
+ */
+const BLOCK_HINTS: Record<string, string> = {
+  Section:
+    'A full-width page band. Wrap EVERY page section in a Section (set its bg/padding here), then a Container inside it.',
+  Container: 'Centres a section’s content at a max width. Put the section’s blocks inside it.',
+  Grid: 'Equal-width columns laid out side by side. Use for feature / stat / logo / card rows — set "columns" (2–4); children become grid items automatically.',
+  Columns:
+    'Equal-width columns (2–4) — like Grid but without a rows control. It does NOT do uneven widths; for an asymmetric split (copy beside an image, 60/40) use an HFlex whose children carry different `width` styleProps.',
+  HFlex:
+    'A horizontal row that wraps. Use for a button group / inline items, OR an asymmetric split — give each child its own `width` styleProp (e.g. "60%" / "40%"); flex children honour width, equal grid tracks do not.',
+  VFlex:
+    'A vertical stack with a consistent gap. Use it (not QuickStack) when you want things stacked on every screen.',
+  QuickStack:
+    'A grid of equal-width cells; set "columns". Note: it does NOT auto-stack on mobile — for a plain vertical stack use VFlex.',
+  Heading: 'A section title (h1–h6). One per section.',
+  Paragraph: 'Body copy — sub-headings, descriptions, supporting text.',
+  Button:
+    'A call-to-action link. Group a primary + secondary CTA inside an HFlex to place them side by side.',
+  Image:
+    'A single image. Use a REAL asset URL from upload_media — random placeholders look off-brand.',
+  Slider: 'A full-bleed rotating hero (one slide at a time). Use for a hero banner carousel.',
+  Carousel: 'A multi-per-view sliding track. Use for logo strips or a row of scrolling cards.',
+  Reviews:
+    'Testimonials as rating cards (author, rating, text, avatar). Use for a "what customers say" section — do NOT hand-build testimonial cards.',
+  Accordion: 'An expandable question/answer list. Use for any FAQ or "common questions" section.',
+  Tabs: 'Tabbed content panels for switching between related bodies of content.',
+  CollectionList:
+    'Lists PUBLISHED records of a CMS collection you created (blogs, articles, generic content). Do NOT use this for e-commerce products — use ProductList.',
+  // Commerce module blocks:
+  ProductList:
+    'THE correct block for a product/shop grid — renders real product CARDS (image, title, price, columns, sorting) from the store. CREATE the products it shows with the create_product tool (they must be status:"active" to appear) — an empty store renders an empty grid. Do NOT fake products with a CMS collection + CollectionList.',
+  ProductDetail:
+    'A single product’s full detail (gallery, price, add-to-cart). Use on a product template page.',
+  CartBlock: 'The shopping-cart page contents.',
+  CheckoutBlock: 'The checkout flow. Use on the checkout page.',
+}
+
+/** Hard do/don’t rules, served to every target (layout rules apply everywhere). */
+const GUIDANCE_RULES: string[] = [
+  'Read this whole catalog first. Every block’s "defaultProps" is a valid, ready-to-use example — copy one and adapt it rather than guessing prop shapes.',
+  'Structure every section as Section (full-width band; set bg + padding here) → Container (centres content) → the section’s blocks. Do not place bare content blocks at the page root.',
+  'To put items SIDE BY SIDE, wrap them in a layout block — Grid or Columns for EQUAL-width columns, HFlex for a button/inline row OR an asymmetric split (give each child a `width` styleProp; flex honours it, equal grid tracks do not). Sibling blocks with no layout parent stack vertically.',
+  'Prefer the purpose-built block over composing from scratch: Reviews for testimonials, Accordion for FAQ, Slider/Carousel for hero or rotating strips, ProductList for products.',
+  'For a products / shop section use the commerce ProductList block (real cards with price + image), and CREATE the products it shows with the create_product tool — inline `price` (minor units, e.g. 4900 = $49.00) auto-creates a sellable "Default" variant; set status:"active" so they appear. Do NOT fake products with a CMS collection + CollectionList — that yields plain title/excerpt cards. ProductList and the product tools need the "ecommerce" module: confirm it is listed in this catalog’s "enabledModules" first; if absent, ask the operator to enable it rather than faking it.',
+  'Use real images: upload_media returns an asset `url` — use that exact string verbatim (an Image block’s `src`, or a product image’s `mediaUrl`). Avoid random stock/placeholder URLs — they read as off-brand and rarely match the design.',
+  'Nest children INSIDE props, keyed by the slot name (see each block’s "slots") — never in a top-level "content" on a child block; only the document root uses a top-level content array.',
+]
+
+/** Per-section compositions — the bridge from "here are blocks" to "here is a page". Page target only. */
+const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string }> = [
+  {
+    section: 'Hero',
+    blocks: ['Section', 'Container', 'Heading', 'Paragraph', 'HFlex(Button, Button)'],
+    note: 'Big title + sub-copy + a primary/secondary CTA row (HFlex). Add a Slider or Image alongside for a visual.',
+  },
+  {
+    section: 'Trust bar / logos / stats',
+    blocks: ['Section', 'Container', 'Grid(columns:4)', 'Image or Text ×N'],
+    note: 'A single Grid with 3–4 columns holding logos or short stat blocks.',
+  },
+  {
+    section: 'Feature grid / how it works',
+    blocks: ['Section', 'Container', 'Grid(columns:3)', 'per cell: Heading + Paragraph'],
+    note: 'One Grid; each cell is a small stack of a heading and a line of copy (optionally an Image/icon).',
+  },
+  {
+    section: 'Product grid',
+    blocks: [
+      'create_product ×N (status:"active")',
+      'Section',
+      'Container',
+      'ProductList(columns:3)',
+    ],
+    note: 'Create the products FIRST with create_product (status:"active", inline `price`); then ProductList renders the cards itself — an empty store shows an empty grid. Do NOT wrap products in a manual Grid of Images.',
+  },
+  {
+    section: 'Testimonials',
+    blocks: ['Section', 'Container', 'Reviews(columns:3)'],
+    note: 'Reviews renders the rating cards; fill its "reviews" array.',
+  },
+  {
+    section: 'FAQ',
+    blocks: ['Section', 'Container', 'Accordion'],
+    note: 'Accordion with an "items" array of {question, answer}.',
+  },
+  {
+    section: 'CTA band',
+    blocks: ['Section(bg)', 'Container', 'Heading', 'Button'],
+    note: 'A coloured Section band with a heading and one CTA button.',
+  },
+  {
+    section: 'Gallery',
+    blocks: ['Section', 'Container', 'Grid or Carousel', 'Image ×N'],
+    note: 'Grid for a static gallery, Carousel for a scrolling one.',
+  },
+]
+
 export default class McpCatalog extends BaseCommand {
   static commandName = 'mcp:catalog'
   static description = 'Emit the MCP block catalog (page/collection/email) to resources/mcp/'
@@ -157,12 +261,20 @@ function buildCatalog(
         slots,
         fields,
         defaultProps,
+        // A "when to use this" hint for the blocks worth steering toward.
+        ...(BLOCK_HINTS[type] ? { useFor: BLOCK_HINTS[type] } : {}),
         styleProps,
       }
     })
     .sort((a, b) => a.type.localeCompare(b.type))
 
-  return { target, generatedAt, contentShape: CONTENT_SHAPE, blocks }
+  // Recipes only make sense for a full page; the layout rules apply everywhere.
+  const guidance =
+    target === 'page'
+      ? { rules: GUIDANCE_RULES, recipes: GUIDANCE_RECIPES }
+      : { rules: GUIDANCE_RULES }
+
+  return { target, generatedAt, contentShape: CONTENT_SHAPE, guidance, blocks }
 }
 
 /**

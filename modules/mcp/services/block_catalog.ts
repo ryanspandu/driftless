@@ -27,8 +27,38 @@ export interface CatalogBlock {
   fields: Record<string, CatalogField>
   /** A ready-to-use worked example of valid props for this block. */
   defaultProps?: Record<string, unknown>
+  /**
+   * A one-line "when to reach for this block" hint, so the AI picks the
+   * purpose-built block for a design section instead of composing it from
+   * scratch. Present only for the blocks worth steering toward; absent otherwise.
+   */
+  useFor?: string
   /** Shared style prop names (border, spacing, …) every block also accepts. */
   styleProps: string[]
+}
+
+/**
+ * How to assemble one recurring design section from blocks — the missing link
+ * between "here are the blocks" and "here is how a real page is built". Keyed by
+ * a section name an AI would recognise from a design (hero, productGrid, faq, …).
+ */
+export interface CatalogRecipe {
+  /** The design section this recipe builds (e.g. "Product grid"). */
+  section: string
+  /** The ordered blocks to nest, outermost first. */
+  blocks: string[]
+  /** A short note on how to wire them and what to watch for. */
+  note: string
+}
+
+/**
+ * Editorial guidance served alongside the raw block list so the AI builds pages
+ * that match a design instead of stacking bare blocks. `rules` are hard
+ * do/don't statements; `recipes` are per-section compositions (page target only).
+ */
+export interface CatalogGuidance {
+  rules: string[]
+  recipes?: CatalogRecipe[]
 }
 
 export interface CatalogField {
@@ -49,6 +79,12 @@ export interface Catalog {
   generatedAt: string
   /** How a Puck document is shaped, spelled out for the AI. */
   contentShape: string
+  /**
+   * Editorial guidance (rules + per-section recipes) that steers the AI toward
+   * the right blocks for a design. Emitted for the `page` target; a trimmed set
+   * of layout rules for the others.
+   */
+  guidance?: CatalogGuidance
   blocks: CatalogBlock[]
   /**
    * Names of modules currently ENABLED at runtime. Appended when the catalog is
