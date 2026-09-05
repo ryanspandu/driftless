@@ -109,6 +109,9 @@ const shieldConfig = defineConfig({
      *
      * - `/api/v1/*` — the external token-authed API uses Bearer tokens, not
      *   cookies, so CSRF does not apply.
+     * - `/api/mcp/*` — the MCP endpoint (builder-API + JSON-RPC bridge) is also
+     *   Bearer-token authed and called by external MCP clients (e.g. mcp-remote),
+     *   which have no session/CSRF token to send.
      * - `/api/webhooks/*` — payment gateways cannot send a CSRF token and have
      *   no session to protect. These routes authenticate by verifying the
      *   provider's signature over the raw request body instead, which is
@@ -118,6 +121,7 @@ const shieldConfig = defineConfig({
       const url = ctx.request.url()
       return (
         url.startsWith('/api/v1/') ||
+        url.startsWith('/api/mcp/') ||
         url.startsWith('/api/webhooks/') ||
         // The analytics beacon is fired by anonymous visitors (often via
         // sendBeacon, which can't set headers) and only ever inserts one row.

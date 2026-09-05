@@ -25,6 +25,8 @@ export interface CatalogBlock {
   slots: string[]
   /** Field name → a compact descriptor (type + label + options for selects). */
   fields: Record<string, CatalogField>
+  /** A ready-to-use worked example of valid props for this block. */
+  defaultProps?: Record<string, unknown>
   /** Shared style prop names (border, spacing, …) every block also accepts. */
   styleProps: string[]
 }
@@ -33,6 +35,12 @@ export interface CatalogField {
   type: string
   label?: string
   options?: Array<{ label: string; value: string | number }>
+  /** For `type: "object"` — the nested field shapes. */
+  objectFields?: Record<string, CatalogField>
+  /** For `type: "array"` — each item's field shapes. */
+  arrayFields?: Record<string, CatalogField>
+  /** For `type: "array"` — a worked example of one item. */
+  defaultItemProps?: Record<string, unknown>
 }
 
 export interface Catalog {
@@ -42,6 +50,13 @@ export interface Catalog {
   /** How a Puck document is shaped, spelled out for the AI. */
   contentShape: string
   blocks: CatalogBlock[]
+  /**
+   * Names of modules currently ENABLED at runtime. Appended when the catalog is
+   * served (not baked into the emitted file). A block whose `module` is not in
+   * this list won't render — the validator rejects it and the AI should prefer
+   * a core block.
+   */
+  enabledModules?: string[]
 }
 
 export type CatalogTarget = 'page' | 'collection' | 'email'

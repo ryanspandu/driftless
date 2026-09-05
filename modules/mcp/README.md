@@ -233,10 +233,16 @@ Both paths call the exact same builder-API; the tool set is defined once in
   session store if stateful sessions are later introduced.
 
 - **Admin UI + audit — done**: `/admin/mcp` mints/revokes builder-scoped tokens
-  and shows the activity log. Every builder-API call (including the in-app RPC's
-  forwarded calls and 403 denials) is recorded in `mcp_audit_logs` by the
-  `mcpAudit` middleware — method, path, a friendly action, status, duration and
-  the calling token.
+  and shows the activity log. Every **builder-API** call (`/api/mcp/v1/*`,
+  including the in-app RPC's forwarded calls and 403 denials) is recorded in
+  `mcp_audit_logs` by the `mcpAudit` middleware — method, path, a friendly
+  action, status, duration and the calling token.
+
+  > **Records are the exception.** `create_record` / `update_record` /
+  > `delete_record` forward to `/api/v1/cms/*` (the shared records API), not the
+  > builder-API, so those mutations are **not** in the MCP activity log and are
+  > limited by `apiV1Throttle`, not the MCP write throttle. Auditing record
+  > writes through the MCP surface is a known follow-up.
 
 - **Module blocks in the catalog — done**: the catalog already carries every
   module's blocks with their field detail, now each tagged with its `module`

@@ -1,6 +1,6 @@
 import type { HttpRouterService } from '@adonisjs/core/types'
 import type { NamedMiddleware } from '#modules/types'
-import { mcpThrottle, mcpWriteThrottle } from '#modules/mcp/throttles'
+import { mcpThrottle, mcpRpcThrottle, mcpWriteThrottle } from '#modules/mcp/throttles'
 import { mcpAudit } from '#modules/mcp/services/mcp_audit'
 
 const McpCtrl = () => import('#modules/mcp/controllers/mcp_controller')
@@ -36,6 +36,7 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
   const moduleEnabled = middleware.moduleEnabled({ name: 'mcp' })
   // Safe here: registerRoutes runs from the start/routes.ts preload, after boot.
   const throttle = mcpThrottle()
+  const rpcThrottle = mcpRpcThrottle()
   const writeThrottle = mcpWriteThrottle()
 
   // ── Admin page ────────────────────────────────────────────────────────────
@@ -69,7 +70,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
     })
     .use(middleware.auth({ guards: ['api'] }))
     .use(moduleEnabled)
-    .use(throttle)
+    // Its OWN bucket — NOT the builder-API throttle — so a tool call isn't counted
+    // twice (once here, once on the forwarded builder call) against the same budget.
+    .use(rpcThrottle)
 
   // ── Builder-API (token-authenticated) ─────────────────────────────────────
   const read = (ability: string) => middleware.tokenAbility({ ability })
@@ -89,6 +92,11 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .get('/api/mcp/v1/collections', [CollectionsCtrl, 'index'])
             .as('mcp.collections.index')
             .use(read('builder:read'))
+          // Static path — registered before `:key` so it isn't captured by it.
+          router
+            .get('/api/mcp/v1/collections/trashed', [CollectionsCtrl, 'trashed'])
+            .as('mcp.collections.trashed')
+            .use(read('builder:read'))
           router
             .get('/api/mcp/v1/collections/:key', [CollectionsCtrl, 'show'])
             .as('mcp.collections.show')
@@ -104,6 +112,14 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
           router
             .delete('/api/mcp/v1/collections/:key', [CollectionsCtrl, 'destroy'])
             .as('mcp.collections.destroy')
+            .use(read('builder:collections'))
+          router
+            .post('/api/mcp/v1/collections/:key/restore', [CollectionsCtrl, 'restore'])
+            .as('mcp.collections.restore')
+            .use(read('builder:collections'))
+          router
+            .delete('/api/mcp/v1/collections/:key/force', [CollectionsCtrl, 'forceDestroy'])
+            .as('mcp.collections.force')
             .use(read('builder:collections'))
           router
             .post('/api/mcp/v1/collections/:key/fields', [CollectionsCtrl, 'addField'])

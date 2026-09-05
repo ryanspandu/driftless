@@ -4,6 +4,7 @@ import {
   type CatalogBlock,
   type CatalogTarget,
 } from '#modules/mcp/services/block_catalog'
+import ModulesService from '#services/modules_service'
 
 /**
  * Structural validator for Puck documents submitted through the builder-API.
@@ -62,11 +63,18 @@ export async function validatePuckDocument(
   const byType = new Map<string, CatalogBlock>(catalog.blocks.map((b) => [b.type, b]))
   const issues: ValidationIssue[] = []
 
+  // Which modules are enabled right now — a block from a disabled module would
+  // validate structurally but render nothing, so reject it with a clear message.
+  const enabledMap = await new ModulesService().enabledMap()
+  const enabledModules = new Set(
+    [...enabledMap.entries()].filter(([, on]) => on).map(([name]) => name)
+  )
+
   const content = doc.content
   if (content !== undefined && !Array.isArray(content)) {
     issues.push({ path: 'content', message: '`content` must be an array of blocks' })
   } else {
-    walk(content ?? [], 'content', byType, issues)
+    walk(content ?? [], 'content', byType, enabledModules, issues)
   }
 
   // Legacy DropZone map — walk each zone the same way if present.
@@ -76,7 +84,7 @@ export async function validatePuckDocument(
         issues.push({ path: `zones.${zone}`, message: 'zone must be an array of blocks' })
         continue
       }
-      walk(nodes, `zones.${zone}`, byType, issues)
+      walk(nodes, `zones.${zone}`, byType, enabledModules, issues)
     }
   }
 
@@ -87,6 +95,7 @@ function walk(
   nodes: PuckNode[],
   path: string,
   byType: Map<string, CatalogBlock>,
+  enabledModules: Set<string>,
   issues: ValidationIssue[]
 ): void {
   nodes.forEach((node, i) => {
@@ -108,6 +117,16 @@ function walk(
       return
     }
 
+    // A block from a module that isn't enabled won't render — reject it so the
+    // page can't publish into a silently-empty state.
+    if (block.module && !enabledModules.has(block.module)) {
+      issues.push({
+        path: at,
+        message: `block "${type}" needs the "${block.module}" module, which is not enabled — enable it or use a core block`,
+      })
+      return
+    }
+
     if (!node.props || typeof node.props !== 'object') node.props = {}
     const props = node.props as Record<string, unknown>
     if (typeof props.id !== 'string' || !props.id) props.id = `${type}-${randomUUID()}`
@@ -120,7 +139,7 @@ function walk(
         issues.push({ path: `${at}.props.${slot}`, message: 'slot must be an array of blocks' })
         continue
       }
-      walk(value as PuckNode[], `${at}.props.${slot}`, byType, issues)
+      walk(value as PuckNode[], `${at}.props.${slot}`, byType, enabledModules, issues)
     }
   })
 }

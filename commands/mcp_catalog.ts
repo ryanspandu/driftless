@@ -19,10 +19,14 @@ interface RawField {
   type?: string
   label?: string
   options?: Array<{ label?: string; value?: string | number }>
+  objectFields?: Record<string, RawField>
+  arrayFields?: Record<string, RawField>
+  defaultItemProps?: Record<string, unknown>
 }
 interface RawComponent {
   label?: string
   fields?: Record<string, RawField>
+  defaultProps?: Record<string, unknown>
 }
 interface RawConfig {
   categories?: Record<string, { title?: string; components?: string[] }>
@@ -33,9 +37,16 @@ const CONTENT_SHAPE =
   'A Puck document is { root: { props: {} }, content: [ Block ] }. ' +
   'A Block is { type: "<block type>", props: { id: "<unique>", ...fields } }. ' +
   'Nest children by putting an array of Blocks in a slot prop (see each block\'s "slots"). ' +
-  'Every block also accepts the shared "styleProps". Leave "id" out and the API fills it in. ' +
+  'Every block also accepts the shared "styleProps" — each is a plain CSS string value ' +
+  '(e.g. padding: "16px 24px", bg: "#ffffff", textColor: "#111827", borderRadius: "8px"); ' +
+  'object/number shapes are dropped on render. ' +
+  'A field with type "object" documents its shape under "objectFields"; a field with type ' +
+  '"array" documents each item\'s shape under "arrayFields" (+ "defaultItemProps" as an example). ' +
+  'Each block\'s "defaultProps" is a ready-to-use worked example of valid props. ' +
+  'Leave "id" out and the API fills it in. ' +
   'A block\'s "module" names the module that provides it (null = core); a module block only ' +
-  'renders while that module is enabled, so prefer core blocks unless the site uses that module.'
+  'renders while that module is enabled — see the catalog\'s "enabledModules" and prefer core ' +
+  'blocks unless the site uses that module.'
 
 export default class McpCatalog extends BaseCommand {
   static commandName = 'mcp:catalog'
@@ -57,18 +68,22 @@ export default class McpCatalog extends BaseCommand {
       }
       const styleProps = Object.keys(styleMod.styleFields ?? {})
 
+      // `puckConfig` is the full builder set (core blocks + compile-time module
+      // blocks), matching what the Pages builder actually renders. `baseConfig`
+      // is core-only — its names let us exclude core blocks from module
+      // provenance. The collection set is the same minus the two card-incompatible
+      // blocks. Runtime-only custom code-blocks (DB-defined) are not part of a
+      // static catalog and are documented as build-in-the-UI only.
+      const page = (await vite.ssrLoadModule('~/puck/config')) as {
+        puckConfig: RawConfig
+        baseConfig?: RawConfig
+      }
+
       // Provenance: which module contributed each block (core blocks are absent).
       const moduleMod = (await vite.ssrLoadModule('~/puck/module-blocks')) as {
-        moduleBlockOwners: () => Record<string, string>
+        moduleBlockOwners: (coreComponents?: Iterable<string>) => Record<string, string>
       }
-      const owners = moduleMod.moduleBlockOwners()
-
-      // `puckConfig` is the full builder set (core blocks + compile-time module
-      // blocks), matching what the Pages builder actually renders. The
-      // collection set is the same minus the two card-incompatible blocks.
-      // Runtime-only custom code-blocks (DB-defined) are not part of a static
-      // catalog and are documented as build-in-the-UI only.
-      const page = (await vite.ssrLoadModule('~/puck/config')) as { puckConfig: RawConfig }
+      const owners = moduleMod.moduleBlockOwners(Object.keys(page.baseConfig?.components ?? {}))
       const collection = (await vite.ssrLoadModule('~/puck/collection-config')) as {
         collectionPuckConfig: RawConfig
       }
@@ -123,13 +138,12 @@ function buildCatalog(
           slots.push(name)
           continue
         }
-        const descriptor: Record<string, unknown> = { type: field?.type ?? 'text' }
-        if (field?.label) descriptor.label = field.label
-        if (Array.isArray(field?.options) && field.options.length) {
-          descriptor.options = field.options.map((o) => ({ label: o.label, value: o.value }))
-        }
-        fields[name] = descriptor
+        fields[name] = describeField(field)
       }
+      // The block's own defaultProps are the single most useful signal for the
+      // AI — a ready-made valid example. Drop the framework-managed id.
+      const defaultProps = { ...(component.defaultProps ?? {}) }
+      delete (defaultProps as Record<string, unknown>).id
       return {
         type,
         label: component.label ?? type,
@@ -139,10 +153,37 @@ function buildCatalog(
         module: owners[type] ?? null,
         slots,
         fields,
+        defaultProps,
         styleProps,
       }
     })
     .sort((a, b) => a.type.localeCompare(b.type))
 
   return { target, generatedAt, contentShape: CONTENT_SHAPE, blocks }
+}
+
+/**
+ * Describe one Puck field for the catalog, recursively — so object fields expose
+ * their `objectFields` and array fields their `arrayFields` (+ a worked
+ * `defaultItemProps`). Without this, object/array props (Select options,
+ * ProductList source, Tabs, …) were opaque and the AI had to guess their shape.
+ */
+function describeField(field: RawField): Record<string, unknown> {
+  const d: Record<string, unknown> = { type: field?.type ?? 'text' }
+  if (field?.label) d.label = field.label
+  if (Array.isArray(field?.options) && field.options.length) {
+    d.options = field.options.map((o) => ({ label: o.label, value: o.value }))
+  }
+  if (field?.type === 'object' && field.objectFields) {
+    d.objectFields = Object.fromEntries(
+      Object.entries(field.objectFields).map(([k, f]) => [k, describeField(f)])
+    )
+  }
+  if (field?.type === 'array' && field.arrayFields) {
+    d.arrayFields = Object.fromEntries(
+      Object.entries(field.arrayFields).map(([k, f]) => [k, describeField(f)])
+    )
+    if (field.defaultItemProps) d.defaultItemProps = field.defaultItemProps
+  }
+  return d
 }

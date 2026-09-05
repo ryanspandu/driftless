@@ -58,6 +58,27 @@ export default class BuilderCollectionsController {
     }
   }
 
+  async trashed({ response }: HttpContext) {
+    return response.json(await cms.listTrashedCollections())
+  }
+
+  async restore({ params, response }: HttpContext) {
+    try {
+      return response.json(await cms.restoreCollection(params.key))
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  async forceDestroy({ params, response }: HttpContext) {
+    try {
+      await cms.forceDeleteCollection(params.key)
+      return response.json({ success: true })
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
   async addField({ params, request, response }: HttpContext) {
     const dto = request.only([
       'key',

@@ -37,6 +37,27 @@ export function mcpThrottle() {
   return cache
 }
 
+let rpcCache: ReturnType<typeof limiter.define> | null = null
+
+/**
+ * Limiter for the JSON-RPC transport hop (`/api/mcp/v1/rpc`) — in its OWN bucket,
+ * NOT the builder-API one. Each tool call is one RPC request that then forwards
+ * one builder-API request; sharing a bucket counted every call twice and halved
+ * the documented 120/min budget. This bucket only guards the transport itself
+ * (initialize/tools-list handshakes + the forward hop); the forwarded call is
+ * still separately limited by `mcpThrottle` where the real work happens.
+ */
+export function mcpRpcThrottle() {
+  if (rpcCache) return rpcCache
+  rpcCache = limiter.define('mcp_rpc', ((ctx) => {
+    const id = tokenIdentifier(ctx)
+    const max = id ? 240 : 30
+    const key = id ? `mcp_rpc_token_${id}` : `mcp_rpc_ip_${ctx.request.ip()}`
+    return limiter.allowRequests(max).every('1 minute').usingKey(key)
+  }) as LimiterBuilder)
+  return rpcCache
+}
+
 let writeCache: ReturnType<typeof limiter.define> | null = null
 
 /**

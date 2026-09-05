@@ -81,7 +81,7 @@ server.tool('get_template', 'Get one template by id.', { id: z.string() }, ({ id
 
 server.tool(
   'list_records',
-  'List records in a collection.',
+  'List records in a collection. Requires the token ability `cms:read` (separate from the builder:* scopes; a 403 means the token is missing it).',
   {
     collection: z.string(),
     page: z.number().optional(),
@@ -94,24 +94,62 @@ server.tool(
 
 // ── Collections + fields (schema) ──────────────────────────────────────────────
 
+const KEY_RULE =
+  'lowercase snake_case: must match ^[a-z][a-z0-9_]{0,31}$ (start with a letter, then letters/digits/underscore, max 32 chars). No camelCase, hyphens or spaces, and not a reserved word (id, status, order, group, user, role, created_at, …).'
+const keySchema = z.string().regex(/^[a-z][a-z0-9_]{0,31}$/, KEY_RULE)
+
 const FieldInput = {
-  key: z.string(),
+  key: keySchema.describe(`Field key — ${KEY_RULE}`),
   label: z.string(),
   type: z
-    .string()
+    .enum([
+      'TEXT',
+      'TEXTAREA',
+      'NUMBER',
+      'INTEGER',
+      'DECIMAL',
+      'BOOL',
+      'DATE',
+      'DATETIME',
+      'SELECT',
+      'EMAIL',
+      'PASSWORD',
+      'RICHTEXT',
+      'MEDIA',
+      'SLUG',
+      'JSON',
+      'REPEATABLE',
+      'RELATION',
+      'COMPONENT',
+    ])
     .describe(
-      'A CMS field type, e.g. TEXT, RICHTEXT, NUMBER, BOOLEAN, DATE, MEDIA, RELATION, SELECT.'
+      'CMS field type. Use BOOL (not BOOLEAN). RELATION requires config.targetKey; SELECT stores plain text unless config.options is passed.'
     ),
-  required: z.boolean().optional(),
-  unique: z.boolean().optional(),
-  config: z.record(z.any()).optional(),
+  required: z
+    .boolean()
+    .optional()
+    .describe(
+      'Only honored by create_collection. add_field IGNORES/REJECTS required=true — a new column added to an existing collection must be optional.'
+    ),
+  unique: z
+    .boolean()
+    .optional()
+    .describe(
+      'Only applies to TEXT, EMAIL, SLUG, NUMBER, INTEGER, DECIMAL — silently ignored for other types.'
+    ),
+  config: z
+    .record(z.any())
+    .optional()
+    .describe(
+      'Type-specific config. RELATION: { targetKey: <existing dynamic collection key>, relationType: "manyToOne"|"oneToOne"|"manyToMany"|"oneToMany" (default manyToOne) }. SELECT: { options: string[] }. SLUG: { source: <field key> }.'
+    ),
 }
 
 server.tool(
   'create_collection',
-  'Create a content collection (model). Optionally seed its fields.',
+  'Create a content collection (model). Optionally seed its fields (all-or-nothing). Keys must be lowercase snake_case and not a built-in collection (posts; products when the store module is on) — call list_collections to see existing/reserved keys.',
   {
-    key: z.string().describe('lowercase, unique identifier'),
+    key: keySchema.describe(`Unique collection key — ${KEY_RULE} Also cannot be a built-in (posts/products).`),
     label: z.string(),
     icon: z.string().optional(),
     group: z.string().optional(),
@@ -138,8 +176,32 @@ server.tool(
   ({ key, ...body }) => run(() => api.put(`/api/mcp/v1/collections/${key}`, body))
 )
 
-server.tool('delete_collection', 'Delete a collection.', { key: z.string() }, ({ key }) =>
-  run(() => api.del(`/api/mcp/v1/collections/${key}`))
+server.tool(
+  'delete_collection',
+  'Move a collection to Trash (reversible soft-delete; its table is kept). Use force_delete_collection to remove it permanently, or restore_collection to bring it back.',
+  { key: z.string() },
+  ({ key }) => run(() => api.del(`/api/mcp/v1/collections/${key}`))
+)
+
+server.tool(
+  'list_trashed_collections',
+  'List soft-deleted (trashed) collections — candidates for restore_collection or force_delete_collection.',
+  {},
+  () => run(() => api.get('/api/mcp/v1/collections/trashed'))
+)
+
+server.tool(
+  'restore_collection',
+  'Restore a trashed collection (undo delete_collection).',
+  { key: z.string() },
+  ({ key }) => run(() => api.post(`/api/mcp/v1/collections/${key}/restore`))
+)
+
+server.tool(
+  'force_delete_collection',
+  'Permanently delete a TRASHED collection: drops its table, relations and revisions. Irreversible. The collection must already be in Trash (call delete_collection first).',
+  { key: z.string() },
+  ({ key }) => run(() => api.del(`/api/mcp/v1/collections/${key}/force`))
 )
 
 server.tool(
@@ -183,7 +245,7 @@ server.tool(
 
 server.tool(
   'create_record',
-  'Create a record in a collection. `data` holds the field values keyed by field key.',
+  'Create a record in a collection. `data` holds the field values keyed by field key. Requires the token ability `cms:write`. Note: the built-in `products` collection is managed by the E-commerce module and is NOT writable here — use a custom collection for arbitrary product-like data.',
   {
     collection: z.string(),
     data: z.record(z.any()),
@@ -195,7 +257,7 @@ server.tool(
 
 server.tool(
   'update_record',
-  'Update a record.',
+  'Update a record. Requires the token ability `cms:write`.',
   {
     collection: z.string(),
     id: z.string(),
@@ -208,7 +270,7 @@ server.tool(
 
 server.tool(
   'delete_record',
-  'Delete a record.',
+  'Delete a record. Requires the token ability `cms:write`.',
   { collection: z.string(), id: z.string() },
   ({ collection, id }) => run(() => api.del(`/api/v1/cms/${collection}/records/${id}`))
 )
@@ -267,11 +329,18 @@ server.tool(
   ({ id, ...body }) => run(() => api.post(`/api/mcp/v1/pages/${id}/publish`, body))
 )
 
+server.tool(
+  'discard_draft',
+  "Discard a page's staged draft (from set_page_content), reverting the editor to the live design.",
+  { id: z.string() },
+  ({ id }) => run(() => api.post(`/api/mcp/v1/pages/${id}/discard-draft`))
+)
+
 // ── Templates ────────────────────────────────────────────────────────────────
 
 server.tool(
   'create_template',
-  'Create a reusable template.',
+  'Create a reusable template. IMPORTANT: compose `content` from the catalog that matches the template type — call get_block_catalog(type=email) for EMAIL, type=collection for COLLECTION, otherwise type=page (page blocks are rejected in EMAIL/COLLECTION templates).',
   {
     name: z.string(),
     type: z.enum(['HEADER', 'FOOTER', 'LAYOUT', 'COMPONENT', 'EMAIL', 'COLLECTION']),
@@ -280,6 +349,10 @@ server.tool(
     collectionKey: z.string().nullable().optional(),
   },
   (args) => run(() => api.post('/api/mcp/v1/templates', args))
+)
+
+server.tool('delete_template', 'Delete a template by id.', { id: z.string() }, ({ id }) =>
+  run(() => api.del(`/api/mcp/v1/templates/${id}`))
 )
 
 server.tool(
@@ -327,7 +400,21 @@ server.tool(
   ({ snippets }) => run(() => api.put('/api/mcp/v1/global-code', { snippets }))
 )
 
+server.tool(
+  'set_breakpoints',
+  'Replace the site-wide responsive breakpoint tiers (Webflow-style). Affects the @media CSS baked into every page.',
+  { breakpoints: z.array(z.record(z.any())) },
+  ({ breakpoints }) => run(() => api.put('/api/mcp/v1/breakpoints', { breakpoints }))
+)
+
 // ── Media ──────────────────────────────────────────────────────────────────────
+
+server.tool(
+  'list_media',
+  'List already-uploaded media (images/files) — reuse an existing `url` instead of re-uploading.',
+  { page: z.number().optional(), pageSize: z.number().optional(), search: z.string().optional() },
+  ({ page, pageSize, search }) => run(() => api.get('/api/mcp/v1/media', { page, pageSize, search }))
+)
 
 server.tool(
   'upload_media',

@@ -64,4 +64,114 @@ test.group('Collection schema ops', (group) => {
       })
     )
   })
+
+  test('createCollection with an invalid field key leaves NO zombie (atomic)', async ({
+    assert,
+  }) => {
+    await db.rawQuery('DROP TABLE IF EXISTS "cms_zombietest"')
+    const cms = new CmsService()
+    // camelCase key is rejected; the whole create must roll back / never write.
+    await assert.rejects(() =>
+      cms.createCollection({
+        key: 'zombietest',
+        label: 'Zombie',
+        fields: [
+          { key: 'title', label: 'Title', type: 'TEXT' },
+          { key: 'compareAtPrice', label: 'Bad', type: 'NUMBER' },
+        ],
+      })
+    )
+    // No metadata row and no physical table left behind.
+    const list = await cms.listCollections()
+    assert.isUndefined(list.find((c) => c.key === 'zombietest'))
+    assert.isFalse(await db.connection().schema.hasTable('cms_zombietest'))
+  })
+
+  test('createCollection creates the physical table atomically', async ({ assert }) => {
+    await db.rawQuery('DROP TABLE IF EXISTS "cms_atomicok"')
+    const cms = new CmsService()
+    await cms.createCollection({
+      key: 'atomicok',
+      label: 'OK',
+      fields: [{ key: 'title', label: 'Title', type: 'TEXT' }],
+    })
+    assert.isTrue(await db.connection().schema.hasTable('cms_atomicok'))
+  })
+
+  test('delete → restore round-trips a collection (soft delete keeps the table)', async ({
+    assert,
+  }) => {
+    await db.rawQuery('DROP TABLE IF EXISTS "cms_restoreme"')
+    const cms = new CmsService()
+    await cms.createCollection({
+      key: 'restoreme',
+      label: 'Restore Me',
+      fields: [{ key: 'title', label: 'Title', type: 'TEXT' }],
+    })
+    await cms.deleteCollection('restoreme')
+    assert.isUndefined((await cms.listCollections()).find((c) => c.key === 'restoreme'))
+    // Table is kept while trashed.
+    assert.isTrue(await db.connection().schema.hasTable('cms_restoreme'))
+
+    const restored = await cms.restoreCollection('restoreme')
+    assert.equal(restored.key, 'restoreme')
+    assert.isDefined((await cms.listCollections()).find((c) => c.key === 'restoreme'))
+  })
+
+  test('force delete drops the physical table (atomic)', async ({ assert }) => {
+    await db.rawQuery('DROP TABLE IF EXISTS "cms_forceme"')
+    const cms = new CmsService()
+    await cms.createCollection({
+      key: 'forceme',
+      label: 'Force Me',
+      fields: [{ key: 'title', label: 'Title', type: 'TEXT' }],
+    })
+    await cms.deleteCollection('forceme')
+    await cms.forceDeleteCollection('forceme')
+    assert.isFalse(await db.connection().schema.hasTable('cms_forceme'))
+    // And the key is free to reuse afterwards.
+    await cms.createCollection({
+      key: 'forceme',
+      label: 'Force Me 2',
+      fields: [{ key: 'title', label: 'Title', type: 'TEXT' }],
+    })
+    assert.isTrue(await db.connection().schema.hasTable('cms_forceme'))
+  })
+
+  test('recreating a collection whose key is in Trash gives a clear error', async ({ assert }) => {
+    await db.rawQuery('DROP TABLE IF EXISTS "cms_trashclash"')
+    const cms = new CmsService()
+    await cms.createCollection({
+      key: 'trashclash',
+      label: 'Trash Clash',
+      fields: [{ key: 'title', label: 'Title', type: 'TEXT' }],
+    })
+    await cms.deleteCollection('trashclash')
+    await assert.rejects(
+      () =>
+        cms.createCollection({
+          key: 'trashclash',
+          label: 'Again',
+          fields: [{ key: 'title', label: 'Title', type: 'TEXT' }],
+        }),
+      /Trash/
+    )
+  })
+
+  test('listRecords tolerates a missing physical table (no 500)', async ({ assert }) => {
+    await db.rawQuery('DROP TABLE IF EXISTS "cms_ghosttbl"')
+    const cms = new CmsService()
+    await cms.createCollection({
+      key: 'ghosttbl',
+      label: 'Ghost',
+      fields: [{ key: 'title', label: 'Title', type: 'TEXT' }],
+    })
+    // Simulate the zombie: drop the table out from under the metadata.
+    await db.rawQuery('DROP TABLE IF EXISTS "cms_ghosttbl"')
+    const res = await cms.listRecords('ghosttbl', {})
+    assert.equal(res.total, 0)
+    assert.lengthOf(res.items, 0)
+    // And the trashed list is tolerant too.
+    assert.lengthOf(await cms.listTrashedRecords('ghosttbl'), 0)
+  })
 })

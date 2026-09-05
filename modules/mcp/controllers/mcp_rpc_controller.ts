@@ -1,6 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { readFile } from 'node:fs/promises'
 import { basename } from 'node:path'
+import env from '#start/env'
+import server from '@adonisjs/core/services/server'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { registerTools, type ToolDeps } from '#modules/mcp/mcp_tools'
@@ -26,7 +28,15 @@ export default class McpRpcController {
   async handle(ctx: HttpContext) {
     const { request, response } = ctx
 
-    const origin = `${request.protocol()}://${request.host()}`
+    // The forward is explicitly a call to THIS process, so build the origin from
+    // a trusted source — NEVER the client-controlled Host header (that would be an
+    // authenticated SSRF that also ships the caller's bearer token to an arbitrary
+    // host, and breaks on any topology where the public host isn't reachable
+    // internally). Host is the constant `localhost` (NOT the attacker-controlled
+    // Host header), so it resolves on whichever loopback family the server bound
+    // to (IPv4 127.0.0.1 or IPv6 ::1), with its ACTUAL bound port (tests use an
+    // ephemeral one).
+    const origin = `http://localhost:${this.loopbackPort()}`
     const authorization = request.header('authorization') ?? ''
     const deps = this.buildDeps(origin, authorization)
 
@@ -64,6 +74,17 @@ export default class McpRpcController {
       await transport.close().catch(() => {})
       await server.close().catch(() => {})
     }
+  }
+
+  /**
+   * The port THIS process is actually listening on — used to forward tool calls
+   * to our own builder-API over loopback. Prefers the live Node server address
+   * (correct even when tests bind an ephemeral port), falling back to env.PORT.
+   */
+  private loopbackPort(): number {
+    const addr = server.getNodeServer()?.address()
+    if (addr && typeof addr === 'object' && typeof addr.port === 'number') return addr.port
+    return Number(env.get('PORT', 3333))
   }
 
   /** Copy incoming headers into the shape the Web `Request` wants. */
@@ -135,11 +156,23 @@ export default class McpRpcController {
       }
     }
     if (!res.ok) {
-      const message =
-        body && typeof body === 'object' && 'message' in body
-          ? String((body as { message: unknown }).message)
-          : `${label} failed with ${res.status}`
-      throw new Error(`HTTP ${res.status}: ${message}`)
+      // Preserve structured validation detail (issues[]/errors[]) so the AI can
+      // self-correct — collapsing it to a bare `message` hides why content was
+      // rejected.
+      let detail: string
+      if (body && typeof body === 'object') {
+        const obj = body as Record<string, unknown>
+        if ('issues' in obj || 'errors' in obj) {
+          detail = JSON.stringify(obj)
+        } else if ('message' in obj) {
+          detail = String(obj.message)
+        } else {
+          detail = JSON.stringify(obj)
+        }
+      } else {
+        detail = text || `${label} failed with ${res.status}`
+      }
+      throw new Error(`HTTP ${res.status}: ${detail}`)
     }
     return body
   }

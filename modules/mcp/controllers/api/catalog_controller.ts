@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { loadCatalog, type CatalogTarget } from '#modules/mcp/services/block_catalog'
+import ModulesService from '#services/modules_service'
 
 const TARGETS: CatalogTarget[] = ['page', 'collection', 'email']
 
@@ -18,6 +19,10 @@ export default class CatalogController {
         message: `Block catalog for "${target}" is not available yet. Run: node ace mcp:catalog`,
       })
     }
-    return response.json(catalog)
+    // Annotate with the modules enabled RIGHT NOW, so the AI can tell which
+    // module blocks will actually render (a static catalog file can't know this).
+    const enabledMap = await new ModulesService().enabledMap()
+    const enabledModules = [...enabledMap.entries()].filter(([, on]) => on).map(([name]) => name)
+    return response.json({ ...catalog, enabledModules })
   }
 }

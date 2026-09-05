@@ -1,7 +1,7 @@
 {
   "target": "page",
-  "generatedAt": "2026-09-04T08:04:42.380Z",
-  "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] }. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children by putting an array of Blocks in a slot prop (see each block's \"slots\"). Every block also accepts the shared \"styleProps\". Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled, so prefer core blocks unless the site uses that module.",
+  "generatedAt": "2026-09-05T04:22:14.655Z",
+  "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] }. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children by putting an array of Blocks in a slot prop (see each block's \"slots\"). Every block also accepts the shared \"styleProps\" — each is a plain CSS string value (e.g. padding: \"16px 24px\", bg: \"#ffffff\", textColor: \"#111827\", borderRadius: \"8px\"); object/number shapes are dropped on render. A field with type \"object\" documents its shape under \"objectFields\"; a field with type \"array\" documents each item's shape under \"arrayFields\" (+ \"defaultItemProps\" as an example). Each block's \"defaultProps\" is a ready-to-use worked example of valid props. Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled — see the catalog's \"enabledModules\" and prefer core blocks unless the site uses that module.",
   "blocks": [
     {
       "type": "AccountBlock",
@@ -10,6 +10,7 @@
       "module": "ecommerce",
       "slots": [],
       "fields": {},
+      "defaultProps": {},
       "styleProps": [
         "padding",
         "margin",
@@ -37,6 +38,7 @@
       "module": "ecommerce",
       "slots": [],
       "fields": {},
+      "defaultProps": {},
       "styleProps": [
         "padding",
         "margin",
@@ -75,6 +77,11 @@
           "label": "Poster URL"
         }
       },
+      "defaultProps": {
+        "src": "",
+        "poster": "",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -106,6 +113,9 @@
           "type": "textarea",
           "label": "Quote"
         }
+      },
+      "defaultProps": {
+        "text": "Block quote — a notable quotation from the page content."
       },
       "styleProps": [
         "padding",
@@ -161,6 +171,11 @@
           ]
         }
       },
+      "defaultProps": {
+        "label": "Click me",
+        "href": "#",
+        "variant": "primary"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -206,6 +221,10 @@
             }
           ]
         }
+      },
+      "defaultProps": {
+        "text": "A custom React block, rendered from inertia/custom/blocks/callout.tsx.",
+        "tone": "info"
       },
       "styleProps": [
         "padding",
@@ -309,6 +328,17 @@
           ]
         }
       },
+      "defaultProps": {
+        "mode": "slide",
+        "perView": 1,
+        "gap": "16px",
+        "interval": 4,
+        "speed": 20,
+        "arrows": "true",
+        "dots": "true",
+        "pauseOnHover": "true",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -336,6 +366,7 @@
       "module": "ecommerce",
       "slots": [],
       "fields": {},
+      "defaultProps": {},
       "styleProps": [
         "padding",
         "margin",
@@ -367,6 +398,9 @@
           "type": "text",
           "label": "Label"
         }
+      },
+      "defaultProps": {
+        "label": "Basket"
       },
       "styleProps": [
         "padding",
@@ -418,6 +452,11 @@
           ]
         }
       },
+      "defaultProps": {
+        "label": "Checkbox",
+        "name": "checkbox",
+        "required": "false"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -445,6 +484,7 @@
       "module": "ecommerce",
       "slots": [],
       "fields": {},
+      "defaultProps": {},
       "styleProps": [
         "padding",
         "margin",
@@ -477,6 +517,9 @@
           "label": "Code"
         }
       },
+      "defaultProps": {
+        "code": "console.log(\"Hello, world\")"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -508,6 +551,9 @@
           "type": "textarea",
           "label": "HTML"
         }
+      },
+      "defaultProps": {
+        "html": "<!-- Paste embed HTML here -->"
       },
       "styleProps": [
         "padding",
@@ -730,6 +776,26 @@
           "label": "Items per page (0 = all)"
         }
       },
+      "defaultProps": {
+        "source": {},
+        "template": "template",
+        "templateId": "",
+        "item": [],
+        "layout": "grid",
+        "cardStyle": "card",
+        "columns": "3",
+        "gap": 20,
+        "imageAspect": "video",
+        "showImage": "true",
+        "showTitle": "true",
+        "showExcerpt": "true",
+        "sort": "newest",
+        "filterField": "",
+        "filterValue": "",
+        "limit": 12,
+        "pageSize": 0,
+        "empty": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -782,6 +848,11 @@
           "label": "Gap"
         }
       },
+      "defaultProps": {
+        "count": "2",
+        "gap": "24px",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -811,6 +882,9 @@
         "content"
       ],
       "fields": {},
+      "defaultProps": {
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -845,6 +919,10 @@
           "label": "Tag name (e.g. my-widget)"
         }
       },
+      "defaultProps": {
+        "tag": "div",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -874,6 +952,9 @@
         "content"
       ],
       "fields": {},
+      "defaultProps": {
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -901,6 +982,7 @@
       "module": null,
       "slots": [],
       "fields": {},
+      "defaultProps": {},
       "styleProps": [
         "padding",
         "margin",
@@ -935,6 +1017,10 @@
           "label": "Button label"
         }
       },
+      "defaultProps": {
+        "label": "Menu",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -966,6 +1052,9 @@
           "type": "text",
           "label": "Facebook page/post URL"
         }
+      },
+      "defaultProps": {
+        "url": ""
       },
       "styleProps": [
         "padding",
@@ -1002,6 +1091,10 @@
           "type": "text",
           "label": "Accept (e.g. image/*)"
         }
+      },
+      "defaultProps": {
+        "name": "file",
+        "accept": ""
       },
       "styleProps": [
         "padding",
@@ -1052,6 +1145,11 @@
             }
           ]
         }
+      },
+      "defaultProps": {
+        "emailLabel": "Email",
+        "submitLabel": "Send reset link",
+        "showLoginLink": "true"
       },
       "styleProps": [
         "padding",
@@ -1139,6 +1237,14 @@
           ]
         }
       },
+      "defaultProps": {
+        "handler": "none",
+        "action": "",
+        "method": "post",
+        "formName": "Contact form",
+        "successMessage": "Thanks — we’ve received your message.",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1170,6 +1276,9 @@
           "type": "text",
           "label": "Label"
         }
+      },
+      "defaultProps": {
+        "label": "Submit"
       },
       "styleProps": [
         "padding",
@@ -1257,6 +1366,13 @@
           "label": "Gap"
         }
       },
+      "defaultProps": {
+        "columns": "2",
+        "rows": "1",
+        "gap": "16px",
+        "display": "grid",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1319,6 +1435,10 @@
           ]
         }
       },
+      "defaultProps": {
+        "text": "Heading",
+        "level": "2"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1348,6 +1468,11 @@
         "content"
       ],
       "fields": {},
+      "defaultProps": {
+        "display": "flex",
+        "flexDirection": "row",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1401,6 +1526,12 @@
             }
           ]
         }
+      },
+      "defaultProps": {
+        "src": "",
+        "alt": "",
+        "sizes": "",
+        "priority": "false"
       },
       "styleProps": [
         "padding",
@@ -1486,6 +1617,12 @@
           ]
         }
       },
+      "defaultProps": {
+        "name": "field",
+        "inputType": "text",
+        "placeholder": "",
+        "required": "false"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1521,6 +1658,10 @@
           "type": "text",
           "label": "For (input id)"
         }
+      },
+      "defaultProps": {
+        "text": "Label",
+        "forId": ""
       },
       "styleProps": [
         "padding",
@@ -1561,6 +1702,11 @@
           "type": "text",
           "label": "Alt text"
         }
+      },
+      "defaultProps": {
+        "thumbnail": "",
+        "full": "",
+        "alt": ""
       },
       "styleProps": [
         "padding",
@@ -1610,6 +1756,12 @@
           ]
         }
       },
+      "defaultProps": {
+        "href": "#",
+        "newTab": "false",
+        "display": "block",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1654,6 +1806,10 @@
           ]
         }
       },
+      "defaultProps": {
+        "ordered": "false",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1683,6 +1839,9 @@
         "content"
       ],
       "fields": {},
+      "defaultProps": {
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1710,6 +1869,7 @@
       "module": "ecommerce",
       "slots": [],
       "fields": {},
+      "defaultProps": {},
       "styleProps": [
         "padding",
         "margin",
@@ -1792,6 +1952,14 @@
           ]
         }
       },
+      "defaultProps": {
+        "loginLabel": "Email or username",
+        "passwordLabel": "Password",
+        "submitLabel": "Sign in",
+        "showGoogle": "true",
+        "showForgotLink": "true",
+        "showSignupLink": "true"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1852,6 +2020,11 @@
           ]
         }
       },
+      "defaultProps": {
+        "src": "",
+        "loop": "true",
+        "autoplay": "true"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1888,6 +2061,10 @@
           "label": "Height"
         }
       },
+      "defaultProps": {
+        "query": "New York",
+        "height": "320px"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1922,6 +2099,10 @@
           "label": "Brand"
         }
       },
+      "defaultProps": {
+        "brand": "Brand",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -1949,6 +2130,7 @@
       "module": "ecommerce",
       "slots": [],
       "fields": {},
+      "defaultProps": {},
       "styleProps": [
         "padding",
         "margin",
@@ -1976,6 +2158,7 @@
       "module": null,
       "slots": [],
       "fields": {},
+      "defaultProps": {},
       "styleProps": [
         "padding",
         "margin",
@@ -2008,6 +2191,9 @@
           "label": "Text"
         }
       },
+      "defaultProps": {
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2039,6 +2225,9 @@
           "type": "text",
           "label": "Product slug (leave blank on a product template)"
         }
+      },
+      "defaultProps": {
+        "slug": ""
       },
       "styleProps": [
         "padding",
@@ -2073,7 +2262,49 @@
         },
         "source": {
           "type": "object",
-          "label": "Products"
+          "label": "Products",
+          "objectFields": {
+            "categorySlug": {
+              "type": "text",
+              "label": "Category slug (blank = all)"
+            },
+            "featured": {
+              "type": "radio",
+              "label": "Featured only",
+              "options": [
+                {
+                  "label": "No",
+                  "value": false
+                },
+                {
+                  "label": "Yes",
+                  "value": true
+                }
+              ]
+            },
+            "sort": {
+              "type": "select",
+              "label": "Sort",
+              "options": [
+                {
+                  "label": "Default",
+                  "value": ""
+                },
+                {
+                  "label": "Price: low to high",
+                  "value": "price_asc"
+                },
+                {
+                  "label": "Price: high to low",
+                  "value": "price_desc"
+                },
+                {
+                  "label": "Title",
+                  "value": "title"
+                }
+              ]
+            }
+          }
         },
         "limit": {
           "type": "number",
@@ -2097,6 +2328,12 @@
             }
           ]
         }
+      },
+      "defaultProps": {
+        "heading": "",
+        "source": {},
+        "limit": 8,
+        "columns": "3"
       },
       "styleProps": [
         "padding",
@@ -2158,6 +2395,11 @@
           ]
         }
       },
+      "defaultProps": {
+        "columns": "2",
+        "display": "grid",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2198,6 +2440,11 @@
           "label": "Value"
         }
       },
+      "defaultProps": {
+        "label": "Radio",
+        "name": "radio",
+        "value": "option"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2225,6 +2472,7 @@
       "module": null,
       "slots": [],
       "fields": {},
+      "defaultProps": {},
       "styleProps": [
         "padding",
         "margin",
@@ -2252,6 +2500,7 @@
       "module": "ecommerce",
       "slots": [],
       "fields": {},
+      "defaultProps": {},
       "styleProps": [
         "padding",
         "margin",
@@ -2324,6 +2573,14 @@
           ]
         }
       },
+      "defaultProps": {
+        "usernameLabel": "Username",
+        "emailLabel": "Email",
+        "passwordLabel": "Password",
+        "submitLabel": "Sign up",
+        "showNameFields": "true",
+        "showLoginLink": "true"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2367,6 +2624,12 @@
           "type": "textarea",
           "label": "Expired-link message"
         }
+      },
+      "defaultProps": {
+        "passwordLabel": "New password",
+        "confirmLabel": "Confirm password",
+        "submitLabel": "Update password",
+        "expiredMessage": ""
       },
       "styleProps": [
         "padding",
@@ -2437,8 +2700,87 @@
         },
         "reviews": {
           "type": "array",
-          "label": "Reviews"
+          "label": "Reviews",
+          "arrayFields": {
+            "author": {
+              "type": "text",
+              "label": "Name"
+            },
+            "rating": {
+              "type": "select",
+              "label": "Rating",
+              "options": [
+                {
+                  "label": "1 star",
+                  "value": "1"
+                },
+                {
+                  "label": "2 stars",
+                  "value": "2"
+                },
+                {
+                  "label": "3 stars",
+                  "value": "3"
+                },
+                {
+                  "label": "4 stars",
+                  "value": "4"
+                },
+                {
+                  "label": "5 stars",
+                  "value": "5"
+                }
+              ]
+            },
+            "text": {
+              "type": "textarea",
+              "label": "Review"
+            },
+            "date": {
+              "type": "text",
+              "label": "Date"
+            },
+            "avatar": {
+              "type": "text",
+              "label": "Avatar URL"
+            }
+          },
+          "defaultItemProps": {
+            "author": "",
+            "rating": "5",
+            "text": "",
+            "date": "",
+            "avatar": ""
+          }
         }
+      },
+      "defaultProps": {
+        "heading": "What our customers say",
+        "columns": "3",
+        "showAggregate": "true",
+        "reviews": [
+          {
+            "author": "Alex Doe",
+            "rating": "5",
+            "text": "Fantastic experience — highly recommend!",
+            "date": "2 weeks ago",
+            "avatar": ""
+          },
+          {
+            "author": "Sam Lee",
+            "rating": "5",
+            "text": "Great service and support.",
+            "date": "1 month ago",
+            "avatar": ""
+          },
+          {
+            "author": "Jordan Park",
+            "rating": "4",
+            "text": "Really solid, would use again.",
+            "date": "1 month ago",
+            "avatar": ""
+          }
+        ]
       },
       "styleProps": [
         "padding",
@@ -2472,6 +2814,9 @@
           "label": "Content"
         }
       },
+      "defaultProps": {
+        "html": "<p>Write rich text here…</p>"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2503,6 +2848,9 @@
           "type": "text",
           "label": "Rive URL (.riv)"
         }
+      },
+      "defaultProps": {
+        "src": ""
       },
       "styleProps": [
         "padding",
@@ -2544,6 +2892,11 @@
           "label": "Button label"
         }
       },
+      "defaultProps": {
+        "action": "/search",
+        "placeholder": "Search…",
+        "buttonLabel": "Search"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2573,6 +2926,9 @@
         "content"
       ],
       "fields": {},
+      "defaultProps": {
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2606,7 +2962,21 @@
         },
         "options": {
           "type": "array",
-          "label": "Options"
+          "label": "Options",
+          "arrayFields": {
+            "label": {
+              "type": "text",
+              "label": "Label"
+            },
+            "value": {
+              "type": "text",
+              "label": "Value"
+            }
+          },
+          "defaultItemProps": {
+            "label": "Option",
+            "value": "option"
+          }
         },
         "required": {
           "type": "radio",
@@ -2622,6 +2992,20 @@
             }
           ]
         }
+      },
+      "defaultProps": {
+        "name": "select",
+        "options": [
+          {
+            "label": "Option 1",
+            "value": "1"
+          },
+          {
+            "label": "Option 2",
+            "value": "2"
+          }
+        ],
+        "required": "false"
       },
       "styleProps": [
         "padding",
@@ -2652,8 +3036,25 @@
       "fields": {
         "slides": {
           "type": "array",
-          "label": "Slides"
+          "label": "Slides",
+          "arrayFields": {
+            "src": {
+              "type": "text",
+              "label": "Image URL"
+            },
+            "alt": {
+              "type": "text",
+              "label": "Alt"
+            }
+          },
+          "defaultItemProps": {
+            "src": "",
+            "alt": ""
+          }
         }
+      },
+      "defaultProps": {
+        "slides": []
       },
       "styleProps": [
         "padding",
@@ -2687,6 +3088,9 @@
           "label": "Height"
         }
       },
+      "defaultProps": {
+        "height": "40px"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2719,6 +3123,9 @@
           "label": "Spline URL (.splinecode)"
         }
       },
+      "defaultProps": {
+        "scene": ""
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2748,8 +3155,34 @@
       "fields": {
         "tabs": {
           "type": "array",
-          "label": "Tabs"
+          "label": "Tabs",
+          "arrayFields": {
+            "label": {
+              "type": "text",
+              "label": "Label"
+            },
+            "body": {
+              "type": "textarea",
+              "label": "Body"
+            }
+          },
+          "defaultItemProps": {
+            "label": "Tab",
+            "body": "Content"
+          }
         }
+      },
+      "defaultProps": {
+        "tabs": [
+          {
+            "label": "Tab 1",
+            "body": "Content 1"
+          },
+          {
+            "label": "Tab 2",
+            "body": "Content 2"
+          }
+        ]
       },
       "styleProps": [
         "padding",
@@ -2783,6 +3216,9 @@
           "label": "Template"
         }
       },
+      "defaultProps": {
+        "templateId": ""
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2814,6 +3250,9 @@
           "type": "textarea",
           "label": "Text"
         }
+      },
+      "defaultProps": {
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
       },
       "styleProps": [
         "padding",
@@ -2869,6 +3308,12 @@
           ]
         }
       },
+      "defaultProps": {
+        "name": "message",
+        "placeholder": "",
+        "rows": 4,
+        "required": "false"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2919,6 +3364,11 @@
           ]
         }
       },
+      "defaultProps": {
+        "text": "Link text",
+        "href": "#",
+        "newTab": "false"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -2948,6 +3398,11 @@
         "content"
       ],
       "fields": {},
+      "defaultProps": {
+        "display": "flex",
+        "flexDirection": "column",
+        "content": []
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -3026,6 +3481,13 @@
           ]
         }
       },
+      "defaultProps": {
+        "src": "",
+        "poster": "",
+        "autoplay": "false",
+        "loop": "false",
+        "controls": "true"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -3058,6 +3520,9 @@
           "label": "Tweet URL"
         }
       },
+      "defaultProps": {
+        "url": ""
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -3089,6 +3554,9 @@
           "type": "text",
           "label": "YouTube URL or video ID"
         }
+      },
+      "defaultProps": {
+        "url": ""
       },
       "styleProps": [
         "padding",

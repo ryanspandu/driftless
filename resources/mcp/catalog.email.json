@@ -1,7 +1,7 @@
 {
   "target": "email",
-  "generatedAt": "2026-09-04T08:04:42.380Z",
-  "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] }. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children by putting an array of Blocks in a slot prop (see each block's \"slots\"). Every block also accepts the shared \"styleProps\". Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled, so prefer core blocks unless the site uses that module.",
+  "generatedAt": "2026-09-05T04:22:14.655Z",
+  "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] }. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children by putting an array of Blocks in a slot prop (see each block's \"slots\"). Every block also accepts the shared \"styleProps\" — each is a plain CSS string value (e.g. padding: \"16px 24px\", bg: \"#ffffff\", textColor: \"#111827\", borderRadius: \"8px\"); object/number shapes are dropped on render. A field with type \"object\" documents its shape under \"objectFields\"; a field with type \"array\" documents each item's shape under \"arrayFields\" (+ \"defaultItemProps\" as an example). Each block's \"defaultProps\" is a ready-to-use worked example of valid props. Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled — see the catalog's \"enabledModules\" and prefer core blocks unless the site uses that module.",
   "blocks": [
     {
       "type": "EmailBody",
@@ -18,6 +18,9 @@
           "type": "text",
           "label": "Font size (px)"
         }
+      },
+      "defaultProps": {
+        "paddingY": "8"
       },
       "styleProps": [
         "padding",
@@ -67,6 +70,14 @@
           "label": "Font size (px)"
         }
       },
+      "defaultProps": {
+        "label": "Click here",
+        "href": "",
+        "bg": "#4f39f6",
+        "color": "#ffffff",
+        "paddingY": "12",
+        "align": "left"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -105,6 +116,11 @@
           "type": "text",
           "label": "Font size (px)"
         }
+      },
+      "defaultProps": {
+        "left": [],
+        "right": [],
+        "paddingY": "8"
       },
       "styleProps": [
         "padding",
@@ -145,6 +161,10 @@
           "type": "text",
           "label": "Font size (px)"
         }
+      },
+      "defaultProps": {
+        "color": "#e4e4e7",
+        "paddingY": "12"
       },
       "styleProps": [
         "padding",
@@ -200,6 +220,12 @@
           "label": "Font size (px)"
         }
       },
+      "defaultProps": {
+        "text": "Heading",
+        "level": "1",
+        "paddingY": "8",
+        "align": "left"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -244,6 +270,13 @@
           "label": "Font size (px)"
         }
       },
+      "defaultProps": {
+        "src": "",
+        "alt": "",
+        "width": "",
+        "paddingY": "8",
+        "align": "left"
+      },
       "styleProps": [
         "padding",
         "margin",
@@ -275,6 +308,9 @@
           "type": "text",
           "label": "Height (px)"
         }
+      },
+      "defaultProps": {
+        "height": "24"
       },
       "styleProps": [
         "padding",
@@ -315,6 +351,11 @@
           "type": "text",
           "label": "Font size (px)"
         }
+      },
+      "defaultProps": {
+        "text": "Write something here.",
+        "paddingY": "8",
+        "align": "left"
       },
       "styleProps": [
         "padding",

@@ -79,11 +79,17 @@ export function withModuleBlocks(config: Config): Config {
  * `ecommerce` and needs that module enabled to render. Core blocks are absent
  * from this map.
  */
-export function moduleBlockOwners(): Record<string, string> {
+export function moduleBlockOwners(coreComponents?: Iterable<string>): Record<string, string> {
+  // A block whose name collides with a core block renders as CORE (withModuleBlocks
+  // lets core win), so it must NOT be tagged with a module — otherwise the catalog
+  // would mislabel a core block as module-gated and the validator would wrongly
+  // reject it when that module is disabled.
+  const core = new Set(coreComponents ?? [])
   const owners: Record<string, string> = {}
   for (const [path, mod] of Object.entries(contributions)) {
     const name = path.match(/modules\/([^/]+)\/ui\/puck\/blocks/)?.[1] ?? 'module'
     for (const component of Object.keys(mod?.default?.components ?? {})) {
+      if (core.has(component)) continue // core wins the name — not a module block
       // First contributor wins, mirroring the collision rule in withModuleBlocks.
       if (!(component in owners)) owners[component] = name
     }

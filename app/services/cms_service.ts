@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import hash from '@adonisjs/core/services/hash'
 import dbConfig from '#config/database'
 import CmsCollection from '#models/cms_collection'
@@ -126,8 +127,16 @@ const RESERVED = new Set([
 ])
 
 function assertValidKey(value: string, kind: string): void {
-  if (!KEY_PATTERN.test(value)) throw new Error(`Invalid ${kind} key "${value}"`)
-  if (RESERVED.has(value)) throw new Error(`"${value}" is a reserved identifier`)
+  if (!KEY_PATTERN.test(value)) {
+    throw new Error(
+      `Invalid ${kind} key "${value}" — keys must be lowercase snake_case: start with a letter, ` +
+        `then only letters, digits or underscores, max 32 chars (e.g. "compare_at_price"). No ` +
+        `camelCase, hyphens or spaces.`
+    )
+  }
+  if (RESERVED.has(value)) {
+    throw new Error(`"${value}" is a reserved identifier — pick another ${kind} key`)
+  }
 }
 
 /**
@@ -432,46 +441,83 @@ export default class CmsService {
       .first()
     if (existing) throw new Error(`Collection "${dto.key}" already exists`)
 
-    const collection = await CmsCollection.create({
-      id: newUlid(),
-      key: dto.key,
-      label: dto.label,
-      icon: dto.icon ?? null,
-      group: dto.group ?? null,
-      source: 'DYNAMIC',
-      tableName: dynamicTableName(dto.key),
-      listConfig: {},
-      revisionsOn: dto.revisionsOn ?? true,
-      draftsOn: dto.draftsOn ?? true,
-      kind: dto.kind === 'single' ? 'single' : 'collection',
-    })
-
-    const fields: CmsField[] = []
-    if (dto.fields?.length) {
-      for (let i = 0; i < dto.fields.length; i++) {
-        const f = dto.fields[i]!
-        assertValidKey(f.key, 'field')
-        const desc = FIELD_REGISTRY[f.type]
-        if (!desc) throw new Error(`Unknown field type "${f.type}"`)
-        const field = await CmsField.create({
-          id: newUlid(),
-          collectionId: collection.id,
-          key: f.key,
-          label: f.label,
-          type: f.type,
-          required: f.required ?? false,
-          unique: f.unique ?? false,
-          order: i,
-          config: f.config ?? {},
-        })
-        fields.push(field)
-      }
+    // The key column is globally unique in the DB, and delete is a soft delete —
+    // so a trashed collection still owns the key. Surface that clearly instead of
+    // letting a raw "duplicate key" constraint error reach the caller.
+    const trashed = await CmsCollection.query()
+      .where('key', dto.key)
+      .whereNotNull('deleted_at')
+      .first()
+    if (trashed) {
+      throw new Error(
+        `A collection "${dto.key}" is in the Trash — restore it or permanently delete it before reusing the key`
+      )
     }
 
-    await this.createDynamicTable(dto.key, fields)
+    // Validate EVERY field UP FRONT, before any write. Previously an invalid key
+    // (e.g. camelCase "compareAtPrice") threw mid-loop, after the collection and
+    // some fields were already committed but before the physical table was
+    // created — leaving a "zombie" collection whose cms_<key> table never existed.
+    const inputFields = dto.fields ?? []
+    const seenFieldKeys = new Set<string>()
+    for (const f of inputFields) {
+      assertValidKey(f.key, 'field')
+      if (seenFieldKeys.has(f.key)) throw new Error(`Duplicate field key "${f.key}"`)
+      seenFieldKeys.add(f.key)
+      if (!FIELD_REGISTRY[f.type]) throw new Error(`Unknown field type "${f.type}"`)
+    }
+
+    // Metadata rows + the CREATE TABLE commit together (Postgres and SQLite both
+    // run DDL transactionally), so a failure anywhere rolls the whole thing back
+    // — never a collection without its table.
+    const trx = await db.transaction()
+    try {
+      const collection = await CmsCollection.create(
+        {
+          id: newUlid(),
+          key: dto.key,
+          label: dto.label,
+          icon: dto.icon ?? null,
+          group: dto.group ?? null,
+          source: 'DYNAMIC',
+          tableName: dynamicTableName(dto.key),
+          listConfig: {},
+          revisionsOn: dto.revisionsOn ?? true,
+          draftsOn: dto.draftsOn ?? true,
+          kind: dto.kind === 'single' ? 'single' : 'collection',
+        },
+        { client: trx }
+      )
+
+      const fields: CmsField[] = []
+      for (let i = 0; i < inputFields.length; i++) {
+        const f = inputFields[i]!
+        const field = await CmsField.create(
+          {
+            id: newUlid(),
+            collectionId: collection.id,
+            key: f.key,
+            label: f.label,
+            type: f.type,
+            required: f.required ?? false,
+            unique: f.unique ?? false,
+            order: i,
+            config: f.config ?? {},
+          },
+          { client: trx }
+        )
+        fields.push(field)
+      }
+
+      await this.createDynamicTable(dto.key, fields, trx)
+      await trx.commit()
+    } catch (e) {
+      await trx.rollback()
+      throw e
+    }
+
     await this.permissions.mintForCollection(dto.key)
-    await collection.load('fields', (q) => q.whereNull('deleted_at').orderBy('order'))
-    return this.collectionToDto(collection)
+    return this.findCollection(dto.key)
   }
 
   async updateCollection(
@@ -550,13 +596,47 @@ export default class CmsService {
     const collection = await CmsCollection.query()
       .where('key', key)
       .whereNotNull('deleted_at')
+      .preload('fields', (q) => q.orderBy('order'))
       .firstOrFail()
 
+    const mainTable = dynamicTableName(key)
+    const trx = await db.transaction()
     try {
-      await db.rawQuery(`DROP TABLE IF EXISTS "${dynamicTableName(key)}"`)
-    } catch {}
+      // Drop this collection's own relation storage FIRST, so the main table has
+      // no dangling dependents, then the table + revisions + metadata row — all
+      // in one transaction. The DROP error is NOT swallowed: if it still fails
+      // (e.g. another collection references this table), everything rolls back
+      // rather than orphaning the physical table.
+      for (const field of collection.fields) {
+        if (field.type !== 'RELATION') continue
+        const cfg = field.config as {
+          relationType?: string
+          joinTable?: string
+          inverseColumn?: string
+          targetKey?: string
+        }
+        if (cfg.relationType === 'manyToMany') {
+          const joinTable = cfg.joinTable ?? relationJoinTableName(key, field.key)
+          await trx.rawQuery(`DROP TABLE IF EXISTS "${joinTable}"`)
+        } else if (cfg.relationType === 'oneToMany' && cfg.targetKey) {
+          const targetTable = dynamicTableName(cfg.targetKey)
+          const col = cfg.inverseColumn ?? `${key}_${field.key}`
+          if (await db.connection().schema.hasColumn(targetTable, col)) {
+            await trx.rawQuery(`ALTER TABLE "${targetTable}" DROP COLUMN "${col}"`)
+          }
+        }
+      }
+
+      await trx.rawQuery(`DROP TABLE IF EXISTS "${mainTable}"`)
+      await trx.from('cms_revisions').where('collection_key', key).delete()
+      await collection.useTransaction(trx).delete()
+      await trx.commit()
+    } catch (e) {
+      await trx.rollback()
+      throw e
+    }
+
     await this.permissions.removeForCollection(key)
-    await collection.delete()
   }
 
   async updateField(
@@ -646,31 +726,43 @@ export default class CmsService {
     // Only enforce uniqueness for types that support it; store what we actually
     // apply so the metadata never claims a constraint the DB doesn't have.
     const applyUnique = !!dto.unique && desc.allowsUnique
-
-    const field = await CmsField.create({
-      id: newUlid(),
-      collectionId: collection.id,
-      key: dto.key,
-      label: dto.label,
-      type: dto.type,
-      required: false,
-      unique: applyUnique,
-      order,
-      config: dto.config ?? {},
-    })
-
     const table = dynamicTableName(collectionKey)
-    await db.rawQuery(`ALTER TABLE "${table}" ADD COLUMN "${dto.key}" ${desc.sqlType} NULL`)
 
-    if (applyUnique) {
-      // A separate unique INDEX (not an inline column constraint) — SQLite can't
-      // add a UNIQUE column via ALTER, and this works the same on Postgres. The
-      // new column is all-NULL on existing rows, and NULLs stay distinct.
-      const idx = `${table}_${dto.key}_uq`.slice(0, 63)
-      await db.rawQuery(`CREATE UNIQUE INDEX "${idx}" ON "${table}" ("${dto.key}")`)
+    // The field row + the ALTER TABLE (and unique index) commit together, so a
+    // DDL failure can't leave a metadata field with no matching column.
+    const trx = await db.transaction()
+    try {
+      const field = await CmsField.create(
+        {
+          id: newUlid(),
+          collectionId: collection.id,
+          key: dto.key,
+          label: dto.label,
+          type: dto.type,
+          required: false,
+          unique: applyUnique,
+          order,
+          config: dto.config ?? {},
+        },
+        { client: trx }
+      )
+
+      await trx.rawQuery(`ALTER TABLE "${table}" ADD COLUMN "${dto.key}" ${desc.sqlType} NULL`)
+
+      if (applyUnique) {
+        // A separate unique INDEX (not an inline column constraint) — SQLite can't
+        // add a UNIQUE column via ALTER, and this works the same on Postgres. The
+        // new column is all-NULL on existing rows, and NULLs stay distinct.
+        const idx = `${table}_${dto.key}_uq`.slice(0, 63)
+        await trx.rawQuery(`CREATE UNIQUE INDEX "${idx}" ON "${table}" ("${dto.key}")`)
+      }
+
+      await trx.commit()
+      return this.fieldToDto(field)
+    } catch (e) {
+      await trx.rollback()
+      throw e
     }
-
-    return this.fieldToDto(field)
   }
 
   private parseRelationConfig(config: Record<string, unknown> | undefined): {
@@ -678,7 +770,12 @@ export default class CmsService {
     relationType: CmsRelationType
   } {
     const targetKey = typeof config?.targetKey === 'string' ? config.targetKey.trim() : ''
-    if (!targetKey) throw new Error('Relation requires a target collection')
+    if (!targetKey) {
+      throw new Error(
+        'A RELATION field needs config.targetKey — the key of an existing dynamic collection to ' +
+          'link to (optionally config.relationType: manyToOne | oneToOne | manyToMany | oneToMany)'
+      )
+    }
     const rt = config?.relationType
     const relationType: CmsRelationType =
       rt === 'oneToOne' || rt === 'manyToMany' || rt === 'oneToMany' ? rt : 'manyToOne'
@@ -703,7 +800,12 @@ export default class CmsService {
       .where('key', rel.targetKey)
       .whereNull('deleted_at')
       .first()
-    if (!target) throw new Error(`Relation target "${rel.targetKey}" does not exist`)
+    if (!target) {
+      throw new Error(
+        `Relation target "${rel.targetKey}" does not exist — create that collection first ` +
+          `(relations can only point at dynamic collections)`
+      )
+    }
     if (target.source !== 'DYNAMIC') {
       throw new Error('Relations can only target dynamic collections')
     }
@@ -836,8 +938,12 @@ export default class CmsService {
   private async syncMultiRelations(
     collection: CmsCollection,
     recordId: string,
-    data: Record<string, unknown>
+    data: Record<string, unknown>,
+    trx?: TransactionClientContract
   ): Promise<void> {
+    // Run every read/write on the caller's transaction when given, so the
+    // destructive delete-then-reinsert can't half-apply and lose relations.
+    const client = trx ?? db
     const relFields = collection.fields.filter((f) => this.isMultiRelation(f))
     for (const field of relFields) {
       if (!(field.key in data)) continue
@@ -854,9 +960,9 @@ export default class CmsService {
 
       if (cfg.relationType === 'manyToMany') {
         const joinTable = cfg.joinTable ?? relationJoinTableName(collection.key, field.key)
-        await db.from(joinTable).where('source_id', recordId).delete()
+        await client.from(joinTable).where('source_id', recordId).delete()
         if (targetIds.length) {
-          await db
+          await client
             .table(joinTable)
             .multiInsert(targetIds.map((t) => ({ source_id: recordId, target_id: t })))
         }
@@ -864,12 +970,12 @@ export default class CmsService {
         // oneToMany: repoint the target rows' inverse FK to this record.
         const targetTable = dynamicTableName(cfg.targetKey ?? '')
         const col = cfg.inverseColumn ?? `${collection.key}_${field.key}`
-        await db
+        await client
           .from(targetTable)
           .where(col, recordId)
           .update({ [col]: null })
         if (targetIds.length) {
-          await db
+          await client
             .from(targetTable)
             .whereIn('id', targetIds)
             .update({ [col]: recordId })
@@ -992,6 +1098,13 @@ export default class CmsService {
     const page = Math.max(1, Number(query.page) || 1)
     const pageSize = Math.max(1, Math.min(100, Number(query.pageSize) || 20))
     const offset = (page - 1) * pageSize
+
+    // Tolerate a collection whose physical table is missing (e.g. a legacy
+    // half-created collection): return an empty page instead of a 500 loop, so
+    // the admin can still open the collection and delete it.
+    if (collection.source === 'DYNAMIC' && !(await db.connection().schema.hasTable(table))) {
+      return { items: [], page, pageSize, total: 0, totalPages: 0 }
+    }
 
     // Only real field keys may be referenced in filter/sort — never raw input.
     const fieldKeys = new Set(collection.fields.map((f) => f.key))
@@ -1174,7 +1287,12 @@ export default class CmsService {
    * null if it has none yet. Used to route single types straight to their entry.
    */
   async findSoleRecordId(collectionKey: string): Promise<string | null> {
-    const { table } = await this.resolveRecordContext(collectionKey)
+    const { table, collection } = await this.resolveRecordContext(collectionKey)
+    // Runs during admin SSR for single-type collections; a missing physical table
+    // (legacy/zombie) would otherwise 500 the whole page. Treat it as "no record".
+    if (collection.source === 'DYNAMIC' && !(await db.connection().schema.hasTable(table))) {
+      return null
+    }
     const row = await db
       .from(table)
       .whereNull('deleted_at')
@@ -1204,7 +1322,14 @@ export default class CmsService {
       .where('key', collectionKey)
       .whereNull('deleted_at')
       .preload('fields', (q) => q.whereNull('deleted_at'))
-      .firstOrFail()
+      .first()
+    if (!collection) {
+      throw new Error(
+        isBuiltinCollectionKey(collectionKey)
+          ? `"${collectionKey}" is a built-in collection managed by its module (not writable through the records API) — use a custom collection for arbitrary data`
+          : `Collection "${collectionKey}" not found`
+      )
+    }
 
     if (collection.source === 'PRISMA' && collectionKey === 'user') {
       throw new Error('User records must be created via Admin → Users')
@@ -1261,26 +1386,36 @@ export default class CmsService {
       payload[col] = this.serializeFieldValue(field.type, val)
     }
 
+    // The row insert, relation sync and initial revision commit together, so a
+    // relation/revision failure never leaves an orphan record behind.
+    let insertedId: string
+    const trx = await db.transaction()
     try {
-      await db.table(table).insert(payload)
+      await trx.table(table).insert(payload)
+      const resolvedId =
+        id ?? (await trx.from(table).orderBy('id', 'desc').select('id').first())?.id
+      if (!resolvedId) throw new Error('Failed to create record')
+      insertedId = String(resolvedId)
+
+      await this.syncMultiRelations(collection, insertedId, data, trx)
+
+      if (collection.revisionsOn) {
+        await CmsRevision.create(
+          {
+            id: newUlid(),
+            collectionKey,
+            recordId: insertedId,
+            data: this.redactWriteOnly(collection, data),
+            status: status as 'DRAFT' | 'PUBLISHED',
+            authorId,
+          },
+          { client: trx }
+        )
+      }
+      await trx.commit()
     } catch (e) {
+      await trx.rollback()
       throw this.rethrowDbError(e)
-    }
-
-    const insertedId = id ?? (await db.from(table).orderBy('id', 'desc').select('id').first())?.id
-    if (!insertedId) throw new Error('Failed to create record')
-
-    await this.syncMultiRelations(collection, String(insertedId), data)
-
-    if (collection.revisionsOn) {
-      await CmsRevision.create({
-        id: newUlid(),
-        collectionKey,
-        recordId: String(insertedId),
-        data: this.redactWriteOnly(collection, data),
-        status: status as 'DRAFT' | 'PUBLISHED',
-        authorId,
-      })
     }
 
     const row = await db.from(table).where('id', insertedId).first()
@@ -1300,7 +1435,14 @@ export default class CmsService {
       .where('key', collectionKey)
       .whereNull('deleted_at')
       .preload('fields', (q) => q.whereNull('deleted_at'))
-      .firstOrFail()
+      .first()
+    if (!collection) {
+      throw new Error(
+        isBuiltinCollectionKey(collectionKey)
+          ? `"${collectionKey}" is a built-in collection managed by its module (not writable through the records API)`
+          : `Collection "${collectionKey}" not found`
+      )
+    }
 
     if (collection.source === 'PRISMA' && collectionKey === 'user') {
       throw new Error('User records must be updated via Admin → Users')
@@ -1338,31 +1480,41 @@ export default class CmsService {
       }
     }
 
+    // The scalar update, relation re-sync and revision commit together. This
+    // matters most for relations: syncMultiRelations deletes existing join/inverse
+    // rows before re-inserting, so without a transaction a mid-sync failure would
+    // permanently wipe a record's relations while the caller sees an error.
+    const trx = await db.transaction()
     try {
-      await db.from(table).where('id', id).update(payload)
-    } catch (e) {
-      throw this.rethrowDbError(e)
-    }
+      await trx.from(table).where('id', id).update(payload)
 
-    if (preparedData) {
-      await this.syncMultiRelations(collection, id, preparedData)
-    }
-
-    if (collection.revisionsOn) {
-      const updated = await db.from(table).where('id', id).first()
-      const fieldData: Record<string, unknown> = {}
-      for (const field of collection.fields) {
-        const col = this.fieldToColumn(collection, field.key)
-        fieldData[field.key] = updated?.[col] ?? null
+      if (preparedData) {
+        await this.syncMultiRelations(collection, id, preparedData, trx)
       }
-      await CmsRevision.create({
-        id: newUlid(),
-        collectionKey,
-        recordId: id,
-        data: this.redactWriteOnly(collection, fieldData),
-        status: (updated?.status ?? 'DRAFT') as 'DRAFT' | 'PUBLISHED',
-        authorId,
-      })
+
+      if (collection.revisionsOn) {
+        const updated = await trx.from(table).where('id', id).first()
+        const fieldData: Record<string, unknown> = {}
+        for (const field of collection.fields) {
+          const col = this.fieldToColumn(collection, field.key)
+          fieldData[field.key] = updated?.[col] ?? null
+        }
+        await CmsRevision.create(
+          {
+            id: newUlid(),
+            collectionKey,
+            recordId: id,
+            data: this.redactWriteOnly(collection, fieldData),
+            status: (updated?.status ?? 'DRAFT') as 'DRAFT' | 'PUBLISHED',
+            authorId,
+          },
+          { client: trx }
+        )
+      }
+      await trx.commit()
+    } catch (e) {
+      await trx.rollback()
+      throw this.rethrowDbError(e)
     }
 
     const row = await db.from(table).where('id', id).first()
@@ -1384,6 +1536,10 @@ export default class CmsService {
   /** Soft-deleted records for a collection (the Trash). */
   async listTrashedRecords(collectionKey: string): Promise<CmsRecordDto[]> {
     const { table, collection } = await this.resolveRecordContext(collectionKey)
+    // A missing physical table (half-created collection) has no records to trash.
+    if (collection.source === 'DYNAMIC' && !(await db.connection().schema.hasTable(table))) {
+      return []
+    }
     const rows = await db
       .from(table)
       .whereNotNull('deleted_at')
@@ -1476,7 +1632,11 @@ export default class CmsService {
     return 'updated_at'
   }
 
-  private async createDynamicTable(key: string, fields: CmsField[]): Promise<void> {
+  private async createDynamicTable(
+    key: string,
+    fields: CmsField[],
+    trx?: TransactionClientContract
+  ): Promise<void> {
     const table = dynamicTableName(key)
     const cols: string[] = [
       '"id" TEXT NOT NULL PRIMARY KEY',
@@ -1498,7 +1658,7 @@ export default class CmsService {
       `"deleted_at" ${timestampSqlType()} NULL`
     )
 
-    await db.rawQuery(`CREATE TABLE IF NOT EXISTS "${table}" (${cols.join(', ')})`)
+    await (trx ?? db).rawQuery(`CREATE TABLE IF NOT EXISTS "${table}" (${cols.join(', ')})`)
   }
 
   private isSlugField(field: CmsField): boolean {
