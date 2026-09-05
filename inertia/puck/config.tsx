@@ -358,7 +358,7 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { count: '2', gap: '24px', content: [] },
-      render: ({ content: Content, count, gap, ...s }) => (
+      render: ({ content: Content, count, gap, display: _d, ...s }) => (
         <Box
           s={s}
           style={{
@@ -367,7 +367,7 @@ export const baseConfig: Config = {
             gap: gap || '24px',
           }}
         >
-          <Content />
+          <Content style={{ display: 'contents' }} />
         </Box>
       ),
     },
@@ -392,13 +392,14 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { columns: '2', rows: '1', gap: '16px', display: 'grid', content: [] },
-      render: ({ content: Content, columns, rows, gap, ...s }) => (
+      // The grid lives on the Box; the slot wrapper is made `display:contents` so
+      // the cards become DIRECT grid items of the Box (otherwise the DropZone
+      // wrapper is the grid's only item and everything stacks). Forcing display on
+      // the Box also makes it work without the `display` prop (API/MCP-composed).
+      render: ({ content: Content, columns, rows, gap, display: _d, ...s }) => (
         <Box
           s={s}
           style={{
-            // Force the intrinsic display so the block lays out even when the
-            // `display` prop is absent (e.g. an API/MCP-composed Grid) — it used
-            // to depend on defaultProps and rendered as a plain block otherwise.
             display: 'grid',
             gridTemplateColumns: `repeat(${Number(columns) || 2}, minmax(0, 1fr))`,
             gridTemplateRows:
@@ -406,7 +407,7 @@ export const baseConfig: Config = {
             gap: gap || '16px',
           }}
         >
-          <Content />
+          <Content style={{ display: 'contents' }} />
         </Box>
       ),
     },
@@ -426,15 +427,16 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { columns: '2', display: 'grid', content: [] },
-      render: ({ content: Content, columns, ...s }) => (
+      render: ({ content: Content, columns, gap, display: _d, ...s }) => (
         <Box
           s={s}
           style={{
             display: 'grid',
             gridTemplateColumns: `repeat(${Number(columns) || 2}, minmax(0, 1fr))`,
+            gap: (typeof gap === 'string' && gap) || '16px',
           }}
         >
-          <Content />
+          <Content style={{ display: 'contents' }} />
         </Box>
       ),
     },
@@ -446,11 +448,20 @@ export const baseConfig: Config = {
       inline: true,
       fields: { content: { type: 'slot' }, ...styleFields },
       defaultProps: { display: 'flex', flexDirection: 'column', content: [] },
-      // Force the intrinsic flex layout so it works even without the `display`/
-      // `flexDirection` props (e.g. an API/MCP-composed block).
-      render: ({ content: Content, ...s }) => (
-        <Box s={s} style={{ display: 'flex', flexDirection: 'column' }}>
-          <Content />
+      // Flex goes on the SLOT (DropZone) so children are direct flex items; the
+      // Box stays a plain wrapper. Layout props are pulled from `s` (with sane
+      // defaults) so it works even when they're absent (API/MCP-composed block).
+      render: ({ content: Content, display: _d, flexDirection: _fd, gap, alignItems, ...s }) => (
+        <Box
+          s={s}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: typeof gap === 'string' ? gap : undefined,
+            alignItems: typeof alignItems === 'string' ? alignItems : undefined,
+          }}
+        >
+          <Content style={{ display: 'contents' }} />
         </Box>
       ),
     },
@@ -461,9 +472,27 @@ export const baseConfig: Config = {
       inline: true,
       fields: { content: { type: 'slot' }, ...styleFields },
       defaultProps: { display: 'flex', flexDirection: 'row', content: [] },
-      render: ({ content: Content, ...s }) => (
-        <Box s={s} style={{ display: 'flex', flexDirection: 'row' }}>
-          <Content />
+      render: ({
+        content: Content,
+        display: _d,
+        flexDirection: _fd,
+        gap,
+        alignItems,
+        justifyContent,
+        ...s
+      }) => (
+        <Box
+          s={s}
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: typeof gap === 'string' ? gap : '12px',
+            alignItems: typeof alignItems === 'string' ? alignItems : 'center',
+            justifyContent: typeof justifyContent === 'string' ? justifyContent : undefined,
+          }}
+        >
+          <Content style={{ display: 'contents' }} />
         </Box>
       ),
     },
