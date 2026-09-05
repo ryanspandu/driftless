@@ -91,19 +91,27 @@ function ButtonView({ label, href, variant, binding, ...s }: ButtonViewProps) {
   const staticHref = useBoundString(href)
   const boundLabel = fieldLabel == null ? staticLabel : fieldLabel
   const boundHref = fieldHref == null ? staticHref : fieldHref
+  // Render the anchor as the styled element itself (not a wrapper) so a design's
+  // exact CTA colour — set via the `bg`/`textColor`/`borderRadius`/`padding`
+  // styleProps — lands on the pill as inline style and OVERRIDES the variant
+  // utility class (inline beats class). `variant:"custom"` drops the theme
+  // colour utilities entirely and relies on those styleProps. primary/secondary
+  // still follow the site theme (var(--primary)); an unthemed site renders them
+  // in the default colour, so match a design either with set_appearance or by
+  // setting bg/textColor here.
   return (
-    <Box s={s}>
-      <a
-        href={boundHref || '#'}
-        className={cn(
-          'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors',
-          variant === 'primary' && 'bg-primary text-primary-foreground hover:opacity-90',
-          variant === 'secondary' && 'bg-secondary text-secondary-foreground hover:opacity-90',
-          variant === 'outline' && 'border border-input hover:bg-accent'
-        )}
-      >
-        {boundLabel}
-      </a>
+    <Box
+      as="a"
+      s={s}
+      href={boundHref || '#'}
+      className={cn(
+        'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors',
+        variant === 'primary' && 'bg-primary text-primary-foreground hover:opacity-90',
+        variant === 'secondary' && 'bg-secondary text-secondary-foreground hover:opacity-90',
+        variant === 'outline' && 'border border-input hover:bg-accent'
+      )}
+    >
+      {boundLabel}
     </Box>
   )
 }
@@ -594,6 +602,7 @@ export const baseConfig: Config = {
             { label: 'Primary', value: 'primary' },
             { label: 'Secondary', value: 'secondary' },
             { label: 'Outline', value: 'outline' },
+            { label: 'Custom (use bg/text colour)', value: 'custom' },
           ],
         },
         ...styleFields,
