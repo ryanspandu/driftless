@@ -24,6 +24,64 @@ export interface ProductSource {
   sort?: 'newest' | 'price_asc' | 'price_desc' | 'title'
 }
 
+/**
+ * Colour-name → swatch hex for the product-card dots. A best-effort visual cue,
+ * not a spec: an unknown name falls back to a neutral chip, and a two-word name
+ * ("Ruby Red") tries its last word. Real colour management would store hex on
+ * the option; this keeps the card useful without that.
+ */
+const SWATCH_HEX: Record<string, string> = {
+  black: '#1a1a1a',
+  white: '#f1f1ee',
+  ivory: '#efe7d3',
+  cream: '#efe7d3',
+  linen: '#e8e0d0',
+  beige: '#d9cbb2',
+  sand: '#d8c3a0',
+  tan: '#c8a97e',
+  oak: '#c8a97e',
+  walnut: '#5b3a29',
+  brown: '#7a5230',
+  grey: '#9aa0a6',
+  gray: '#9aa0a6',
+  silver: '#c9ccd1',
+  slate: '#556070',
+  graphite: '#3a3a3a',
+  charcoal: '#36393b',
+  red: '#c0392b',
+  ruby: '#9b1c31',
+  orange: '#e07b39',
+  yellow: '#f2c200',
+  gold: '#d4af37',
+  mustard: '#d9a441',
+  green: '#4a7c59',
+  sage: '#9cad8f',
+  olive: '#7d7f4a',
+  mint: '#a8d5ba',
+  blue: '#3b6fb5',
+  navy: '#2c3e66',
+  teal: '#2a9d8f',
+  purple: '#7d5ba6',
+  pink: '#e39aa8',
+  rose: '#c76b7a',
+}
+
+function swatchColor(name: string): string {
+  const clean = name.trim().toLowerCase()
+  if (SWATCH_HEX[clean]) return SWATCH_HEX[clean]
+  for (const word of clean.split(/\s+/).reverse()) {
+    if (SWATCH_HEX[word]) return SWATCH_HEX[word]
+  }
+  return '#c9ccd1'
+}
+
+/** The values of the product's colour option (or its first option), for swatches. */
+function swatchValues(product: ShopProduct): string[] {
+  const opts = product.options ?? []
+  const colour = opts.find((o) => /colou?r/i.test(o.name)) ?? opts[0]
+  return colour?.values ?? []
+}
+
 const COLUMN_CLASS: Record<string, string> = {
   '2': 'sm:grid-cols-2',
   '3': 'sm:grid-cols-2 lg:grid-cols-3',
@@ -70,6 +128,9 @@ export function ProductCard({
     cheapest?.compareAt && cheapest.compareAt.amount > cheapest.price.amount
       ? cheapest.compareAt
       : null
+  const swatches = swatchValues(product)
+  const firstAvail = first ? (liveAvailability?.[first.id] ?? first.availability) : undefined
+  const soldOut = firstAvail === 'out_of_stock'
 
   return (
     // Must match the route in `modules/ecommerce/routes.ts`; a card linking to
@@ -103,12 +164,34 @@ export function ProductCard({
           ) : null}
         </div>
 
+        {/* Colour swatches — a quick read of the palette, like the design's dots. */}
+        {swatches.length ? (
+          <div
+            className="flex items-center gap-1.5 pt-1.5"
+            aria-label={`${swatches.length} colours`}
+          >
+            {swatches.slice(0, 6).map((value) => (
+              <span
+                key={value}
+                title={value}
+                className="size-3.5 rounded-full border border-black/10"
+                style={{ backgroundColor: swatchColor(value) }}
+              />
+            ))}
+            {swatches.length > 6 ? (
+              <span className="text-xs text-muted-foreground">+{swatches.length - 6}</span>
+            ) : null}
+          </div>
+        ) : null}
+
         {/*
-          Stock means nothing for something sold elsewhere — the shop does not
-          hold any. Say where it comes from instead.
+          The card's call to action. Stock means nothing for something sold
+          elsewhere — an external product links to whoever does hold it; otherwise
+          a "Shop now" affordance (or "Sold out"). Rendered as a span, not a
+          nested <a>, because the whole card is already the link.
         */}
         {product.cta?.mode === 'external' ? (
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <span className="mt-2.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -123,9 +206,31 @@ export function ProductCard({
             </svg>
             {product.cta.label || 'From a partner'}
           </span>
-        ) : first ? (
-          <AvailabilityBadge variant={first} live={liveAvailability?.[first.id]} />
-        ) : null}
+        ) : (
+          <span
+            className={`mt-2.5 inline-flex items-center gap-1 rounded-full border border-border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              soldOut
+                ? 'text-muted-foreground'
+                : 'group-hover:border-foreground group-hover:bg-foreground group-hover:text-background'
+            }`}
+          >
+            {soldOut ? 'Sold out' : 'Shop now'}
+            {!soldOut ? (
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3"
+                aria-hidden
+              >
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            ) : null}
+          </span>
+        )}
       </div>
     </a>
   )

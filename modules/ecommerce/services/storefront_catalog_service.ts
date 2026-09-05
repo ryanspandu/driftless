@@ -45,6 +45,8 @@ export interface PublicProductDto {
   priceFrom: MoneyDto | null
   images: { url: string; alt: string | null }[]
   variants: PublicVariantDto[]
+  /** Option axes (e.g. `{ name: 'Color', values: ['Blue','Sand'] }`) — drives the card swatches. */
+  options: { name: string; values: string[] }[]
   categorySlugs: string[]
   featured: boolean
   /**
@@ -294,6 +296,10 @@ export default class StorefrontCatalogService {
           remaining: availability === 'low_stock' ? available : null,
         }
       }),
+      options: (product.options ?? []).map((option) => ({
+        name: option.name,
+        values: option.values,
+      })),
       categorySlugs: (product.categories ?? []).map((category) => category.slug),
       featured: product.featured,
       cta: {

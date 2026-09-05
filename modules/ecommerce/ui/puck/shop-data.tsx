@@ -50,6 +50,8 @@ export interface ShopProduct {
   priceFrom: MoneyDto | null
   images: { url: string; alt: string | null }[]
   variants: ShopVariant[]
+  /** Option axes (e.g. `{ name: 'Color', values: [...] }`) — drives the card swatches. */
+  options: { name: string; values: string[] }[]
   categorySlugs: string[]
   featured: boolean
   /**
