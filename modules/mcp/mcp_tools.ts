@@ -46,9 +46,10 @@ export const SERVER_INSTRUCTIONS = `Driftless page builder. To reproduce a desig
 3. BRAND FIRST: extract the design's palette + fonts and call set_appearance (exact hex). Button primary, product CTAs, FormButton and cart/checkout all render the theme colours — skip this and every CTA ships the default purple.
 4. ASSET INVENTORY: for every image the design shows, get a REAL asset — crop_media it out of the reference, or upload_media a supplied file. NEVER substitute random stock/placeholder photos (they are rejected). A slot you can't fill must be reported, not faked.
 5. set_design_brief (palette, iconStyle, the design's sections + asset slots) so the build can be checked.
-6. Build with create_page / set_page_content. Use Icon with a curated name + textColor (or an uploaded icon src) — not emoji — unless the design uses emoji.
-7. validate_page_content (fix issues; heed warnings) AND check_design_coverage — fix every missing section, off-brand CTA/colour, emoji icon and image substitution it lists.
-8. get_preview_url and look at the draft (or ask the operator to) before publish_page. Then publish, and report any residual mismatches/substitutions you could not resolve.`
+6. Build with create_page / set_page_content. Use the styleProps for layout — flex (display:"flex", gap, justifyContent, alignItems), sizing, and position:"absolute" for overlays — not just spacing/colour. Use Icon with a curated name + textColor (or an uploaded icon src) — not emoji — unless the design uses emoji.
+7. validate_page_content (fix issues; heed the warnings AND the changes it reports — a filled id, a slot moved into props, an unknown prop that will be ignored) AND check_design_coverage — fix every missing/reordered section, off-brand CTA/colour, emoji icon and image substitution it lists.
+8. render_page and READ the returned HTML — this is your ONLY look at the actual build; compare it to the reference and fix layout, spacing, sizing and text that coverage cannot see. To fix one block, patch_page_content by its props.id (a small diff) — do NOT re-send the whole page from memory, which is how revisions drift. Re-fetch get_page after a write to confirm your blocks/props survived.
+9. get_preview_url for the operator to look, then publish_page. Report any residual mismatches/substitutions you could not resolve.`
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean }
 
@@ -375,7 +376,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
   )
   server.tool(
     'validate_page_content',
-    'Check a Puck document against the block catalog WITHOUT writing it — returns `issues` (block publish) AND `warnings` (image-quality advisories: external/placeholder image URLs, empty image slots). Use before publishing.',
+    'Check a Puck document against the block catalog WITHOUT writing it — returns `issues` (structural errors that block publish, e.g. unknown block types), `warnings` (non-blocking advisories: external/placeholder image URLs, empty image slots, unknown prop keys, out-of-enum select values, unknown style props), and `changes` (what normalization rewrote — a filled id, a misplaced slot moved into props). The same warnings/changes now ride on create_page/set_page_content/publish_page responses too. Use before publishing.',
     { content: PuckDoc },
     ({ content }) => run(() => call('POST', '/api/mcp/v1/pages/validate', { content }))
   )
@@ -390,7 +391,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
   )
   server.tool(
     'check_design_coverage',
-    "Report where the built page drifts from its design brief: sections in the brief that aren't built, Buttons still on the theme colour when the brief wants another, emoji icons when the brief wants real ones, placeholder/external images, and colours outside the palette. Inspects the DRAFT if present. Run this after building and fix everything it lists BEFORE publishing.",
+    "Report where the built page drifts from its design brief: sections in the brief that aren't built (or out of order), Buttons still on the theme colour when the brief wants another, emoji icons when the brief wants real ones, placeholder/external images, and colours outside the palette. Inspects the DRAFT if present. NOTE: this compares the build against the brief YOU wrote, on structure/palette/asset signals ONLY — it does NOT see the render, so it cannot judge visual layout, spacing, proportion or typography; use render_page for those. Run this after building and fix everything it lists BEFORE publishing.",
     { id: z.string() },
     ({ id }) => run(() => call('GET', `/api/mcp/v1/pages/${id}/coverage`))
   )
@@ -399,6 +400,80 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
     "Get a no-login preview URL for a page's DRAFT so you (or the operator) can look at the staged build in a browser before publishing.",
     { id: z.string() },
     ({ id }) => run(() => call('POST', `/api/mcp/v1/pages/${id}/preview-token`))
+  )
+  server.tool(
+    'render_page',
+    "Render the page's DRAFT to HTML so you can SEE what you built (you author blind) and compare it against the reference BEFORE publishing. Reuses the /preview render; script bundles are stripped. Returns { url, html }. Read the HTML to check layout/spacing/text that check_design_coverage cannot judge.",
+    { id: z.string(), viewport: z.enum(['desktop', 'tablet', 'mobile']).optional() },
+    ({ id, viewport }) =>
+      run(() =>
+        call('GET', `/api/mcp/v1/pages/${id}/render${viewport ? `?viewport=${viewport}` : ''}`)
+      )
+  )
+  const PatchOps = z
+    .array(
+      z.object({
+        op: z.enum(['update_props', 'update_style', 'insert', 'move', 'remove']),
+        id: z.string().optional().describe('Target block props.id (update_props/update_style/move/remove).'),
+        props: z.record(z.any()).optional().describe('Fields/styleProps to MERGE into the target (update_props/update_style).'),
+        block: z.record(z.any()).optional().describe('The block to add (insert).'),
+        parentId: z.string().optional().describe('Parent block id to insert/move INTO; omit for the document root.'),
+        slot: z.string().optional().describe('Slot name on the parent (default "content").'),
+        index: z.number().optional().describe('Position within the target array (default: append).'),
+      })
+    )
+    .describe('Block-addressed edit operations, applied in order (best-effort).')
+  server.tool(
+    'patch_page_content',
+    "Edit the DRAFT by BLOCK — address blocks by their stable props.id and apply a small diff instead of re-sending the whole tree (re-sending from memory is why revisions drift). ops: update_props / update_style (merge props into #id), insert (add a block into parentId.slot, default the root content), move (relocate #id), remove (#id). Applied in order, best-effort; returns applied[] + opErrors[]. Get block ids from get_page or render_page.",
+    { id: z.string(), ops: PatchOps },
+    ({ id, ops }) => run(() => call('PUT', `/api/mcp/v1/pages/${id}/content/patch`, { ops }))
+  )
+  const patch = (id: string, op: Record<string, unknown>) =>
+    run(() => call('PUT', `/api/mcp/v1/pages/${id}/content/patch`, { ops: [op] }))
+  server.tool(
+    'update_block_props',
+    'Merge props into ONE block of a page draft, by its props.id. Convenience wrapper over patch_page_content.',
+    { id: z.string(), blockId: z.string(), props: z.record(z.any()) },
+    ({ id, blockId, props }) => patch(id, { op: 'update_props', id: blockId, props })
+  )
+  server.tool(
+    'update_block_style',
+    'Merge styleProps into ONE block of a page draft, by its props.id (e.g. padding, gap, bg, position). Convenience wrapper over patch_page_content.',
+    { id: z.string(), blockId: z.string(), style: z.record(z.any()) },
+    ({ id, blockId, style }) => patch(id, { op: 'update_style', id: blockId, props: style })
+  )
+  server.tool(
+    'insert_block',
+    'Insert a block into a page draft — into parentId.slot (default the parent\'s "content" slot), or the document root when parentId is omitted. Convenience wrapper over patch_page_content.',
+    {
+      id: z.string(),
+      block: PuckDoc,
+      parentId: z.string().optional(),
+      slot: z.string().optional(),
+      index: z.number().optional(),
+    },
+    ({ id, block, parentId, slot, index }) =>
+      patch(id, { op: 'insert', block, parentId, slot, index })
+  )
+  server.tool(
+    'move_block',
+    'Move a block (by its props.id) to another position/parent in a page draft. Convenience wrapper over patch_page_content.',
+    {
+      id: z.string(),
+      blockId: z.string(),
+      parentId: z.string().optional(),
+      slot: z.string().optional(),
+      index: z.number().optional(),
+    },
+    ({ id, blockId, parentId, slot, index }) =>
+      patch(id, { op: 'move', id: blockId, parentId, slot, index })
+  )
+  server.tool(
+    'remove_block',
+    'Remove a block (by its props.id) from a page draft. Convenience wrapper over patch_page_content.',
+    { id: z.string(), blockId: z.string() },
+    ({ id, blockId }) => patch(id, { op: 'remove', id: blockId })
   )
   server.tool(
     'publish_page',

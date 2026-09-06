@@ -32,14 +32,24 @@ export interface ValidationResult {
   skipped: boolean
   issues: ValidationIssue[]
   /**
-   * Non-blocking advisories — the document still publishes. Used for image
-   * quality signals (an external CDN URL that isn't self-hosted, an empty image
-   * slot) that an AI should fix for fidelity but that aren't structural errors.
+   * Non-blocking advisories — the document still publishes. Image-quality
+   * signals (external/placeholder image URLs, empty image slots) AND prop/style
+   * signals (an unknown prop key, an out-of-enum select value, an unknown style
+   * prop) that an AI should fix for fidelity but that aren't structural errors.
    */
   warnings: ValidationIssue[]
+  /**
+   * What normalization silently changed, so the caller learns what was rewritten
+   * rather than only seeing a mysteriously-altered document (a filled-in block id,
+   * a misplaced slot array moved into props).
+   */
+  changes: ValidationIssue[]
   /** The document with every node's `props.id` filled in. */
   normalized: PuckDocument
 }
+
+/** Prop keys every block accepts that are neither fields, slots nor styleProps. */
+const STRUCTURAL_PROP_KEYS = new Set(['id', 'binding', 'conditions', 'responsive', 'states'])
 
 export interface PuckDocument {
   root?: { props?: Record<string, unknown> } & Record<string, unknown>
@@ -65,12 +75,13 @@ export async function validatePuckDocument(
     // No catalog emitted yet — normalise ids but don't reject anything.
     normalizeIds(doc.content ?? [])
     for (const zone of Object.values(doc.zones ?? {})) normalizeIds(zone)
-    return { valid: true, skipped: true, issues: [], warnings: [], normalized: doc }
+    return { valid: true, skipped: true, issues: [], warnings: [], changes: [], normalized: doc }
   }
 
   const byType = new Map<string, CatalogBlock>(catalog.blocks.map((b) => [b.type, b]))
   const issues: ValidationIssue[] = []
   const warnings: ValidationIssue[] = []
+  const changes: ValidationIssue[] = []
 
   // Which modules are enabled right now — a block from a disabled module would
   // validate structurally but render nothing, so reject it with a clear message.
@@ -84,6 +95,7 @@ export async function validatePuckDocument(
     enabledModules,
     issues,
     warnings,
+    changes,
     mediaPrefix: mediaUrlPrefix(),
   }
 
@@ -105,7 +117,7 @@ export async function validatePuckDocument(
     }
   }
 
-  return { valid: issues.length === 0, skipped: false, issues, warnings, normalized: doc }
+  return { valid: issues.length === 0, skipped: false, issues, warnings, changes, normalized: doc }
 }
 
 /** Shared state threaded through the recursive walk. */
@@ -114,6 +126,7 @@ interface WalkCtx {
   enabledModules: Set<string>
   issues: ValidationIssue[]
   warnings: ValidationIssue[]
+  changes: ValidationIssue[]
   /** URL prefix under which self-hosted media lives (e.g. "/uploads"). */
   mediaPrefix: string
 }
@@ -135,7 +148,11 @@ function walk(nodes: PuckNode[], path: string, ctx: WalkCtx): void {
 
     const block = byType.get(type)
     if (!block) {
-      issues.push({ path: at, message: `unknown block type "${type}"` })
+      const near = nearestType(type, byType)
+      issues.push({
+        path: at,
+        message: `unknown block type "${type}"${near ? ` — did you mean "${near}"?` : ''} (call get_block_catalog for the valid types)`,
+      })
       return
     }
 
@@ -151,12 +168,20 @@ function walk(nodes: PuckNode[], path: string, ctx: WalkCtx): void {
 
     if (!node.props || typeof node.props !== 'object') node.props = {}
     const props = node.props as Record<string, unknown>
-    if (typeof props.id !== 'string' || !props.id) props.id = `${type}-${randomUUID()}`
+    if (typeof props.id !== 'string' || !props.id) {
+      props.id = `${type}-${randomUUID()}`
+      ctx.changes.push({ path: `${at}.props.id`, message: `filled in a generated id for this ${type}` })
+    }
 
     // Image-URL pass: a placeholder/stock host is a hard error (it will render
     // off-brand); any other external URL that isn't self-hosted is a warning
     // (a legit CDN may be intentional); an empty Image src is a warning.
     checkImageUrls(type, props, at, ctx)
+
+    // Prop/style pass: warn (never block) on prop keys the block doesn't know,
+    // and on select values outside the field's options — real signal for the
+    // validate→fix loop instead of only "unknown block type".
+    checkProps(type, block, props, at, ctx)
 
     // Forgive a very common authoring mistake: nesting a block's children in a
     // TOP-LEVEL slot array (a sibling of `props`, mirroring the page root's
@@ -168,6 +193,10 @@ function walk(nodes: PuckNode[], path: string, ctx: WalkCtx): void {
       if (props[slot] === undefined && Array.isArray(misplaced)) {
         props[slot] = misplaced
         delete (node as Record<string, unknown>)[slot]
+        ctx.changes.push({
+          path: `${at}.${slot}`,
+          message: `moved a misplaced "${slot}" array into props.${slot} — nest slot children inside props, not as a sibling of props`,
+        })
       }
     }
 
@@ -259,6 +288,73 @@ function checkImageUrls(type: string, props: Record<string, unknown>, at: string
           ctx
         )
       }
+    })
+  }
+}
+
+/** The closest known block type to a typo'd one, or undefined if nothing is near. */
+function nearestType(type: string, byType: Map<string, CatalogBlock>): string | undefined {
+  const lower = type.toLowerCase()
+  let best: string | undefined
+  let bestScore = 0
+  for (const known of byType.keys()) {
+    const k = known.toLowerCase()
+    if (k === lower) return known // case-only mismatch
+    // Crude similarity: shared prefix length + containment bonus, normalized.
+    let prefix = 0
+    while (prefix < k.length && prefix < lower.length && k[prefix] === lower[prefix]) prefix++
+    const score = prefix + (k.includes(lower) || lower.includes(k) ? 2 : 0)
+    if (score > bestScore) {
+      bestScore = score
+      best = known
+    }
+  }
+  return bestScore >= 3 ? best : undefined
+}
+
+/**
+ * Warn (never block) on prop keys a block doesn't recognise and on select values
+ * outside a field's options. Lenient by design — the renderer ignores extras —
+ * but the signal lets an AI notice a misspelled prop or an invalid enum instead
+ * of shipping a silently-ignored style.
+ */
+function checkProps(
+  type: string,
+  block: CatalogBlock,
+  props: Record<string, unknown>,
+  at: string,
+  ctx: WalkCtx
+): void {
+  const known = new Set<string>([
+    ...block.slots,
+    ...Object.keys(block.fields ?? {}),
+    ...(block.styleProps ?? []),
+    ...STRUCTURAL_PROP_KEYS,
+  ])
+  for (const key of Object.keys(props)) {
+    if (known.has(key)) {
+      // Select-enum check for a declared field with options.
+      const field = block.fields?.[key]
+      const options = field?.options
+      const value = props[key]
+      if (
+        Array.isArray(options) &&
+        options.length &&
+        (typeof value === 'string' || typeof value === 'number') &&
+        !options.some((o) => String(o.value) === String(value))
+      ) {
+        ctx.warnings.push({
+          path: `${at}.props.${key}`,
+          message: `"${type}.${key}" = ${JSON.stringify(value)} is not one of ${options
+            .map((o) => JSON.stringify(o.value))
+            .join(', ')}`,
+        })
+      }
+      continue
+    }
+    ctx.warnings.push({
+      path: `${at}.props.${key}`,
+      message: `"${type}" has no prop "${key}" — it will be ignored on render (check the block's fields/slots/styleProps in the catalog)`,
     })
   }
 }

@@ -1,8 +1,20 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import TemplatesService from '#services/templates_service'
-import { validatePuckDocument } from '#modules/mcp/services/puck_content_validator'
+import {
+  validatePuckDocument,
+  type ValidationResult,
+} from '#modules/mcp/services/puck_content_validator'
 
 const templates = new TemplatesService()
+
+/** Add the validator's non-blocking advisories to a write response (flat). */
+function withAdvisories<T extends object>(entity: T, check?: ValidationResult): T {
+  if (!check) return entity
+  const extra: Record<string, unknown> = {}
+  if (check.warnings.length) extra.warnings = check.warnings
+  if (check.changes.length) extra.changes = check.changes
+  return Object.keys(extra).length ? ({ ...entity, ...extra } as T) : entity
+}
 
 /** Which catalog a template's blocks are checked against, by template type. */
 function targetForType(type: unknown): 'page' | 'email' | 'collection' {
@@ -38,8 +50,9 @@ export default class BuilderTemplatesController {
       'isDefault',
       'collectionKey',
     ]) as Parameters<TemplatesService['create']>[0]
+    let check: ValidationResult | undefined
     if (dto.content !== undefined) {
-      const check = await validatePuckDocument(dto.content, targetForType(dto.type))
+      check = await validatePuckDocument(dto.content, targetForType(dto.type))
       if (!check.valid)
         return response
           .status(422)
@@ -47,7 +60,7 @@ export default class BuilderTemplatesController {
       dto.content = check.normalized
     }
     try {
-      return response.status(201).json(await templates.create(dto))
+      return response.status(201).json(withAdvisories(await templates.create(dto), check))
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
@@ -76,6 +89,11 @@ export default class BuilderTemplatesController {
           .status(422)
           .json({ message: 'Invalid template content', issues: check.issues })
       dto.content = check.normalized
+      try {
+        return response.json(withAdvisories(await templates.update(params.id, dto), check))
+      } catch (e) {
+        return response.status(422).json({ message: (e as Error).message })
+      }
     }
     try {
       return response.json(await templates.update(params.id, dto))

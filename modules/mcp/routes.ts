@@ -175,6 +175,14 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .as('mcp.pages.content')
             .use(read('builder:pages'))
           router
+            .put('/api/mcp/v1/pages/:id/content/patch', [PagesCtrl, 'patchContent'])
+            .as('mcp.pages.patch')
+            .use(read('builder:pages'))
+          router
+            .get('/api/mcp/v1/pages/:id/render', [PagesCtrl, 'render'])
+            .as('mcp.pages.render')
+            .use(read('builder:read'))
+          router
             .post('/api/mcp/v1/pages/:id/publish', [PagesCtrl, 'publish'])
             .as('mcp.pages.publish')
             .use(read('builder:pages'))

@@ -2,11 +2,44 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type User from '#models/user'
 import PagesService from '#services/pages_service'
 import { WebSettingsService } from '#services/settings_service'
-import { validatePuckDocument } from '#modules/mcp/services/puck_content_validator'
+import {
+  validatePuckDocument,
+  type ValidationResult,
+} from '#modules/mcp/services/puck_content_validator'
+import { applyPatchOps, type PatchOp } from '#modules/mcp/services/puck_patch'
 import { checkDesignCoverage } from '#modules/mcp/services/design_coverage'
 import { appUrl } from '#config/app'
 
 const pages = new PagesService()
+
+/**
+ * Trim a preview HTML page down to what a model needs to verify structure:
+ * drop `<script>` hydration bundles and inline data, and cap the length so a big
+ * page stays a reasonable tool result.
+ */
+function trimHtmlForModel(html: string, cap = 60_000): string {
+  const stripped = html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return stripped.length > cap ? stripped.slice(0, cap) + '\n<!-- …truncated… -->' : stripped
+}
+
+/**
+ * Attach the validator's non-blocking advisories to a write response so the AI
+ * learns what to fix (warnings) and what normalization silently changed (changes)
+ * — without them, a filled id / moved slot / off-brand image is invisible. Kept
+ * flat: the entity's own fields stay top-level so existing clients still read
+ * `.id`/`.status`; `warnings`/`changes` are added only when non-empty.
+ */
+function withAdvisories<T extends object>(entity: T, check?: ValidationResult): T {
+  if (!check) return entity
+  const extra: Record<string, unknown> = {}
+  if (check.warnings.length) extra.warnings = check.warnings
+  if (check.changes.length) extra.changes = check.changes
+  return Object.keys(extra).length ? ({ ...entity, ...extra } as T) : entity
+}
 
 /**
  * Builder-API surface for pages. Thin over `PagesService`, with one addition
@@ -46,14 +79,15 @@ export default class BuilderPagesController {
       'seo',
     ]) as Parameters<PagesService['create']>[1]
 
+    let check: ValidationResult | undefined
     if (dto.content !== undefined) {
-      const check = await validatePuckDocument(dto.content, 'page')
+      check = await validatePuckDocument(dto.content, 'page')
       if (!check.valid)
         return response.status(422).json({ message: 'Invalid page content', issues: check.issues })
       dto.content = check.normalized
     }
     try {
-      return response.status(201).json(await pages.create(user.id, dto))
+      return response.status(201).json(withAdvisories(await pages.create(user.id, dto), check))
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
@@ -79,14 +113,15 @@ export default class BuilderPagesController {
       'scheduledUnpublishAt',
     ]) as Parameters<PagesService['update']>[2]
 
+    let check: ValidationResult | undefined
     if (dto.content !== undefined) {
-      const check = await validatePuckDocument(dto.content, 'page')
+      check = await validatePuckDocument(dto.content, 'page')
       if (!check.valid)
         return response.status(422).json({ message: 'Invalid page content', issues: check.issues })
       dto.content = check.normalized
     }
     try {
-      return response.json(await pages.update(params.id, user.id, dto))
+      return response.json(withAdvisories(await pages.update(params.id, user.id, dto), check))
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
@@ -101,7 +136,9 @@ export default class BuilderPagesController {
       if (!check.valid)
         return response.status(422).json({ message: 'Invalid page content', issues: check.issues })
       try {
-        return response.json(await pages.saveDraft(params.id, { content: check.normalized, seo }))
+        return response.json(
+          withAdvisories(await pages.saveDraft(params.id, { content: check.normalized, seo }), check)
+        )
       } catch (e) {
         return response.status(404).json({ message: (e as Error).message })
       }
@@ -119,15 +156,16 @@ export default class BuilderPagesController {
     const content = request.input('content')
     const seo = request.input('seo')
     const dto: Parameters<PagesService['publish']>[2] = {}
+    let check: ValidationResult | undefined
     if (content !== undefined) {
-      const check = await validatePuckDocument(content, 'page')
+      check = await validatePuckDocument(content, 'page')
       if (!check.valid)
         return response.status(422).json({ message: 'Invalid page content', issues: check.issues })
       dto.content = check.normalized
     }
     if (seo !== undefined) dto.seo = seo
     try {
-      return response.json(await pages.publish(params.id, user.id, dto))
+      return response.json(withAdvisories(await pages.publish(params.id, user.id, dto), check))
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
@@ -183,6 +221,71 @@ export default class BuilderPagesController {
         themeEffective: theme.effective,
       })
       return response.json(report)
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
+  }
+
+  /**
+   * Render the page's DRAFT to HTML so the model can LOOK at what it built (it
+   * authors blind) and compare against the reference before publishing. Reuses
+   * the existing no-login /preview SSR pipeline, fetched from THIS server so it
+   * works in every environment; the script bundles are stripped from the result.
+   */
+  async render({ params, request, response }: HttpContext) {
+    try {
+      const token = await pages.ensurePreviewToken(String(params.id))
+      const base = `${request.protocol()}://${request.host()}`
+      const url = `${base}/preview/${token}`
+      const res = await fetch(url, { headers: { Accept: 'text/html' } })
+      const raw = await res.text()
+      return response.json({
+        url,
+        viewport: request.input('viewport') ?? 'desktop',
+        status: res.status,
+        note: 'Server-rendered draft HTML (script bundles stripped). CSR-only pages render on the client, so their body may be empty here.',
+        html: trimHtmlForModel(raw),
+      })
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
+  }
+
+  /**
+   * Apply block-addressed edit operations to the DRAFT, addressing blocks by
+   * their stable props.id — so a revision is a small diff instead of a blind
+   * re-send of the whole tree (which is why past revisions drifted). Re-validates
+   * and saves the patched draft.
+   */
+  async patchContent({ params, request, response }: HttpContext) {
+    const ops = request.input('ops')
+    if (!Array.isArray(ops) || ops.length === 0) {
+      return response
+        .status(422)
+        .json({ message: '`ops` must be a non-empty array of patch operations' })
+    }
+    let page
+    try {
+      page = await pages.findOne(String(params.id))
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
+    const current = (page.draftContent ?? page.content) as unknown
+    const result = applyPatchOps(current, ops as PatchOp[])
+    const check = await validatePuckDocument(result.doc, 'page')
+    if (!check.valid) {
+      return response.status(422).json({
+        message: 'Patched content is invalid — no change saved',
+        issues: check.issues,
+        applied: result.applied,
+        opErrors: result.errors,
+      })
+    }
+    try {
+      const saved = await pages.saveDraft(String(params.id), { content: check.normalized })
+      return response.json(
+        withAdvisories({ ...saved, applied: result.applied, opErrors: result.errors }, check)
+      )
     } catch (e) {
       return response.status(404).json({ message: (e as Error).message })
     }

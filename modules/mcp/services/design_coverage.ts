@@ -88,10 +88,14 @@ function collect(content: unknown, out: Block[]): void {
   }
 }
 
-/** Top-level Section blocks (the design's bands), in order. */
+/** Top-level structural bands (a design's sections), in order. Not just Section:
+ *  a model may band a page with a top-level Container/Grid/DivBlock. */
+const BAND_TYPES = new Set(['Section', 'Container', 'Grid', 'DivBlock', 'Columns'])
 function topSections(content: unknown): Block[] {
   if (!Array.isArray(content)) return []
-  return content.filter((n) => n && typeof n === 'object' && (n as Block).type === 'Section') as Block[]
+  return content.filter(
+    (n) => n && typeof n === 'object' && BAND_TYPES.has(String((n as Block).type))
+  ) as Block[]
 }
 
 function sectionText(section: Block): string {
@@ -123,22 +127,40 @@ export function checkDesignCoverage(input: CoverageInput): CoverageReport {
   }
 
   // ── Sections ────────────────────────────────────────────────────────────
+  // Match each brief section to a built band by HEADLINE similarity, not by
+  // position — a reorder or an extra wrapper band must not read as "missing".
+  // A headline-carrying section matches any unconsumed band containing it (noted
+  // as a reorder if out of order); a headline-less section falls back to whether
+  // an unconsumed band exists at all.
   const briefSections = Array.isArray(brief.sections) ? (brief.sections as Array<Record<string, unknown>>) : []
   const builtSections = topSections(input.content)
+  const builtTexts = builtSections.map((b) => sectionText(b))
+  const consumed = new Set<number>()
   let matched = 0
   briefSections.forEach((bs, i) => {
     const key = String(bs.key ?? bs.recipe ?? `section ${i + 1}`)
     const headline = typeof bs.headline === 'string' ? bs.headline.trim().toLowerCase() : ''
-    const built = builtSections[i]
-    if (!built) {
-      missing.push(`section "${key}" is not built (the design has ${briefSections.length} sections, the page has ${builtSections.length})`)
+    if (headline) {
+      const needle = headline.slice(0, 24)
+      const at = builtTexts.findIndex((t, j) => !consumed.has(j) && t.includes(needle))
+      if (at === -1) {
+        missing.push(`section "${key}" (headline "${bs.headline}") is not built anywhere on the page`)
+        return
+      }
+      consumed.add(at)
+      matched++
+      if (at !== i) {
+        offBrand.push(`section "${key}" appears out of order (design position ${i + 1}, built at ${at + 1})`)
+      }
       return
     }
-    if (headline && !sectionText(built).includes(headline.slice(0, 24))) {
-      // Present positionally but the headline text isn't there — likely wrong section.
-      missing.push(`section "${key}" headline "${bs.headline}" not found where expected`)
+    // No headline to match on — accept any remaining band positionally.
+    const at = builtSections.findIndex((_, j) => !consumed.has(j))
+    if (at === -1) {
+      missing.push(`section "${key}" is not built (the design has ${briefSections.length} sections, the page has ${builtSections.length} bands)`)
       return
     }
+    consumed.add(at)
     matched++
   })
   const coverage = briefSections.length ? matched / briefSections.length : builtSections.length ? 1 : 0
@@ -227,10 +249,17 @@ export function checkDesignCoverage(input: CoverageInput): CoverageReport {
   }
 
   const total = missing.length + offBrand.length + substitutions.length
+  // Be explicit about the ceiling of this check: it compares the build against
+  // the brief the model itself wrote, on structure/palette/asset signals only.
+  // It does NOT see the render, so it cannot judge visual layout, spacing,
+  // proportion or typography — render_page is still required before publishing.
+  const scope =
+    ' (Checks brief-consistency + structure/palette/asset only — NOT visual layout, spacing, proportion or typography. Call render_page and read the HTML to judge those.)'
   const summary =
-    total === 0
+    (total === 0
       ? `Coverage ${Math.round(coverage * 100)}%. No mismatches against the brief.`
-      : `Coverage ${Math.round(coverage * 100)}%. ${missing.length} missing section(s), ${offBrand.length} off-brand item(s), ${substitutions.length} image substitution(s). Fix these before publishing.`
+      : `Coverage ${Math.round(coverage * 100)}%. ${missing.length} missing section(s), ${offBrand.length} off-brand/ordering item(s), ${substitutions.length} image substitution(s). Fix these before publishing.`) +
+    scope
 
   return { hasBrief: true, coverage, missing, offBrand, substitutions, summary }
 }

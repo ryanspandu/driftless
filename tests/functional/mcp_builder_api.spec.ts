@@ -150,4 +150,55 @@ test.group('MCP builder-API | pages + validator', (group) => {
     assert.isFalse(body.valid)
     assert.isAbove(body.issues.length, 0)
   })
+
+  test('patch_page_content edits one block of the draft by its id', async ({ client, assert }) => {
+    await enableMcp()
+    const t = await token(['builder:read', 'builder:pages'])
+    const created = await client
+      .post('/api/mcp/v1/pages')
+      .header('Authorization', bearer(t))
+      .json({
+        title: 'Patch',
+        path: '/patch-test',
+        content: {
+          root: { props: {} },
+          content: [{ type: 'Heading', props: { id: 'h1', text: 'Old', level: '1' } }],
+        },
+      })
+    created.assertStatus(201)
+    const id = created.body().id
+
+    const patched = await client
+      .put(`/api/mcp/v1/pages/${id}/content/patch`)
+      .header('Authorization', bearer(t))
+      .json({ ops: [{ op: 'update_props', id: 'h1', props: { text: 'New' } }] })
+    patched.assertStatus(200)
+    assert.isArray(patched.body().applied)
+    assert.lengthOf(patched.body().applied, 1)
+
+    const page = await client.get(`/api/mcp/v1/pages/${id}`).header('Authorization', bearer(t))
+    const draft = page.body().draftContent
+    assert.equal(draft.content[0].props.text, 'New')
+  })
+
+  test('a write response carries validator warnings/changes', async ({ client, assert }) => {
+    await enableMcp()
+    const t = await token(['builder:read', 'builder:pages'])
+    // No id on the block → the validator fills one and records a change; an
+    // unknown prop → a warning. Both must ride on the create response.
+    const created = await client
+      .post('/api/mcp/v1/pages')
+      .header('Authorization', bearer(t))
+      .json({
+        title: 'Advisories',
+        path: '/advisories-test',
+        content: {
+          root: { props: {} },
+          content: [{ type: 'Heading', props: { text: 'Hi', bogusProp: 1 } }],
+        },
+      })
+    created.assertStatus(201)
+    assert.isArray(created.body().changes)
+    assert.isTrue(created.body().warnings.some((w: { message: string }) => /bogusProp/.test(w.message)))
+  })
 })
