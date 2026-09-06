@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link, router } from '@inertiajs/react'
 import {
   ArrowBendDoubleUpRight,
@@ -190,8 +190,12 @@ export function AppSidebar({ pathname }: { pathname: string }) {
   const branding = useAdminBranding()
   const navRef = useAutoHideScrollbar<HTMLElement>()
 
+  // Below this width (Tailwind's `sm` breakpoint) the sidebar auto-collapses to
+  // the icon rail so it does not cover the page on a phone.
+  const NARROW_QUERY = '(max-width: 575.98px)'
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
+    if (window.matchMedia(NARROW_QUERY).matches) return true
     return window.localStorage.getItem('sidebar:collapsed') === '1'
   })
   const toggleCollapsed = () => {
@@ -203,6 +207,20 @@ export function AppSidebar({ pathname }: { pathname: string }) {
       return next
     })
   }
+
+  // Force-collapse when the viewport drops below the mobile width, and restore
+  // the saved desktop preference when it grows back. The manual toggle still
+  // works either way; only the auto transitions are handled here (never persisted,
+  // so the desktop preference is preserved).
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_QUERY)
+    const apply = () => {
+      if (mq.matches) setCollapsed(true)
+      else setCollapsed(window.localStorage.getItem('sidebar:collapsed') === '1')
+    }
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
 
   // Which parent menus are expanded (persisted; defaults to open when a child is active).
   const [openParents, setOpenParents] = useState<Record<string, boolean>>(() => {
