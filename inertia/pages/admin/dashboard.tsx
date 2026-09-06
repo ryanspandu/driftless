@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react'
 import { useMemo, type FC } from 'react'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
-import { Eye, FileText, Pencil, Users } from 'lucide-react'
+import { Database, FileText, Inbox, Users } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -14,10 +14,10 @@ import { cn, formatAdminTableDateTime } from '~/lib/utils'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 interface DashboardStats {
+  totalCollections: number
+  totalPages: number
+  totalForms: number
   totalUsers: number
-  totalContent: number
-  publishedContent: number
-  draftContent: number
 }
 
 interface Props {
@@ -52,37 +52,34 @@ function DashboardPageInner({ stats }: Props) {
   const publishedRows = useMemo(() => allRows.filter((c) => c.status === 'PUBLISHED'), [allRows])
   const draftRows = useMemo(() => allRows.filter((c) => c.status === 'DRAFT'), [allRows])
 
-  const publishedPct =
-    stats.totalContent > 0 ? Math.round((stats.publishedContent / stats.totalContent) * 100) : 0
-
   const statCards = useMemo(
     () => [
       {
-        title: 'Total Posts',
-        value: formatCount(stats.totalContent),
-        caption: 'All entries in the CMS',
-        icon: FileText,
+        title: 'Collections',
+        value: formatCount(stats.totalCollections),
+        caption: 'Content collections',
+        icon: Database,
         accent: 'text-ring',
         bgAccent: 'bg-ring/10',
       },
       {
-        title: 'Published',
-        value: formatCount(stats.publishedContent),
-        caption: `${publishedPct}% of all posts`,
-        icon: Eye,
+        title: 'Pages',
+        value: formatCount(stats.totalPages),
+        caption: 'Builder pages',
+        icon: FileText,
         accent: 'text-emerald-600 dark:text-emerald-400',
         bgAccent: 'bg-emerald-500/10',
       },
       {
-        title: 'Drafts',
-        value: formatCount(stats.draftContent),
-        caption: 'Awaiting publish',
-        icon: Pencil,
+        title: 'Forms',
+        value: formatCount(stats.totalForms),
+        caption: 'Form submissions',
+        icon: Inbox,
         accent: 'text-amber-600 dark:text-amber-400',
         bgAccent: 'bg-amber-500/10',
       },
       {
-        title: 'Total Users',
+        title: 'Users',
         value: formatCount(stats.totalUsers),
         caption: 'Registered accounts',
         icon: Users,
@@ -90,7 +87,7 @@ function DashboardPageInner({ stats }: Props) {
         bgAccent: 'bg-ring/10',
       },
     ],
-    [stats, publishedPct]
+    [stats]
   )
 
   const columns = useMemo<ColumnDef<ContentDto>[]>(
