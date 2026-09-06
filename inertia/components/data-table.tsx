@@ -612,7 +612,12 @@ function DataTableInner<TData>({
                 />
               </div>
             )}
-            {filters}
+            {filters != null && (
+              // Filter controls (e.g. segmented tabs) can be wider than a phone
+              // viewport; scroll them horizontally instead of clipping the last
+              // tab. No-op on wider screens where they already fit.
+              <div className="min-w-0 max-w-full overflow-x-auto">{filters}</div>
+            )}
           </div>
 
           {(toolbarActions != null || !hideSyncColumn) && (
