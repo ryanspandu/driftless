@@ -30,7 +30,7 @@ export default function AdminLayout({
   return (
     <TooltipProvider>
       <OfflineHandlerRegistrar />
-      <div className="flex h-screen overflow-hidden bg-background">
+      <div className="relative flex h-screen overflow-hidden bg-background">
         <AppSidebar pathname={pathname} />
         <div className="flex flex-1 flex-col min-w-0">
           <OfflineCapabilityBanner />
