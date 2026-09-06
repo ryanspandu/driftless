@@ -269,6 +269,36 @@ function styleToCss(s: StyleBag): CSSProperties {
 }
 
 /**
+ * Every style prop the renderer honours — the single source of truth for what an
+ * API/MCP client may set on ANY block, not just the ~17 that have a visual editor
+ * control in `styleFields`. `styleToCss` above (plus the border/bg/backgrounds
+ * paths) is the authority; keep this list in step with it — a drift test
+ * (tests/functional/mcp_style_vocabulary.spec.ts) scans the style-bag reads inside
+ * styleToCss and fails if any prop it consumes is missing from this list.
+ *
+ * The MCP catalog emits this as each block's `styleProps` so the model can
+ * express layout/positioning it otherwise had no idea existed (flex, gap, align,
+ * absolute position, sizing, transform…). Order groups related props for reading.
+ */
+export const RENDERED_STYLE_PROP_NAMES: string[] = [
+  // Box model
+  'padding', 'margin', 'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'overflow',
+  // Flex / grid layout
+  'display', 'flexDirection', 'justifyContent', 'alignItems', 'alignSelf', 'gap',
+  'flexGrow', 'flexShrink', 'flexBasis', 'order',
+  // Positioning
+  'position', 'top', 'right', 'bottom', 'left', 'zIndex', 'float', 'clear',
+  // Typography
+  'textSize', 'fontWeight', 'lineHeight', 'font', 'textColor', 'align', 'letterSpacing',
+  'textIndent', 'textTransform', 'textDecoration', 'fontStyle', 'direction', 'whiteSpace',
+  // Appearance
+  'bg', 'backgrounds', 'borderWidth', 'borderStyle', 'borderColor', 'borderRadius', 'boxShadow',
+  'opacity', 'mixBlendMode', 'transform', 'transition', 'filter', 'cursor',
+  // Advanced
+  'className',
+]
+
+/**
  * Names a custom attribute may never set: either managed by the builder
  * elsewhere (class/id via their own fields, style via the style panel, React
  * internals) or an XSS vector. `id` is allowed only through the dedicated `htmlId`

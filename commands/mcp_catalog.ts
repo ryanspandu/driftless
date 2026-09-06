@@ -40,9 +40,13 @@ const CONTENT_SHAPE =
   'Nest children INSIDE props, keyed by the slot name (see each block\'s "slots") — e.g. ' +
   '{ type: "Section", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a ' +
   'top-level "content" on the block (a sibling of props) — that renders EMPTY. ' +
-  'Every block also accepts the shared "styleProps" — each is a plain CSS string value ' +
-  '(e.g. padding: "16px 24px", bg: "#ffffff", textColor: "#111827", borderRadius: "8px"); ' +
-  'object/number shapes are dropped on render. ' +
+  'Every block also accepts the shared "styleProps" (see the block\'s "styleProps" list and the ' +
+  'catalog\'s "styleSchemas") — most are a plain CSS STRING value (e.g. padding:"16px 24px", ' +
+  'display:"flex", gap:"16px", alignItems:"center", position:"absolute", top:"0", zIndex:"2", ' +
+  'width:"60%", bg:"#ffffff", textColor:"#111827"). A FEW are structured and documented under ' +
+  '"styleSchemas": "backgrounds" (a layer stack), "responsive" ({ breakpointId: { …styleProps } }), ' +
+  'and "states" ({ hover|focus|active: { …styleProps } }) — these ARE honoured, not dropped. ' +
+  'A style value that is neither a string nor one of those structured shapes is dropped on render. ' +
   'A field with type "object" documents its shape under "objectFields"; a field with type ' +
   '"array" documents each item\'s shape under "arrayFields" (+ "defaultItemProps" as an example). ' +
   'Each block\'s "defaultProps" is a ready-to-use worked example of valid props. ' +
@@ -67,11 +71,11 @@ const BLOCK_HINTS: Record<string, string> = {
   Columns:
     'Equal-width columns (2–4) — like Grid but without a rows control. It does NOT do uneven widths; for an asymmetric split (copy beside an image, 60/40) use an HFlex whose children carry different `width` styleProps.',
   HFlex:
-    'A horizontal row that wraps. Use for a button group / inline items, OR an asymmetric split — give each child its own `width` styleProp (e.g. "60%" / "40%"); flex children honour width, equal grid tracks do not.',
+    'A horizontal row that wraps. Use for a button group / inline items, OR an asymmetric split — give each child its own `width` styleProp (e.g. "60%" / "40%"); flex children honour width, equal grid tracks do not. Control the row with the `gap` (e.g. "16px"), `alignItems` ("center"/"flex-start"/…) and `justifyContent` ("space-between"/"center"/…) styleProps.',
   VFlex:
-    'A vertical stack with a consistent gap. Use it (not QuickStack) when you want things stacked on every screen.',
+    'A vertical stack. Use it (not QuickStack) when you want things stacked on every screen. Control it with the `gap` (e.g. "16px") and `alignItems` ("center"/"stretch"/…) styleProps.',
   QuickStack:
-    'A grid of equal-width cells; set "columns". Note: it does NOT auto-stack on mobile — for a plain vertical stack use VFlex.',
+    'A grid of equal-width cells; set "columns" and the `gap` styleProp. Note: it does NOT auto-stack on mobile — for a plain vertical stack use VFlex, or add responsive:{ "mobile":{ } } overrides.',
   Heading: 'A section title (h1–h6). One per section.',
   Paragraph: 'Body copy — sub-headings, descriptions, supporting text.',
   Button:
@@ -86,7 +90,7 @@ const BLOCK_HINTS: Record<string, string> = {
   Accordion: 'An expandable question/answer list. Use for any FAQ or "common questions" section.',
   Tabs: 'Tabbed content panels for switching between related bodies of content.',
   CollectionList:
-    'Lists PUBLISHED records of a CMS collection you created (blogs, articles, generic content). Leave template:"builtin" (the default) to get a ready-made card — set cardStyle ("card"|"plain"|"overlay"), columns and imageAspect; the record\'s image field can be a MEDIA field (a media id, resolved to its URL) or a TEXT field holding an image URL. Only set template:"template" if you have created a COLLECTION template to repeat. Do NOT use this for e-commerce products — use ProductList.',
+    'Lists PUBLISHED records of a CMS collection you created (blogs, articles, generic content). REQUIRED: set source to { collectionKey:"<an existing collection key>" } (from list_collections) — WITHOUT a collectionKey the block renders NOTHING on the published page and reports no error, so it silently vanishes. Leave template:"builtin" (the default) to get a ready-made card — set cardStyle ("card"|"plain"|"overlay"), columns and imageAspect; the record\'s image field can be a MEDIA field (a media id, resolved to its URL) or a TEXT field holding an image URL. Only set template:"template" if you have created a COLLECTION template to repeat. Do NOT use this for e-commerce products — use ProductList.',
   // Commerce module blocks:
   ProductList:
     'THE correct block for a product/shop grid — renders real product CARDS (image, title, price, columns, sorting) from the store. CREATE the products it shows with the create_product tool (they must be status:"active" to appear) — an empty store renders an empty grid. Do NOT fake products with a CMS collection + CollectionList.',
@@ -102,7 +106,9 @@ const GUIDANCE_RULES: string[] = [
   'BRAND PALETTE FIRST. Before composing any content, look at the design reference and extract its palette — the primary/CTA colour, secondary, page background, text/ink, and any accents — and its typeface(s). Then call set_appearance({ primaryColor, secondaryColor, fontFamily, fontCssUrl, savedColors:[{slug:"bg",name,value},{slug:"ink",…},{slug:"accent",…}] }) with those exact hex values BEFORE building. This matters because Button variant:"primary"/"secondary", every ProductList/product-card CTA, FormButton, and the cart/checkout buttons ALL render the SITE THEME colours — the catalog’s `theme.effective.primary` shows what they look like now (the default is purple #5225e6). If you skip this step every CTA on the page ships that default purple no matter what the design shows. After set_appearance, reference the saved colours in any block as var(--color-<slug>) (or var(--primary)/var(--secondary)) so sections stay consistent and re-themable. For a per-button colour that differs from the theme, set the Button to variant:"custom" and give it bg + textColor (+ borderRadius/padding) styleProps — those override the variant.',
   'TYPOGRAPHY. Match the design’s type. Set the closest Google family with set_appearance({ fontFamily, fontCssUrl:"https://fonts.googleapis.com/css2?family=…" }), or upload the brand font with upload_media and pass fontFaceUrl + fontCustomName (set fontFamily = fontCustomName). Match heading weight/size per block with the fontWeight / textSize / lineHeight styleProps (headings default to 600).',
   'Structure every section as Section (full-width band; set bg + padding here) → Container (centres content) → the section’s blocks. Do not place bare content blocks at the page root.',
-  'To put items SIDE BY SIDE, wrap them in a layout block — Grid or Columns for EQUAL-width columns, HFlex for a button/inline row OR an asymmetric split (give each child a `width` styleProp; flex honours it, equal grid tracks do not). Sibling blocks with no layout parent stack vertically.',
+  'To put items SIDE BY SIDE, wrap them in a layout block — Grid or Columns for EQUAL-width columns, HFlex for a button/inline row OR an asymmetric split (give each child a `width` styleProp; flex honours it, equal grid tracks do not). Sibling blocks with no layout parent stack vertically. Any block can also become a flex container directly with the layout styleProps (display:"flex", gap, justifyContent, alignItems) — see the "layout" styleSchema.',
+  'POSITION / OVERLAY. To pin or float an element on top of another (a badge, a "+" hotspot, a caption over a photo, a card overlapping the next section), give the PARENT position:"relative" and the child position:"absolute" with top/right/bottom/left + zIndex. This IS supported (see the "positioning" styleSchema) — never report an overlay as impossible. A card that overlaps the section below instead uses a negative top `margin`.',
+  'RESPONSIVE & STATES. Adapt a block per screen size with responsive:{ "mobile":{ …styleProps } } (breakpoint ids from get_breakpoints; default desktop/tablet/mobile) — e.g. stack an HFlex on mobile with responsive:{ "mobile":{ "flexDirection":"column" } }. Add hover/focus/active styling with states:{ "hover":{ …styleProps } }. Both are documented under styleSchemas.',
   'Prefer the purpose-built block over composing from scratch: Reviews for testimonials, Accordion for FAQ, Slider/Carousel for hero or rotating strips, ProductList for products.',
   'For a products / shop section use the commerce ProductList block (real cards with price + image), and CREATE the products it shows with the create_product tool — inline `price` (minor units, e.g. 4900 = $49.00) auto-creates a sellable "Default" variant; set status:"active" so they appear. Do NOT fake products with a CMS collection + CollectionList — that yields plain title/excerpt cards. ProductList and the product tools need the "ecommerce" module: confirm it is listed in this catalog’s "enabledModules" first; if absent, ask the operator to enable it rather than faking it.',
   'ASSETS ARE REAL PHOTOS, NOT GUESSES. NEVER substitute random stock or placeholder imagery (picsum, loremflickr, unsplash-source, placehold.co, dummyimage, …) for a hero, product, lifestyle or brand image — those hosts are REJECTED by upload_media and flagged by the validator. If the design’s actual assets were not supplied: (a) if you were given a design screenshot/mockup, upload it with upload_media(purpose:"reference") and cut the design’s OWN photos out with crop_media(mediaId, x, y, width, height) — coordinates in the reference’s pixels; (b) otherwise STOP and ask the operator for the image files/URLs; (c) only if told to proceed anyway, use upload_media(url, purpose:"placeholder") for a labelled stand-in and report every placeholder slot in your summary. Once you have an asset, use its returned `url` verbatim (Image `src`, a product image’s `mediaUrl`, or a Section `backgrounds` image layer url).',
@@ -184,9 +190,82 @@ const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string 
   {
     section: 'Dark image tiles with a caption ("See it styled")',
     blocks: ['Section(bg:dark)', 'Container', 'Grid(columns:2-3)', 'per cell: VFlex + Paragraph'],
-    note: 'A dark Section; each Grid cell is a VFlex with the design’s photo as a `backgrounds` image layer, a minHeight, and a small Paragraph caption (light textColor) aligned bottom-left. NOTE: absolutely-positioned "+" hotspot markers pinned onto a photo are NOT expressible today — report that as a limitation rather than approximating it.',
+    note: 'A dark Section; each Grid cell is a VFlex with the design’s photo as a `backgrounds` image layer, a minHeight, and a small Paragraph caption (light textColor) aligned bottom-left. To pin a "+" hotspot marker onto a photo, give the cell position:"relative" and the marker (a Button/DivBlock/Icon) position:"absolute" with top/left + zIndex — see the "positioning" styleSchema.',
   },
 ]
+
+/**
+ * One complete, valid Puck document — the missing "here is a whole page, with
+ * styleProps and slot nesting in place" reference. Shows: a Section with a
+ * `backgrounds` layer stack + minHeight, a Container, an HFlex with an asymmetric
+ * 55/45 split via child `width`, a VFlex stack using gap, and a nested HFlex
+ * button row. Replace the "/uploads/…" urls with real upload_media urls.
+ */
+const GUIDANCE_EXAMPLE = {
+  description:
+    'A complete valid Puck document for a split hero (copy + CTA row on the left, image on the right). Copy the SHAPE — slot children live inside props.<slot>, styleProps sit alongside. Swap the "/uploads/…" urls for real upload_media urls.',
+  document: {
+    root: { props: {} },
+    content: [
+      {
+        type: 'Section',
+        props: {
+          bg: '#0b1220',
+          minHeight: '70vh',
+          padding: '96px 0',
+          backgrounds: [
+            { type: 'overlay', color: 'rgba(11,18,32,0.55)' },
+            { type: 'image', url: '/uploads/hero.jpg', sizeMode: 'cover', posX: 'center', posY: 'center', repeat: 'no-repeat' },
+          ],
+          content: [
+            {
+              type: 'Container',
+              props: {
+                maxWidth: '1120px',
+                content: [
+                  {
+                    type: 'HFlex',
+                    props: {
+                      gap: '48px',
+                      alignItems: 'center',
+                      content: [
+                        {
+                          type: 'VFlex',
+                          props: {
+                            width: '55%',
+                            gap: '20px',
+                            content: [
+                              { type: 'Heading', props: { text: 'Furniture that fits your life', level: '1', textSize: '48px', fontWeight: '700', textColor: '#ffffff' } },
+                              { type: 'Paragraph', props: { text: 'Handcrafted pieces, delivered to your door.', textSize: '18px', textColor: 'rgba(255,255,255,0.8)' } },
+                              {
+                                type: 'HFlex',
+                                props: {
+                                  gap: '12px',
+                                  content: [
+                                    { type: 'Button', props: { label: 'Shop now', variant: 'primary', href: '/shop' } },
+                                    { type: 'Button', props: { label: 'Learn more', variant: 'outline', href: '/about' } },
+                                  ],
+                                },
+                              },
+                            ],
+                          },
+                        },
+                        {
+                          type: 'Image',
+                          props: { width: '45%', borderRadius: '16px', src: { url: '/uploads/hero-product.jpg' } },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ],
+  },
+} as const
 
 export default class McpCatalog extends BaseCommand {
   static commandName = 'mcp:catalog'
@@ -205,8 +284,15 @@ export default class McpCatalog extends BaseCommand {
     try {
       const styleMod = (await vite.ssrLoadModule('~/puck/style-fields')) as {
         styleFields: Record<string, unknown>
+        RENDERED_STYLE_PROP_NAMES?: string[]
       }
-      const styleProps = Object.keys(styleMod.styleFields ?? {})
+      // Two distinct sets. `styleFieldKeys` are the props spread into EVERY
+      // block via `...styleFields` — deduped out of each block's `fields` so
+      // they show once under styleProps. `advertisedStyleProps` is the FULL set
+      // the renderer honours (RENDERED_STYLE_PROP_NAMES) — what the model is told
+      // it may set. The editor exposes 17; the renderer honours ~54.
+      const styleFieldKeys = Object.keys(styleMod.styleFields ?? {})
+      const advertisedStyleProps = styleMod.RENDERED_STYLE_PROP_NAMES ?? styleFieldKeys
 
       // `puckConfig` is the full builder set (core blocks + compile-time module
       // blocks), matching what the Pages builder actually renders. `baseConfig`
@@ -242,7 +328,14 @@ export default class McpCatalog extends BaseCommand {
       await mkdir(outDir, { recursive: true })
 
       for (const [target, config] of targets) {
-        const catalog = buildCatalog(target, config, styleProps, owners, generatedAt)
+        const catalog = buildCatalog(
+          target,
+          config,
+          styleFieldKeys,
+          advertisedStyleProps,
+          owners,
+          generatedAt
+        )
         const file = join(outDir, `catalog.${target}.json`)
         await writeFile(file, JSON.stringify(catalog, null, 2) + '\n', 'utf8')
         this.logger.success(
@@ -258,20 +351,26 @@ export default class McpCatalog extends BaseCommand {
 function buildCatalog(
   target: string,
   config: RawConfig,
-  styleProps: string[],
+  styleFieldKeys: string[],
+  advertisedStyleProps: string[],
   owners: Record<string, string>,
   generatedAt: string
 ) {
-  const styleSet = new Set(styleProps)
+  // Skip set: only the props `...styleFields` injects into every block's fields,
+  // so we dedupe them once into styleProps. A block's OWN field that happens to
+  // share a name with an advertised style prop (Grid.gap, Map.height) is NOT in
+  // this set, so it survives in `fields` with its specific descriptor.
+  const styleSet = new Set(styleFieldKeys)
   const categoryOf = new Map<string, string>()
   for (const [catKey, cat] of Object.entries(config.categories ?? {})) {
     for (const name of cat.components ?? []) categoryOf.set(name, cat.title || catKey)
   }
 
-  // `backgrounds` is read by every block (via Box) but is not a declared
-  // styleField, so it was invisible in the catalog — advertise it alongside the
-  // other shared style props (its layer shape is documented in styleSchemas).
-  const stylePropsOut = styleProps.includes('backgrounds') ? styleProps : [...styleProps, 'backgrounds']
+  // Advertise the FULL renderer-honoured vocabulary (RENDERED_STYLE_PROP_NAMES),
+  // with `backgrounds` guaranteed present (its layer shape is in styleSchemas).
+  const stylePropsOut = advertisedStyleProps.includes('backgrounds')
+    ? advertisedStyleProps
+    : [...advertisedStyleProps, 'backgrounds']
 
   const blocks = Object.entries(config.components ?? {})
     .map(([type, component]) => {
@@ -321,7 +420,7 @@ function buildCatalog(
   // Recipes only make sense for a full page; the layout rules apply everywhere.
   const guidance =
     target === 'page'
-      ? { rules: GUIDANCE_RULES, recipes: GUIDANCE_RECIPES }
+      ? { rules: GUIDANCE_RULES, recipes: GUIDANCE_RECIPES, examples: [GUIDANCE_EXAMPLE] }
       : { rules: GUIDANCE_RULES }
 
   return {
@@ -342,9 +441,31 @@ function buildCatalog(
 const STYLE_SCHEMAS = {
   backgrounds:
     'An array of layers painted FRONT-to-BACK (list an overlay/gradient BEFORE the image for legibility). Layer shapes: ' +
-    '{ type:"image", url:"<upload_media url>", sizeMode:"cover"|"contain", posX:"center", posY:"center", repeat:"no-repeat" } | ' +
+    '{ type:"image", url:"<upload_media url>", sizeMode:"cover"|"contain"|"custom", width, height, posX:"center", posY:"center", repeat:"no-repeat"|"repeat"|"repeat-x"|"repeat-y", attachment:"scroll"|"fixed" (fixed = parallax) } | ' +
     '{ type:"linear", angle:"90", stops:[{ color:"rgba(0,0,0,0.55)", pos:"0%" }, { color:"rgba(0,0,0,0)", pos:"60%" }] } | ' +
+    '{ type:"radial", shape:"circle"|"ellipse", extent:"farthest-corner", posX:"50%", posY:"50%", stops:[{ color, pos }] } | ' +
     '{ type:"overlay", color:"rgba(0,0,0,0.4)" }. Set on a Section (with minHeight + bg) for a full-bleed hero/CTA band.',
+  layout:
+    'Flexbox on any block (Section/Container/DivBlock/…): set display:"flex", flexDirection:"row"|"column", gap:"16px", ' +
+    'justifyContent:"flex-start"|"center"|"space-between"|…, alignItems:"stretch"|"center"|"flex-start"|… . ' +
+    'For CSS grid: display:"grid" (Grid/QuickStack/Columns already do this — prefer them). A flex CHILD honours width ("60%"), ' +
+    'flexGrow/flexShrink/flexBasis, alignSelf and order. VFlex/HFlex are purpose-built flex containers (they read gap/alignItems, HFlex also justifyContent).',
+  positioning:
+    'To overlay or pin an element (a badge, hotspot, caption, floating card) ON another: give the PARENT position:"relative", ' +
+    'and the child position:"absolute" with top/right/bottom/left (e.g. top:"16px", left:"16px") and zIndex ("2"). ' +
+    'position:"sticky"/"fixed" also work. These ARE rendered — use them instead of reporting an overlay as impossible.',
+  sizing:
+    'width/height/minWidth/minHeight/maxWidth/maxHeight take any CSS length ("100%", "480px", "60vh"); overflow:"hidden"|"auto"|"scroll" clips or scrolls a fixed-size box.',
+  effects:
+    'transform ("translateY(-8px)", "rotate(-3deg)", "scale(1.05)"), opacity ("0.9"), transition ("all 0.2s ease"), ' +
+    'filter ("blur(4px)"), mixBlendMode ("multiply"), cursor ("pointer") are all plain CSS string values.',
+  responsive:
+    'Per-breakpoint overrides: responsive: { "<breakpointId>": { <any styleProp>: value, … } }. Only the props you override change ' +
+    'at that width and NARROWER; everything else inherits the base. Default breakpoint ids are "desktop" (base), "tablet" (≤768px), ' +
+    '"mobile" (≤390px) — call get_breakpoints for the site\'s actual tiers. e.g. responsive: { "mobile": { "flexDirection":"column", "textSize":"24px", "padding":"24px 16px" } }.',
+  states:
+    'Interaction states: states: { "hover"|"focus"|"active": { <any styleProp>: value, … } }. Rendered as CSS pseudo-class rules. ' +
+    'e.g. states: { "hover": { "bg":"var(--primary)", "transform":"translateY(-2px)", "boxShadow":"lg" } }.',
 } as const
 
 /**

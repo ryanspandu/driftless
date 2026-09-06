@@ -59,6 +59,8 @@ export interface CatalogRecipe {
 export interface CatalogGuidance {
   rules: string[]
   recipes?: CatalogRecipe[]
+  /** One or more complete, valid Puck documents — a "whole page" reference. */
+  examples?: Array<{ description: string; document: Record<string, unknown> }>
 }
 
 export interface CatalogField {
