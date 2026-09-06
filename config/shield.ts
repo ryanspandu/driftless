@@ -21,6 +21,9 @@ const scriptSrc = isDev
       'https://www.google.com',
       'https://hcaptcha.com',
       'https://js.hcaptcha.com',
+      // Scalar UI for the dev-only `/api/docs` route loads its bundle from
+      // jsDelivr. The route (and this allowance) never exist in production.
+      'https://cdn.jsdelivr.net',
     ]
   : [
       "'self'",
@@ -45,6 +48,8 @@ const connectSrc = isDev
       'http://localhost:*',
       'https://accounts.google.com',
       'https://www.google.com',
+      // Scalar UI (dev-only `/api/docs`) fetches its lazy chunks from jsDelivr.
+      'https://cdn.jsdelivr.net',
     ]
   : ["'self'", 'https://accounts.google.com', 'https://www.google.com']
 
