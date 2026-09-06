@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { router, usePage } from '@inertiajs/react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -17,6 +27,7 @@ import { MediaImagePicker } from '~/components/admin/media-image-picker'
 import { RichTextEditor } from '~/components/cms/rich-text-editor'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { apiErrorMessage } from '~/lib/api-client'
+import { cn } from '~/lib/utils'
 import {
   useCategories,
   useDeleteVariant,
@@ -44,6 +55,7 @@ interface VariantDraft {
   stockOnHand: number
   trackInventory: boolean
   allowBackorder: boolean
+  imageUrl: string | null
 }
 
 function variantToDraft(v: VariantDto): VariantDraft {
@@ -57,6 +69,7 @@ function variantToDraft(v: VariantDto): VariantDraft {
     stockOnHand: v.stockOnHand,
     trackInventory: v.trackInventory,
     allowBackorder: v.allowBackorder,
+    imageUrl: v.imageUrl ?? null,
   }
 }
 
@@ -71,6 +84,7 @@ function emptyDraft(): VariantDraft {
     stockOnHand: 0,
     trackInventory: true,
     allowBackorder: false,
+    imageUrl: null,
   }
 }
 
@@ -101,6 +115,20 @@ export default function ProductEditPage() {
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [images, setImages] = useState<{ mediaUrl: string; alt?: string | null }[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
+
+  // Drag-to-reorder the image tiles. The array order IS the saved order (first =
+  // thumbnail), so reordering state and saving is all that's needed.
+  const imageSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  const onImagesDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setImages((prev) => {
+      const oldIndex = prev.findIndex((i) => i.mediaUrl === active.id)
+      const newIndex = prev.findIndex((i) => i.mediaUrl === over.id)
+      if (oldIndex < 0 || newIndex < 0) return prev
+      return arrayMove(prev, oldIndex, newIndex)
+    })
+  }
 
   /**
    * The first variant of a brand-new product is edited inline and created in a
@@ -184,6 +212,7 @@ export default function ProductEditPage() {
             stockOnHand: newVariant.stockOnHand,
             trackInventory: newVariant.trackInventory,
             allowBackorder: newVariant.allowBackorder,
+            imageUrl: newVariant.imageUrl,
           },
         })
         router.visit(`/admin/ecommerce/products/${result.id}`)
@@ -213,6 +242,7 @@ export default function ProductEditPage() {
           stockOnHand: draft.stockOnHand,
           trackInventory: draft.trackInventory,
           allowBackorder: draft.allowBackorder,
+          imageUrl: draft.imageUrl,
         },
       })
       setSaved(true)
@@ -283,39 +313,42 @@ export default function ProductEditPage() {
           <Card>
             <CardHeader>
               <CardTitle>Images</CardTitle>
-              <CardDescription>The first image is used as the product thumbnail.</CardDescription>
+              <CardDescription>
+                The first image is used as the product thumbnail. Drag to reorder.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-3">
-                {images.map((img, index) => (
-                  <div
-                    key={`${img.mediaUrl}-${index}`}
-                    className="group relative size-24 overflow-hidden rounded-lg border border-border"
-                  >
-                    <img
-                      src={img.mediaUrl}
-                      alt={img.alt ?? ''}
-                      className="size-full object-cover"
-                    />
+              <DndContext
+                sensors={imageSensors}
+                collisionDetection={closestCenter}
+                onDragEnd={onImagesDragEnd}
+              >
+                <SortableContext
+                  items={images.map((img) => img.mediaUrl)}
+                  strategy={rectSortingStrategy}
+                >
+                  <div className="flex flex-wrap gap-3">
+                    {images.map((img, index) => (
+                      <SortableImageTile
+                        key={img.mediaUrl}
+                        img={img}
+                        isThumbnail={index === 0}
+                        onRemove={() =>
+                          setImages((prev) => prev.filter((_, i) => i !== index))
+                        }
+                      />
+                    ))}
                     <button
                       type="button"
-                      onClick={() => setImages((prev) => prev.filter((_, i) => i !== index))}
-                      className="absolute right-1 top-1 rounded-full bg-background/90 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+                      onClick={() => setPickerOpen(true)}
+                      className="flex size-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-muted-foreground transition-colors hover:bg-accent/40"
                     >
-                      <X className="size-3" aria-hidden />
-                      <span className="sr-only">Remove image</span>
+                      <ImagePlus className="size-5" aria-hidden />
+                      <span className="text-xs">Add</span>
                     </button>
                   </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setPickerOpen(true)}
-                  className="flex size-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-muted-foreground transition-colors hover:bg-accent/40"
-                >
-                  <ImagePlus className="size-5" aria-hidden />
-                  <span className="text-xs">Add</span>
-                </button>
-              </div>
+                </SortableContext>
+              </DndContext>
             </CardContent>
           </Card>
 
@@ -333,6 +366,7 @@ export default function ProductEditPage() {
                 <VariantFields
                   draft={newVariant}
                   currency={currency}
+                  images={images}
                   onChange={(patch) => setNewVariant((prev) => ({ ...prev, ...patch }))}
                 />
               ) : (
@@ -386,6 +420,7 @@ export default function ProductEditPage() {
                         <VariantFields
                           draft={draft}
                           currency={currency}
+                          images={images}
                           onChange={(patch) => updateDraft(variant.id, patch)}
                         />
                         {/*
@@ -589,14 +624,68 @@ export default function ProductEditPage() {
   )
 }
 
+/** A draggable product-image tile. The whole tile is the drag handle; the
+ *  remove button stops the pointer so a click there never starts a drag. */
+function SortableImageTile({
+  img,
+  isThumbnail,
+  onRemove,
+}: {
+  img: { mediaUrl: string; alt?: string | null }
+  isThumbnail: boolean
+  onRemove: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: img.mediaUrl,
+  })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : undefined,
+    zIndex: isDragging ? 10 : undefined,
+  }
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group relative size-24 cursor-grab touch-none overflow-hidden rounded-lg border border-border active:cursor-grabbing"
+      {...attributes}
+      {...listeners}
+    >
+      <img
+        src={img.mediaUrl}
+        alt={img.alt ?? ''}
+        draggable={false}
+        className="pointer-events-none size-full object-cover"
+      />
+      {isThumbnail ? (
+        <span className="absolute bottom-1 left-1 rounded bg-primary/90 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+          Thumbnail
+        </span>
+      ) : null}
+      <button
+        type="button"
+        onClick={onRemove}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="absolute right-1 top-1 rounded-full bg-background/90 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+      >
+        <X className="size-3" aria-hidden />
+        <span className="sr-only">Remove image</span>
+      </button>
+    </div>
+  )
+}
+
 /** The editable fields of one variant. */
 function VariantFields({
   draft,
   currency,
+  images,
   onChange,
 }: {
   draft: VariantDraft
   currency: string
+  images: { mediaUrl: string; alt?: string | null }[]
   onChange: (patch: Partial<VariantDraft>) => void
 }) {
   return (
@@ -614,6 +703,60 @@ function VariantFields({
             placeholder="Optional"
           />
         </div>
+      </div>
+
+      {/* Pick a variant image from the images already uploaded on the product
+          above. Falls back to the product thumbnail when none is chosen. */}
+      <div className="space-y-2">
+        <Label>Variant image</Label>
+        {images.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Add images in the Images section above, then pick one here.
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onChange({ imageUrl: null })}
+                className={cn(
+                  'flex size-14 items-center justify-center rounded-md border text-[11px] transition-colors',
+                  !draft.imageUrl
+                    ? 'border-primary text-foreground ring-2 ring-primary'
+                    : 'border-border text-muted-foreground hover:bg-accent/40'
+                )}
+              >
+                None
+              </button>
+              {images.map((img) => {
+                const selected = draft.imageUrl === img.mediaUrl
+                return (
+                  <button
+                    key={img.mediaUrl}
+                    type="button"
+                    onClick={() => onChange({ imageUrl: img.mediaUrl })}
+                    className={cn(
+                      'relative size-14 overflow-hidden rounded-md border transition-all',
+                      selected
+                        ? 'border-primary ring-2 ring-primary'
+                        : 'border-border hover:opacity-90'
+                    )}
+                    title="Use this image for the variant"
+                  >
+                    <img
+                      src={img.mediaUrl}
+                      alt={img.alt ?? ''}
+                      className="size-full object-cover"
+                    />
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Choose one of the product images. Falls back to the product thumbnail if none.
+            </p>
+          </>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
