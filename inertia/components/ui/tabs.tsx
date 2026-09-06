@@ -29,7 +29,10 @@ const tabsListVariants = cva(
   // the tabs already fit, so desktop is unchanged. `scrollbar-none` hides the
   // scrollbar chrome — otherwise a visible horizontal bar steals the pill's height
   // and induces a second, vertical scrollbar.
-  "group/tabs-list inline-flex h-9 w-fit max-w-full items-center justify-center overflow-x-auto scrollbar-none rounded-lg bg-muted p-1 text-muted-foreground",
+  // justify-start (not center): when the tabs overflow and scroll, centering
+  // would clip the first tab off the left edge. With the default w-fit sizing
+  // there is no visual difference when they already fit.
+  "group/tabs-list inline-flex h-9 w-fit max-w-full items-center justify-start overflow-x-auto scrollbar-none rounded-lg bg-muted p-1 text-muted-foreground",
   {
     variants: {
       variant: {
