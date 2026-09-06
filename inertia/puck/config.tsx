@@ -226,6 +226,151 @@ function ImageView({ src, alt, sizes, priority, binding, ...s }: ImageViewProps)
 }
 
 /**
+ * Resolve a URL-valued slot against the current record.
+ *
+ * When the slot is bound, the field's value wins (an empty bound field returns
+ * the editor's `[fieldKey]` placeholder, which is not a URL — treated here as
+ * "no source" so nothing renders a broken `src="[field]"`). When it is not bound
+ * (or there is no record context), the block's static value is used. Mirrors the
+ * `fieldSrc`/`boundUrl` handling in `ImageView`.
+ */
+function useBoundUrl(fieldKey: string | undefined, staticValue: string | undefined): string {
+  const bound = useBoundField(fieldKey)
+  if (bound == null) return staticValue ?? ''
+  if (/^\[[^\]]+\]$/.test(bound)) return ''
+  return bound
+}
+
+type VideoViewProps = {
+  src?: string
+  poster?: string
+  autoplay?: string
+  loop?: string
+  controls?: string
+  binding?: Binding
+} & StyleBag
+
+function VideoView({ src, poster, autoplay, loop, controls, binding, ...s }: VideoViewProps) {
+  const url = useBoundUrl(binding?.src, src)
+  const posterUrl = useBoundUrl(binding?.poster, poster)
+  return (
+    <Box s={s}>
+      {url ? (
+        <video
+          src={url}
+          poster={posterUrl || undefined}
+          controls={controls !== 'false'}
+          autoPlay={autoplay === 'true'}
+          loop={loop === 'true'}
+          muted={autoplay === 'true'}
+          playsInline
+          className="h-auto w-full"
+        />
+      ) : (
+        <div className="flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
+          Add a video URL
+        </div>
+      )}
+    </Box>
+  )
+}
+
+type YouTubeViewProps = { url?: string; binding?: Binding } & StyleBag
+
+function YouTubeView({ url, binding, ...s }: YouTubeViewProps) {
+  const resolved = useBoundUrl(binding?.url, url)
+  const id = parseYouTubeId(resolved)
+  return (
+    <Box s={s}>
+      {id ? (
+        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+          <iframe
+            src={`https://www.youtube.com/embed/${id}`}
+            title="YouTube video"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+          />
+        </div>
+      ) : (
+        <div className="flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
+          Paste a YouTube URL
+        </div>
+      )}
+    </Box>
+  )
+}
+
+type LottieBlockViewProps = {
+  src?: string
+  loop?: string
+  autoplay?: string
+  binding?: Binding
+} & StyleBag
+
+function LottieBlockView({ src, loop, autoplay, binding, ...s }: LottieBlockViewProps) {
+  const url = useBoundUrl(binding?.src, src)
+  return (
+    <Box s={s}>
+      <LottieAnimationView src={url} loop={loop !== 'false'} autoplay={autoplay !== 'false'} />
+    </Box>
+  )
+}
+
+type RiveBlockViewProps = { src?: string; binding?: Binding } & StyleBag
+
+function RiveBlockView({ src, binding, ...s }: RiveBlockViewProps) {
+  const url = useBoundUrl(binding?.src, src)
+  return (
+    <Box s={s}>
+      <RiveView src={url} />
+    </Box>
+  )
+}
+
+type BackgroundVideoViewProps = {
+  content?: ComponentType
+  src?: string
+  poster?: string
+  binding?: Binding
+} & StyleBag
+
+function BackgroundVideoView({
+  content: Content,
+  src,
+  poster,
+  binding,
+  ...s
+}: BackgroundVideoViewProps) {
+  const url = useBoundUrl(binding?.src, src)
+  const posterUrl = useBoundUrl(binding?.poster, poster)
+  return (
+    <Box s={s} style={{ position: 'relative', overflow: 'hidden' }}>
+      {url ? (
+        <video
+          src={url}
+          poster={posterUrl || undefined}
+          autoPlay
+          muted
+          loop
+          playsInline
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 0,
+          }}
+        />
+      ) : null}
+      <div style={{ position: 'relative', zIndex: 1 }}>{Content ? <Content /> : null}</div>
+    </Box>
+  )
+}
+
+/**
  * HTML void elements — they take no children. Rendering a slot into one throws
  * a React invariant ("<img> is a void element tag and must not have children")
  * that, because the page is one React tree, blanks the ENTIRE page. The Custom
@@ -763,26 +908,7 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { src: '', poster: '', autoplay: 'false', loop: 'false', controls: 'true' },
-      render: ({ src, poster, autoplay, loop, controls, ...s }) => (
-        <Box s={s}>
-          {src ? (
-            <video
-              src={src}
-              poster={poster || undefined}
-              controls={controls !== 'false'}
-              autoPlay={autoplay === 'true'}
-              loop={loop === 'true'}
-              muted={autoplay === 'true'}
-              playsInline
-              className="h-auto w-full"
-            />
-          ) : (
-            <div className="flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
-              Add a video URL
-            </div>
-          )}
-        </Box>
-      ),
+      render: (props) => <VideoView {...(props as VideoViewProps)} />,
     },
 
     // YouTube — responsive 16:9 embed; accepts any YouTube URL or a raw video id.
@@ -793,35 +919,7 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { url: '' },
-      render: ({ url, ...s }) => {
-        const id = parseYouTubeId(url)
-        return (
-          <Box s={s}>
-            {id ? (
-              <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
-                <iframe
-                  src={`https://www.youtube.com/embed/${id}`}
-                  title="YouTube video"
-                  loading="lazy"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    border: 0,
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
-                Paste a YouTube URL
-              </div>
-            )}
-          </Box>
-        )
-      },
+      render: (props) => <YouTubeView {...(props as YouTubeViewProps)} />,
     },
 
     // Lottie — vector animation from a .json/.lottie URL (lazy, client-only).
@@ -848,11 +946,7 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { src: '', loop: 'true', autoplay: 'true' },
-      render: ({ src, loop, autoplay, ...s }) => (
-        <Box s={s}>
-          <LottieAnimationView src={src} loop={loop !== 'false'} autoplay={autoplay !== 'false'} />
-        </Box>
-      ),
+      render: (props) => <LottieBlockView {...(props as LottieBlockViewProps)} />,
     },
 
     // Spline — interactive 3D scene from a .splinecode URL (lazy, client-only).
@@ -872,11 +966,7 @@ export const baseConfig: Config = {
       label: 'Rive',
       fields: { src: { type: 'text', label: 'Rive URL (.riv)' }, ...styleFields },
       defaultProps: { src: '' },
-      render: ({ src, ...s }) => (
-        <Box s={s}>
-          <RiveView src={src} />
-        </Box>
-      ),
+      render: (props) => <RiveBlockView {...(props as RiveBlockViewProps)} />,
     },
 
     RichText: {
@@ -1557,31 +1647,7 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { src: '', poster: '', content: [] },
-      render: ({ content: Content, src, poster, ...s }) => (
-        <Box s={s} style={{ position: 'relative', overflow: 'hidden' }}>
-          {src ? (
-            <video
-              src={src}
-              poster={poster || undefined}
-              autoPlay
-              muted
-              loop
-              playsInline
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                zIndex: 0,
-              }}
-            />
-          ) : null}
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <Content />
-          </div>
-        </Box>
-      ),
+      render: (props) => <BackgroundVideoView {...(props as BackgroundVideoViewProps)} />,
     },
 
     // Code Embed — safe presentation HTML and approved iframe providers only.

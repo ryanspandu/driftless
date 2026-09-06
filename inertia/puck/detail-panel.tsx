@@ -67,6 +67,17 @@ const BINDABLE_SLOTS: Record<
   RichText: [{ slot: 'html', label: 'Get content from', kind: 'text' }],
   BlockQuote: [{ slot: 'text', label: 'Get quote from', kind: 'text' }],
   Image: [{ slot: 'src', label: 'Get image from', kind: 'image' }],
+  Video: [
+    { slot: 'src', label: 'Get video from', kind: 'image' },
+    { slot: 'poster', label: 'Get poster from', kind: 'image' },
+  ],
+  LottieAnimation: [{ slot: 'src', label: 'Get animation from', kind: 'image' }],
+  Rive: [{ slot: 'src', label: 'Get file from', kind: 'image' }],
+  YouTube: [{ slot: 'url', label: 'Get URL from', kind: 'link' }],
+  BackgroundVideo: [
+    { slot: 'src', label: 'Get video from', kind: 'image' },
+    { slot: 'poster', label: 'Get poster from', kind: 'image' },
+  ],
   Button: [
     { slot: 'label', label: 'Get label from', kind: 'text' },
     { slot: 'href', label: 'Get link from', kind: 'link' },
@@ -76,6 +87,17 @@ const BINDABLE_SLOTS: Record<
     { slot: 'href', label: 'Get link from', kind: 'link' },
   ],
   LinkBlock: [{ slot: 'href', label: 'Get link from', kind: 'link' }],
+  // Layout blocks (all render through `Box`): bind the background image to a
+  // MEDIA field so a card's cover comes from the record. See `Box` in
+  // style-fields.tsx for the resolution.
+  Section: [{ slot: 'background', label: 'Get background from', kind: 'image' }],
+  Container: [{ slot: 'background', label: 'Get background from', kind: 'image' }],
+  DivBlock: [{ slot: 'background', label: 'Get background from', kind: 'image' }],
+  Columns: [{ slot: 'background', label: 'Get background from', kind: 'image' }],
+  Grid: [{ slot: 'background', label: 'Get background from', kind: 'image' }],
+  QuickStack: [{ slot: 'background', label: 'Get background from', kind: 'image' }],
+  VFlex: [{ slot: 'background', label: 'Get background from', kind: 'image' }],
+  HFlex: [{ slot: 'background', label: 'Get background from', kind: 'image' }],
 }
 
 /**
@@ -891,8 +913,11 @@ function BindingRow({
     () => fieldsForKind(fields, kind).map((f) => ({ value: f.key, label: f.label })),
     [fields, kind]
   )
+  // Stacked (label above the control) rather than the inline w-14 label column:
+  // "Get background from" and other longer slot labels overflow the narrow column
+  // and collide with the dropdown.
   return (
-    <InlineRow label={label} set={!!value}>
+    <StackField label={label} set={!!value}>
       <PanelSelect
         value={value ?? ''}
         onChange={(v) => onBind(slot, v || null)}
@@ -900,7 +925,7 @@ function BindingRow({
         emptyLabel="— Static —"
         controlClassName={value ? 'text-builder-bound' : undefined}
       />
-    </InlineRow>
+    </StackField>
   )
 }
 

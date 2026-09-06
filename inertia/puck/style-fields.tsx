@@ -14,9 +14,14 @@ import {
   ColorControl,
   NumberUnitControl,
 } from '~/puck/style-controls'
-import { backgroundsToCss, readLayers } from '~/puck/background-layers'
+import { backgroundsToCss, readLayers, newLayer, type BgImageLayer } from '~/puck/background-layers'
 import { scrollAnimationAttrs } from '~/puck/scroll-animation'
-import { readConditions, useConditionallyHidden } from '~/puck/record-binding'
+import {
+  readConditions,
+  useConditionallyHidden,
+  useBoundField,
+  type Binding,
+} from '~/puck/record-binding'
 import {
   BreakpointContext,
   NonceContext,
@@ -462,6 +467,19 @@ export function Box({
   // (and dimmed) so it stays selectable.
   const condHidden = useConditionallyHidden(readConditions(s.conditions))
 
+  // Bound background image (Webflow-style "cover from field"). Inside a repeater
+  // a layout block can pull its background image straight from the record's MEDIA
+  // field. Resolved here — Box is a React component — and applied inline below so
+  // it wins over the responsive/state stylesheet, which is compiled from the
+  // static (unbound) props and would otherwise paint the empty background. An
+  // empty bound field returns the editor's `[field]` placeholder (not a URL) →
+  // treated as "no bound image", leaving the designed background untouched.
+  const boundBgRaw = useBoundField((s.binding as Binding | undefined)?.background)
+  const boundBgUrl =
+    typeof boundBgRaw === 'string' && boundBgRaw !== '' && !/^\[[^\]]+\]$/.test(boundBgRaw)
+      ? boundBgRaw
+      : null
+
   // Scroll-into-view reveal: data-attrs + inert CSS custom properties, applied
   // only on the published page (suppressed while editing). The hidden start
   // state lives in `.sa-active`-gated CSS, never in this inline style — so SSR
@@ -519,6 +537,33 @@ export function Box({
     ...anim.vars,
     ...style,
     ...(hidden ? { opacity: 0.4 } : null),
+  }
+
+  // Apply a bound background image: swap the URL into the first designed image
+  // layer (or inject a `cover` layer beneath any gradients/overlays when none is
+  // designed), recompile, and override the background longhands inline. Inline
+  // out-specifies the generated stylesheet, so this is correct on the responsive/
+  // state path too. When nothing is bound, output is byte-for-byte unchanged.
+  if (boundBgUrl) {
+    const layers = readLayers(s.backgrounds)
+    const imageIdx = layers.findIndex((l) => l.type === 'image')
+    if (imageIdx >= 0) {
+      layers[imageIdx] = { ...(layers[imageIdx] as BgImageLayer), url: boundBgUrl }
+    } else {
+      layers.push({
+        ...(newLayer('image') as BgImageLayer),
+        url: boundBgUrl,
+        sizeMode: 'cover',
+        repeat: 'no-repeat',
+        posX: '50%',
+        posY: '50%',
+      })
+    }
+    const boundBg = backgroundsToCss(layers)
+    if (boundBg) {
+      if (str(s, 'bg')) inlineStyle.backgroundColor = str(s, 'bg')
+      Object.assign(inlineStyle, boundBg)
+    }
   }
 
   /*
