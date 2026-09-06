@@ -31,7 +31,9 @@ function parseContentTab(sp: ReturnType<typeof useSearchParams>): string {
 }
 
 function formatCount(n: number): string {
-  return n.toLocaleString()
+  // Defensive: a stale prop shape (undefined) during an HMR/reload window must
+  // never white-screen the whole dashboard — fall back to 0.
+  return (Number.isFinite(n) ? n : 0).toLocaleString()
 }
 
 function DashboardPageInner({ stats }: Props) {
