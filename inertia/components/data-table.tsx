@@ -613,10 +613,11 @@ function DataTableInner<TData>({
               </div>
             )}
             {filters != null && (
-              // Filter controls (e.g. segmented tabs) can be wider than a phone
-              // viewport; scroll them horizontally instead of clipping the last
-              // tab. No-op on wider screens where they already fit.
-              <div className="min-w-0 max-w-full overflow-x-auto">{filters}</div>
+              // On a phone, filter controls (e.g. segmented tabs) can be wider
+              // than the viewport — scroll them horizontally instead of clipping
+              // the last tab. From `sm` up the wrapper collapses (display:contents)
+              // so the controls lay out exactly as before, with no scrollbar.
+              <div className="max-w-full overflow-x-auto sm:contents">{filters}</div>
             )}
           </div>
 
