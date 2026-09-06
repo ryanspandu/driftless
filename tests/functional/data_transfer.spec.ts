@@ -6,6 +6,9 @@ import RedirectsService from '#services/redirects_service'
 import Redirect from '#models/redirect'
 import Media from '#models/media'
 import MediaService from '#services/media_service'
+import CmsService from '#services/cms_service'
+import Page from '#models/page'
+import Template from '#models/template'
 import { newUlid } from '#services/ulid_service'
 import { WebSettingsService } from '#services/settings_service'
 import SiteExportService from '#services/data_transfer/site_export_service'
@@ -100,6 +103,74 @@ test.group('Data transfer | core round-trip', (group) => {
     assert.equal(restored!.filename, filename)
     assert.equal(await readFile(join(svc.storagePath, filename), 'utf8'), 'hello-media')
     assert.isTrue(result.sections.some((s) => s.name === 'media' && s.created === 1))
+  })
+
+  test('collection schema + records round-trip (relation-safe)', async ({ assert }) => {
+    const cms = new CmsService()
+    await cms.createCollection({
+      key: 'authors',
+      label: 'Authors',
+      draftsOn: false,
+      fields: [{ key: 'name', label: 'Name', type: 'TEXT', required: true }],
+    })
+    await cms.createRecord('authors', null, { data: { name: 'Ada' } })
+
+    const archive = await new SiteExportService().export({
+      only: ['collections', 'collection_records'],
+    })
+
+    // Hard-wipe the collection (drops its dynamic table + frees the key).
+    await cms.deleteCollection('authors')
+    await cms.forceDeleteCollection('authors')
+
+    const result = await new SiteImportService().import(archive)
+    const cols = await cms.listCollections()
+    assert.isTrue(cols.some((c) => c.key === 'authors'))
+    const recs = await cms.listRecords('authors', { pageSize: 10 }, { resolveRelations: false })
+    assert.isTrue(recs.items.some((r) => r.data.name === 'Ada'))
+    assert.isTrue(result.sections.some((s) => s.name === 'collections' && s.created === 1))
+    assert.isTrue(result.sections.some((s) => s.name === 'collection_records' && s.created === 1))
+  })
+
+  test('pages + templates round-trip with refs preserved', async ({ assert }) => {
+    const tpl = await Template.create({
+      id: newUlid(),
+      name: 'Header',
+      type: 'HEADER',
+      content: { content: [], root: {} },
+      renderedHtml: null,
+      collectionKey: null,
+      isDefault: false,
+    })
+    const page = await Page.create({
+      id: newUlid(),
+      title: 'DT Test Page',
+      path: 'dt-export-test',
+      status: 'DRAFT',
+      renderMode: 'SSR',
+      kind: 'BUILDER',
+      component: null,
+      content: { content: [], root: {} },
+      seo: {},
+      layoutId: null,
+      headerTemplateId: tpl.id,
+      footerTemplateId: null,
+      hideHeader: false,
+      hideFooter: false,
+      authorId: null,
+    })
+
+    const archive = await new SiteExportService().export({ only: ['templates', 'pages'] })
+
+    // Delete only what this test created (seeded pages are upserted by id).
+    await Page.query().where('id', page.id).delete()
+    await Template.query().where('id', tpl.id).delete()
+
+    await new SiteImportService().import(archive)
+    const restoredPage = await Page.query().where('id', page.id).first()
+    assert.isNotNull(restoredPage)
+    assert.equal(restoredPage!.headerTemplateId, tpl.id) // template ref preserved
+    assert.isNotNull(await Template.query().where('id', tpl.id).first())
   })
 
   test('a wrong _type is refused', async ({ assert }) => {
