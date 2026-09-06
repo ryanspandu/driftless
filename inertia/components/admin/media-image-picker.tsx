@@ -46,11 +46,11 @@ export function MediaImagePicker({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Insert image</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
           <DragDropImageUpload
             onFile={onUpload}
             accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
@@ -93,7 +93,7 @@ export function MediaImagePicker({
                 No images in the library yet.
               </p>
             ) : (
-              <div className="grid max-h-[50vh] grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {images.map((m) => (
                   <button
                     key={m.id}
