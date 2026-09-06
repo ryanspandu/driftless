@@ -4639,6 +4639,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['setContent']>>>
     }
   }
+  'mcp.pages.patch': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/pages/:id/content/patch'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['patchContent']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['patchContent']>>>
+    }
+  }
+  'mcp.pages.render': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/pages/:id/render'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['render']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['render']>>>
+    }
+  }
   'mcp.pages.publish': {
     methods: ["POST"]
     pattern: '/api/mcp/v1/pages/:id/publish'

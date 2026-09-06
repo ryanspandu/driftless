@@ -2322,6 +2322,18 @@ const routes = {
     tokens: [{"old":"/api/mcp/v1/pages/:id/content","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/pages/:id/content","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/pages/:id/content","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/pages/:id/content","type":0,"val":"pages","end":""},{"old":"/api/mcp/v1/pages/:id/content","type":1,"val":"id","end":""},{"old":"/api/mcp/v1/pages/:id/content","type":0,"val":"content","end":""}],
     types: placeholder as Registry['mcp.pages.content']['types'],
   },
+  'mcp.pages.patch': {
+    methods: ["PUT"],
+    pattern: '/api/mcp/v1/pages/:id/content/patch',
+    tokens: [{"old":"/api/mcp/v1/pages/:id/content/patch","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/pages/:id/content/patch","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/pages/:id/content/patch","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/pages/:id/content/patch","type":0,"val":"pages","end":""},{"old":"/api/mcp/v1/pages/:id/content/patch","type":1,"val":"id","end":""},{"old":"/api/mcp/v1/pages/:id/content/patch","type":0,"val":"content","end":""},{"old":"/api/mcp/v1/pages/:id/content/patch","type":0,"val":"patch","end":""}],
+    types: placeholder as Registry['mcp.pages.patch']['types'],
+  },
+  'mcp.pages.render': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/mcp/v1/pages/:id/render',
+    tokens: [{"old":"/api/mcp/v1/pages/:id/render","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/pages/:id/render","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/pages/:id/render","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/pages/:id/render","type":0,"val":"pages","end":""},{"old":"/api/mcp/v1/pages/:id/render","type":1,"val":"id","end":""},{"old":"/api/mcp/v1/pages/:id/render","type":0,"val":"render","end":""}],
+    types: placeholder as Registry['mcp.pages.render']['types'],
+  },
   'mcp.pages.publish': {
     methods: ["POST"],
     pattern: '/api/mcp/v1/pages/:id/publish',

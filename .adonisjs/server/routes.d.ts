@@ -194,6 +194,8 @@ export type ScannedRoutes = {
     'mcp.pages.store': { paramsTuple?: []; params?: {} }
     'mcp.pages.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.content': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.patch': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.render': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.publish': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.previewToken': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.brief': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -326,6 +328,7 @@ export type ScannedRoutes = {
     'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.pages.index': { paramsTuple?: []; params?: {} }
     'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.render': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.coverage': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.index': { paramsTuple?: []; params?: {} }
     'mcp.templates.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -429,6 +432,7 @@ export type ScannedRoutes = {
     'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.pages.index': { paramsTuple?: []; params?: {} }
     'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.render': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.coverage': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.index': { paramsTuple?: []; params?: {} }
     'mcp.templates.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -538,6 +542,7 @@ export type ScannedRoutes = {
     'mcp.collections.fields.update': { paramsTuple: [ParamValue,ParamValue]; params: {'key': ParamValue,'field': ParamValue} }
     'mcp.pages.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.content': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.pages.patch': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.brief': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.appearance': { paramsTuple?: []; params?: {} }

@@ -565,6 +565,8 @@ export interface ApiDefinition {
       store: typeof routes['mcp.pages.store']
       update: typeof routes['mcp.pages.update']
       content: typeof routes['mcp.pages.content']
+      patch: typeof routes['mcp.pages.patch']
+      render: typeof routes['mcp.pages.render']
       publish: typeof routes['mcp.pages.publish']
       previewToken: typeof routes['mcp.pages.previewToken']
       brief: typeof routes['mcp.pages.brief']
