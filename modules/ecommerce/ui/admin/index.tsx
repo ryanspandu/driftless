@@ -321,8 +321,16 @@ export default function EcommerceDashboardPage() {
             const showPending = (data?.pendingOrdersCount ?? 0) > 0
             const showLowStock = (data?.lowStockCount ?? 0) > 0
             if (!showAffiliates && !showPending && !showLowStock) return null
+            // Column count follows how many tiles are shown (3 affiliate tiles +
+            // up to two alerts) so the row never leaves an empty slot — 3 cards
+            // fill 3 columns, 4 fill 4. Full literal classes so Tailwind keeps them.
+            const tileCount =
+              (showAffiliates ? 3 : 0) + (showLowStock ? 1 : 0) + (showPending ? 1 : 0)
+            const lgCols = Math.min(Math.max(tileCount, 2), 4)
+            const colsClass =
+              lgCols === 4 ? 'lg:grid-cols-4' : lgCols === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
             return (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className={`grid gap-4 sm:grid-cols-2 ${colsClass}`}>
                 {showAffiliates ? (
                   <>
                     <StatTile
