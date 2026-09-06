@@ -2143,6 +2143,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['page']>>>
     }
   }
+  'data_transfer.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/settings/export-import'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/data_transfer_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/data_transfer_controller').default['page']>>>
+    }
+  }
   'mail_settings.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/settings/mail'
@@ -2285,6 +2297,42 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updatePageCode']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/settings_controller').default['updatePageCode']>>>
+    }
+  }
+  'data_transfer.manifest': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/data-transfer/manifest'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/data_transfer_controller').default['manifest']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/data_transfer_controller').default['manifest']>>>
+    }
+  }
+  'data_transfer.export_archive': {
+    methods: ["POST"]
+    pattern: '/api/admin/data-transfer/export'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/data_transfer_controller').default['exportArchive']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/data_transfer_controller').default['exportArchive']>>>
+    }
+  }
+  'data_transfer.import_archive': {
+    methods: ["POST"]
+    pattern: '/api/admin/data-transfer/import'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/data_transfer_controller').default['importArchive']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/data_transfer_controller').default['importArchive']>>>
     }
   }
   'settings.get_breakpoints': {

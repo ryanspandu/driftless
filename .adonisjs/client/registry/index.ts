@@ -1074,6 +1074,12 @@ const routes = {
     tokens: [{"old":"/admin/settings/email","type":0,"val":"admin","end":""},{"old":"/admin/settings/email","type":0,"val":"settings","end":""},{"old":"/admin/settings/email","type":0,"val":"email","end":""}],
     types: placeholder as Registry['mail_settings.page']['types'],
   },
+  'data_transfer.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/settings/export-import',
+    tokens: [{"old":"/admin/settings/export-import","type":0,"val":"admin","end":""},{"old":"/admin/settings/export-import","type":0,"val":"settings","end":""},{"old":"/admin/settings/export-import","type":0,"val":"export-import","end":""}],
+    types: placeholder as Registry['data_transfer.page']['types'],
+  },
   'mail_settings.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/settings/mail',
@@ -1145,6 +1151,24 @@ const routes = {
     pattern: '/api/admin/settings/page-code',
     tokens: [{"old":"/api/admin/settings/page-code","type":0,"val":"api","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/page-code","type":0,"val":"page-code","end":""}],
     types: placeholder as Registry['settings.update_page_code']['types'],
+  },
+  'data_transfer.manifest': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/data-transfer/manifest',
+    tokens: [{"old":"/api/admin/data-transfer/manifest","type":0,"val":"api","end":""},{"old":"/api/admin/data-transfer/manifest","type":0,"val":"admin","end":""},{"old":"/api/admin/data-transfer/manifest","type":0,"val":"data-transfer","end":""},{"old":"/api/admin/data-transfer/manifest","type":0,"val":"manifest","end":""}],
+    types: placeholder as Registry['data_transfer.manifest']['types'],
+  },
+  'data_transfer.export_archive': {
+    methods: ["POST"],
+    pattern: '/api/admin/data-transfer/export',
+    tokens: [{"old":"/api/admin/data-transfer/export","type":0,"val":"api","end":""},{"old":"/api/admin/data-transfer/export","type":0,"val":"admin","end":""},{"old":"/api/admin/data-transfer/export","type":0,"val":"data-transfer","end":""},{"old":"/api/admin/data-transfer/export","type":0,"val":"export","end":""}],
+    types: placeholder as Registry['data_transfer.export_archive']['types'],
+  },
+  'data_transfer.import_archive': {
+    methods: ["POST"],
+    pattern: '/api/admin/data-transfer/import',
+    tokens: [{"old":"/api/admin/data-transfer/import","type":0,"val":"api","end":""},{"old":"/api/admin/data-transfer/import","type":0,"val":"admin","end":""},{"old":"/api/admin/data-transfer/import","type":0,"val":"data-transfer","end":""},{"old":"/api/admin/data-transfer/import","type":0,"val":"import","end":""}],
+    types: placeholder as Registry['data_transfer.import_archive']['types'],
   },
   'settings.get_breakpoints': {
     methods: ["GET","HEAD"],

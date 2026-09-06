@@ -257,6 +257,12 @@ export interface ApiDefinition {
     updateEvent: typeof routes['mail_settings.update_event']
     deliveries: typeof routes['mail_settings.deliveries']
   }
+  dataTransfer: {
+    page: typeof routes['data_transfer.page']
+    manifest: typeof routes['data_transfer.manifest']
+    exportArchive: typeof routes['data_transfer.export_archive']
+    importArchive: typeof routes['data_transfer.import_archive']
+  }
   apiTokens: {
     index: typeof routes['api_tokens.index']
     store: typeof routes['api_tokens.store']
