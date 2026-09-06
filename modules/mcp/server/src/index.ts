@@ -432,56 +432,9 @@ const PatchOps = z
 
 server.tool(
   'patch_page_content',
-  "Edit the DRAFT by BLOCK — address blocks by their stable props.id and apply a small diff instead of re-sending the whole tree (re-sending from memory is why revisions drift). ops: update_props / update_style (merge props into #id), insert (add a block into parentId.slot, default the root content), move (relocate #id), remove (#id). Applied in order, best-effort; returns applied[] + opErrors[]. Get block ids from get_page or render_page.",
+  "Edit the DRAFT by BLOCK — address blocks by their stable props.id and apply a small diff instead of re-sending the whole tree (re-sending from memory is why revisions drift). ops (one or many): { op:'update_props', id, props } / { op:'update_style', id, props } merge props into #id; { op:'insert', block, parentId?, slot?, index? } adds a block into parentId.slot (default the document root's content); { op:'move', id, parentId?, slot?, index? } relocates #id; { op:'remove', id }. Applied in order, best-effort; returns applied[] + opErrors[]. Get block ids from get_page or render_page.",
   { id: z.string(), ops: PatchOps },
   ({ id, ops }) => run(() => api.put(`/api/mcp/v1/pages/${id}/content/patch`, { ops }))
-)
-
-const patch = (id: string, op: Record<string, unknown>) =>
-  run(() => api.put(`/api/mcp/v1/pages/${id}/content/patch`, { ops: [op] }))
-
-server.tool(
-  'update_block_props',
-  'Merge props into ONE block of a page draft, by its props.id. Convenience wrapper over patch_page_content.',
-  { id: z.string(), blockId: z.string(), props: z.record(z.any()) },
-  ({ id, blockId, props }) => patch(id, { op: 'update_props', id: blockId, props })
-)
-server.tool(
-  'update_block_style',
-  'Merge styleProps into ONE block of a page draft, by its props.id (e.g. padding, gap, bg, position). Convenience wrapper over patch_page_content.',
-  { id: z.string(), blockId: z.string(), style: z.record(z.any()) },
-  ({ id, blockId, style }) => patch(id, { op: 'update_style', id: blockId, props: style })
-)
-server.tool(
-  'insert_block',
-  'Insert a block into a page draft — into parentId.slot (default the parent\'s "content" slot), or the document root when parentId is omitted. Convenience wrapper over patch_page_content.',
-  {
-    id: z.string(),
-    block: PuckDoc,
-    parentId: z.string().optional(),
-    slot: z.string().optional(),
-    index: z.number().optional(),
-  },
-  ({ id, block, parentId, slot, index }) => patch(id, { op: 'insert', block, parentId, slot, index })
-)
-server.tool(
-  'move_block',
-  'Move a block (by its props.id) to another position/parent in a page draft. Convenience wrapper over patch_page_content.',
-  {
-    id: z.string(),
-    blockId: z.string(),
-    parentId: z.string().optional(),
-    slot: z.string().optional(),
-    index: z.number().optional(),
-  },
-  ({ id, blockId, parentId, slot, index }) =>
-    patch(id, { op: 'move', id: blockId, parentId, slot, index })
-)
-server.tool(
-  'remove_block',
-  'Remove a block (by its props.id) from a page draft. Convenience wrapper over patch_page_content.',
-  { id: z.string(), blockId: z.string() },
-  ({ id, blockId }) => patch(id, { op: 'remove', id: blockId })
 )
 
 server.tool(
