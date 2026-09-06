@@ -280,6 +280,12 @@ export default defineModule({
     const { registerEcommerceMailEvents } = await import('#modules/ecommerce/services/mail_events')
     registerEcommerceMailEvents()
 
+    // Contribute the store's catalog + settings to whole-site export/import.
+    // Core never imports this module; the module registers itself here.
+    const { registerEcommerceDataSection } =
+      await import('#modules/ecommerce/services/data_transfer')
+    registerEcommerceDataSection()
+
     // Products as a bindable collection for Collection Lists / Collection
     // Templates. Gated per call on the module being enabled, so disabling the
     // store hides it again without a restart.
