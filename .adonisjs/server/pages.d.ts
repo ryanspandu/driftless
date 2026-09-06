@@ -45,6 +45,7 @@ declare module '@adonisjs/inertia/types' {
     'admin/settings/api-tokens': ExtractProps<(typeof import('../../inertia/pages/admin/settings/api-tokens.tsx'))['default']>
     'admin/settings/appearance': ExtractProps<(typeof import('../../inertia/pages/admin/settings/appearance.tsx'))['default']>
     'admin/settings/application': ExtractProps<(typeof import('../../inertia/pages/admin/settings/application.tsx'))['default']>
+    'admin/settings/data_transfer': ExtractProps<(typeof import('../../inertia/pages/admin/settings/data_transfer.tsx'))['default']>
     'admin/settings/email': ExtractProps<(typeof import('../../inertia/pages/admin/settings/email.tsx'))['default']>
     'admin/settings/general': ExtractProps<(typeof import('../../inertia/pages/admin/settings/general.tsx'))['default']>
     'admin/templates/builder': ExtractProps<(typeof import('../../inertia/pages/admin/templates/builder.tsx'))['default']>

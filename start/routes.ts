@@ -907,6 +907,10 @@ router
           () => import('#controllers/admin/mail_settings_controller'),
           'page',
         ])
+        router.get('/admin/settings/export-import', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'page',
+        ])
       })
       .use(middleware.pagePermission({ permission: 'settings:manage' }))
 
@@ -979,6 +983,24 @@ router
         () => import('#controllers/admin/settings_controller'),
         'updatePageCode',
       ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+
+    // Whole-site export / import.
+    router
+      .group(() => {
+        router.get('/api/admin/data-transfer/manifest', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'manifest',
+        ])
+        router.post('/api/admin/data-transfer/export', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'exportArchive',
+        ])
+        router.post('/api/admin/data-transfer/import', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'importArchive',
+        ])
+      })
       .use(middleware.permission({ permission: 'settings:manage' }))
 
     // Site-wide responsive breakpoints — any page editor may READ them (the

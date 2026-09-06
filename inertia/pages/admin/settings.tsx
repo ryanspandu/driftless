@@ -3,6 +3,7 @@ import { type ReactNode } from 'react'
 import {
   BookOpen,
   ChevronRight,
+  DatabaseBackup,
   ExternalLink,
   FileJson,
   Globe,
@@ -89,6 +90,15 @@ export default function SettingsPage() {
               title="Integrations"
               description="Google OAuth, CAPTCHA, Google Analytics 4, and Microsoft Clarity."
               href="/admin/integrations"
+            />
+          </SettingsSection>
+
+          <SettingsSection title="Backup & migration" description="Move or back up the whole site.">
+            <SettingsLinkCard
+              icon={DatabaseBackup}
+              title="Export / Import"
+              description="Download the whole site as a .driftless archive, or restore one — pages, collections, media, settings and store."
+              href="/admin/settings/export-import"
             />
           </SettingsSection>
 

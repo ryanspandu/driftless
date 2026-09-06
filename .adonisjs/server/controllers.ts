@@ -10,6 +10,7 @@ export const controllers = {
     Cms: () => import('#controllers/admin/cms_controller'),
     Content: () => import('#controllers/admin/content_controller'),
     Dashboard: () => import('#controllers/admin/dashboard_controller'),
+    DataTransfer: () => import('#controllers/admin/data_transfer_controller'),
     Forms: () => import('#controllers/admin/forms_controller'),
     Health: () => import('#controllers/admin/health_controller'),
     MailSettings: () => import('#controllers/admin/mail_settings_controller'),
