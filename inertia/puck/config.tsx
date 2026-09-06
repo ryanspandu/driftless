@@ -7,7 +7,7 @@ import { CollectionTemplateField } from '~/puck/collection-template-field'
 import { withModuleBlocks } from '~/puck/module-blocks'
 import { withCustomBlocks } from '~/puck/custom-blocks'
 import { RichTextView } from '~/puck/rich-text-view'
-import { styleFields, Box } from '~/puck/style-fields'
+import { styleFields, Box, mergeLayout } from '~/puck/style-fields'
 import { MediaField } from '~/puck/media-field'
 import { normalizeImageValue, buildSrcset } from '~/puck/image-source'
 import { useBoundString, useBoundField, FieldOrText, type Binding } from '~/puck/record-binding'
@@ -515,18 +515,20 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { count: '2', gap: '24px', content: [] },
-      render: ({ content: Content, count, gap, display: _d, ...s }) => (
-        <Box
-          s={s}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${Number(count) || 2}, minmax(0, 1fr))`,
-            gap: gap || '24px',
-          }}
-        >
-          <Content style={{ display: 'contents' }} />
-        </Box>
-      ),
+      render: ({ content: Content, count, gap, display: _d, ...s }) => {
+        const cols = (c: unknown) => `repeat(${Number(c) || 2}, minmax(0, 1fr))`
+        return (
+          <Box
+            s={mergeLayout(
+              s,
+              { display: 'grid', gridTemplateColumns: cols(count), gap: (gap as string) || '24px' },
+              (ov) => (ov.count != null ? { gridTemplateColumns: cols(ov.count) } : {})
+            )}
+          >
+            <Content style={{ display: 'contents' }} />
+          </Box>
+        )
+      },
     },
 
     // Grid — CSS grid with configurable columns + rows (Webflow Grid).
@@ -553,20 +555,26 @@ export const baseConfig: Config = {
       // the cards become DIRECT grid items of the Box (otherwise the DropZone
       // wrapper is the grid's only item and everything stacks). Forcing display on
       // the Box also makes it work without the `display` prop (API/MCP-composed).
-      render: ({ content: Content, columns, rows, gap, display: _d, ...s }) => (
-        <Box
-          s={s}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${Number(columns) || 2}, minmax(0, 1fr))`,
-            gridTemplateRows:
-              Number(rows) > 1 ? `repeat(${Number(rows)}, minmax(0, 1fr))` : undefined,
-            gap: gap || '16px',
-          }}
-        >
-          <Content style={{ display: 'contents' }} />
-        </Box>
-      ),
+      render: ({ content: Content, columns, rows, gap, display: _d, ...s }) => {
+        const cols = (c: unknown) => `repeat(${Number(c) || 2}, minmax(0, 1fr))`
+        return (
+          <Box
+            s={mergeLayout(
+              s,
+              {
+                display: 'grid',
+                gridTemplateColumns: cols(columns),
+                gridTemplateRows:
+                  Number(rows) > 1 ? `repeat(${Number(rows)}, minmax(0, 1fr))` : undefined,
+                gap: (gap as string) || '16px',
+              },
+              (ov) => (ov.columns != null ? { gridTemplateColumns: cols(ov.columns) } : {})
+            )}
+          >
+            <Content style={{ display: 'contents' }} />
+          </Box>
+        )
+      },
     },
 
     // Quick Stack — a responsive grid of cells (Webflow Quick Stack). `columns`
@@ -584,18 +592,24 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { columns: '2', display: 'grid', content: [] },
-      render: ({ content: Content, columns, gap, display: _d, ...s }) => (
-        <Box
-          s={s}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${Number(columns) || 2}, minmax(0, 1fr))`,
-            gap: (typeof gap === 'string' && gap) || '16px',
-          }}
-        >
-          <Content style={{ display: 'contents' }} />
-        </Box>
-      ),
+      render: ({ content: Content, columns, gap, display: _d, ...s }) => {
+        const cols = (c: unknown) => `repeat(${Number(c) || 2}, minmax(0, 1fr))`
+        return (
+          <Box
+            s={mergeLayout(
+              s,
+              {
+                display: 'grid',
+                gridTemplateColumns: cols(columns),
+                gap: (typeof gap === 'string' && gap) || '16px',
+              },
+              (ov) => (ov.columns != null ? { gridTemplateColumns: cols(ov.columns) } : {})
+            )}
+          >
+            <Content style={{ display: 'contents' }} />
+          </Box>
+        )
+      },
     },
 
     // V Flex — vertical flex container (column). Direction/gap are editable in the
@@ -610,13 +624,12 @@ export const baseConfig: Config = {
       // defaults) so it works even when they're absent (API/MCP-composed block).
       render: ({ content: Content, display: _d, flexDirection: _fd, gap, alignItems, ...s }) => (
         <Box
-          s={s}
-          style={{
+          s={mergeLayout(s, {
             display: 'flex',
             flexDirection: 'column',
             gap: typeof gap === 'string' ? gap : undefined,
             alignItems: typeof alignItems === 'string' ? alignItems : undefined,
-          }}
+          })}
         >
           <Content style={{ display: 'contents' }} />
         </Box>
@@ -639,15 +652,14 @@ export const baseConfig: Config = {
         ...s
       }) => (
         <Box
-          s={s}
-          style={{
+          s={mergeLayout(s, {
             display: 'flex',
             flexDirection: 'row',
             flexWrap: 'wrap',
             gap: typeof gap === 'string' ? gap : '12px',
             alignItems: typeof alignItems === 'string' ? alignItems : 'center',
             justifyContent: typeof justifyContent === 'string' ? justifyContent : undefined,
-          }}
+          })}
         >
           <Content style={{ display: 'contents' }} />
         </Box>

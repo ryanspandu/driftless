@@ -7,10 +7,26 @@ import {
   type ValidationResult,
 } from '#modules/mcp/services/puck_content_validator'
 import { applyPatchOps, type PatchOp } from '#modules/mcp/services/puck_patch'
+import { generateResponsive } from '#modules/mcp/services/auto_responsive'
 import { checkDesignCoverage } from '#modules/mcp/services/design_coverage'
 import { appUrl } from '#config/app'
 
 const pages = new PagesService()
+
+/**
+ * Auto-add mobile/tablet responsive overrides to a just-validated document,
+ * unless the caller opted out with `autoResponsive: false`. Mutates the doc in
+ * place (it is the normalized copy about to be saved) and returns a small report
+ * to echo, or undefined when skipped/no-op.
+ */
+function autoResponsive(
+  content: unknown,
+  flag: unknown
+): { responsiveAdded: number } | undefined {
+  if (flag === false || content == null) return undefined
+  const { touched } = generateResponsive(content)
+  return touched ? { responsiveAdded: touched } : undefined
+}
 
 /**
  * Trim a preview HTML page down to what a model needs to verify structure:
@@ -33,12 +49,16 @@ function trimHtmlForModel(html: string, cap = 60_000): string {
  * flat: the entity's own fields stay top-level so existing clients still read
  * `.id`/`.status`; `warnings`/`changes` are added only when non-empty.
  */
-function withAdvisories<T extends object>(entity: T, check?: ValidationResult): T {
-  if (!check) return entity
-  const extra: Record<string, unknown> = {}
-  if (check.warnings.length) extra.warnings = check.warnings
-  if (check.changes.length) extra.changes = check.changes
-  return Object.keys(extra).length ? ({ ...entity, ...extra } as T) : entity
+function withAdvisories<T extends object>(
+  entity: T,
+  check?: ValidationResult,
+  extra?: Record<string, unknown>
+): T {
+  const out: Record<string, unknown> = {}
+  if (check?.warnings.length) out.warnings = check.warnings
+  if (check?.changes.length) out.changes = check.changes
+  if (extra) Object.assign(out, extra)
+  return Object.keys(out).length ? ({ ...entity, ...out } as T) : entity
 }
 
 /**
@@ -80,14 +100,16 @@ export default class BuilderPagesController {
     ]) as Parameters<PagesService['create']>[1]
 
     let check: ValidationResult | undefined
+    let resp: { responsiveAdded: number } | undefined
     if (dto.content !== undefined) {
       check = await validatePuckDocument(dto.content, 'page')
       if (!check.valid)
         return response.status(422).json({ message: 'Invalid page content', issues: check.issues })
       dto.content = check.normalized
+      resp = autoResponsive(dto.content, request.input('autoResponsive'))
     }
     try {
-      return response.status(201).json(withAdvisories(await pages.create(user.id, dto), check))
+      return response.status(201).json(withAdvisories(await pages.create(user.id, dto), check, resp))
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
@@ -114,14 +136,16 @@ export default class BuilderPagesController {
     ]) as Parameters<PagesService['update']>[2]
 
     let check: ValidationResult | undefined
+    let resp: { responsiveAdded: number } | undefined
     if (dto.content !== undefined) {
       check = await validatePuckDocument(dto.content, 'page')
       if (!check.valid)
         return response.status(422).json({ message: 'Invalid page content', issues: check.issues })
       dto.content = check.normalized
+      resp = autoResponsive(dto.content, request.input('autoResponsive'))
     }
     try {
-      return response.json(withAdvisories(await pages.update(params.id, user.id, dto), check))
+      return response.json(withAdvisories(await pages.update(params.id, user.id, dto), check, resp))
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
@@ -135,9 +159,14 @@ export default class BuilderPagesController {
       const check = await validatePuckDocument(content, 'page')
       if (!check.valid)
         return response.status(422).json({ message: 'Invalid page content', issues: check.issues })
+      const resp = autoResponsive(check.normalized, request.input('autoResponsive'))
       try {
         return response.json(
-          withAdvisories(await pages.saveDraft(params.id, { content: check.normalized, seo }), check)
+          withAdvisories(
+            await pages.saveDraft(params.id, { content: check.normalized, seo }),
+            check,
+            resp
+          )
         )
       } catch (e) {
         return response.status(404).json({ message: (e as Error).message })
@@ -157,15 +186,17 @@ export default class BuilderPagesController {
     const seo = request.input('seo')
     const dto: Parameters<PagesService['publish']>[2] = {}
     let check: ValidationResult | undefined
+    let resp: { responsiveAdded: number } | undefined
     if (content !== undefined) {
       check = await validatePuckDocument(content, 'page')
       if (!check.valid)
         return response.status(422).json({ message: 'Invalid page content', issues: check.issues })
       dto.content = check.normalized
+      resp = autoResponsive(dto.content, request.input('autoResponsive'))
     }
     if (seo !== undefined) dto.seo = seo
     try {
-      return response.json(withAdvisories(await pages.publish(params.id, user.id, dto), check))
+      return response.json(withAdvisories(await pages.publish(params.id, user.id, dto), check, resp))
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }

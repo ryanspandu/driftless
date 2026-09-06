@@ -156,6 +156,35 @@ export const styleFields: Record<string, Field> = {
 /** Block props are loose JSON; read style keys defensively. */
 type StyleBag = Record<string, unknown>
 
+/**
+ * Fold a layout block's computed layout into its style bag so the responsive /
+ * stylesheet path (Box) can override it per breakpoint. The layout blocks used to
+ * set `gridTemplateColumns` / `flexDirection` INLINE, which `@media` rules cannot
+ * beat — so a Grid stayed 4-up and an HFlex stayed a row on mobile. Now the base
+ * layout lives in the bag (emitted to the base rule) and each `responsive[bp]`
+ * override is translated field→CSS (e.g. `{ columns: '1' }` → gridTemplateColumns)
+ * so the narrower tier wins. `translate` maps a breakpoint override's block fields
+ * to layout CSS; plain styleProps in the override pass through untouched.
+ */
+export function mergeLayout(
+  s: StyleBag,
+  base: Record<string, string | undefined>,
+  translate?: (bpOverride: Record<string, unknown>) => Record<string, string | undefined>
+): StyleBag {
+  const out: StyleBag = { ...s, ...base }
+  const responsive = readResponsive(s)
+  const bps = Object.keys(responsive)
+  if (bps.length) {
+    const r: Record<string, unknown> = {}
+    for (const bp of bps) {
+      const ov = responsive[bp] as Record<string, unknown>
+      r[bp] = translate ? { ...ov, ...translate(ov) } : ov
+    }
+    out.responsive = r
+  }
+  return out
+}
+
 function str(s: StyleBag, key: string): string | undefined {
   return typeof s[key] === 'string' ? (s[key] as string) : undefined
 }
@@ -204,6 +233,12 @@ function styleToCss(s: StyleBag): CSSProperties {
     flexGrow: str(s, 'flexGrow') as CSSProperties['flexGrow'],
     flexShrink: str(s, 'flexShrink') as CSSProperties['flexShrink'],
     flexBasis: str(s, 'flexBasis'),
+    flexWrap: str(s, 'flexWrap') as CSSProperties['flexWrap'],
+    // Grid track props — set by the layout blocks (Grid/Columns/QuickStack) via
+    // the style bag (not inline) so per-breakpoint `responsive` overrides can win.
+    gridTemplateColumns: str(s, 'gridTemplateColumns'),
+    gridTemplateRows: str(s, 'gridTemplateRows'),
+    gridAutoFlow: str(s, 'gridAutoFlow') as CSSProperties['gridAutoFlow'],
     float: str(s, 'float') as CSSProperties['float'],
     clear: str(s, 'clear') as CSSProperties['clear'],
     transform: str(s, 'transform'),
@@ -284,8 +319,9 @@ export const RENDERED_STYLE_PROP_NAMES: string[] = [
   // Box model
   'padding', 'margin', 'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'overflow',
   // Flex / grid layout
-  'display', 'flexDirection', 'justifyContent', 'alignItems', 'alignSelf', 'gap',
+  'display', 'flexDirection', 'flexWrap', 'justifyContent', 'alignItems', 'alignSelf', 'gap',
   'flexGrow', 'flexShrink', 'flexBasis', 'order',
+  'gridTemplateColumns', 'gridTemplateRows', 'gridAutoFlow',
   // Positioning
   'position', 'top', 'right', 'bottom', 'left', 'zIndex', 'float', 'clear',
   // Typography

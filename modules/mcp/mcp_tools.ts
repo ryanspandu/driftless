@@ -46,7 +46,7 @@ export const SERVER_INSTRUCTIONS = `Driftless page builder. To reproduce a desig
 3. BRAND FIRST: extract the design's palette + fonts and call set_appearance (exact hex). Button primary, product CTAs, FormButton and cart/checkout all render the theme colours — skip this and every CTA ships the default purple.
 4. ASSET INVENTORY: for every image the design shows, get a REAL asset — crop_media it out of the reference, or upload_media a supplied file. NEVER substitute random stock/placeholder photos (they are rejected). A slot you can't fill must be reported, not faked.
 5. set_design_brief (palette, iconStyle, the design's sections + asset slots) so the build can be checked.
-6. Build with create_page / set_page_content. Use the styleProps for layout — flex (display:"flex", gap, justifyContent, alignItems), sizing, and position:"absolute" for overlays — not just spacing/colour. Use Icon with a curated name + textColor (or an uploaded icon src) — not emoji — unless the design uses emoji.
+6. Build with create_page / set_page_content. Use the styleProps for layout — flex (display:"flex", gap, justifyContent, alignItems), sizing, and position:"absolute" for overlays — not just spacing/colour. Use Icon with a curated name + textColor (or an uploaded icon src) — not emoji — unless the design uses emoji. Mobile/tablet responsive is added AUTOMATICALLY on save (grids drop columns, split rows stack, big headings shrink, tall heroes trim); it is additive, so only set your own responsive:{ … } overrides for anything you want different, or pass autoResponsive:false to do it all by hand.
 7. validate_page_content (fix issues; heed the warnings AND the changes it reports — a filled id, a slot moved into props, an unknown prop that will be ignored) AND check_design_coverage — fix every missing/reordered section, off-brand CTA/colour, emoji icon and image substitution it lists.
 8. render_page and READ the returned HTML — this is your ONLY look at the actual build; compare it to the reference and fix layout, spacing, sizing and text that coverage cannot see. To fix one block, patch_page_content by its props.id (a small diff) — do NOT re-send the whole page from memory, which is how revisions drift. Re-fetch get_page after a write to confirm your blocks/props survived.
 9. get_preview_url for the operator to look, then publish_page. Report any residual mismatches/substitutions you could not resolve.`
@@ -405,6 +405,14 @@ export function registerTools(
   )
 
   // ── Pages ──────────────────────────────────────────────────────────────────
+  const autoResponsiveField = {
+    autoResponsive: z
+      .boolean()
+      .optional()
+      .describe(
+        'Default true: the server auto-adds mobile/tablet responsive overrides (grids drop columns, split rows stack, big headings shrink, tall heroes trim) so the page works on a phone. It is additive — any responsive you set yourself is kept. Pass false to author responsive entirely by hand.'
+      ),
+  }
   const PageMeta = {
     status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
     renderMode: z.string().optional(),
@@ -414,6 +422,7 @@ export function registerTools(
     hideHeader: z.boolean().optional(),
     hideFooter: z.boolean().optional(),
     seo: z.record(z.any()).optional(),
+    ...autoResponsiveField,
   }
   server.tool(
     'create_page',
@@ -435,10 +444,10 @@ export function registerTools(
   )
   server.tool(
     'set_page_content',
-    "Stage a Puck document as the page's draft (like the builder's autosave). Publish to make it live.",
-    { id: z.string(), content: PuckDoc, seo: z.record(z.any()).optional() },
-    ({ id, content, seo }) =>
-      run(() => call('PUT', `/api/mcp/v1/pages/${id}/content`, { content, seo }))
+    "Stage a Puck document as the page's draft (like the builder's autosave). Mobile/tablet responsive is added automatically (see autoResponsive). Publish to make it live.",
+    { id: z.string(), content: PuckDoc, seo: z.record(z.any()).optional(), ...autoResponsiveField },
+    ({ id, content, seo, autoResponsive }) =>
+      run(() => call('PUT', `/api/mcp/v1/pages/${id}/content`, { content, seo, autoResponsive }))
   )
   server.tool(
     'validate_page_content',
@@ -497,8 +506,13 @@ export function registerTools(
   )
   server.tool(
     'publish_page',
-    'Publish a page: promotes the staged draft, or the explicit `content` if given.',
-    { id: z.string(), content: PuckDoc.optional(), seo: z.record(z.any()).optional() },
+    'Publish a page: promotes the staged draft, or the explicit `content` if given (which is auto-made-responsive, see autoResponsive).',
+    {
+      id: z.string(),
+      content: PuckDoc.optional(),
+      seo: z.record(z.any()).optional(),
+      ...autoResponsiveField,
+    },
     ({ id, ...body }) => run(() => call('POST', `/api/mcp/v1/pages/${id}/publish`, body))
   )
   server.tool(
