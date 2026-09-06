@@ -75,6 +75,8 @@ export default defineConfig({
     // Same ordering rule, same reason: core's mail event keys are claimed
     // before any module's `boot()` runs.
     () => import('#providers/mail_events_provider'),
+    // Core export/import sections registered before modules add theirs from boot().
+    () => import('#providers/data_transfer_provider'),
     () => import('#providers/modules_provider'),
     // Runs the analytics write-buffer flush loop (+ a final flush on shutdown).
     () => import('#providers/analytics_provider'),
