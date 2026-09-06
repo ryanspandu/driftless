@@ -89,13 +89,21 @@ export default class EcommerceDashboardController {
       .count({ total: '*' })
       .first()
 
-    /** Variants with five or fewer sellable units — the restock prompt. */
+    /**
+     * Variants with five or fewer sellable units — the restock prompt. Scoped
+     * to ACTIVE, non-deleted products: a low-stock variant on a draft, archived
+     * or deleted product isn't sellable and shouldn't linger here as a "ghost"
+     * the operator can't clear from the visible product list.
+     */
     const lowStockRow = await db
-      .from('ecommerce_product_variants')
-      .whereNull('deleted_at')
-      .where('track_inventory', true)
-      .where('allow_backorder', false)
-      .whereRaw('(stock_on_hand - stock_reserved) <= ?', [5])
+      .from('ecommerce_product_variants as v')
+      .join('ecommerce_products as p', 'p.id', 'v.product_id')
+      .whereNull('v.deleted_at')
+      .whereNull('p.deleted_at')
+      .where('p.status', 'active')
+      .where('v.track_inventory', true)
+      .where('v.allow_backorder', false)
+      .whereRaw('(v.stock_on_hand - v.stock_reserved) <= ?', [5])
       .count({ total: '*' })
       .first()
 
