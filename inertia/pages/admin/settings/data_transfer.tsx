@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { PageHeader } from '~/components/admin/page-header'
+import { BackButton } from '~/components/admin/back-button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { Button } from '~/components/ui/button'
 import { Checkbox } from '~/components/ui/checkbox'
@@ -124,10 +125,14 @@ export default function DataTransferPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Export / Import"
-        subtitle="Move the whole site — pages, templates, collections, content, media, settings and store — between environments, or back it up."
-      />
+      <div className="flex items-center gap-3">
+        <BackButton href="/admin/settings" label="Back to settings" />
+        <PageHeader
+          title="Export / Import"
+          subtitle="Move the whole site — pages, templates, collections, content, media, settings and store — between environments, or back it up."
+          className="flex-1"
+        />
+      </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <Card>
