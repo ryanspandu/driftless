@@ -139,7 +139,7 @@ export default function ProductsPage() {
           <DataTableColumnHeader
             column={column}
             title="Price"
-            className="ml-auto w-full justify-end"
+            className="w-full justify-end text-right"
           />
         ),
         cell: ({ row }) => (
@@ -158,7 +158,7 @@ export default function ProductsPage() {
           <DataTableColumnHeader
             column={column}
             title="Stock"
-            className="ml-auto w-full justify-end"
+            className="w-full justify-end text-right"
           />
         ),
         cell: ({ row }) => (
