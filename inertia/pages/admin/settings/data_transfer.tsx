@@ -5,6 +5,8 @@ import { Button } from '~/components/ui/button'
 import { Checkbox } from '~/components/ui/checkbox'
 import { Label } from '~/components/ui/label'
 import { AppSelect } from '~/components/ui/app-select'
+import { DragDropImageUpload } from '~/components/drag-drop-image-upload'
+import { FileArchive } from 'lucide-react'
 import { apiFetch } from '~/lib/api-client'
 
 interface Section {
@@ -197,12 +199,32 @@ export default function DataTransferPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <input
-            type="file"
+          <DragDropImageUpload
             accept=".driftless"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block text-sm"
-          />
+            onFile={(f) => {
+              setFile(f)
+              setReport(null)
+              setError(null)
+            }}
+          >
+            <FileArchive className="size-8 text-muted-foreground" aria-hidden />
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {file ? file.name : 'Drop a .driftless archive here'}
+              </span>
+              {file ? null : (
+                <>
+                  {' · '}
+                  or click to choose
+                </>
+              )}
+            </div>
+            <p className="max-w-sm text-xs text-muted-foreground">
+              {file
+                ? `${(file.size / 1024).toFixed(0)} KB — click to replace`
+                : 'A .driftless archive.'}
+            </p>
+          </DragDropImageUpload>
           <div className="flex gap-2">
             <Button
               type="button"
