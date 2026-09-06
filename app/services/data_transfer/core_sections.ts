@@ -1,5 +1,6 @@
 import { registerDataSection } from './registry.js'
 import { mediaSection } from './sections/media.js'
+import { usersSection } from './sections/users.js'
 import { componentsSection } from './sections/components.js'
 import { collectionsSection } from './sections/collections.js'
 import { collectionRecordsSection } from './sections/collection_records.js'
@@ -14,6 +15,7 @@ import { redirectsSection } from './sections/redirects.js'
  */
 export function registerCoreDataSections(): void {
   registerDataSection(mediaSection) // 10
+  registerDataSection(usersSection) // 15
   registerDataSection(componentsSection) // 20
   registerDataSection(collectionsSection) // 30
   registerDataSection(templatesSection) // 40
