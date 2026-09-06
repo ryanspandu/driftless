@@ -1,5 +1,5 @@
 import '@measured/puck/puck.css'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Puck, Render, type Data } from '@measured/puck'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Link } from '@inertiajs/react'
@@ -13,7 +13,8 @@ import { puckOverrides } from '~/puck/overrides'
 import { BuilderShell } from '~/puck/builder-shell'
 import { BuilderLoadState } from '~/puck/builder-load-state'
 import { CollectionScopeContext, RecordContext } from '~/puck/record-binding'
-import { collectionQuery, useRecords } from '~/puck/collection-list'
+import { collectionQuery, useRecords, useCollections, type CmsRecord } from '~/puck/collection-list'
+import { PanelSelect } from '~/puck/panel-select'
 import { useTemplate, useUpdateTemplate } from '~/hooks/api/use-templates'
 import { useBreakpoints, useUpdateBreakpoints } from '~/hooks/api/use-breakpoints'
 import { useWebsiteSettings } from '~/hooks/api/use-website-settings'
@@ -48,6 +49,15 @@ function renderEmailHtml(data: Data): string {
   return renderToStaticMarkup(<Render config={emailPuckConfig} data={data} />)
 }
 
+/** A human label for a record row in the preview-record picker. */
+function recordLabel(rec: CmsRecord, titleField: string | undefined): string {
+  const data = rec.data
+  const candidate =
+    (titleField ? data[titleField] : undefined) ?? data.title ?? data.name ?? data.slug
+  if (typeof candidate === 'string' && candidate.trim()) return candidate
+  return rec.id
+}
+
 export default function TemplateBuilder({ id }: { id: string }) {
   const templateQuery = useTemplate(id)
   const updateMut = useUpdateTemplate()
@@ -66,22 +76,44 @@ export default function TemplateBuilder({ id }: { id: string }) {
   /**
    * A COLLECTION template is designed against one real record.
    *
-   * The newest published record of its collection is fetched (one row) and
-   * provided as the ambient record, so a Heading bound to `title` shows the
-   * actual title in the canvas instead of a placeholder. With no record yet,
-   * bound elements show their static text and `{{tokens}}` stay visible —
-   * `editing: true` in the context — which still makes the binding legible.
-   * The query is empty (no key) for every other type, and `useRecords` then
-   * fetches nothing.
+   * A page of the collection's published records is fetched and one is provided
+   * as the ambient record, so a Heading bound to `title` shows the actual title
+   * in the canvas instead of a placeholder. Which record is a per-author preview
+   * preference (the topbar picker) — kept in `localStorage`, never written to
+   * the template — and defaults to the newest. With no record yet, bound
+   * elements show their static text and `{{tokens}}` stay visible (`editing:
+   * true`), which still makes the binding legible. The query is empty (no key)
+   * for every other type, and `useRecords` then fetches nothing.
    */
   const isCollection = template?.type === 'COLLECTION'
   const collectionKey = (isCollection && template?.collectionKey) || ''
   const sampleQuery = useMemo(
-    () => collectionQuery({ collectionKey }, { limit: 1 }),
+    () => collectionQuery({ collectionKey }, { limit: 50 }),
     [collectionKey]
   )
   const { records: sampleRecords } = useRecords(sampleQuery, 1)
-  const sample = sampleRecords[0]
+  const collections = useCollections()
+
+  const storageKey = `tpl-preview-record:${id}`
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(storageKey)
+    } catch {
+      return null
+    }
+  })
+  const pickPreviewRecord = (value: string) => {
+    const next = value || null
+    setSelectedRecordId(next)
+    try {
+      if (next) localStorage.setItem(storageKey, next)
+      else localStorage.removeItem(storageKey)
+    } catch {
+      // A private window can refuse writes — the choice just isn't remembered.
+    }
+  }
+
+  const sample = sampleRecords.find((r) => r.id === selectedRecordId) ?? sampleRecords[0]
   const sampleFields = useMemo<Record<string, unknown>>(
     () => (sample ? { id: sample.id, createdAt: sample.createdAt, ...sample.data } : {}),
     [sample]
@@ -143,6 +175,16 @@ export default function TemplateBuilder({ id }: { id: string }) {
   const isEmail = template.type === 'EMAIL'
   const config = isEmail ? emailPuckConfig : isCollection ? collectionPuckConfig : puckConfig
 
+  // Options for the preview-record picker, labelled by the collection's first
+  // text field (falling back to title/name/slug/id inside `recordLabel`).
+  const previewTitleField = collections
+    .find((c) => c.key === collectionKey)
+    ?.fields.find((f) => /TEXT|STRING|SLUG/i.test(f.type))?.key
+  const recordOptions = sampleRecords.map((r) => ({
+    value: r.id,
+    label: recordLabel(r, previewTitleField),
+  }))
+
   const editor = (
     <Puck
       config={config}
@@ -174,16 +216,30 @@ export default function TemplateBuilder({ id }: { id: string }) {
             </Link>
             <span className="truncate text-sm font-medium">{template.name}</span>
             {isCollection ? (
-              <span
-                className="hidden shrink-0 rounded-full border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-600 dark:text-violet-300 md:inline-flex"
-                title={
-                  sample
-                    ? `Previewing the newest ${collectionKey} record. Bind elements from their Settings tab; the card repeats once per record in a Collection List.`
-                    : `No published ${collectionKey} record to preview yet — bound fields show their static text.`
-                }
-              >
-                Item card · {collectionKey}
-              </span>
+              <div className="hidden shrink-0 items-center gap-2 md:flex">
+                <span
+                  className="rounded-full border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-600 dark:text-violet-300"
+                  title={
+                    sample
+                      ? `Designing one ${collectionKey} item card. Bind elements from their Settings tab; the card repeats once per record in a Collection List.`
+                      : `No published ${collectionKey} record to preview yet — bound fields show their static text.`
+                  }
+                >
+                  Item card · {collectionKey}
+                </span>
+                {sampleRecords.length > 0 ? (
+                  <label className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-muted-foreground">Preview</span>
+                    <PanelSelect
+                      value={sample?.id}
+                      onChange={pickPreviewRecord}
+                      options={recordOptions}
+                      className="w-44"
+                      placeholder="Newest record"
+                    />
+                  </label>
+                ) : null}
+              </div>
             ) : null}
           </>
         }

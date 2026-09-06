@@ -445,6 +445,9 @@ export function CollectionList({
   const q = collectionQuery(src, { limit, pageSize, sort, filterField, filterValue })
   const [page, setPage] = useState(1)
   const { records, state } = useRecords(q, page)
+  // Editor-only: pin the canvas preview to one record while designing the item.
+  // Ephemeral (never persisted, never affects the published list).
+  const [pinnedRecordId, setPinnedRecordId] = useState<string | null>(null)
   const cols = Number(columns) || 3
   const gapPx = Number(gap)
   const isList = layout === 'list'
@@ -498,6 +501,18 @@ export function CollectionList({
   }
   if ((isCustom || isTemplate) && editing && renderItem) {
     const previewRecs = records.length ? records : [null]
+    // When a record is pinned, the canvas shows only it; otherwise the full
+    // repeat. The picker options are the real records, labelled by their title.
+    const pinned = pinnedRecordId ? records.find((r) => r.id === pinnedRecordId) : undefined
+    const shownRecs = pinned ? [pinned] : previewRecs
+    const previewOptions = records.map((r) => ({
+      value: r.id,
+      label:
+        recordString(r, src.titleField) ??
+        (typeof r.data.title === 'string' ? r.data.title : undefined) ??
+        (typeof r.data.name === 'string' ? r.data.name : undefined) ??
+        r.id,
+    }))
     const editorContainer = isList
       ? {
           display: 'flex',
@@ -511,33 +526,50 @@ export function CollectionList({
         }
     return (
       <div>
-        <div className="mb-2 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          Previewing {previewRecs.length === 1 && !records.length ? 'a sample' : previewRecs.length}{' '}
-          record{previewRecs.length === 1 ? '' : 's'}
-          {isTemplate ? (
-            <>
-              {' '}
-              — the collection template repeats per record. Edit its design in{' '}
-              <a
-                href={`/admin/templates/${encodeURIComponent(templateId ?? '')}/edit`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium underline"
-              >
-                Templates
-              </a>
-              .
-            </>
-          ) : (
-            <>
-              {' '}
-              — editing any card edits the shared template. Select a Text, Heading, Button or Image
-              and open its <span className="font-medium">Settings</span> tab to bind it to a field.
-            </>
-          )}
+        <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <span>
+            Previewing {shownRecs.length === 1 && !records.length ? 'a sample' : shownRecs.length}{' '}
+            record{shownRecs.length === 1 ? '' : 's'}
+            {pinned ? ' (pinned)' : ''}
+            {isTemplate ? (
+              <>
+                {' '}
+                — the collection template repeats per record. Edit its design in{' '}
+                <a
+                  href={`/admin/templates/${encodeURIComponent(templateId ?? '')}/edit`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium underline"
+                >
+                  Templates
+                </a>
+                .
+              </>
+            ) : (
+              <>
+                {' '}
+                — editing any card edits the shared template. Select a Text, Heading, Button or
+                Image and open its <span className="font-medium">Settings</span> tab to bind it to a
+                field.
+              </>
+            )}
+          </span>
+          {records.length > 0 ? (
+            <label className="ml-auto flex items-center gap-1.5">
+              <span>Preview</span>
+              <PanelSelect
+                value={pinnedRecordId}
+                onChange={(v) => setPinnedRecordId(v || null)}
+                options={previewOptions}
+                className="w-40"
+                placeholder="All records"
+                isClearable
+              />
+            </label>
+          ) : null}
         </div>
         <div style={editorContainer}>
-          {previewRecs.map((rec, i) => (
+          {shownRecs.map((rec, i) => (
             <RecordContext.Provider
               key={rec?.id ?? i}
               value={{ fields: rec ? recordFields(rec) : {}, editing: true }}
