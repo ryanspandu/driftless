@@ -20,6 +20,19 @@ import ShippingZone from '#modules/ecommerce/models/shipping_zone'
 import ShippingMethod from '#modules/ecommerce/models/shipping_method'
 import ShippingRate from '#modules/ecommerce/models/shipping_rate'
 import Discount from '#modules/ecommerce/models/discount'
+import Account from '#modules/ecommerce/models/account'
+import CustomerAddress from '#modules/ecommerce/models/customer_address'
+import Cart from '#modules/ecommerce/models/cart'
+import CartItem from '#modules/ecommerce/models/cart_item'
+import Order from '#modules/ecommerce/models/order'
+import OrderItem from '#modules/ecommerce/models/order_item'
+import OrderEvent from '#modules/ecommerce/models/order_event'
+import Payment from '#modules/ecommerce/models/payment'
+import Refund from '#modules/ecommerce/models/refund'
+import Affiliate from '#modules/ecommerce/models/affiliate'
+import AffiliateWithdrawal from '#modules/ecommerce/models/affiliate_withdrawal'
+import Commission from '#modules/ecommerce/models/commission'
+import DownloadGrant from '#modules/ecommerce/models/download_grant'
 
 /**
  * The ecommerce module's OWN export/import section. Registered into the core
@@ -44,12 +57,21 @@ type Row = Record<string, unknown>
 
 const DROP = new Set(['createdAt', 'updatedAt', 'deletedAt', 'createdByUserId'])
 
+// Secret-bearing columns are never exported: any camelCase attribute ending in
+// Enc/Secret/Token (order.accessTokenEnc, account.twoFactorSecretEnc,
+// account.unsubscribeToken), plus accessTokenHash which ends in Hash and so must
+// be named explicitly. passwordHash is deliberately KEPT (it does not match) so
+// customer logins survive a round-trip. Shared by both ecommerce sections.
+const SECRET_SUFFIX = /(?:Enc|Secret|Token)$/
+const SECRET_KEYS = new Set(['accessTokenHash', 'unsubscribeToken'])
+const isSecretKey = (k: string) => SECRET_SUFFIX.test(k) || SECRET_KEYS.has(k)
+
 function dumpRows(rows: LucidRow[], extraDrop: string[] = []): Row[] {
   const drop = new Set([...DROP, ...extraDrop])
   return rows.map((r) => {
     const attrs = (r as unknown as { $attributes: Row }).$attributes
     const out: Row = {}
-    for (const [k, v] of Object.entries(attrs)) if (!drop.has(k)) out[k] = v
+    for (const [k, v] of Object.entries(attrs)) if (!drop.has(k) && !isSecretKey(k)) out[k] = v
     return out
   })
 }
@@ -202,7 +224,86 @@ export const ecommerceSection: DataSection = {
   },
 }
 
+/**
+ * The ecommerce module's TRANSACTIONAL export/import section — a SEPARATE,
+ * independently toggleable section from the catalog one above. Scope: customers,
+ * their addresses, carts, orders and everything hanging off an order (items,
+ * events, payments, refunds), plus the affiliate ledger (affiliates, withdrawals,
+ * commissions) and digital download grants.
+ *
+ * Secret-bearing columns (gateway/access tokens, 2FA secret) are stripped on
+ * export by the shared `dumpRows` above; `passwordHash` is kept so logins survive.
+ *
+ * Writes are the same id-preserving upserts as the catalog section (all models
+ * use `selfAssignPrimaryKey`), so `restoreRows` handles preserve/skip/overwrite
+ * and regenerate. Import runs strictly in FK-creation order: accounts →
+ * addresses → carts → cart items → orders → order items → order events →
+ * payments → refunds → affiliates → withdrawals → commissions → download grants.
+ */
+export const ecommerceOrdersSection: DataSection = {
+  name: 'ecommerce_orders',
+  owner: 'ecommerce',
+  order: 101,
+  label: 'E-commerce orders & customers',
+  tables: [
+    'ecommerce_accounts',
+    'ecommerce_addresses',
+    'ecommerce_carts',
+    'ecommerce_cart_items',
+    'ecommerce_orders',
+    'ecommerce_order_items',
+    'ecommerce_order_events',
+    'ecommerce_payments',
+    'ecommerce_refunds',
+    'ecommerce_affiliates',
+    'ecommerce_affiliate_withdrawals',
+    'ecommerce_commissions',
+    'ecommerce_download_grants',
+  ],
+
+  async export() {
+    return {
+      accounts: dumpRows(await Account.query()),
+      addresses: dumpRows(await CustomerAddress.query()),
+      carts: dumpRows(await Cart.query()),
+      cartItems: dumpRows(await CartItem.query()),
+      orders: dumpRows(await Order.query()),
+      orderItems: dumpRows(await OrderItem.query()),
+      orderEvents: dumpRows(await OrderEvent.query()),
+      payments: dumpRows(await Payment.query()),
+      refunds: dumpRows(await Refund.query()),
+      affiliates: dumpRows(await Affiliate.query()),
+      affiliateWithdrawals: dumpRows(await AffiliateWithdrawal.query()),
+      commissions: dumpRows(await Commission.query()),
+      downloadGrants: dumpRows(await DownloadGrant.query()),
+    }
+  },
+
+  async import(ctx: ImportCtx, data) {
+    const report = emptyReport('ecommerce_orders')
+    const p = (data ?? {}) as Record<string, Row[] | undefined>
+
+    // Strict FK-creation order: each table's parents are restored before it.
+    await restoreRows(Account, p.accounts ?? [], report, ctx)
+    await restoreRows(CustomerAddress, p.addresses ?? [], report, ctx)
+    await restoreRows(Cart, p.carts ?? [], report, ctx)
+    await restoreRows(CartItem, p.cartItems ?? [], report, ctx)
+    await restoreRows(Order, p.orders ?? [], report, ctx)
+    await restoreRows(OrderItem, p.orderItems ?? [], report, ctx)
+    await restoreRows(OrderEvent, p.orderEvents ?? [], report, ctx)
+    await restoreRows(Payment, p.payments ?? [], report, ctx)
+    await restoreRows(Refund, p.refunds ?? [], report, ctx)
+    await restoreRows(Affiliate, p.affiliates ?? [], report, ctx)
+    await restoreRows(AffiliateWithdrawal, p.affiliateWithdrawals ?? [], report, ctx)
+    await restoreRows(Commission, p.commissions ?? [], report, ctx)
+    await restoreRows(DownloadGrant, p.downloadGrants ?? [], report, ctx)
+
+    return report
+  },
+}
+
 /** Called from the ecommerce module's `boot()` hook. */
 export function registerEcommerceDataSection(): void {
   registerDataSection(ecommerceSection)
+  registerDataSection(ecommerceOrdersSection)
 }
