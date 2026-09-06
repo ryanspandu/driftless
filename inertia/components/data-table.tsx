@@ -595,7 +595,7 @@ function DataTableInner<TData>({
     <div className={cn("space-y-4", className)}>
       {showToolbar && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex w-full flex-col gap-2 sm:max-w-2xl sm:flex-row sm:items-center">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             {!hideSearch && (
               <div className="relative w-full sm:max-w-xs">
                 <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -612,13 +612,10 @@ function DataTableInner<TData>({
                 />
               </div>
             )}
-            {filters != null && (
-              // On a phone, filter controls (e.g. segmented tabs) can be wider
-              // than the viewport — scroll them horizontally instead of clipping
-              // the last tab. From `sm` up the wrapper collapses (display:contents)
-              // so the controls lay out exactly as before, with no scrollbar.
-              <div className="max-w-full overflow-x-auto sm:contents">{filters}</div>
-            )}
+            {/* Segmented tab filters scroll on a phone via TabsList's own
+                overflow handling; the cluster sizes to content on desktop
+                (sm:w-auto above) so they get full room there. */}
+            {filters}
           </div>
 
           {(toolbarActions != null || !hideSyncColumn) && (

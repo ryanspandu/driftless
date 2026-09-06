@@ -277,6 +277,19 @@ html {
   background: color-mix(in oklch, var(--foreground) 40%, transparent);
 }
 
+/*
+ * Fully hidden scrollbars, scroll still works. Used where a scrollbar would be
+ * visual noise inside a small control (e.g. a horizontally scrollable tab pill),
+ * and where a visible horizontal bar would otherwise steal height and induce a
+ * second, vertical scrollbar.
+ */
+.scrollbar-none {
+  scrollbar-width: none; /* Firefox */
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none; /* WebKit/Blink */
+}
+
 .tiptap-content {
   font-size: 0.95rem;
   line-height: 1.6;

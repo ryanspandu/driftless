@@ -24,7 +24,12 @@ function Tabs({
 }
 
 const tabsListVariants = cva(
-  "group/tabs-list inline-flex h-9 w-fit items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground",
+  // `max-w-full overflow-x-auto` lets a tab set wider than its container (a phone
+  // viewport) scroll horizontally instead of clipping the last tab; a no-op where
+  // the tabs already fit, so desktop is unchanged. `scrollbar-none` hides the
+  // scrollbar chrome — otherwise a visible horizontal bar steals the pill's height
+  // and induces a second, vertical scrollbar.
+  "group/tabs-list inline-flex h-9 w-fit max-w-full items-center justify-center overflow-x-auto scrollbar-none rounded-lg bg-muted p-1 text-muted-foreground",
   {
     variants: {
       variant: {
