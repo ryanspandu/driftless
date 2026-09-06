@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, router } from '@inertiajs/react'
 import type { ColumnDef } from '@tanstack/react-table'
 import {
+  AlertTriangle,
   Download,
   FolderTree,
   MoreHorizontal,
@@ -50,6 +51,18 @@ function StatusBadge({ status }: { status: ProductStatus }) {
   return <Badge variant="outline">Archived</Badge>
 }
 
+/**
+ * Variants low on sellable stock: tracked, no backorder, five or fewer units
+ * left. Mirrors the dashboard's Low stock tile. A product's aggregate `Stock`
+ * can look healthy (e.g. 25) while one variant sits at 0, so this is surfaced
+ * per product in its own column.
+ */
+function lowStockCount(product: ProductDto): number {
+  return product.variants.filter(
+    (v) => v.trackInventory && !v.allowBackorder && v.stockOnHand - v.stockReserved <= 5
+  ).length
+}
+
 /** Sellable units across tracked variants; null means nothing is tracked. */
 function StockCell({ product }: { product: ProductDto }) {
   if (product.totalStock === null) {
@@ -60,6 +73,20 @@ function StockCell({ product }: { product: ProductDto }) {
     <span className={cn('text-sm tabular-nums', low && 'font-medium text-amber-600')}>
       {product.totalStock}
       {low ? <span className="ml-1 text-xs">low</span> : null}
+    </span>
+  )
+}
+
+function LowStockCell({ product }: { product: ProductDto }) {
+  const n = lowStockCount(product)
+  if (n === 0) return <span className="text-xs text-muted-foreground">—</span>
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-600"
+      title={`${n} variant${n === 1 ? '' : 's'} with 5 or fewer units left`}
+    >
+      <AlertTriangle className="size-3.5" aria-hidden />
+      {n}
     </span>
   )
 }
@@ -164,6 +191,22 @@ export default function ProductsPage() {
         cell: ({ row }) => (
           <div className="text-right">
             <StockCell product={row.original} />
+          </div>
+        ),
+      },
+      {
+        id: 'lowStock',
+        accessorFn: (p) => lowStockCount(p),
+        header: ({ column }) => (
+          <DataTableColumnHeader
+            column={column}
+            title="Low stock"
+            className="w-full justify-end text-right"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="text-right">
+            <LowStockCell product={row.original} />
           </div>
         ),
       },
