@@ -7,6 +7,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import {
   registerTools,
+  resolveToolAllowlist,
   SERVER_INSTRUCTIONS,
   type ToolDeps,
   type UploadSource,
@@ -55,7 +56,12 @@ export default class McpRpcController {
       { name: 'driftless', version: '1.0.0' },
       { instructions: SERVER_INSTRUCTIONS }
     )
-    registerTools(server, deps)
+    // A client with a small tool budget can scope the set it sees with
+    // `?profile=pages` (or `?tools=a,b,c`) on the RPC URL — otherwise all tools.
+    const qs = request.qs() as Record<string, string | string[] | undefined>
+    registerTools(server, deps, {
+      only: resolveToolAllowlist(qs.profile as string | undefined, qs.tools),
+    })
 
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

@@ -88,6 +88,41 @@ test.group('MCP in-app RPC | handshake + discovery', (group) => {
     assert.include(names, 'publish_page')
   })
 
+  test('?profile=pages scopes tools/list to the page-building subset', async ({ client, assert }) => {
+    await enableMcp()
+    const t = await token(['builder:read', 'builder:pages'])
+    const list = await client
+      .post('/api/mcp/v1/rpc?profile=pages')
+      .header('Authorization', `Bearer ${t}`)
+      .header('Accept', 'application/json, text/event-stream')
+      .json({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
+    list.assertStatus(200)
+    const names: string[] = list.body().result.tools.map((x: { name: string }) => x.name)
+    // The essentials are present…
+    assert.include(names, 'get_block_catalog')
+    assert.include(names, 'create_page')
+    assert.include(names, 'render_page')
+    assert.include(names, 'patch_page_content')
+    // …the catalog/CRUD noise is gone…
+    assert.notInclude(names, 'create_product')
+    assert.notInclude(names, 'list_categories')
+    // …and the set is meaningfully smaller than the full ~57.
+    assert.isBelow(names.length, 25)
+  })
+
+  test('?tools=a,b restricts to exactly those tools', async ({ client, assert }) => {
+    await enableMcp()
+    const t = await token(['builder:read'])
+    const list = await client
+      .post('/api/mcp/v1/rpc?tools=get_block_catalog,render_page')
+      .header('Authorization', `Bearer ${t}`)
+      .header('Accept', 'application/json, text/event-stream')
+      .json({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
+    list.assertStatus(200)
+    const names: string[] = list.body().result.tools.map((x: { name: string }) => x.name).sort()
+    assert.deepEqual(names, ['get_block_catalog', 'render_page'])
+  })
+
   test('get_block_catalog forwards to the builder-API', async ({ client, assert }) => {
     await enableMcp()
     const t = await token(['builder:read'])

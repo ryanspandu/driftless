@@ -53,8 +53,74 @@ export const SERVER_INSTRUCTIONS = `Driftless page builder. To reproduce a desig
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean }
 
-export function registerTools(server: McpServer, deps: ToolDeps): void {
+/**
+ * Named tool subsets. A client with a small tool budget (e.g. Claude Desktop,
+ * which defers to tool-search past a threshold and then only surfaces a handful)
+ * can ask for a focused set instead of all ~57 — e.g. connect to
+ * `/api/mcp/v1/rpc?profile=pages` to expose just the page-building essentials so
+ * they all load. `full` (or no profile) exposes everything.
+ */
+export const MCP_TOOL_PROFILES: Record<string, string[]> = {
+  pages: [
+    'get_block_catalog',
+    'list_pages',
+    'get_page',
+    'create_page',
+    'update_page',
+    'set_page_content',
+    'validate_page_content',
+    'render_page',
+    'patch_page_content',
+    'publish_page',
+    'discard_draft',
+    'delete_page',
+    'get_appearance',
+    'set_appearance',
+    'set_design_brief',
+    'check_design_coverage',
+    'get_preview_url',
+    'upload_media',
+    'crop_media',
+    'list_media',
+  ],
+}
+
+/**
+ * Resolve a `profile=` / `tools=` request into an explicit allowlist, or null
+ * (= all tools). `tools` may arrive as a string ("a,b") or, when the query
+ * parser splits on commas, an array — handle both.
+ */
+export function resolveToolAllowlist(
+  profile?: string,
+  tools?: string | string[]
+): Set<string> | null {
+  if (tools) {
+    const raw = Array.isArray(tools) ? tools : String(tools).split(',')
+    const list = raw.map((t) => String(t).trim()).filter(Boolean)
+    return list.length ? new Set(list) : null
+  }
+  if (profile && profile !== 'full' && MCP_TOOL_PROFILES[profile]) {
+    return new Set(MCP_TOOL_PROFILES[profile])
+  }
+  return null
+}
+
+export function registerTools(
+  server: McpServer,
+  deps: ToolDeps,
+  options: { only?: Set<string> | null } = {}
+): void {
   const { call, uploadMedia } = deps
+  // Only `.tool` is used below, so wrap it to drop any name outside the allowlist.
+  // Keeps every registration call site untouched.
+  const only = options.only ?? null
+  if (only) {
+    const realTool = server.tool.bind(server)
+    server = {
+      tool: (name: string, ...rest: unknown[]) =>
+        only.has(name) ? (realTool as (...a: unknown[]) => unknown)(name, ...rest) : undefined,
+    } as unknown as McpServer
+  }
 
   const run = async (fn: () => Promise<unknown>): Promise<ToolResult> => {
     try {

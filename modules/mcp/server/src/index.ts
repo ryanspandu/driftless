@@ -35,6 +35,35 @@ const server = new McpServer(
   { instructions: SERVER_INSTRUCTIONS }
 )
 
+/**
+ * Optional tool allowlist for tool-budget-limited clients. Set DRIFTLESS_MCP_TOOLS
+ * (comma list) or DRIFTLESS_MCP_PROFILE=pages in the MCP client config to expose
+ * a focused subset instead of all ~57. MIRRORS MCP_TOOL_PROFILES / the in-app
+ * `?profile=`/`?tools=` in `modules/mcp/mcp_tools.ts` — keep the 'pages' list in sync.
+ */
+const PROFILES: Record<string, string[]> = {
+  pages: [
+    'get_block_catalog', 'list_pages', 'get_page', 'create_page', 'update_page',
+    'set_page_content', 'validate_page_content', 'render_page', 'patch_page_content',
+    'publish_page', 'discard_draft', 'delete_page', 'get_appearance', 'set_appearance',
+    'set_design_brief', 'check_design_coverage', 'get_preview_url', 'upload_media',
+    'crop_media', 'list_media',
+  ],
+}
+;(() => {
+  const t = process.env.DRIFTLESS_MCP_TOOLS
+  const p = process.env.DRIFTLESS_MCP_PROFILE
+  const only = t
+    ? new Set(t.split(',').map((x) => x.trim()).filter(Boolean))
+    : p && p !== 'full' && PROFILES[p]
+      ? new Set(PROFILES[p])
+      : null
+  if (!only) return
+  const realTool = server.tool.bind(server) as (...a: unknown[]) => unknown
+  ;(server as unknown as { tool: (...a: unknown[]) => unknown }).tool = (...args: unknown[]) =>
+    only.has(args[0] as string) ? realTool(...args) : undefined
+})()
+
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean }
 
 /** Run an API call and render its result (or error) as MCP tool output. */
