@@ -2,6 +2,7 @@ import Template, { type TemplateType } from '#models/template'
 import { sanitizePuckDocument } from '#services/html_sanitizer_service'
 import { newUlid } from '#services/ulid_service'
 import { emptyReport, type DataSection } from '../registry.js'
+import { rewriteRefs } from '../rewrite_refs.js'
 
 /**
  * Reusable templates (HEADER/FOOTER/LAYOUT/COMPONENT/EMAIL/COLLECTION). Their
@@ -45,20 +46,35 @@ export const templatesSection: DataSection = {
         renderedHtml?: string | null
       }>
     }
-    for (const t of payload.templates ?? []) {
-      const existing = t.id ? await Template.query().where('id', t.id).first() : null
+    const templates = payload.templates ?? []
+    const regen = ctx.mode === 'regenerate'
+
+    // Regenerate: allocate every template's new id up front so a template that
+    // references another (a nested TemplateRef in its content) rewrites to the
+    // correct new id in the single pass below.
+    const newIdFor = new Map<string, string>()
+    if (regen) {
+      for (const t of templates) {
+        const nid = newUlid()
+        newIdFor.set(t.id ?? nid, nid)
+        if (t.id) ctx.idMap.set(t.id, nid)
+      }
+    }
+
+    for (const t of templates) {
+      const targetId = regen ? (newIdFor.get(t.id ?? '') ?? newUlid()) : t.id || newUlid()
+      const existing = regen ? null : t.id ? await Template.query().where('id', t.id).first() : null
       if (existing && ctx.conflict === 'skip') {
         report.skipped++
         continue
       }
+      const rawContent = (t.content ?? { content: [], root: {} }) as Record<string, unknown>
       const values = {
         name: t.name,
         type: t.type as TemplateType,
         isDefault: !!t.isDefault,
         collectionKey: t.collectionKey ?? null,
-        content: sanitizePuckDocument(
-          (t.content ?? { content: [], root: {} }) as Record<string, unknown>
-        ),
+        content: sanitizePuckDocument(regen ? rewriteRefs(rawContent, ctx.idMap) : rawContent),
         renderedHtml: t.renderedHtml ?? null,
       }
       try {
@@ -67,7 +83,7 @@ export const templatesSection: DataSection = {
           await existing.save()
           report.updated++
         } else {
-          await Template.create({ id: t.id || newUlid(), ...values })
+          await Template.create({ id: targetId, ...values })
           report.created++
         }
       } catch (e) {

@@ -1,5 +1,6 @@
 import CmsService from '#services/cms_service'
 import { emptyReport, type DataSection } from '../registry.js'
+import { rewriteRefs } from '../rewrite_refs.js'
 
 /**
  * The content rows inside each DYNAMIC collection's `cms_<key>` table.
@@ -83,9 +84,13 @@ export const collectionRecordsSection: DataSection = {
           if (relKeys.has(field)) relation[field] = value
           else nonRelation[field] = value
         }
+        // In regenerate mode, MEDIA field values (media ids) and nested
+        // COMPONENT media ids changed → rewrite them through the id map.
+        const recordData =
+          ctx.mode === 'regenerate' ? rewriteRefs(nonRelation, ctx.idMap) : nonRelation
         try {
           const created = await cms.createRecord(key, ctx.authorId, {
-            data: nonRelation,
+            data: recordData,
             status: row.status,
           })
           ctx.idMap.set(row.id, created.id)

@@ -1,9 +1,10 @@
 import db from '@adonisjs/lucid/services/db'
 import type { LucidModel, LucidRow } from '@adonisjs/lucid/types/model'
+import { newUlid } from '#services/ulid_service'
+import { rewriteRefs } from '#services/data_transfer/rewrite_refs'
 import {
   emptyReport,
   registerDataSection,
-  type ConflictMode,
   type DataSection,
   type ImportCtx,
   type SectionReport,
@@ -57,12 +58,24 @@ async function restoreRows(
   Model: LucidModel,
   rows: Row[],
   report: SectionReport,
-  conflict: ConflictMode
+  ctx: ImportCtx
 ): Promise<void> {
+  const regen = ctx.mode === 'regenerate'
   for (const row of rows) {
-    const id = row.id as string | undefined
-    const existing = id ? await Model.query().where('id', id).first() : null
-    if (existing && conflict === 'skip') {
+    const oldId = row.id as string | undefined
+    if (regen) {
+      // Fresh id, and rewrite every FK field (targets were remapped earlier by
+      // the dependency order) through the id map.
+      const newId = newUlid()
+      if (oldId) ctx.idMap.set(oldId, newId)
+      const rewritten = rewriteRefs(row, ctx.idMap)
+      rewritten.id = newId
+      await Model.create(rewritten as never)
+      report.created++
+      continue
+    }
+    const existing = oldId ? await Model.query().where('id', oldId).first() : null
+    if (existing && ctx.conflict === 'skip') {
       report.skipped++
       continue
     }
@@ -119,7 +132,8 @@ export const ecommerceSection: DataSection = {
   async import(ctx: ImportCtx, data) {
     const report = emptyReport('ecommerce')
     const p = (data ?? {}) as Record<string, Row[] | undefined>
-    const conflict = ctx.conflict
+    const regen = ctx.mode === 'regenerate'
+    const mapId = (v: unknown) => (regen ? (ctx.idMap.get(v as string) ?? v) : v)
 
     // Warn on a base-currency mismatch: prices are bare minor units with no
     // currency, so importing a catalog under a different base silently reprices.
@@ -136,37 +150,37 @@ export const ecommerceSection: DataSection = {
       )
     }
 
-    await restoreRows(EcommerceSetting, p.settings ?? [], report, conflict)
-    await restoreRows(StoreCurrency, p.currencies ?? [], report, conflict)
+    await restoreRows(EcommerceSetting, p.settings ?? [], report, ctx)
+    await restoreRows(StoreCurrency, p.currencies ?? [], report, ctx)
 
     // Categories self-reference by parentId → two-pass (create without a parent,
-    // then set it once every category exists).
+    // then set it once every category exists). restoreRows records old→new ids
+    // in regenerate mode, so the second pass looks up by the new id.
     const cats = p.categories ?? []
     await restoreRows(
       Category,
       cats.map((c) => ({ ...c, parentId: null })),
       report,
-      conflict
+      ctx
     )
     for (const c of cats) {
       if (!c.parentId) continue
-      const row = await Category.query()
-        .where('id', c.id as string)
-        .first()
+      const rowId = mapId(c.id) as string
+      const row = await Category.query().where('id', rowId).first()
       if (row) {
-        row.merge({ parentId: c.parentId } as never)
+        row.merge({ parentId: mapId(c.parentId) } as never)
         await row.save()
       }
     }
 
-    await restoreRows(Product, p.products ?? [], report, conflict)
-    await restoreRows(ProductVariant, p.variants ?? [], report, conflict)
-    await restoreRows(VariantPrice, p.variantPrices ?? [], report, conflict)
-    await restoreRows(ProductImage, p.productImages ?? [], report, conflict)
+    await restoreRows(Product, p.products ?? [], report, ctx)
+    await restoreRows(ProductVariant, p.variants ?? [], report, ctx)
+    await restoreRows(VariantPrice, p.variantPrices ?? [], report, ctx)
+    await restoreRows(ProductImage, p.productImages ?? [], report, ctx)
 
     for (const pc of p.productCategories ?? []) {
-      const productId = pc.product_id
-      const categoryId = pc.category_id
+      const productId = mapId(pc.product_id)
+      const categoryId = mapId(pc.category_id)
       if (!productId || !categoryId) continue
       const exists = await db
         .from(PIVOT)
@@ -174,15 +188,15 @@ export const ecommerceSection: DataSection = {
         .where('category_id', categoryId as string)
         .first()
       if (!exists) {
-        await db.table(PIVOT).insert(pc)
+        await db.table(PIVOT).insert({ ...pc, product_id: productId, category_id: categoryId })
         report.created++
       }
     }
 
-    await restoreRows(ShippingZone, p.shippingZones ?? [], report, conflict)
-    await restoreRows(ShippingMethod, p.shippingMethods ?? [], report, conflict)
-    await restoreRows(ShippingRate, p.shippingRates ?? [], report, conflict)
-    await restoreRows(Discount, p.discounts ?? [], report, conflict)
+    await restoreRows(ShippingZone, p.shippingZones ?? [], report, ctx)
+    await restoreRows(ShippingMethod, p.shippingMethods ?? [], report, ctx)
+    await restoreRows(ShippingRate, p.shippingRates ?? [], report, ctx)
+    await restoreRows(Discount, p.discounts ?? [], report, ctx)
 
     return report
   },

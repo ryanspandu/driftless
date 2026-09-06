@@ -3,6 +3,7 @@ import Page from '#models/page'
 import { sanitizePuckDocument } from '#services/html_sanitizer_service'
 import { newUlid } from '#services/ulid_service'
 import { emptyReport, type DataSection } from '../registry.js'
+import { rewriteRefs } from '../rewrite_refs.js'
 
 /**
  * Builder + code pages. Ids are preserved (upsert by id) so the template
@@ -47,15 +48,24 @@ export const pagesSection: DataSection = {
   async import(ctx, data) {
     const report = emptyReport('pages')
     const payload = (data ?? {}) as { pages?: Array<Record<string, unknown>> }
+    const regen = ctx.mode === 'regenerate'
+    const remap = (v: unknown): string | null => {
+      const s = (v as string) ?? null
+      return s && regen ? (ctx.idMap.get(s) ?? s) : s
+    }
+
     for (const p of payload.pages ?? []) {
       const id = String(p.id ?? '')
-      const existing = id ? await Page.query().where('id', id).first() : null
+      const targetId = regen ? newUlid() : id || newUlid()
+      if (regen && id) ctx.idMap.set(id, targetId)
+      const existing = regen ? null : id ? await Page.query().where('id', id).first() : null
       if (existing && ctx.conflict === 'skip') {
         report.skipped++
         continue
       }
       const status = String(p.status ?? 'DRAFT')
       const publishedAtIso = p.publishedAt ? String(p.publishedAt) : null
+      const rawContent = (p.content ?? { content: [], root: {} }) as Record<string, unknown>
       const values = {
         title: String(p.title ?? 'Untitled'),
         path: String(p.path ?? ''),
@@ -63,13 +73,11 @@ export const pagesSection: DataSection = {
         renderMode: String(p.renderMode ?? 'SSR') as 'SSR' | 'SSG' | 'CSR',
         kind: String(p.kind ?? 'BUILDER') as 'BUILDER' | 'CODE',
         component: (p.component as string) ?? null,
-        content: sanitizePuckDocument(
-          (p.content ?? { content: [], root: {} }) as Record<string, unknown>
-        ),
+        content: sanitizePuckDocument(regen ? rewriteRefs(rawContent, ctx.idMap) : rawContent),
         seo: (p.seo ?? {}) as Record<string, unknown>,
-        layoutId: (p.layoutId as string) ?? null,
-        headerTemplateId: (p.headerTemplateId as string) ?? null,
-        footerTemplateId: (p.footerTemplateId as string) ?? null,
+        layoutId: remap(p.layoutId),
+        headerTemplateId: remap(p.headerTemplateId),
+        footerTemplateId: remap(p.footerTemplateId),
         hideHeader: !!p.hideHeader,
         hideFooter: !!p.hideFooter,
         authorId: ctx.authorId,
@@ -79,13 +87,22 @@ export const pagesSection: DataSection = {
             ? DateTime.now()
             : null,
       }
+      // Duplicate into a populated site: don't collide on the unique path.
+      if (regen) {
+        let candidate = values.path
+        let n = 2
+        while (candidate && (await Page.query().where('path', candidate).first())) {
+          candidate = `${values.path}-${n++}`
+        }
+        values.path = candidate
+      }
       try {
         if (existing) {
           existing.merge(values)
           await existing.save()
           report.updated++
         } else {
-          await Page.create({ id: id || newUlid(), ...values })
+          await Page.create({ id: targetId, ...values })
           report.created++
         }
       } catch (e) {

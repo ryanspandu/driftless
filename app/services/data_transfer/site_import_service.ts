@@ -1,8 +1,10 @@
+import db from '@adonisjs/lucid/services/db'
 import ModulesService from '#services/modules_service'
 import {
   getDataSection,
   registeredDataSections,
   type ConflictMode,
+  type DataSection,
   type IdMode,
   type ImportCtx,
   type SectionReport,
@@ -59,6 +61,28 @@ export default class SiteImportService {
 
     // Run registered sections in dependency order, restricted to those present.
     const present = new Set(manifest.sections.map((s) => s.name))
+    const willRun = (section: DataSection) =>
+      present.has(section.name) &&
+      (!only || only.has(section.name)) &&
+      (section.owner === 'core' || !!enabled.get(section.owner))
+
+    // conflict:'replace' — wipe each selected section's tables first, in reverse
+    // dependency order (child sections + child tables before their parents) so
+    // FKs don't block the delete. Best-effort: dynamic collection tables and
+    // cross-module FKs may not fully clear, so a delete failure is tolerated.
+    if (conflict === 'replace' && !opts.dryRun) {
+      const runList = registeredDataSections().filter(willRun)
+      for (const section of [...runList].reverse()) {
+        for (const table of [...(section.tables ?? [])].reverse()) {
+          try {
+            await db.from(table).delete()
+          } catch {
+            /* FK or missing table — a later section's delete clears the referrer */
+          }
+        }
+      }
+    }
+
     for (const section of registeredDataSections()) {
       if (!present.has(section.name)) continue
       if (only && !only.has(section.name)) continue

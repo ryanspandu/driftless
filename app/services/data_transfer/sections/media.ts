@@ -68,20 +68,35 @@ export const mediaSection: DataSection = {
       }
       const bytes = ctx.getFile(`media/${filename}`)
       const id = String(m.id ?? '')
-      const existing = id ? await Media.query().where('id', id).first() : null
+      const oldUrl = String(m.url ?? '')
+
+      // Regenerate mode: mint a new id + filename + URL and record the mappings
+      // so every later reference (Puck Image src, product images, MEDIA fields,
+      // settings) is rewritten through the id map. Preserve mode keeps them.
+      const regen = ctx.mode === 'regenerate'
+      const ext = filename.includes('.') ? filename.slice(filename.lastIndexOf('.')) : ''
+      const newId = regen ? newUlid() : id || newUlid()
+      const newFilename = regen ? `${newId}${ext}` : filename
+      const newUrl = regen && oldUrl ? oldUrl.replace(filename, newFilename) : oldUrl
+      if (regen) {
+        if (id) ctx.idMap.set(id, newId)
+        if (oldUrl) ctx.idMap.set(oldUrl, newUrl)
+      }
+
+      const existing = regen ? null : id ? await Media.query().where('id', id).first() : null
 
       if (existing && ctx.conflict === 'skip') {
         report.skipped++
         continue
       }
 
-      if (bytes) await writeFile(join(dir, filename), bytes)
+      if (bytes) await writeFile(join(dir, newFilename), bytes)
 
       const values = {
-        filename,
+        filename: newFilename,
         mimeType: String(m.mimeType ?? 'application/octet-stream'),
         size: Number(m.size ?? bytes?.length ?? 0),
-        url: String(m.url ?? ''),
+        url: newUrl,
         title: (m.title as string) ?? null,
         description: (m.description as string) ?? null,
         alt: (m.alt as string) ?? null,
@@ -98,7 +113,7 @@ export const mediaSection: DataSection = {
         await existing.save()
         report.updated++
       } else {
-        await Media.create({ id: id || newUlid(), ...values })
+        await Media.create({ id: newId, ...values })
         report.created++
       }
     }

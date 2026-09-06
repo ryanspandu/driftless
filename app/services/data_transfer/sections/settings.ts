@@ -32,14 +32,18 @@ export const settingsSection: DataSection = {
     return { sections }
   },
 
-  async import(_ctx, data) {
+  async import(ctx, data) {
     const report = emptyReport('settings')
     const payload = (data ?? {}) as { sections?: Record<string, Record<string, string>> }
+    const regen = ctx.mode === 'regenerate'
     const patches: Array<{ section: string; key: string; value: string }> = []
     for (const [section, kv] of Object.entries(payload.sections ?? {})) {
       for (const [key, value] of Object.entries(kv)) {
         if (isSecretSettingKey(key)) continue
-        patches.push({ section, key, value: String(value ?? '') })
+        // Some settings hold a page id (e.g. auth_pages.*_page_id); in regenerate
+        // mode those ids changed, so map them through.
+        const v = String(value ?? '')
+        patches.push({ section, key, value: regen ? (ctx.idMap.get(v) ?? v) : v })
       }
     }
     if (patches.length > 0) {

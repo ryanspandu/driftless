@@ -173,6 +173,71 @@ test.group('Data transfer | core round-trip', (group) => {
     assert.isNotNull(await Template.query().where('id', tpl.id).first())
   })
 
+  test('regenerate mode mints new ids and rewrites refs (duplicate into same site)', async ({
+    assert,
+  }) => {
+    const tpl = await Template.create({
+      id: newUlid(),
+      name: 'RegenHeader',
+      type: 'HEADER',
+      content: { content: [], root: {} },
+      renderedHtml: null,
+      collectionKey: null,
+      isDefault: false,
+    })
+    await Page.create({
+      id: newUlid(),
+      title: 'Regen',
+      path: 'regen-src',
+      status: 'DRAFT',
+      renderMode: 'SSR',
+      kind: 'BUILDER',
+      component: null,
+      content: {
+        content: [{ type: 'TemplateRef', props: { id: 'a', templateId: tpl.id } }],
+        root: {},
+      },
+      seo: {},
+      layoutId: null,
+      headerTemplateId: tpl.id,
+      footerTemplateId: null,
+      hideHeader: false,
+      hideFooter: false,
+      authorId: null,
+    })
+
+    const archive = await new SiteExportService().export({ only: ['templates', 'pages'] })
+    await new SiteImportService().import(archive, { mode: 'regenerate' })
+
+    // A fresh template (new id) and a page at a de-duped path.
+    const newTpl = await Template.query()
+      .where('name', 'RegenHeader')
+      .whereNot('id', tpl.id)
+      .first()
+    assert.isNotNull(newTpl)
+    const newPage = await Page.query().where('path', 'regen-src-2').first()
+    assert.isNotNull(newPage)
+
+    // Both the column ref AND the ref embedded in the Puck content point at the
+    // new template id, not the original.
+    assert.equal(newPage!.headerTemplateId, newTpl!.id)
+    const content = newPage!.content as { content: Array<{ props: { templateId: string } }> }
+    assert.equal(content.content[0]!.props.templateId, newTpl!.id)
+  })
+
+  test('conflict "replace" wipes the section before importing', async ({ assert }) => {
+    await new RedirectsService().create({ fromPath: '/keep', toPath: '/k' })
+    const archive = await new SiteExportService().export({ only: ['redirects'] })
+    // An extra row that is NOT in the archive; replace should remove it.
+    await new RedirectsService().create({ fromPath: '/extra', toPath: '/e' })
+
+    await new SiteImportService().import(archive, { conflict: 'replace' })
+
+    const all = await Redirect.query()
+    assert.lengthOf(all, 1)
+    assert.equal(all[0]!.fromPath, 'keep')
+  })
+
   test('a wrong _type is refused', async ({ assert }) => {
     await assert.rejects(
       () => new SiteImportService().import(Buffer.from('not a tar archive at all')),
