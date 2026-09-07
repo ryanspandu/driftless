@@ -2887,6 +2887,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/webhooks_controller').default['paypal']>>>
     }
   }
+  'ecommerce.webhooks.lemonsqueezy': {
+    methods: ["POST"]
+    pattern: '/api/webhooks/lemonsqueezy'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/webhooks_controller').default['lemonsqueezy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/webhooks_controller').default['lemonsqueezy']>>>
+    }
+  }
   'shop.products.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/shop/products'

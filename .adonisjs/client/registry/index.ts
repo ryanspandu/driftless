@@ -1446,6 +1446,12 @@ const routes = {
     tokens: [{"old":"/api/webhooks/paypal","type":0,"val":"api","end":""},{"old":"/api/webhooks/paypal","type":0,"val":"webhooks","end":""},{"old":"/api/webhooks/paypal","type":0,"val":"paypal","end":""}],
     types: placeholder as Registry['ecommerce.webhooks.paypal']['types'],
   },
+  'ecommerce.webhooks.lemonsqueezy': {
+    methods: ["POST"],
+    pattern: '/api/webhooks/lemonsqueezy',
+    tokens: [{"old":"/api/webhooks/lemonsqueezy","type":0,"val":"api","end":""},{"old":"/api/webhooks/lemonsqueezy","type":0,"val":"webhooks","end":""},{"old":"/api/webhooks/lemonsqueezy","type":0,"val":"lemonsqueezy","end":""}],
+    types: placeholder as Registry['ecommerce.webhooks.lemonsqueezy']['types'],
+  },
   'shop.products.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/shop/products',

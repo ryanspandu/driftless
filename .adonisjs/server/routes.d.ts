@@ -39,6 +39,7 @@ export type ScannedRoutes = {
     'public.page': { paramsTuple?: []; params?: {} }
     'ecommerce.webhooks.stripe': { paramsTuple?: []; params?: {} }
     'ecommerce.webhooks.paypal': { paramsTuple?: []; params?: {} }
+    'ecommerce.webhooks.lemonsqueezy': { paramsTuple?: []; params?: {} }
     'shop.products.index': { paramsTuple?: []; params?: {} }
     'shop.products.show': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
     'shop.categories': { paramsTuple?: []; params?: {} }
@@ -468,6 +469,7 @@ export type ScannedRoutes = {
     'admin.store': { paramsTuple?: []; params?: {} }
     'ecommerce.webhooks.stripe': { paramsTuple?: []; params?: {} }
     'ecommerce.webhooks.paypal': { paramsTuple?: []; params?: {} }
+    'ecommerce.webhooks.lemonsqueezy': { paramsTuple?: []; params?: {} }
     'shop.availability': { paramsTuple?: []; params?: {} }
     'shop.cart.add': { paramsTuple?: []; params?: {} }
     'shop.cart.discount.apply': { paramsTuple?: []; params?: {} }

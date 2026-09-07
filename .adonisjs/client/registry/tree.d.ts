@@ -327,6 +327,7 @@ export interface ApiDefinition {
     webhooks: {
       stripe: typeof routes['ecommerce.webhooks.stripe']
       paypal: typeof routes['ecommerce.webhooks.paypal']
+      lemonsqueezy: typeof routes['ecommerce.webhooks.lemonsqueezy']
     }
     dashboard: {
       page: typeof routes['ecommerce.dashboard.page']
