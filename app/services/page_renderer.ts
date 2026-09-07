@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import Page from '#models/page'
+import type Page from '#models/page'
 import PagesService from '#services/pages_service'
 import TemplatesService from '#services/templates_service'
 import { WebSettingsService } from '#services/settings_service'
@@ -128,32 +128,41 @@ export default class PageRenderer {
     // Composition. A LAYOUT template (when set) wraps the page and owns its own
     // header/footer; otherwise resolve a header/footer template — a per-page
     // override if set, else the site default for that type.
-    const layoutContent = page.layoutId
-      ? ((await templatesService.find(page.layoutId).catch(() => null))?.content ?? null)
-      : // No per-page layout → fall back to the site default LAYOUT (mirrors how
-        // header/footer resolve their defaults). Previously a default LAYOUT was
-        // never applied to any page.
-        ((await templatesService.getDefault('LAYOUT').catch(() => null))?.content ?? null)
+    // A per-page CODE layout (a kit component) replaces the builder layout for
+    // the wrap slot; the pointer is carried to the client, not a Puck doc.
+    const layoutContent = page.codeLayout
+      ? null
+      : page.layoutId
+        ? ((await templatesService.find(page.layoutId).catch(() => null))?.content ?? null)
+        : // No per-page layout → fall back to the site default LAYOUT (mirrors how
+          // header/footer resolve their defaults). Previously a default LAYOUT was
+          // never applied to any page.
+          ((await templatesService.getDefault('LAYOUT').catch(() => null))?.content ?? null)
 
+    // A layout (code or builder) owns header/footer, so they are only resolved
+    // when there is none.
+    const hasLayout = Boolean(page.codeLayout) || Boolean(layoutContent)
     let headerContent: Record<string, unknown> | null = null
     let footerContent: Record<string, unknown> | null = null
-    if (!layoutContent) {
+    if (!hasLayout) {
       /**
-       * Three states per slot, not two: a named template, the site default, or
-       * nothing at all. `hideHeader` carries the third — a null id already
-       * means "site default", so a page that wants no header (a sign-in screen
-       * owning the viewport, a bare landing page) had no way to say so.
+       * Four states per slot: a code component (`codeHeader`), a named builder
+       * template, the site default, or nothing (`hideHeader`). A set code
+       * pointer wins over the builder template for its slot, and its Puck doc is
+       * left null (the pointer travels separately, in the render props).
        */
-      const header = page.hideHeader
-        ? null
-        : page.headerTemplateId
-          ? await templatesService.find(page.headerTemplateId).catch(() => null)
-          : await templatesService.getDefault('HEADER')
-      const footer = page.hideFooter
-        ? null
-        : page.footerTemplateId
-          ? await templatesService.find(page.footerTemplateId).catch(() => null)
-          : await templatesService.getDefault('FOOTER')
+      const header =
+        page.hideHeader || page.codeHeader
+          ? null
+          : page.headerTemplateId
+            ? await templatesService.find(page.headerTemplateId).catch(() => null)
+            : await templatesService.getDefault('HEADER')
+      const footer =
+        page.hideFooter || page.codeFooter
+          ? null
+          : page.footerTemplateId
+            ? await templatesService.find(page.footerTemplateId).catch(() => null)
+            : await templatesService.getDefault('FOOTER')
       headerContent = header?.content ?? null
       footerContent = footer?.content ?? null
     }
@@ -266,6 +275,9 @@ export default class PageRenderer {
         layout: layoutContent,
         header: headerContent ?? undefined,
         footer: footerContent ?? undefined,
+        codeHeader: page.codeHeader ?? undefined,
+        codeFooter: page.codeFooter ?? undefined,
+        codeLayout: page.codeLayout ?? undefined,
         templates,
         collections,
         blockData,

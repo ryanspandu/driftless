@@ -12,6 +12,7 @@ inertia/custom/kits/<name>/
   kit.json          required — marks the folder as a kit + names it for the picker
   index.tsx         a template a DB page points at (kit:<name>) — optional if you only ship pages/
   pages/*.tsx       file-pages — each file is a route with NO DB row (see below)
+  templates/*.tsx   code chrome — header/footer/layout a page points at (codetpl:<kit>/<type>)
   components/…       optional — sub-components, imported with relative paths
   styles.css        optional — co-located CSS, imported by index.tsx
   assets/…           optional — images/fonts, IMPORTED (never referenced by raw path)

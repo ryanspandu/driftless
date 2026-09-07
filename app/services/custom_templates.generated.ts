@@ -69,4 +69,13 @@ export interface CodeTemplate {
   type: CodeTemplateType
 }
 
-export const CODE_TEMPLATES: readonly CodeTemplate[] = []
+export const CODE_TEMPLATES: readonly CodeTemplate[] = [
+  {
+    "kit": "example",
+    "type": "FOOTER"
+  },
+  {
+    "kit": "example",
+    "type": "HEADER"
+  }
+]

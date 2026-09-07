@@ -1,4 +1,5 @@
 import { PublicPageFrame } from '~/components/public-page-frame'
+import { ChromeCodeContext } from '~/puck/chrome_slot'
 import { BuilderRegionContext } from '~/custom/builder-region'
 import { customPageSlugs, getCustomPage } from '~/custom/registry'
 import type { CodePageEnvelope, CodePageProps } from '~/custom/types'
@@ -68,22 +69,24 @@ export function CodePageView({ page }: { page: CodePageEnvelope }) {
       bindings={page.bindings}
       preview={page.preview}
     >
-      <BuilderRegionContext.Provider
-        value={{ content: page.content ?? null, preview: page.preview ?? false }}
-      >
-        {Component ? (
-          /*
+      <ChromeCodeContext.Provider value={{ header: page.codeHeader, footer: page.codeFooter }}>
+        <BuilderRegionContext.Provider
+          value={{ content: page.content ?? null, preview: page.preview ?? false }}
+        >
+          {Component ? (
+            /*
             Not a component created during render, despite how it reads to the
             rule: `getCustomPage` is a lookup into a build-time glob, so a given
             slug returns the identical module export every render and React's
             reconciliation — and therefore component state — is stable.
           */
-          // eslint-disable-next-line react-hooks/static-components
-          <Component {...props} />
-        ) : (
-          <MissingComponent slug={component} known={customPageSlugs()} />
-        )}
-      </BuilderRegionContext.Provider>
+            // eslint-disable-next-line react-hooks/static-components
+            <Component {...props} />
+          ) : (
+            <MissingComponent slug={component} known={customPageSlugs()} />
+          )}
+        </BuilderRegionContext.Provider>
+      </ChromeCodeContext.Provider>
     </PublicPageFrame>
   )
 }

@@ -46,6 +46,9 @@ export interface CodePageProps {
 export interface CodePageEnvelope extends CodePageProps {
   /** Slug of the component under `inertia/custom/pages/`. */
   component: string
+  /** Per-page code header/footer pointers (`codetpl:<kit>/<type>`), applied by `<SiteChrome>`. */
+  codeHeader?: string | null
+  codeFooter?: string | null
   /** The `<BuilderRegion />` document — the page's own `content` column. */
   content?: Record<string, unknown>
   /** Site-wide custom code from Website Settings. */

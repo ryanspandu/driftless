@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import PagesService from '#services/pages_service'
 import CmsService from '#services/cms_service'
 import { CODE_PAGES } from '#services/code_pages.generated'
-import { CUSTOM_TEMPLATES } from '#services/custom_templates.generated'
+import { CUSTOM_TEMPLATES, CODE_TEMPLATES } from '#services/custom_templates.generated'
 import { fileSummaries } from '#services/file_pages'
 import type User from '#models/user'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
@@ -49,6 +49,9 @@ export default class PagesController {
       layoutId: id(body.layoutId),
       headerTemplateId: id(body.headerTemplateId),
       footerTemplateId: id(body.footerTemplateId),
+      codeHeader: id(body.codeHeader),
+      codeFooter: id(body.codeFooter),
+      codeLayout: id(body.codeLayout),
       hideHeader: bool(body.hideHeader),
       hideFooter: bool(body.hideFooter),
     }
@@ -291,5 +294,13 @@ export default class PagesController {
    */
   async customTemplates({ response }: HttpContext) {
     return response.json(CUSTOM_TEMPLATES)
+  }
+
+  /**
+   * Code-chrome templates (kit `templates/{header,footer,layout}.tsx`) for the
+   * page form's Header / Footer / Layout pickers, keyed `codetpl:<kit>/<type>`.
+   */
+  async codeTemplates({ response }: HttpContext) {
+    return response.json(CODE_TEMPLATES)
   }
 }

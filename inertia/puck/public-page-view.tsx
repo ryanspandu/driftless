@@ -7,6 +7,7 @@ import { PageOutletContext } from '~/puck/page-outlet'
 import { type CodeSnippet } from '~/puck/custom-code'
 import { BreakpointContext, NonceContext, readBreakpoints } from '~/puck/breakpoints'
 import { PublicPageFrame } from '~/components/public-page-frame'
+import { ChromeSlot, CodeLayout } from '~/puck/chrome_slot'
 
 export interface PublicPageData {
   title: string
@@ -17,6 +18,10 @@ export interface PublicPageData {
   layout?: Record<string, unknown> | null
   header?: Record<string, unknown>
   footer?: Record<string, unknown>
+  /** Per-page code chrome pointers (`codetpl:<kit>/<type>`) — win over the docs above. */
+  codeHeader?: string | null
+  codeFooter?: string | null
+  codeLayout?: string | null
   /** SSR/SSG-resolved collection records keyed by `${collectionKey}:${limit}`. */
   collections?: Record<string, CmsRecord[]>
   /** SSR/SSG-resolved TemplateRef content keyed by `templateId`. */
@@ -70,10 +75,6 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
   const data = toData(page.content)
   const rootProps = (page.content?.root as { props?: Record<string, unknown> } | undefined)?.props
 
-  const hasLayout = hasBlocks(page.layout)
-  const showHeader = hasBlocks(page.header)
-  const showFooter = hasBlocks(page.footer)
-
   // `activeBp: null` = published mode: every Box emits real `@media` CSS keyed to
   // the site-wide tier widths (so custom resolutions work), rather than flattening
   // a single previewed breakpoint the way the editor does.
@@ -82,8 +83,17 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
     [page.breakpoints]
   )
 
-  const inner = hasLayout ? (
-    <PageOutletContext.Provider value={<Render config={puckConfig} data={data} />}>
+  const pageContent = <Render config={puckConfig} data={data} />
+
+  // A layout (code or builder) wraps the page and owns its own header/footer;
+  // otherwise render header → content → footer, each a code component or a
+  // builder document (ChromeSlot resolves which).
+  const inner = page.codeLayout ? (
+    <CodeLayout code={page.codeLayout}>
+      <main id="main-content">{pageContent}</main>
+    </CodeLayout>
+  ) : hasBlocks(page.layout) ? (
+    <PageOutletContext.Provider value={pageContent}>
       <Render config={puckConfig} data={toData(page.layout)} />
     </PageOutletContext.Provider>
   ) : (
@@ -96,11 +106,9 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
       >
         Skip to content
       </a>
-      {showHeader ? <Render config={puckConfig} data={toData(page.header)} /> : null}
-      <main id="main-content">
-        <Render config={puckConfig} data={data} />
-      </main>
-      {showFooter ? <Render config={puckConfig} data={toData(page.footer)} /> : null}
+      <ChromeSlot code={page.codeHeader} doc={page.header} />
+      <main id="main-content">{pageContent}</main>
+      <ChromeSlot code={page.codeFooter} doc={page.footer} />
     </>
   )
   // Threaded to every Box so its published `<style>` (responsive/state CSS) carries

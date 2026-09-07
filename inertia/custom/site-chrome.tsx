@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
-import { Render, type Data } from '@measured/puck'
-import { puckConfig } from '~/puck/config'
+import { ChromeSlot, useChromeCode } from '~/puck/chrome_slot'
 import type { CodePageProps } from '~/custom/types'
 
 /**
@@ -16,29 +15,19 @@ import type { CodePageProps } from '~/custom/types'
  * to fight a header it never asked for.
  */
 
-const EMPTY: Data = { content: [], root: {} } as unknown as Data
-
-function toData(doc: Record<string, unknown> | undefined | null): Data {
-  return doc && Object.keys(doc).length ? (doc as unknown as Data) : EMPTY
-}
-
-/** Nothing to render for `undefined`, `{}` or a document with no blocks. */
-function hasBlocks(doc: Record<string, unknown> | undefined | null): boolean {
-  if (!doc || !Object.keys(doc).length) return false
-  const content = (doc as { content?: unknown }).content
-  return !Array.isArray(content) || content.length > 0
-}
-
 export function SiteChrome({
   header,
   footer,
   children,
 }: Pick<CodePageProps, 'header' | 'footer'> & { children: ReactNode }) {
+  // A code header/footer set on the page wins over the builder document; the
+  // pointer arrives through context so the author's call stays `header/footer`.
+  const code = useChromeCode()
   return (
     <>
-      {hasBlocks(header) ? <Render config={puckConfig} data={toData(header)} /> : null}
+      <ChromeSlot code={code.header} doc={header} />
       {children}
-      {hasBlocks(footer) ? <Render config={puckConfig} data={toData(footer)} /> : null}
+      <ChromeSlot code={code.footer} doc={footer} />
     </>
   )
 }

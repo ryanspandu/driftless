@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import type { PageSummaryDto, PageRenderMode, PageKind } from '~/types/api'
 import { Button } from '~/components/ui/button'
 import {
@@ -14,7 +14,7 @@ import { Label } from '~/components/ui/label'
 import { AppSelect, type AppSelectOption } from '~/components/ui/app-select'
 import { apiErrorMessage } from '~/lib/api'
 import { useTemplatesList } from '~/hooks/api/use-templates'
-import { useCodeComponents, useCustomTemplates } from '~/hooks/api/use-pages'
+import { useCodeComponents, useCustomTemplates, useCodeTemplates } from '~/hooks/api/use-pages'
 
 type Mode = { kind: 'create' } | { kind: 'edit'; row: PageSummaryDto }
 
@@ -27,6 +27,17 @@ type Mode = { kind: 'create' } | { kind: 'edit'; row: PageSummaryDto }
  */
 type BuildWith = 'BUILDER' | 'CODE' | 'KIT'
 const KIT_PREFIX = 'kit:'
+const CODETPL_PREFIX = 'codetpl:'
+
+/**
+ * A Header/Footer/Layout select value is one of: a builder-template id, a
+ * `codetpl:<kit>/<type>` code pointer, `''` (site default) or `NONE`. This
+ * splits it into the two columns — the FK id vs. the code pointer.
+ */
+function splitChrome(value: string): { templateId: string | null; code: string | null } {
+  if (value.startsWith(CODETPL_PREFIX)) return { templateId: null, code: value }
+  return { templateId: value || null, code: null }
+}
 
 export type PageFormSubmit = (values: {
   title: string
@@ -38,6 +49,9 @@ export type PageFormSubmit = (values: {
   layoutId: string | null
   headerTemplateId: string | null
   footerTemplateId: string | null
+  codeHeader: string | null
+  codeFooter: string | null
+  codeLayout: string | null
   hideHeader: boolean
   hideFooter: boolean
 }) => Promise<void> | void
@@ -99,9 +113,21 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
   const headersQuery = useTemplatesList('HEADER')
   const footersQuery = useTemplatesList('FOOTER')
 
+  // Code-chrome templates from kits, offered in the same pickers (value carries
+  // the `codetpl:` pointer so the submit routes it to the code column).
+  const codeTplQuery = useCodeTemplates()
+  const codeTpl = (type: 'HEADER' | 'FOOTER' | 'LAYOUT'): AppSelectOption[] =>
+    (codeTplQuery.data ?? [])
+      .filter((t) => t.type === type)
+      .map((t) => ({
+        value: `${CODETPL_PREFIX}${t.kit}/${type.toLowerCase()}`,
+        label: `${t.kit} · code`,
+      }))
+
   const layoutOptions: AppSelectOption[] = [
     { value: '', label: '— Default —' },
     ...(layoutsQuery.data ?? []).map((t) => ({ value: t.id, label: t.name })),
+    ...codeTpl('LAYOUT'),
   ]
   /**
    * Three states, not two.
@@ -116,11 +142,13 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
     { value: '', label: '— Default —' },
     { value: NONE, label: '— None (no header) —' },
     ...(headersQuery.data ?? []).map((t) => ({ value: t.id, label: t.name })),
+    ...codeTpl('HEADER'),
   ]
   const footerOptions: AppSelectOption[] = [
     { value: '', label: '— Default —' },
     { value: NONE, label: '— None (no footer) —' },
     ...(footersQuery.data ?? []).map((t) => ({ value: t.id, label: t.name })),
+    ...codeTpl('FOOTER'),
   ]
 
   const modeKey = mode.kind === 'edit' ? `edit:${mode.row.id}` : 'create'
@@ -143,9 +171,14 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
         setBuildWith('CODE')
         setComponent(rowComponent)
       }
-      setLayoutId(mode.row.layoutId ?? '')
-      setHeaderTemplateId(mode.row.hideHeader ? NONE : (mode.row.headerTemplateId ?? ''))
-      setFooterTemplateId(mode.row.hideFooter ? NONE : (mode.row.footerTemplateId ?? ''))
+      // A set code pointer wins the slot; else the FK id, the hide flag, or default.
+      setLayoutId(mode.row.codeLayout ?? mode.row.layoutId ?? '')
+      setHeaderTemplateId(
+        mode.row.codeHeader ?? (mode.row.hideHeader ? NONE : (mode.row.headerTemplateId ?? ''))
+      )
+      setFooterTemplateId(
+        mode.row.codeFooter ?? (mode.row.hideFooter ? NONE : (mode.row.footerTemplateId ?? ''))
+      )
       setPathDirty(true)
     } else {
       setTitle('')
@@ -180,6 +213,11 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
           : buildWith === 'CODE'
             ? component || null
             : null
+      // Each chrome select routes to either the FK id or the code column.
+      // `NONE` (header/footer) is not an id — it becomes the hide flag.
+      const layout = splitChrome(layoutId)
+      const headerSel = headerTemplateId === NONE ? null : splitChrome(headerTemplateId)
+      const footerSel = footerTemplateId === NONE ? null : splitChrome(footerTemplateId)
       await onSubmit({
         title: title.trim(),
         path: pathify(path || title),
@@ -187,11 +225,12 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
         renderMode,
         kind,
         component: componentValue,
-        layoutId: layoutId || null,
-        // `NONE` is not an id — it becomes the hide flag, and clears the id so
-        // the two can never disagree about what this page renders.
-        headerTemplateId: headerTemplateId === NONE ? null : headerTemplateId || null,
-        footerTemplateId: footerTemplateId === NONE ? null : footerTemplateId || null,
+        layoutId: layout.templateId,
+        codeLayout: layout.code,
+        headerTemplateId: headerSel?.templateId ?? null,
+        codeHeader: headerSel?.code ?? null,
+        footerTemplateId: footerSel?.templateId ?? null,
+        codeFooter: footerSel?.code ?? null,
         hideHeader: headerTemplateId === NONE,
         hideFooter: footerTemplateId === NONE,
       })

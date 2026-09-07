@@ -58,6 +58,22 @@ export function useCustomTemplates(enabled = true) {
   })
 }
 
+/** A code-chrome template offered by the page form's Header/Footer/Layout pickers. */
+export interface CodeTemplateOption {
+  kit: string
+  type: 'HEADER' | 'FOOTER' | 'LAYOUT'
+}
+
+/** Kit `templates/{header,footer,layout}.tsx` — per-page code chrome (`codetpl:<kit>/<type>`). */
+export function useCodeTemplates(enabled = true) {
+  return useQuery({
+    queryKey: ['pages', 'code-templates'] as const,
+    queryFn: () => apiFetch<CodeTemplateOption[]>('/api/admin/pages/code-templates'),
+    staleTime: Number.POSITIVE_INFINITY,
+    enabled,
+  })
+}
+
 export function useCreatePage() {
   const qc = useQueryClient()
   return useMutation({

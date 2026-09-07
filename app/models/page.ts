@@ -90,6 +90,21 @@ export default class Page extends BaseModel {
   declare footerTemplateId: string | null
 
   /**
+   * Per-page code chrome — a `codetpl:<kit>/<type>` pointer at a kit component,
+   * an alternative to the builder-template ids above. Separate columns because
+   * those carry a real FK to `templates`; when set, the renderer uses the code
+   * component for that slot instead of the template id.
+   */
+  @column()
+  declare codeHeader: string | null
+
+  @column()
+  declare codeFooter: string | null
+
+  @column()
+  declare codeLayout: string | null
+
+  /**
    * Render no header / no footer at all.
    *
    * Separate from the ids above because null there means "use the site

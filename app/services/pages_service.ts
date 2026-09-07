@@ -27,6 +27,10 @@ export interface PageSummaryDto {
   layoutId: string | null
   headerTemplateId: string | null
   footerTemplateId: string | null
+  /** Per-page code chrome pointers (`codetpl:<kit>/<type>`), an alternative to the ids above. */
+  codeHeader: string | null
+  codeFooter: string | null
+  codeLayout: string | null
   hideHeader: boolean
   hideFooter: boolean
   authorId: number | null
@@ -73,6 +77,9 @@ interface CreatePageInput {
   layoutId?: string | null
   headerTemplateId?: string | null
   footerTemplateId?: string | null
+  codeHeader?: string | null
+  codeFooter?: string | null
+  codeLayout?: string | null
   hideHeader?: boolean
   hideFooter?: boolean
   content?: Record<string, unknown>
@@ -89,6 +96,9 @@ interface UpdatePageInput {
   layoutId?: string | null
   headerTemplateId?: string | null
   footerTemplateId?: string | null
+  codeHeader?: string | null
+  codeFooter?: string | null
+  codeLayout?: string | null
   hideHeader?: boolean
   hideFooter?: boolean
   content?: Record<string, unknown>
@@ -142,6 +152,9 @@ export default class PagesService {
       layoutId: dto.layoutId ?? null,
       headerTemplateId: dto.headerTemplateId ?? null,
       footerTemplateId: dto.footerTemplateId ?? null,
+      codeHeader: dto.codeHeader ?? null,
+      codeFooter: dto.codeFooter ?? null,
+      codeLayout: dto.codeLayout ?? null,
       hideHeader: dto.hideHeader ?? false,
       hideFooter: dto.hideFooter ?? false,
       authorId,
@@ -155,7 +168,7 @@ export default class PagesService {
     const root = normalizePath(base) || 'page'
     let candidate = root
     let n = 2
-    // eslint-disable-next-line no-constant-condition
+
     while (true) {
       const taken = await Page.query().where('path', candidate).whereNull('deleted_at').first()
       if (!taken) return candidate
@@ -179,6 +192,9 @@ export default class PagesService {
       layoutId: src.layoutId,
       headerTemplateId: src.headerTemplateId,
       footerTemplateId: src.footerTemplateId,
+      codeHeader: src.codeHeader,
+      codeFooter: src.codeFooter,
+      codeLayout: src.codeLayout,
       hideHeader: src.hideHeader,
       hideFooter: src.hideFooter,
       authorId,
@@ -279,6 +295,9 @@ export default class PagesService {
     if (dto.layoutId !== undefined) row.layoutId = dto.layoutId
     if (dto.headerTemplateId !== undefined) row.headerTemplateId = dto.headerTemplateId
     if (dto.footerTemplateId !== undefined) row.footerTemplateId = dto.footerTemplateId
+    if (dto.codeHeader !== undefined) row.codeHeader = dto.codeHeader
+    if (dto.codeFooter !== undefined) row.codeFooter = dto.codeFooter
+    if (dto.codeLayout !== undefined) row.codeLayout = dto.codeLayout
     if (dto.hideHeader !== undefined) row.hideHeader = dto.hideHeader
     if (dto.hideFooter !== undefined) row.hideFooter = dto.hideFooter
     if (dto.content !== undefined) row.content = sanitizePuckDocument(dto.content)
@@ -644,6 +663,9 @@ export default class PagesService {
       layoutId: row.layoutId,
       headerTemplateId: row.headerTemplateId,
       footerTemplateId: row.footerTemplateId,
+      codeHeader: row.codeHeader ?? null,
+      codeFooter: row.codeFooter ?? null,
+      codeLayout: row.codeLayout ?? null,
       // Coalesced: rows created before the columns existed read back as null
       // under SQLite, and `null` here would render as an indeterminate checkbox.
       hideHeader: Boolean(row.hideHeader),
@@ -671,10 +693,7 @@ export default class PagesService {
   }
 
   /** Store (or clear) the structured design brief for a page. */
-  async setDesignBrief(
-    id: string,
-    brief: Record<string, unknown> | null
-  ): Promise<PageDto> {
+  async setDesignBrief(id: string, brief: Record<string, unknown> | null): Promise<PageDto> {
     const row = await Page.query().where('id', id).whereNull('deleted_at').firstOrFail()
     row.designBrief = brief
     await row.save()

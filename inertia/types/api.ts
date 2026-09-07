@@ -348,6 +348,10 @@ export interface PageSummaryDto {
   layoutId: string | null
   headerTemplateId: string | null
   footerTemplateId: string | null
+  /** Per-page code chrome pointers (`codetpl:<kit>/<type>`), an alternative to the ids above. */
+  codeHeader: string | null
+  codeFooter: string | null
+  codeLayout: string | null
   /** Render no header / no footer at all — distinct from "use the site default". */
   hideHeader: boolean
   hideFooter: boolean
@@ -384,6 +388,9 @@ export interface CreatePageRequest {
   layoutId?: string | null
   headerTemplateId?: string | null
   footerTemplateId?: string | null
+  codeHeader?: string | null
+  codeFooter?: string | null
+  codeLayout?: string | null
   hideHeader?: boolean
   hideFooter?: boolean
   content?: Record<string, unknown>
@@ -400,6 +407,9 @@ export interface UpdatePageRequest {
   layoutId?: string | null
   headerTemplateId?: string | null
   footerTemplateId?: string | null
+  codeHeader?: string | null
+  codeFooter?: string | null
+  codeLayout?: string | null
   hideHeader?: boolean
   hideFooter?: boolean
   content?: Record<string, unknown>

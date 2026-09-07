@@ -114,6 +114,28 @@ inertia/custom/kits/mysite/
 Component pointer (internal): a file-page renders via `kitpage:<kit>/<file>`; a page a DB row
 points at uses `kit:<id>`.
 
+## Code chrome — header / footer / layout as code
+
+A kit can supply **chrome templates** — `templates/{header,footer,layout}.tsx` — that a page
+points its header, footer or layout at **per-page**, exactly like a builder template but written
+in React:
+
+```
+inertia/custom/kits/<name>/
+  templates/
+    header.tsx    default-exports a component (renders itself; no props)
+    footer.tsx
+    layout.tsx    receives the page content as `children`
+```
+
+- Pick one in the page's **Header / Footer / Layout** picker — kit chrome shows as
+  `<kit> · code`. A set code chrome **wins over** a builder template for that slot, and mixes
+  freely (e.g. a code header with a builder footer).
+- Works for builder pages **and** code pages (a code page's `<SiteChrome>` picks up a code
+  header/footer automatically). Layout applies to builder pages.
+- Stored in the page's `code_header` / `code_footer` / `code_layout` columns as the pointer
+  `codetpl:<kit>/<type>` (separate from the builder-template FK columns).
+
 ## What you can build with
 
 ### Available libraries (root `package.json` only)
