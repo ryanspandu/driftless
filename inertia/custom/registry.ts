@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import type { CodePageProps } from '~/custom/types'
 
 /**
@@ -43,8 +43,33 @@ const CUSTOM_KITS = import.meta.glob<CustomPageModule>('./kits/*/index.tsx', { e
  */
 const CUSTOM_KIT_PAGES = import.meta.glob<CustomPageModule>('./kits/*/pages/*.tsx', { eager: true })
 
+/**
+ * Code-chrome templates — `kits/<kit>/templates/{header,footer,layout}.tsx`. A
+ * page points its header/footer/layout at one (per-page) via `codetpl:<kit>/<type>`.
+ * Header/footer render themselves; a layout wraps the page content via `children`.
+ */
+export interface CustomChromeModule {
+  default: ComponentType<{ children?: ReactNode }>
+}
+const CUSTOM_KIT_TEMPLATES = import.meta.glob<CustomChromeModule>('./kits/*/templates/*.tsx', {
+  eager: true,
+})
+
 const KIT_PREFIX = 'kit:'
 const KITPAGE_PREFIX = 'kitpage:'
+const CODETPL_PREFIX = 'codetpl:'
+
+/** Resolve a `codetpl:<kit>/<type>` chrome pointer to its component, or null. */
+export function getCodeTemplate(pointer: string): ComponentType<{ children?: ReactNode }> | null {
+  if (!pointer.startsWith(CODETPL_PREFIX)) return null
+  const rest = pointer.slice(CODETPL_PREFIX.length) // "<kit>/<type>"
+  const slash = rest.indexOf('/')
+  if (slash < 0) return null
+  return (
+    CUSTOM_KIT_TEMPLATES[`./kits/${rest.slice(0, slash)}/templates/${rest.slice(slash + 1)}.tsx`]
+      ?.default ?? null
+  )
+}
 
 /**
  * Resolve a `page.component` pointer to its module:

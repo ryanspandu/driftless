@@ -57,3 +57,16 @@ export const FILE_PAGES: readonly FilePage[] = [
     "title": "Pricing (example file-page)"
   }
 ]
+
+/**
+ * Code-chrome templates a page can point its header / footer / layout at,
+ * per-page like a DB template — `templates/{header,footer,layout}.tsx` in a
+ * kit, referenced by the pointer `codetpl:<kit>/<type>`.
+ */
+export type CodeTemplateType = 'HEADER' | 'FOOTER' | 'LAYOUT'
+export interface CodeTemplate {
+  kit: string
+  type: CodeTemplateType
+}
+
+export const CODE_TEMPLATES: readonly CodeTemplate[] = []
