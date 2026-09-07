@@ -7,6 +7,7 @@ import { allReservedSegments } from '#modules/registry'
 import { mediaUrlSegment } from '#services/media_url'
 import RedirectsService from '#services/redirects_service'
 import PagesService from '#services/pages_service'
+import { findFilePageByPath, virtualPageForFilePage } from '#services/file_pages'
 
 const renderer = new PageRenderer()
 const redirects = new RedirectsService()
@@ -83,6 +84,14 @@ export default class PagesPublicController {
       .first()
 
     if (!page) {
+      // No DB page (which always wins). Next, a file-page — a route that lives in
+      // a kit as code with no database row. Rendered through the same code-page
+      // pipeline via a transient, unsaved Page.
+      const filePage = findFilePageByPath(path)
+      if (filePage) {
+        return this.composeAndRender(virtualPageForFilePage(filePage), ctx, false)
+      }
+
       // Before giving up, honour a configured redirect (e.g. a moved page's old
       // URL). Keeps inbound links and ranking alive instead of 404-ing.
       const hit = await redirects.resolve(path).catch(() => null)

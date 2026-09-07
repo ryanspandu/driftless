@@ -3,6 +3,7 @@ import PagesService from '#services/pages_service'
 import CmsService from '#services/cms_service'
 import { CODE_PAGES } from '#services/code_pages.generated'
 import { CUSTOM_TEMPLATES } from '#services/custom_templates.generated'
+import { fileSummaries } from '#services/file_pages'
 import type User from '#models/user'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
 import { hasPrivilegedPageContent } from '#services/html_sanitizer_service'
@@ -22,7 +23,11 @@ export default class PagesController {
     return abilityAllowsCode(collectUserPermissions(user), 'settings:manage')
   }
   async index({ response }: HttpContext) {
-    return response.json(await pagesService.findAll())
+    // DB pages, plus file-pages (routes that live in a kit folder as code) as
+    // read-only rows — skipping any path a DB page already owns (DB wins).
+    const dbPages = await pagesService.findAll()
+    const dbPaths = new Set(dbPages.map((p) => p.path))
+    return response.json([...dbPages, ...fileSummaries(dbPaths)])
   }
 
   async show({ params, response }: HttpContext) {

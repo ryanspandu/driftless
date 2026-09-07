@@ -22,3 +22,26 @@ export const CUSTOM_TEMPLATES: readonly CustomTemplate[] = [
     "description": "A starter custom template — copy this folder, rename it, and point a page at it."
   }
 ]
+
+/**
+ * File-pages: standalone routes that live in a kit as code, with NO database
+ * row (`inertia/custom/kits/<kit>/pages/*.tsx`). `path` is the URL path without
+ * a leading slash (`""` = home); the renderer resolves the component pointer
+ * `kitpage:<kit>/<file>`. Read by the public router (a DB page at the same path
+ * wins) and merged into the admin pages list as read-only rows.
+ */
+export interface FilePage {
+  path: string
+  kit: string
+  file: string
+  title: string
+}
+
+export const FILE_PAGES: readonly FilePage[] = [
+  {
+    "path": "kit-example/hello",
+    "kit": "example",
+    "file": "hello",
+    "title": "Hello from a file-page"
+  }
+]

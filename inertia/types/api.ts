@@ -360,6 +360,11 @@ export interface PageSummaryDto {
   draftUpdatedAt: string | null
   createdAt: string
   updatedAt: string
+  /**
+   * Where the row comes from: a database page (default/undefined), or a
+   * file-page that lives in a kit folder as code — read-only in the admin.
+   */
+  source?: 'db' | 'file'
 }
 
 export interface PageDto extends PageSummaryDto {

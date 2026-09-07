@@ -71,6 +71,14 @@ function codePageInfo(
 ): { label: string; hint: string; canBuild: boolean } | null {
   if (page.kind !== 'CODE') return null
   const component = page.component ?? ''
+  if (component.startsWith('kitpage:')) {
+    const [kit, file] = component.slice('kitpage:'.length).split('/')
+    return {
+      label: 'File page',
+      hint: `Edit in code: inertia/custom/kits/${kit}/pages/${file}.tsx`,
+      canBuild: false,
+    }
+  }
   const isKit = component.startsWith('kit:')
   return {
     label: isKit ? 'Custom template' : 'Code',
@@ -252,7 +260,7 @@ export default function PagesPage() {
         ),
         cell: ({ row }) => (
           <div className="text-right text-xs text-muted-foreground tabular-nums">
-            {formatAdminTableDateTime(row.original.updatedAt)}
+            {row.original.updatedAt ? formatAdminTableDateTime(row.original.updatedAt) : '—'}
           </div>
         ),
       },
@@ -285,13 +293,40 @@ export default function PagesPage() {
         id: 'role',
         enableSorting: false,
         header: () => <span className="text-xs font-medium text-muted-foreground">Role</span>,
-        cell: ({ row }) => <PageRoleBadges pageId={row.original.id} />,
+        cell: ({ row }) =>
+          row.original.source === 'file' ? (
+            <span className="text-xs text-muted-foreground">—</span>
+          ) : (
+            <PageRoleBadges pageId={row.original.id} />
+          ),
       },
       {
         id: 'actions',
         enableSorting: false,
         header: () => <span className="sr-only">Actions</span>,
         cell: ({ row }) => {
+          // A file-page has no database row — it is managed entirely in its
+          // .tsx file, so every DB-backed action (build, settings, delete, …) is
+          // omitted; only "View" (a separate column) applies.
+          if (row.original.source === 'file') {
+            const code = codePageInfo(row.original)
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="ghost" size="icon" className="size-8" />}
+                  aria-label="Row actions"
+                >
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="gap-2" disabled title={code?.hint}>
+                    <Code2 className="size-4" />
+                    Managed in code
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )
+          }
           // The builder opens a visual-builder page, or the editable region of a
           // coded page that exposes one (labelled to say so). A fully code-owned
           // page has nothing to show, so the action is disabled rather than
@@ -469,6 +504,7 @@ export default function PagesPage() {
         columns={columns}
         data={rows}
         getRowId={(r) => r.id}
+        getRowCanSelect={(r) => r.source !== 'file'}
         hideSyncColumn
         searchPlaceholder="Search by title or path…"
         toolbarActions={trashButton}

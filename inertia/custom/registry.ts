@@ -37,13 +37,34 @@ const CUSTOM_PAGES = import.meta.glob<CustomPageModule>('./pages/*.tsx', { eager
  */
 const CUSTOM_KITS = import.meta.glob<CustomPageModule>('./kits/*/index.tsx', { eager: true })
 
-const KIT_PREFIX = 'kit:'
+/**
+ * File-pages — standalone routes that live inside a kit (`pages/*.tsx`), with no
+ * database row. Pointed at by `kitpage:<kit>/<file>`. Same eager glob + reason.
+ */
+const CUSTOM_KIT_PAGES = import.meta.glob<CustomPageModule>('./kits/*/pages/*.tsx', { eager: true })
 
-/** Resolve a `page.component` pointer to its module — a `kit:<id>` folder or a single file. */
+const KIT_PREFIX = 'kit:'
+const KITPAGE_PREFIX = 'kitpage:'
+
+/**
+ * Resolve a `page.component` pointer to its module:
+ *   `kit:<id>`            → the kit's index.tsx (a DB page's template)
+ *   `kitpage:<kit>/<file>` → a file-page inside a kit
+ *   `<slug>`             → a single-file code page under `./pages/`
+ */
 function moduleFor(pointer: string): CustomPageModule | undefined {
-  return pointer.startsWith(KIT_PREFIX)
-    ? CUSTOM_KITS[`./kits/${pointer.slice(KIT_PREFIX.length)}/index.tsx`]
-    : CUSTOM_PAGES[`./pages/${pointer}.tsx`]
+  if (pointer.startsWith(KITPAGE_PREFIX)) {
+    const rest = pointer.slice(KITPAGE_PREFIX.length) // "<kit>/<file>"
+    const slash = rest.indexOf('/')
+    if (slash < 0) return undefined
+    const kit = rest.slice(0, slash)
+    const file = rest.slice(slash + 1)
+    return CUSTOM_KIT_PAGES[`./kits/${kit}/pages/${file}.tsx`]
+  }
+  if (pointer.startsWith(KIT_PREFIX)) {
+    return CUSTOM_KITS[`./kits/${pointer.slice(KIT_PREFIX.length)}/index.tsx`]
+  }
+  return CUSTOM_PAGES[`./pages/${pointer}.tsx`]
 }
 
 export function getCustomPage(pointer: string): ComponentType<CodePageProps> | null {

@@ -202,6 +202,8 @@ export type DataTableProps<TData> = {
   toolbarActions?: React.ReactNode;
   /** First-column bulk select checkboxes (default: true). Requires stable row ids via `getRowId` or `id` on each row. */
   enableBulkSelect?: boolean;
+  /** Per-row selectability. Return false to make a row's checkbox unavailable (e.g. read-only rows). */
+  getRowCanSelect?: (row: TData) => boolean;
   /** Stable unique id per row; defaults to `String(row.id)` when present, else row index. */
   getRowId?: (originalRow: TData, index: number) => string;
   /** Called when selection changes (for bulk actions, etc.). */
@@ -277,6 +279,7 @@ function DataTableInner<TData>({
   filters,
   toolbarActions,
   enableBulkSelect = true,
+  getRowCanSelect,
   getRowId: getRowIdProp,
   onRowSelectionChange: onRowSelectionChangeProp,
   rowSelection: controlledRowSelection,
@@ -528,7 +531,11 @@ function DataTableInner<TData>({
     onPaginationChange,
     onSortingChange,
     onRowSelectionChange: handleRowSelectionChange,
-    enableRowSelection: enableBulkSelect,
+    enableRowSelection: enableBulkSelect
+      ? getRowCanSelect
+        ? (row) => getRowCanSelect(row.original)
+        : true
+      : false,
     getRowId: enableBulkSelect ? resolveRowId : undefined,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),

@@ -83,6 +83,37 @@ content is the page's own `content` column, resolved exactly as for a builder pa
 per kit; the flag is required (the admin cannot infer it, and shows the "built in code" notice
 without it).
 
+## File-pages — a folder of routes, no database rows
+
+A kit's `index.tsx` is *one* template a database page points at. A kit can instead (or also)
+hold a **`pages/` folder**, where each `.tsx` file is a standalone route that lives in code with
+**no database row** — you add or edit pages by editing files, not by creating rows and picking a
+template.
+
+```
+inertia/custom/kits/mysite/
+  kit.json
+  pages/
+    index.tsx     → /            (filename is the path; `index` → home)
+    about.tsx     → /about
+    contact.tsx   → /contact
+  components/       (shared across the pages)
+```
+
+- **The filename is the URL path** (root-level); override it with `export const path = 'company/about'`.
+- **Title** defaults to the titleized filename (`about` → “About”, `index` → “Home”); override
+  with `export const title = 'About us'`. There is no DB row, so title/SEO come from the file.
+- Each file default-exports a `CodePageProps` component, exactly like a single-file kit — wrap in
+  `<SiteChrome>`, import shared `../components/*`, use app libraries + Tailwind.
+- **A database page always wins** on a path clash — file-pages fill only the paths no DB page owns.
+- File-pages are **pure code: no editable region** (a region needs a DB row to store its content).
+- They appear in the admin pages list as **read-only rows** (a *File page* badge, only *View* —
+  no builder, settings or delete; edit the file instead). The home path (`/`) is served by the
+  landing route, so an `index.tsx` file-page needs a non-home `path` for now.
+
+Component pointer (internal): a file-page renders via `kitpage:<kit>/<file>`; a page a DB row
+points at uses `kit:<id>`.
+
 ## What you can build with
 
 ### Available libraries (root `package.json` only)
