@@ -111,22 +111,34 @@ const navEntries: NavEntry[] = [
 ]
 
 /**
- * Reorder a level of nav items by the operator's stored key order. Unknown keys
- * (a menu added since the order was saved) keep their default position, appended
- * after the ordered ones — so new menus never vanish.
+ * Reorder a list by the operator's stored key order, using `keyOf` to identify
+ * each item. Unknown keys (a menu added since the order was saved) keep their
+ * default position, appended after the ordered ones — so new menus never vanish.
  */
-function applyOrder<T extends { title: string }>(items: T[], order: string[] | undefined): T[] {
+function applyOrderBy<T>(items: T[], order: string[] | undefined, keyOf: (item: T) => string): T[] {
   if (!order || order.length === 0) return items
   const rank = new Map(order.map((k, i) => [k, i]))
   return items
     .map((item, i) => ({ item, i }))
     .sort(
       (a, b) =>
-        (rank.get(a.item.title) ?? order.length + a.i) -
-        (rank.get(b.item.title) ?? order.length + b.i)
+        (rank.get(keyOf(a.item)) ?? order.length + a.i) -
+        (rank.get(keyOf(b.item)) ?? order.length + b.i)
     )
     .map((x) => x.item)
 }
+
+/** Reorder title-keyed nav items (core menus and their children). */
+function applyOrder<T extends { title: string }>(items: T[], order: string[] | undefined): T[] {
+  return applyOrderBy(items, order, (x) => x.title)
+}
+
+/**
+ * A module may declare several nav groups, so a group's identity is its module
+ * name **and** its label — the label alone collides across modules. The arranger
+ * keys the stored order the same way; keep the two in step.
+ */
+const moduleGroupKey = (g: { name: string; label: string }) => `${g.name}:${g.label}`
 
 /** Top-level order with Dashboard pinned first and Settings pinned last. */
 function orderTopLevel<T extends { title: string }>(items: T[], order: string[] | undefined): T[] {
@@ -396,6 +408,12 @@ export function AppSidebar({ pathname }: { pathname: string }) {
     ])
   )
 
+  // Apps section order — module groups by `nav_order.apps`, items within a group
+  // by `nav_order['app:'+groupKey]` — both set from Settings → General.
+  const orderedModules = applyOrderBy(visibleModules, navOrder.apps, moduleGroupKey)
+  const orderedGroupItems = (g: (typeof orderedModules)[number]) =>
+    applyOrderBy(g.items ?? [], navOrder[`app:${moduleGroupKey(g)}`], (i) => i.label)
+
   return (
     <aside
       className={cn(
@@ -510,14 +528,16 @@ export function AppSidebar({ pathname }: { pathname: string }) {
           <Fragment>
             {sectionHeader('Apps')}
             {collapsed
-              ? visibleModules.flatMap((g) =>
+              ? orderedModules.flatMap((g) =>
                   g.items?.length
-                    ? g.items.map((i) => renderModuleLink(i.label, i.href, i.icon ?? g.icon))
+                    ? orderedGroupItems(g).map((i) =>
+                        renderModuleLink(i.label, i.href, i.icon ?? g.icon)
+                      )
                     : g.href
                       ? [renderModuleLink(g.label, g.href, g.icon)]
                       : []
                 )
-              : visibleModules.map((g) => {
+              : orderedModules.map((g) => {
                   if (!g.items?.length) {
                     return g.href ? renderModuleLink(g.label, g.href, g.icon) : null
                   }
@@ -560,7 +580,9 @@ export function AppSidebar({ pathname }: { pathname: string }) {
                       >
                         <div className="overflow-hidden">
                           <div className="mt-0.5 ml-4 space-y-0.5 border-l border-sidebar-border pl-2">
-                            {g.items.map((i) => renderModuleLink(i.label, i.href, i.icon))}
+                            {orderedGroupItems(g).map((i) =>
+                              renderModuleLink(i.label, i.href, i.icon)
+                            )}
                           </div>
                         </div>
                       </div>

@@ -21,6 +21,7 @@ import { BackButton } from '~/components/admin/back-button'
 import { PageHeader } from '~/components/admin/page-header'
 import { Can } from '~/components/providers/ability-provider'
 import { useWebsiteSettings, useUpdateWebsiteSettings } from '~/hooks/api/use-website-settings'
+import { useModulesMenu } from '~/hooks/api/use-modules'
 
 /**
  * The core sidebar nav, described by title so this page can reorder and hide it.
@@ -62,6 +63,13 @@ function mergeOrder(saved: string[] | undefined, defaults: string[]): string[] {
   const kept = (saved ?? []).filter((t) => defaults.includes(t))
   return [...kept, ...defaults.filter((t) => !kept.includes(t))]
 }
+
+/**
+ * A module's nav group identity — module name + label, matching
+ * `moduleGroupKey` in `~/components/admin/sidebar.tsx`. Keep the two in step so
+ * the order saved here is read back correctly there.
+ */
+const moduleGroupKey = (g: { name: string; label: string }) => `${g.name}:${g.label}`
 
 function ToggleRow({
   title,
@@ -146,6 +154,8 @@ function ChildList({ order, onReorder }: { order: string[]; onReorder: (next: st
 function NavArranger() {
   const { data } = useWebsiteSettings()
   const update = useUpdateWebsiteSettings()
+  const moduleMenu = useModulesMenu()
+  const moduleGroups = useMemo(() => moduleMenu.data ?? [], [moduleMenu.data])
   const appCfg = useMemo(() => data?.sections?.['app_config'] ?? {}, [data])
 
   const savedOrder = useMemo<Record<string, string[]>>(() => {
@@ -170,11 +180,17 @@ function NavArranger() {
 
   const [rootOrder, setRootOrder] = useState<string[]>(MIDDLE_TITLES)
   const [childOrder, setChildOrder] = useState<Record<string, string[]>>({})
+  // Apps section: module group order + per-group item order, both keyed by
+  // `moduleGroupKey`. Seeded separately because the module menu is a distinct
+  // query that can arrive after the settings.
+  const [appsOrder, setAppsOrder] = useState<string[]>([])
+  const [appItemOrder, setAppItemOrder] = useState<Record<string, string[]>>({})
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const seeded = useRef(false)
+  const appsSeeded = useRef(false)
 
-  // Seed local state once the settings load; keep local edits across the refetch
-  // a save triggers.
+  // Seed core nav order once the settings load; keep local edits across the
+  // refetch a save triggers.
   useEffect(() => {
     if (!data || seeded.current) return
     seeded.current = true
@@ -184,13 +200,48 @@ function NavArranger() {
     setChildOrder(next)
   }, [data, savedOrder])
 
+  // Seed the Apps order once both the settings and the module menu are in.
+  useEffect(() => {
+    if (!data || moduleGroups.length === 0 || appsSeeded.current) return
+    appsSeeded.current = true
+    setAppsOrder(mergeOrder(savedOrder.apps, moduleGroups.map(moduleGroupKey)))
+    const items: Record<string, string[]> = {}
+    for (const g of moduleGroups) {
+      if (g.items?.length) {
+        const key = moduleGroupKey(g)
+        items[key] = mergeOrder(
+          savedOrder[`app:${key}`],
+          g.items.map((i) => i.label)
+        )
+      }
+    }
+    setAppItemOrder(items)
+  }, [data, moduleGroups, savedOrder])
+
+  const groupByKey = useMemo(
+    () => new Map(moduleGroups.map((g) => [moduleGroupKey(g), g])),
+    [moduleGroups]
+  )
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
-  const persist = (root: string[], children: Record<string, string[]>) => {
+  // Merge onto the last-saved order so a save from one section never wipes keys
+  // another section owns but has not seeded yet (e.g. reordering core menus
+  // before the module menu has loaded must not drop the saved Apps order).
+  const persist = (over: {
+    root?: string[]
+    children?: Record<string, string[]>
+    apps?: string[]
+    appItems?: Record<string, string[]>
+  }) => {
+    const payload: Record<string, string[]> = { ...savedOrder }
+    payload.root = over.root ?? rootOrder
+    for (const [k, v] of Object.entries(over.children ?? childOrder)) payload[k] = v
+    const apps = over.apps ?? appsOrder
+    if (apps.length > 0) payload.apps = apps
+    for (const [k, v] of Object.entries(over.appItems ?? appItemOrder)) payload[`app:${k}`] = v
     update.mutate({
-      patches: [
-        { section: 'app_config', key: 'nav_order', value: JSON.stringify({ root, ...children }) },
-      ],
+      patches: [{ section: 'app_config', key: 'nav_order', value: JSON.stringify(payload) }],
     })
   }
 
@@ -202,13 +253,30 @@ function NavArranger() {
     if (from < 0 || to < 0) return
     const next = arrayMove(rootOrder, from, to)
     setRootOrder(next)
-    persist(next, childOrder)
+    persist({ root: next })
   }
 
   const onChildReorder = (parent: string) => (next: string[]) => {
     const merged = { ...childOrder, [parent]: next }
     setChildOrder(merged)
-    persist(rootOrder, merged)
+    persist({ children: merged })
+  }
+
+  const onAppsDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const from = appsOrder.indexOf(String(active.id))
+    const to = appsOrder.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+    const next = arrayMove(appsOrder, from, to)
+    setAppsOrder(next)
+    persist({ apps: next })
+  }
+
+  const onAppItemsReorder = (key: string) => (next: string[]) => {
+    const merged = { ...appItemOrder, [key]: next }
+    setAppItemOrder(merged)
+    persist({ appItems: merged })
   }
 
   const toggleHidden = (title: string, visible: boolean) => {
@@ -290,6 +358,63 @@ function NavArranger() {
       </DndContext>
 
       {pinnedRow('Settings')}
+
+      {/* Apps — enabled modules' sidebar groups, ordered the same way. Renders
+          after Settings because that is where the Apps section sits in the
+          sidebar. Modules are enabled/disabled elsewhere, so there is no hide
+          toggle here — reorder only. */}
+      {appsOrder.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 px-1 pt-3">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Apps
+            </span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onAppsDragEnd}
+          >
+            <SortableContext items={appsOrder} strategy={verticalListSortingStrategy}>
+              {appsOrder.map((key) => {
+                const group = groupByKey.get(key)
+                if (!group) return null
+                const hasChildren = !!group.items?.length
+                const isOpen = expanded.has(key)
+                return (
+                  <div key={key}>
+                    <SortableRow id={key}>
+                      <span className="flex-1 truncate text-sm font-medium">{group.label}</span>
+                      {hasChildren ? (
+                        <button
+                          type="button"
+                          onClick={() => toggle(key)}
+                          className="rounded p-1 text-muted-foreground hover:text-foreground"
+                          aria-label={isOpen ? 'Collapse' : 'Expand'}
+                        >
+                          <ChevronDown
+                            className={cn(
+                              'size-4 transition-transform',
+                              isOpen ? '' : '-rotate-90'
+                            )}
+                          />
+                        </button>
+                      ) : null}
+                    </SortableRow>
+                    {hasChildren && isOpen ? (
+                      <ChildList
+                        order={appItemOrder[key] ?? group.items!.map((i) => i.label)}
+                        onReorder={onAppItemsReorder(key)}
+                      />
+                    ) : null}
+                  </div>
+                )
+              })}
+            </SortableContext>
+          </DndContext>
+        </div>
+      ) : null}
     </div>
   )
 }
