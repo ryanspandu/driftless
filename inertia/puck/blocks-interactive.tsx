@@ -639,7 +639,7 @@ function MenuPanelContent({ items }: { items: ResolvedMenuItemDto[] }) {
               href={c.href}
               target={c.target}
               rel={c.target === '_blank' ? 'noopener noreferrer' : undefined}
-              className="block rounded px-3 py-2 text-sm hover:bg-muted"
+              className="block rounded px-2.5 py-1.5 text-sm hover:bg-muted"
             >
               {c.label}
             </a>
@@ -650,7 +650,7 @@ function MenuPanelContent({ items }: { items: ResolvedMenuItemDto[] }) {
   }
   return (
     <div
-      className="grid gap-6"
+      className="grid gap-5 p-1.5"
       style={{
         gridTemplateColumns: `repeat(${Math.min(items.length, 4)}, minmax(10rem, 1fr))`,
       }}
@@ -772,7 +772,7 @@ function MenuBarItem({ item }: { item: ResolvedMenuItemDto }) {
         role="region"
         aria-label={item.label}
         className={cn(
-          'w-full rounded-md border border-border bg-background p-4 shadow-lg md:absolute md:top-full md:mt-1 md:w-auto',
+          'w-full rounded-md border border-border bg-background p-1.5 shadow-lg md:absolute md:top-full md:mt-1 md:w-auto',
           full ? 'md:left-0' : 'md:left-0 md:min-w-52'
         )}
         style={{ display: open ? 'block' : 'none', zIndex: 20 }}
