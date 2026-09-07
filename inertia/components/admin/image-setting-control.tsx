@@ -37,6 +37,7 @@ export function ImageSettingControl({
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const processFile = useCallback(
@@ -90,12 +91,29 @@ export function ImageSettingControl({
       ) : null}
 
       <div className="flex flex-wrap items-start gap-4">
-        <div
+        {/* The preview doubles as a dropzone: drag an image onto it, or click it. */}
+        <button
+          type="button"
+          disabled={disabled || busy}
+          aria-label={`Upload ${label} — click or drop an image`}
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!disabled && !busy) setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            if (disabled || busy) return;
+            void processFile(e.dataTransfer.files?.[0]);
+          }}
           className={cn(
-            "shrink-0 overflow-hidden rounded-lg border bg-background",
+            "relative shrink-0 cursor-pointer overflow-hidden rounded-lg border bg-background transition-colors",
+            "hover:border-primary/60 disabled:cursor-default",
+            dragging && "border-primary ring-2 ring-primary",
             preview === "square" && "flex size-16 items-center justify-center",
-            preview === "wide" &&
-              cn("relative h-36 w-full", maxWideClassName),
+            preview === "wide" && cn("relative h-36 w-full", maxWideClassName),
           )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -103,6 +121,7 @@ export function ImageSettingControl({
             src={value || defaultAsset}
             alt=""
             className={cn(
+              "pointer-events-none",
               preview === "square" && "max-h-full max-w-full object-contain",
               preview === "wide" && "size-full object-cover object-center",
             )}
@@ -110,7 +129,12 @@ export function ImageSettingControl({
               (e.target as HTMLImageElement).src = defaultAsset;
             }}
           />
-        </div>
+          {dragging ? (
+            <span className="absolute inset-0 flex items-center justify-center bg-background/70 text-xs font-medium text-primary">
+              Drop image
+            </span>
+          ) : null}
+        </button>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
