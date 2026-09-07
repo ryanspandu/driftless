@@ -10,8 +10,35 @@ import { applyPatchOps, type PatchOp } from '#modules/mcp/services/puck_patch'
 import { generateResponsive } from '#modules/mcp/services/auto_responsive'
 import { checkDesignCoverage } from '#modules/mcp/services/design_coverage'
 import { appUrl } from '#config/app'
+import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
+import { hasPrivilegedPageContent } from '#services/html_sanitizer_service'
+import { CUSTOM_TEMPLATES } from '#services/custom_templates.generated'
 
 const pages = new PagesService()
+
+/**
+ * Gate executable page content on the MCP surface, exactly as the admin
+ * controller does (`PagesController.canManageExecutableContent`).
+ *
+ * A CODE page (single-file component or `kit:<id>` custom template) or content
+ * carrying code snippets runs with full app privilege, so writing it needs the
+ * `settings:manage`-backed code ability — not merely the `builder:pages` token
+ * ability every page write has. Without this check, a token scoped only to build
+ * pages could point one at arbitrary code and publish it. `currentKind` covers
+ * editing a page that is already CODE without re-sending `kind`.
+ */
+async function mayManageExecutable(
+  user: User,
+  body: { kind?: unknown; content?: unknown },
+  currentKind?: string
+): Promise<boolean> {
+  if ((body.kind ?? currentKind) !== 'CODE' && !hasPrivilegedPageContent(body.content)) return true
+  await user.load('roles', (q) => q.preload('permissions'))
+  return abilityAllowsCode(collectUserPermissions(user), 'settings:manage')
+}
+
+const EXECUTABLE_DENIED =
+  'settings:manage is required for executable page content (CODE pages / custom templates)'
 
 /**
  * Auto-add mobile/tablet responsive overrides to a just-validated document,
@@ -81,6 +108,14 @@ export default class BuilderPagesController {
     }
   }
 
+  /**
+   * The custom-template kits under `inertia/custom/kits/`, so the AI can learn
+   * valid `kit:<id>` values before creating a CODE page that points at one.
+   */
+  async customTemplates({ response }: HttpContext) {
+    return response.json(CUSTOM_TEMPLATES)
+  }
+
   async store({ request, auth, response }: HttpContext) {
     const user = auth.user as User
     const dto = request.only([
@@ -98,6 +133,10 @@ export default class BuilderPagesController {
       'content',
       'seo',
     ]) as Parameters<PagesService['create']>[1]
+
+    if (!(await mayManageExecutable(user, dto))) {
+      return response.status(403).json({ message: EXECUTABLE_DENIED })
+    }
 
     let check: ValidationResult | undefined
     let resp: { responsiveAdded: number } | undefined
@@ -134,6 +173,19 @@ export default class BuilderPagesController {
       'scheduledPublishAt',
       'scheduledUnpublishAt',
     ]) as Parameters<PagesService['update']>[2]
+
+    // The page's current kind gates editing one that is already CODE without
+    // re-sending `kind`. A missing page falls through to the service's 404 below.
+    let currentKind: string | undefined
+    try {
+      const existing = await pages.findOne(params.id)
+      currentKind = existing.kind
+    } catch {
+      currentKind = undefined
+    }
+    if (!(await mayManageExecutable(user, dto, currentKind))) {
+      return response.status(403).json({ message: EXECUTABLE_DENIED })
+    }
 
     let check: ValidationResult | undefined
     let resp: { responsiveAdded: number } | undefined

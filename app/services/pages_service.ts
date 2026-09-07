@@ -4,6 +4,7 @@ import PageRevision from '#models/page_revision'
 import { newUlid } from '#services/ulid_service'
 import { currentBuildId } from '#services/release'
 import { CODE_PAGES } from '#services/code_pages.generated'
+import { CUSTOM_TEMPLATES } from '#services/custom_templates.generated'
 import { DateTime } from 'luxon'
 import { sanitizePuckDocument } from '#services/html_sanitizer_service'
 import RedirectsService from '#services/redirects_service'
@@ -585,16 +586,28 @@ export default class PagesService {
   /**
    * A CODE page must name a component that exists in this build.
    *
-   * Checked against the generated manifest rather than trusted from the client,
-   * because the admin picker is not the only way in — the API accepts a raw
-   * value. An unchecked name does not fail loudly: it reaches the browser and
-   * throws inside Inertia's async resolver, which reads as a blank page rather
-   * than an error. Refusing the write is the only point where it can still be
-   * reported as what it is.
+   * Two shapes share this column: a single-file page (`"about"` →
+   * `inertia/custom/pages/about.tsx`) and a custom-template kit (`"kit:<id>"` →
+   * `inertia/custom/kits/<id>/index.tsx`). Both are checked against their
+   * generated manifest rather than trusted from the client, because the admin
+   * picker is not the only way in — the API accepts a raw value. An unchecked
+   * name does not fail loudly: it reaches the browser and throws inside Inertia's
+   * async resolver, which reads as a blank page rather than an error. Refusing
+   * the write is the only point where it can still be reported as what it is.
    */
   private assertComponent(value: string | null | undefined): string {
     const component = (value ?? '').trim()
     if (!component) throw new Error('A code page needs a component')
+    if (component.startsWith('kit:')) {
+      const id = component.slice('kit:'.length)
+      if (!CUSTOM_TEMPLATES.some((kit) => kit.id === id)) {
+        const known = CUSTOM_TEMPLATES.length
+          ? CUSTOM_TEMPLATES.map((kit) => `kit:${kit.id}`).join(', ')
+          : 'none in this build'
+        throw new Error(`Unknown custom template "${component}". Available: ${known}`)
+      }
+      return component
+    }
     if (!CODE_PAGES.includes(component)) {
       const known = CODE_PAGES.length ? CODE_PAGES.join(', ') : 'none in this build'
       throw new Error(`Unknown page component "${component}". Available: ${known}`)

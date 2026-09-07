@@ -187,6 +187,7 @@ export interface ApiDefinition {
     trash: typeof routes['pages.trash']
     collections: typeof routes['pages.collections']
     codeComponents: typeof routes['pages.code_components']
+    customTemplates: typeof routes['pages.custom_templates']
     importOne: typeof routes['pages.import_one']
     bulk: typeof routes['pages.bulk']
     store: typeof routes['pages.store']
@@ -575,6 +576,7 @@ export interface ApiDefinition {
     pages: {
       index: typeof routes['mcp.pages.index']
       validate: typeof routes['mcp.pages.validate']
+      customTemplates: typeof routes['mcp.pages.customTemplates']
       show: typeof routes['mcp.pages.show']
       store: typeof routes['mcp.pages.store']
       update: typeof routes['mcp.pages.update']

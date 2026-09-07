@@ -606,6 +606,12 @@ const routes = {
     tokens: [{"old":"/api/admin/pages/code-components","type":0,"val":"api","end":""},{"old":"/api/admin/pages/code-components","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/code-components","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/code-components","type":0,"val":"code-components","end":""}],
     types: placeholder as Registry['pages.code_components']['types'],
   },
+  'pages.custom_templates': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/pages/custom-templates',
+    tokens: [{"old":"/api/admin/pages/custom-templates","type":0,"val":"api","end":""},{"old":"/api/admin/pages/custom-templates","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/custom-templates","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/custom-templates","type":0,"val":"custom-templates","end":""}],
+    types: placeholder as Registry['pages.custom_templates']['types'],
+  },
   'pages.import_one': {
     methods: ["POST"],
     pattern: '/api/admin/pages/import',
@@ -2357,6 +2363,12 @@ const routes = {
     pattern: '/api/mcp/v1/pages/validate',
     tokens: [{"old":"/api/mcp/v1/pages/validate","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/pages/validate","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/pages/validate","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/pages/validate","type":0,"val":"pages","end":""},{"old":"/api/mcp/v1/pages/validate","type":0,"val":"validate","end":""}],
     types: placeholder as Registry['mcp.pages.validate']['types'],
+  },
+  'mcp.pages.customTemplates': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/mcp/v1/custom-templates',
+    tokens: [{"old":"/api/mcp/v1/custom-templates","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/custom-templates","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/custom-templates","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/custom-templates","type":0,"val":"custom-templates","end":""}],
+    types: placeholder as Registry['mcp.pages.customTemplates']['types'],
   },
   'mcp.pages.show': {
     methods: ["GET","HEAD"],

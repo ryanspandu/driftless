@@ -1207,6 +1207,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['codeComponents']>>>
     }
   }
+  'pages.custom_templates': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/pages/custom-templates'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['customTemplates']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['customTemplates']>>>
+    }
+  }
   'pages.import_one': {
     methods: ["POST"]
     pattern: '/api/admin/pages/import'
@@ -4709,6 +4721,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['validate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['validate']>>>
+    }
+  }
+  'mcp.pages.customTemplates': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/custom-templates'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['customTemplates']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/pages_controller').default['customTemplates']>>>
     }
   }
   'mcp.pages.show': {

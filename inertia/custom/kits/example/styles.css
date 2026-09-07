@@ -1,0 +1,12 @@
+/*
+ * Co-located CSS for the example kit. Imported by index.tsx, so Vite emits it as
+ * a self-origin CSS chunk — the strict production CSP (`style-src 'self'`) allows
+ * a linked stylesheet with no nonce. Use plain CSS only for what Tailwind
+ * utilities cannot express; reach for it sparingly.
+ */
+.kit-example-gradient {
+  background: linear-gradient(90deg, var(--primary), var(--muted-foreground));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

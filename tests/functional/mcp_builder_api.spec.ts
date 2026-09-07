@@ -199,6 +199,56 @@ test.group('MCP builder-API | pages + validator', (group) => {
       })
     created.assertStatus(201)
     assert.isArray(created.body().changes)
-    assert.isTrue(created.body().warnings.some((w: { message: string }) => /bogusProp/.test(w.message)))
+    assert.isTrue(
+      created.body().warnings.some((w: { message: string }) => /bogusProp/.test(w.message))
+    )
+  })
+})
+
+test.group('MCP builder-API | custom templates (kits)', (group) => {
+  group.each.setup(async () => resetDatabase())
+
+  test('list_custom_templates returns the committed example kit', async ({ client, assert }) => {
+    await enableMcp()
+    const t = await token(['builder:read'])
+    const res = await client.get('/api/mcp/v1/custom-templates').header('Authorization', bearer(t))
+    res.assertStatus(200)
+    const kits: Array<{ id: string }> = res.body()
+    assert.isArray(kits)
+    assert.isTrue(kits.some((k) => k.id === 'example'))
+  })
+
+  test('create → publish → render a kit page end to end', async ({ client, assert }) => {
+    await enableMcp()
+    // The seeded admin holds settings:manage, so the executable-content gate lets
+    // this through; a user without it is refused (mirrors the admin controller).
+    const t = await token(['builder:read', 'builder:pages'])
+    const created = await client.post('/api/mcp/v1/pages').header('Authorization', bearer(t)).json({
+      title: 'Kit Page',
+      path: '/kit-page',
+      status: 'PUBLISHED',
+      kind: 'CODE',
+      component: 'kit:example',
+    })
+    created.assertStatus(201)
+    assert.equal(created.body().kind, 'CODE')
+    assert.equal(created.body().component, 'kit:example')
+
+    // The public route resolves the kit and renders its folder's index.tsx.
+    const live = await client.get('/kit-page')
+    live.assertStatus(200)
+    // The kit's own markup (from inertia/custom/kits/example/) is in the HTML.
+    assert.include(live.text(), 'custom template kit')
+    assert.include(live.text(), 'Kit Page')
+  })
+
+  test('a page pointing at an unknown kit is rejected (422)', async ({ client }) => {
+    await enableMcp()
+    const t = await token(['builder:read', 'builder:pages'])
+    const res = await client
+      .post('/api/mcp/v1/pages')
+      .header('Authorization', bearer(t))
+      .json({ title: 'Ghost', path: '/ghost-kit', kind: 'CODE', component: 'kit:does-not-exist' })
+    res.assertStatus(422)
   })
 })

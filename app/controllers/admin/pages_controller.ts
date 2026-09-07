@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import PagesService from '#services/pages_service'
 import CmsService from '#services/cms_service'
 import { CODE_PAGES } from '#services/code_pages.generated'
+import { CUSTOM_TEMPLATES } from '#services/custom_templates.generated'
 import type User from '#models/user'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
 import { hasPrivilegedPageContent } from '#services/html_sanitizer_service'
@@ -273,5 +274,17 @@ export default class PagesController {
    */
   async codeComponents({ response }: HttpContext) {
     return response.json(CODE_PAGES)
+  }
+
+  /**
+   * The custom-template kits under `inertia/custom/kits/`.
+   *
+   * Feeds the create dialog's "Custom template (coded)" picker. Like
+   * `codeComponents`, served from the same generated manifest the service
+   * validates `kit:<id>` values against, so the picker can never offer a kit the
+   * save would reject.
+   */
+  async customTemplates({ response }: HttpContext) {
+    return response.json(CUSTOM_TEMPLATES)
   }
 }

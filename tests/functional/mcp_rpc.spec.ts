@@ -103,11 +103,12 @@ test.group('MCP in-app RPC | handshake + discovery', (group) => {
     assert.include(names, 'create_page')
     assert.include(names, 'render_page')
     assert.include(names, 'patch_page_content')
+    assert.include(names, 'list_custom_templates')
     // …the catalog/CRUD noise is gone…
     assert.notInclude(names, 'create_product')
     assert.notInclude(names, 'list_categories')
     // …and the set is meaningfully smaller than the full ~57.
-    assert.isBelow(names.length, 25)
+    assert.isBelow(names.length, 30)
   })
 
   test('?tools=a,b restricts to exactly those tools', async ({ client, assert }) => {

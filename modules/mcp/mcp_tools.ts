@@ -41,6 +41,8 @@ export interface ToolDeps {
  */
 export const SERVER_INSTRUCTIONS = `Driftless page builder. To reproduce a design reference (a screenshot/mockup) faithfully, follow this loop — structure is easy to get right; palette, imagery and icons are what make or break fidelity:
 
+0. PAGE TYPE FIRST — ask the operator whether they want a **page-builder page** (you compose Puck blocks: the default, and everything below) or a **custom template** (a coded template the operator supplied, which you only point a page at). For a custom template: call list_custom_templates, then create_page with kind:"CODE" and component:"kit:<id>", and STOP — do not build blocks or run the rest of this loop. Otherwise build with the page builder:
+
 1. get_block_catalog — read the blocks, recipes, and the live \`theme\` (what variant:"primary" renders as).
 2. If you have a reference image, upload_media(purpose:"reference") so you can crop real photos out of it.
 3. BRAND FIRST: extract the design's palette + fonts and call set_appearance (exact hex). Button primary, product CTAs, FormButton and cart/checkout all render the theme colours — skip this and every CTA ships the default purple.
@@ -65,6 +67,7 @@ export const MCP_TOOL_PROFILES: Record<string, string[]> = {
     'get_block_catalog',
     'list_pages',
     'get_page',
+    'list_custom_templates',
     'create_page',
     'update_page',
     'set_page_content',
@@ -420,6 +423,18 @@ export function registerTools(
   const PageMeta = {
     status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
     renderMode: z.string().optional(),
+    kind: z
+      .enum(['BUILDER', 'CODE'])
+      .optional()
+      .describe(
+        'How the page is built. BUILDER (default) = a Puck document you compose with blocks (everything else in these instructions). CODE = a hand-written component or custom template the operator wrote — you do NOT author its markup, you only point at it via `component`. Ask the operator which they want before creating.'
+      ),
+    component: z
+      .string()
+      .optional()
+      .describe(
+        'Required when kind=CODE: what to render. A custom template is "kit:<id>" (call list_custom_templates for ids); a single-file code page is its bare slug. Leave unset for BUILDER.'
+      ),
     layoutId: z.string().nullable().optional(),
     headerTemplateId: z.string().nullable().optional(),
     footerTemplateId: z.string().nullable().optional(),
@@ -429,8 +444,14 @@ export function registerTools(
     ...autoResponsiveField,
   }
   server.tool(
+    'list_custom_templates',
+    'List the operator-provided custom templates (coded page "kits"). Call before creating a CODE page so you pass a real `component` value ("kit:<id>"). Returns [{ id, name, description }].',
+    {},
+    () => run(() => call('GET', '/api/mcp/v1/custom-templates'))
+  )
+  server.tool(
     'create_page',
-    'Create a page. `content` (optional) is a Puck document validated against the catalog.',
+    'Create a page. `content` (optional) is a Puck document validated against the catalog. For a coded page/custom template, pass kind:"CODE" + component (see list_custom_templates) and omit content.',
     { title: z.string(), path: z.string(), content: PuckDoc.optional(), ...PageMeta },
     (args) => run(() => call('POST', '/api/mcp/v1/pages', args))
   )

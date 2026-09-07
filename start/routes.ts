@@ -561,6 +561,10 @@ router
           () => import('#controllers/admin/pages_controller'),
           'codeComponents',
         ])
+        router.get('/api/admin/pages/custom-templates', [
+          () => import('#controllers/admin/pages_controller'),
+          'customTemplates',
+        ])
         router.post('/api/admin/pages/import', [
           () => import('#controllers/admin/pages_controller'),
           'importOne',

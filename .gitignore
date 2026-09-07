@@ -55,3 +55,14 @@ yarn-error.log
 # !modules/registry.ts
 # !modules/tsconfig.json
 # !modules/types.ts
+
+# Custom template kits
+#
+# `inertia/custom/kits/*` (the children, not the dir): git can re-include a
+# child of a non-excluded directory, so the negations below are real — the same
+# lesson as the Modules section above. A kit is an operator payload that lives
+# only on the customer's server; `example/` and the README are the committed
+# exceptions. See inertia/custom/kits/README.md.
+inertia/custom/kits/*
+!inertia/custom/kits/README.md
+!inertia/custom/kits/example/

@@ -18,6 +18,11 @@ blocks**, for a page that is mostly content with one bespoke piece.
 | One custom piece on an otherwise editable page | **Custom block** |
 | Bespoke layout, heavy interactivity, hand-tuned markup nobody will edit visually | **Code page** |
 | Coded structure, but one area an editor must be able to change | **Code page + `<BuilderRegion />`** |
+| A themed, self-contained coded page with its own components/styles/assets | **[Custom template (kit)](custom-templates.md)** |
+
+A **code page** is one `.tsx` file; a **[custom template / kit](custom-templates.md)** is the
+same idea packaged as a self-contained, gitignored folder (its own components, styling and
+imported assets) — the operator-payload form a template marketplace installs.
 
 > **Rule for AI assistants:** build pages with the **page builder**. Code pages exist for a
 > human who has decided the builder is the wrong tool for one specific page. Do not convert

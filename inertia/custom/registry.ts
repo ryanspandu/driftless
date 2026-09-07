@@ -29,20 +29,39 @@ export interface CustomPageModule {
 
 const CUSTOM_PAGES = import.meta.glob<CustomPageModule>('./pages/*.tsx', { eager: true })
 
-const keyFor = (slug: string) => `./pages/${slug}.tsx`
+/**
+ * Custom-template "kits" — the folder counterpart to a single-file page. A page
+ * points at one with `component = "kit:<folder>"`, resolved to that folder's
+ * `index.tsx`. Same eager glob, same reason (SSR `renderToString` can't await).
+ * See `inertia/custom/kits/README.md`.
+ */
+const CUSTOM_KITS = import.meta.glob<CustomPageModule>('./kits/*/index.tsx', { eager: true })
 
-export function getCustomPage(slug: string): ComponentType<CodePageProps> | null {
-  return CUSTOM_PAGES[keyFor(slug)]?.default ?? null
+const KIT_PREFIX = 'kit:'
+
+/** Resolve a `page.component` pointer to its module — a `kit:<id>` folder or a single file. */
+function moduleFor(pointer: string): CustomPageModule | undefined {
+  return pointer.startsWith(KIT_PREFIX)
+    ? CUSTOM_KITS[`./kits/${pointer.slice(KIT_PREFIX.length)}/index.tsx`]
+    : CUSTOM_PAGES[`./pages/${pointer}.tsx`]
 }
 
-/** Does this page render a builder-editable region? */
-export function customPageHasRegion(slug: string): boolean {
-  return CUSTOM_PAGES[keyFor(slug)]?.editableRegion === true
+export function getCustomPage(pointer: string): ComponentType<CodePageProps> | null {
+  return moduleFor(pointer)?.default ?? null
 }
 
-/** Every slug in this build, sorted — shown when a lookup misses. */
+/** Does this page/kit render a builder-editable region? */
+export function customPageHasRegion(pointer: string): boolean {
+  return moduleFor(pointer)?.editableRegion === true
+}
+
+/** Every page slug and `kit:<id>` in this build, sorted — shown when a lookup misses. */
 export function customPageSlugs(): string[] {
-  return Object.keys(CUSTOM_PAGES)
-    .map((key) => key.replace('./pages/', '').replace('.tsx', ''))
-    .sort()
+  const pages = Object.keys(CUSTOM_PAGES).map((key) =>
+    key.replace('./pages/', '').replace('.tsx', '')
+  )
+  const kits = Object.keys(CUSTOM_KITS).map(
+    (key) => `${KIT_PREFIX}${key.replace('./kits/', '').replace('/index.tsx', '')}`
+  )
+  return [...pages, ...kits].sort()
 }

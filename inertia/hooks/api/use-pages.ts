@@ -40,6 +40,24 @@ export function useCodeComponents(enabled = true) {
   })
 }
 
+/** A custom-template kit offered by the create-page picker. */
+export interface CustomTemplateOption {
+  id: string
+  name: string
+  description: string
+}
+
+/** The custom-template kits under `inertia/custom/kits/` (folder-based code pages). */
+export function useCustomTemplates(enabled = true) {
+  return useQuery({
+    queryKey: ['pages', 'custom-templates'] as const,
+    queryFn: () => apiFetch<CustomTemplateOption[]>('/api/admin/pages/custom-templates'),
+    // Fixed at build time — refetching it during a session cannot change it.
+    staleTime: Number.POSITIVE_INFINITY,
+    enabled,
+  })
+}
+
 export function useCreatePage() {
   const qc = useQueryClient()
   return useMutation({

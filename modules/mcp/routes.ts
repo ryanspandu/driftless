@@ -160,6 +160,10 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .as('mcp.pages.validate')
             .use(read('builder:read'))
           router
+            .get('/api/mcp/v1/custom-templates', [PagesCtrl, 'customTemplates'])
+            .as('mcp.pages.customTemplates')
+            .use(read('builder:read'))
+          router
             .get('/api/mcp/v1/pages/:id', [PagesCtrl, 'show'])
             .as('mcp.pages.show')
             .use(read('builder:read'))

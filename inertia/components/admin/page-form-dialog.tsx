@@ -14,9 +14,19 @@ import { Label } from '~/components/ui/label'
 import { AppSelect, type AppSelectOption } from '~/components/ui/app-select'
 import { apiErrorMessage } from '~/lib/api'
 import { useTemplatesList } from '~/hooks/api/use-templates'
-import { useCodeComponents } from '~/hooks/api/use-pages'
+import { useCodeComponents, useCustomTemplates } from '~/hooks/api/use-pages'
 
 type Mode = { kind: 'create' } | { kind: 'edit'; row: PageSummaryDto }
+
+/**
+ * How the operator is building this page — a UI-only choice, wider than the
+ * stored `kind`. `BUILDER` and `CODE` map to the same-named `kind`; `KIT` (a
+ * custom-template folder) is also stored as `kind='CODE'`, distinguished by a
+ * `component = "kit:<id>"` value. The two code choices differ only in which
+ * picker + hint they show and how `component` is shaped on submit.
+ */
+type BuildWith = 'BUILDER' | 'CODE' | 'KIT'
+const KIT_PREFIX = 'kit:'
 
 export type PageFormSubmit = (values: {
   title: string
@@ -63,7 +73,7 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
   const [path, setPath] = useState('')
   const [status, setStatus] = useState<'DRAFT' | 'PUBLISHED'>('DRAFT')
   const [renderMode, setRenderMode] = useState<PageRenderMode>('SSR')
-  const [kind, setKind] = useState<PageKind>('BUILDER')
+  const [buildWith, setBuildWith] = useState<BuildWith>('BUILDER')
   const [component, setComponent] = useState<string>('')
   const [layoutId, setLayoutId] = useState<string>('')
   const [headerTemplateId, setHeaderTemplateId] = useState<string>('')
@@ -72,11 +82,17 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Only asked for once the operator picks Code — most pages never need it.
-  const codeQuery = useCodeComponents(kind === 'CODE')
+  // Each picker's list is only fetched once its choice is active — most pages
+  // never need either.
+  const codeQuery = useCodeComponents(buildWith === 'CODE')
   const codeOptions: AppSelectOption[] = (codeQuery.data ?? []).map((slug) => ({
     value: slug,
     label: slug,
+  }))
+  const kitQuery = useCustomTemplates(buildWith === 'KIT')
+  const kitOptions: AppSelectOption[] = (kitQuery.data ?? []).map((kit) => ({
+    value: kit.id,
+    label: kit.description ? `${kit.name} — ${kit.description}` : kit.name,
   }))
 
   const layoutsQuery = useTemplatesList('LAYOUT')
@@ -116,8 +132,17 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
       setPath(mode.row.path)
       setStatus(mode.row.status)
       setRenderMode(mode.row.renderMode)
-      setKind(mode.row.kind ?? 'BUILDER')
-      setComponent(mode.row.component ?? '')
+      const rowComponent = mode.row.component ?? ''
+      if ((mode.row.kind ?? 'BUILDER') !== 'CODE') {
+        setBuildWith('BUILDER')
+        setComponent('')
+      } else if (rowComponent.startsWith(KIT_PREFIX)) {
+        setBuildWith('KIT')
+        setComponent(rowComponent.slice(KIT_PREFIX.length))
+      } else {
+        setBuildWith('CODE')
+        setComponent(rowComponent)
+      }
       setLayoutId(mode.row.layoutId ?? '')
       setHeaderTemplateId(mode.row.hideHeader ? NONE : (mode.row.headerTemplateId ?? ''))
       setFooterTemplateId(mode.row.hideFooter ? NONE : (mode.row.footerTemplateId ?? ''))
@@ -127,8 +152,8 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
       setPath('')
       setStatus('DRAFT')
       setRenderMode('SSR')
-      // Builder is the default deliberately — code pages are the exception.
-      setKind('BUILDER')
+      // Builder is the default deliberately — coded pages are the exception.
+      setBuildWith('BUILDER')
       setComponent('')
       setLayoutId('')
       setHeaderTemplateId('')
@@ -144,13 +169,24 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
     setError(null)
     setSubmitting(true)
     try {
+      // `buildWith` is a UI choice; both coded options persist as `kind='CODE'`,
+      // a kit distinguished by the `kit:` prefix on its component value.
+      const kind: PageKind = buildWith === 'BUILDER' ? 'BUILDER' : 'CODE'
+      const componentValue =
+        buildWith === 'KIT'
+          ? component
+            ? `${KIT_PREFIX}${component}`
+            : null
+          : buildWith === 'CODE'
+            ? component || null
+            : null
       await onSubmit({
         title: title.trim(),
         path: pathify(path || title),
         status,
         renderMode,
         kind,
-        component: kind === 'CODE' ? component || null : null,
+        component: componentValue,
         layoutId: layoutId || null,
         // `NONE` is not an id — it becomes the hide flag, and clears the id so
         // the two can never disagree about what this page renders.
@@ -216,17 +252,23 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
             <Label htmlFor="page-kind">Built with</Label>
             <AppSelect
               id="page-kind"
-              value={kind}
-              onChange={(v) => setKind(v as PageKind)}
+              value={buildWith}
+              onChange={(v) => {
+                // Clear the picker so a value from the other coded choice can't
+                // carry over (a single-file slug is not a kit id).
+                setBuildWith(v as BuildWith)
+                setComponent('')
+              }}
               options={[
                 { value: 'BUILDER', label: 'Visual builder' },
-                { value: 'CODE', label: 'Custom React component' },
+                { value: 'CODE', label: 'Custom React component (single file)' },
+                { value: 'KIT', label: 'Custom template (coded)' },
               ]}
               isSearchable={false}
             />
           </div>
 
-          {kind === 'CODE' ? (
+          {buildWith === 'CODE' ? (
             <div className="space-y-2">
               <Label htmlFor="page-component">Component</Label>
               {/*
@@ -245,6 +287,24 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
                 {codeOptions.length
                   ? 'From inertia/custom/pages/. Adding a file there needs a front-end rebuild before it appears.'
                   : 'No components found. Add one under inertia/custom/pages/ and rebuild the front end.'}
+              </p>
+            </div>
+          ) : null}
+
+          {buildWith === 'KIT' ? (
+            <div className="space-y-2">
+              <Label htmlFor="page-kit">Custom template</Label>
+              <AppSelect
+                id="page-kit"
+                value={component}
+                onChange={setComponent}
+                options={kitOptions}
+                placeholder={kitQuery.isLoading ? 'Loading…' : '— Choose a template —'}
+              />
+              <p className="text-xs text-muted-foreground">
+                {kitOptions.length
+                  ? 'A self-contained folder under inertia/custom/kits/. Adding one needs a front-end rebuild before it appears.'
+                  : 'No custom templates found. Add a folder under inertia/custom/kits/ (see its README) and rebuild.'}
               </p>
             </div>
           ) : null}
@@ -280,7 +340,7 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
             </div>
           </div>
 
-          {kind === 'BUILDER' ? (
+          {buildWith === 'BUILDER' ? (
             <div className="space-y-2">
               <Label htmlFor="page-layout">Layout</Label>
               <AppSelect
@@ -332,7 +392,7 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting || (kind === 'CODE' && !component)}>
+            <Button type="submit" disabled={submitting || (buildWith !== 'BUILDER' && !component)}>
               {submitting ? 'Saving…' : mode.kind === 'edit' ? 'Save changes' : 'Create'}
             </Button>
           </DialogFooter>

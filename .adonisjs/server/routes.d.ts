@@ -191,6 +191,7 @@ export type ScannedRoutes = {
     'mcp.collections.fields.reorder': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.pages.index': { paramsTuple?: []; params?: {} }
     'mcp.pages.validate': { paramsTuple?: []; params?: {} }
+    'mcp.pages.customTemplates': { paramsTuple?: []; params?: {} }
     'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.store': { paramsTuple?: []; params?: {} }
     'mcp.pages.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -332,6 +333,7 @@ export type ScannedRoutes = {
     'mcp.collections.trashed': { paramsTuple?: []; params?: {} }
     'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.pages.index': { paramsTuple?: []; params?: {} }
+    'mcp.pages.customTemplates': { paramsTuple?: []; params?: {} }
     'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.render': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.coverage': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -438,6 +440,7 @@ export type ScannedRoutes = {
     'mcp.collections.trashed': { paramsTuple?: []; params?: {} }
     'mcp.collections.show': { paramsTuple: [ParamValue]; params: {'key': ParamValue} }
     'mcp.pages.index': { paramsTuple?: []; params?: {} }
+    'mcp.pages.customTemplates': { paramsTuple?: []; params?: {} }
     'mcp.pages.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.render': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.coverage': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

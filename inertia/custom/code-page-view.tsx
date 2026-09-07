@@ -97,13 +97,17 @@ export function CodePageView({ page }: { page: CodePageEnvelope }) {
  * what does exist, points straight at the rebuild.
  */
 function MissingComponent({ slug, known }: { slug: string; known: string[] }) {
+  // A `kit:<id>` pointer resolves to a folder's index.tsx; a plain slug to a
+  // single file — name whichever one the operator needs to add and rebuild.
+  const expectedPath = slug.startsWith('kit:')
+    ? `inertia/custom/kits/${slug.slice('kit:'.length)}/index.tsx`
+    : `inertia/custom/pages/${slug}.tsx`
   return (
     <div className="mx-auto max-w-xl px-6 py-24 text-center">
       <p className="text-sm font-semibold">Custom page component not found</p>
       <p className="mt-2 text-sm text-muted-foreground">
         This page is set to render <code className="font-mono">{slug || '(none)'}</code>, but no
-        matching file was found at{' '}
-        <code className="font-mono">inertia/custom/pages/{slug}.tsx</code> in this build.
+        matching file was found at <code className="font-mono">{expectedPath}</code> in this build.
       </p>
       <p className="mt-2 text-sm text-muted-foreground">
         {known.length
