@@ -72,6 +72,9 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
   app_config: {
     landing_enabled: '1', // '0' hides the public landing/posts (dashboard-only)
     hidden_nav: '', // comma-separated core sidebar nav titles to hide
+    // JSON `{ root: [titles], "<parentTitle>": [childTitles] }` — the operator's
+    // sidebar order per level. Empty `{}` keeps the built-in order.
+    nav_order: '{}',
     // Public self-service signup at POST /register. Off by default: an open
     // registration endpoint that lands people in the admin area is a standing
     // liability, so an operator has to turn it on deliberately.
@@ -343,7 +346,8 @@ export interface PublicTheme {
  * keeps the value injection-safe when dropped straight into a `--primary:…`
  * declaration.
  */
-const COLOR_FN = /^(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\([0-9a-zA-Z.,%/\s+-]{1,80}\)$/
+const COLOR_FN =
+  /^(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\([0-9a-zA-Z.,%/\s+-]{1,80}\)$/
 export function safeColor(value: string | undefined): string {
   const v = (value ?? '').trim()
   if (!v) return ''
@@ -539,7 +543,9 @@ export class WebSettingsService {
    * so it knows what `variant:"primary"` / product CTAs will look like (and
    * whether it must call `setAppearance` to match a design's palette).
    */
-  async getAppearance(): Promise<PublicTheme & { effective: { primary: string; secondary: string } }> {
+  async getAppearance(): Promise<
+    PublicTheme & { effective: { primary: string; secondary: string } }
+  > {
     const theme = await this.getPublicTheme()
     return {
       ...theme,
@@ -583,16 +589,29 @@ export class WebSettingsService {
 
     const fontFamily = present('fontFamily')
     if (fontFamily && !safeFontFamily(fontFamily))
-      issues.push({ field: 'fontFamily', message: 'fontFamily may only contain letters, digits, spaces, _ and - (max 60 chars)' })
+      issues.push({
+        field: 'fontFamily',
+        message: 'fontFamily may only contain letters, digits, spaces, _ and - (max 60 chars)',
+      })
     const fontCssUrl = present('fontCssUrl')
     if (fontCssUrl && !safeFontUrl(fontCssUrl))
-      issues.push({ field: 'fontCssUrl', message: 'fontCssUrl must be a https://fonts.googleapis.com/… stylesheet href' })
+      issues.push({
+        field: 'fontCssUrl',
+        message: 'fontCssUrl must be a https://fonts.googleapis.com/… stylesheet href',
+      })
     const fontFaceUrl = present('fontFaceUrl')
     if (fontFaceUrl && !safeFontFaceUrl(fontFaceUrl))
-      issues.push({ field: 'fontFaceUrl', message: 'fontFaceUrl must be a same-origin .woff2/.woff/.ttf/.otf path (upload it with upload_media first)' })
+      issues.push({
+        field: 'fontFaceUrl',
+        message:
+          'fontFaceUrl must be a same-origin .woff2/.woff/.ttf/.otf path (upload it with upload_media first)',
+      })
     const fontCustomName = present('fontCustomName')
     if (fontCustomName && !safeFontFamily(fontCustomName))
-      issues.push({ field: 'fontCustomName', message: 'fontCustomName may only contain letters, digits, spaces, _ and -' })
+      issues.push({
+        field: 'fontCustomName',
+        message: 'fontCustomName may only contain letters, digits, spaces, _ and -',
+      })
 
     let savedColorsRaw: string | undefined
     if (input.savedColors !== undefined) {
@@ -601,9 +620,15 @@ export class WebSettingsService {
         const o = (item ?? {}) as Record<string, unknown>
         const slug = typeof o.slug === 'string' ? o.slug.trim().toLowerCase() : ''
         if (!/^[a-z0-9-]{1,40}$/.test(slug))
-          issues.push({ field: `savedColors[${i}].slug`, message: 'slug must match [a-z0-9-] (1–40 chars)' })
+          issues.push({
+            field: `savedColors[${i}].slug`,
+            message: 'slug must match [a-z0-9-] (1–40 chars)',
+          })
         if (typeof o.value !== 'string' || !safeColor(o.value))
-          issues.push({ field: `savedColors[${i}].value`, message: 'value must be a valid CSS colour' })
+          issues.push({
+            field: `savedColors[${i}].value`,
+            message: 'value must be a valid CSS colour',
+          })
       })
       savedColorsRaw = JSON.stringify(input.savedColors ?? [])
     }
@@ -717,10 +742,11 @@ export class WebSettingsService {
     return clean
   }
 
-  /** App-level toggles (landing on/off + hidden sidebar nav) for any admin. */
+  /** App-level toggles (landing on/off + hidden/ordered sidebar nav) for any admin. */
   async getAppConfig(): Promise<{
     landingEnabled: boolean
     hiddenNav: string[]
+    navOrder: Record<string, string[]>
     registrationEnabled: boolean
   }> {
     const sections = await this.getMergedSections()
@@ -731,9 +757,28 @@ export class WebSettingsService {
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean),
+      navOrder: parseNavOrder(cfg['nav_order']),
       // Defaults to off — see `WEB_DEFAULTS.app_config.registration_enabled`.
       registrationEnabled: (cfg['registration_enabled'] ?? '0') === '1',
     }
+  }
+}
+
+/** Parse the `nav_order` JSON into a per-level `{ key: [orderedKeys] }` map. */
+function parseNavOrder(raw: string | undefined): Record<string, string[]> {
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object') return {}
+    const out: Record<string, string[]> = {}
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (Array.isArray(value)) {
+        out[key] = value.filter((v): v is string => typeof v === 'string')
+      }
+    }
+    return out
+  } catch {
+    return {}
   }
 }
 

@@ -110,6 +110,40 @@ const navEntries: NavEntry[] = [
   { title: 'Settings', href: '/admin/settings', icon: SlidersHorizontal },
 ]
 
+/**
+ * Reorder a level of nav items by the operator's stored key order. Unknown keys
+ * (a menu added since the order was saved) keep their default position, appended
+ * after the ordered ones — so new menus never vanish.
+ */
+function applyOrder<T extends { title: string }>(items: T[], order: string[] | undefined): T[] {
+  if (!order || order.length === 0) return items
+  const rank = new Map(order.map((k, i) => [k, i]))
+  return items
+    .map((item, i) => ({ item, i }))
+    .sort(
+      (a, b) =>
+        (rank.get(a.item.title) ?? order.length + a.i) -
+        (rank.get(b.item.title) ?? order.length + b.i)
+    )
+    .map((x) => x.item)
+}
+
+/** Top-level order with Dashboard pinned first and Settings pinned last. */
+function orderTopLevel<T extends { title: string }>(items: T[], order: string[] | undefined): T[] {
+  const rank = new Map((order ?? []).map((k, i) => [k, i]))
+  const len = order?.length ?? 0
+  const rankOf = (title: string, i: number) =>
+    title === 'Dashboard'
+      ? -1
+      : title === 'Settings'
+        ? Number.MAX_SAFE_INTEGER
+        : (rank.get(title) ?? len + i)
+  return items
+    .map((item, i) => ({ item, i }))
+    .sort((a, b) => rankOf(a.item.title, a.i) - rankOf(b.item.title, b.i))
+    .map((x) => x.item)
+}
+
 /** Active-state matching only needs the href + match strategy, not the icon. */
 type ActiveTarget = { href: string; activeMatch?: 'exact' | 'prefix' }
 
@@ -175,6 +209,7 @@ export function AppSidebar({ pathname }: { pathname: string }) {
   const moduleMenu = modulesMenuQuery.data ?? []
   const navConfigQuery = useNavConfig()
   const hiddenNav = navConfigQuery.data?.hiddenNav ?? []
+  const navOrder = navConfigQuery.data?.navOrder ?? {}
   const { me, permissions } = useAbility()
 
   const displayName =
@@ -334,8 +369,11 @@ export function AppSidebar({ pathname }: { pathname: string }) {
   // Core nav entries the user hasn't hidden from Settings → Application.
   // Core nav filtered by the nav-visibility toggle AND (where set) permission.
   const canSee = (perm?: string) => !perm || permissions.has(perm)
-  const visibleNavEntries = navEntries.filter(
-    (e) => !hiddenNav.includes(e.title) && canSee('permission' in e ? e.permission : undefined)
+  const visibleNavEntries = orderTopLevel(
+    navEntries.filter(
+      (e) => !hiddenNav.includes(e.title) && canSee('permission' in e ? e.permission : undefined)
+    ),
+    navOrder.root
   )
 
   // Enabled modules' nav, filtered by the current user's permissions.
@@ -415,7 +453,9 @@ export function AppSidebar({ pathname }: { pathname: string }) {
         {collapsed
           ? // Icon-only sidebar: flatten parent children to plain icon links.
             visibleNavEntries
-              .flatMap((entry) => (isParent(entry) ? entry.children : [entry]))
+              .flatMap((entry) =>
+                isParent(entry) ? applyOrder(entry.children, navOrder[entry.title]) : [entry]
+              )
               .map((item) => renderItem(item))
           : visibleNavEntries.map((entry) => {
               if (!isParent(entry)) return renderItem(entry)
@@ -455,7 +495,9 @@ export function AppSidebar({ pathname }: { pathname: string }) {
                   >
                     <div className="overflow-hidden">
                       <div className="mt-0.5 ml-4 space-y-0.5 border-l border-sidebar-border pl-2">
-                        {entry.children.map((item) => renderItem(item))}
+                        {applyOrder(entry.children, navOrder[entry.title]).map((item) =>
+                          renderItem(item)
+                        )}
                       </div>
                     </div>
                   </div>

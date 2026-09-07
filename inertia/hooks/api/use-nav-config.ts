@@ -4,6 +4,8 @@ import { apiFetch } from '~/lib/api-client'
 export interface NavConfig {
   landingEnabled: boolean
   hiddenNav: string[]
+  /** Per-level sidebar order: `{ root: [titles], "<parentTitle>": [childTitles] }`. */
+  navOrder?: Record<string, string[]>
 }
 
 /** App nav config (hidden core sidebar items + landing toggle) for any admin. */
