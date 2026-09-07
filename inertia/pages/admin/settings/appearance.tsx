@@ -104,12 +104,20 @@ function AdminPanelSection() {
     <form onSubmit={onSubmit}>
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Admin sidebar branding</CardTitle>
           <CardDescription>
-            Name, tagline, and logo in the admin shell (stored as key–value rows in the database).
+            The logo, name, and tagline at the top of the admin sidebar (the panel on the left).
+            Stored as key–value rows in the database.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <WebsiteLogoDropzone value={logoUrl} onChange={setLogoUrl} disabled={isPending} />
+          <div className="space-y-2">
+            <WebsiteLogoDropzone value={logoUrl} onChange={setLogoUrl} disabled={isPending} />
+            <p className="text-xs text-muted-foreground">
+              Shown at the top of the admin sidebar. With no logo set, the sidebar shows the first
+              letter of the website name instead.
+            </p>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="projectName">Website name</Label>
             <Input
@@ -120,6 +128,9 @@ function AdminPanelSection() {
               autoComplete="off"
               disabled={isPending}
             />
+            <p className="text-xs text-muted-foreground">
+              Shown next to the logo at the top of the admin sidebar.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="projectTagline">Sidebar tagline</Label>

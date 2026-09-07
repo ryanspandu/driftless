@@ -91,7 +91,8 @@ export function ImageSettingControl({
       ) : null}
 
       <div className="flex flex-wrap items-start gap-4">
-        {/* The preview doubles as a dropzone: drag an image onto it, or click it. */}
+        {/* The preview is the primary control: an interactive tile that is both a
+            click target and a dropzone, with a hover / drag / busy overlay. */}
         <button
           type="button"
           disabled={disabled || busy}
@@ -109,10 +110,10 @@ export function ImageSettingControl({
             void processFile(e.dataTransfer.files?.[0]);
           }}
           className={cn(
-            "relative shrink-0 cursor-pointer overflow-hidden rounded-lg border bg-background transition-colors",
-            "hover:border-primary/60 disabled:cursor-default",
-            dragging && "border-primary ring-2 ring-primary",
-            preview === "square" && "flex size-16 items-center justify-center",
+            "group relative shrink-0 cursor-pointer overflow-hidden rounded-xl border bg-background shadow-sm transition-all",
+            "hover:shadow-md disabled:cursor-default disabled:opacity-60",
+            dragging ? "border-primary ring-2 ring-primary" : "border-border",
+            preview === "square" && "flex size-20 items-center justify-center",
             preview === "wide" && cn("relative h-36 w-full", maxWideClassName),
           )}
         >
@@ -121,49 +122,67 @@ export function ImageSettingControl({
             src={value || defaultAsset}
             alt=""
             className={cn(
-              "pointer-events-none",
-              preview === "square" && "max-h-full max-w-full object-contain",
+              "pointer-events-none transition-transform duration-200 group-hover:scale-[1.03]",
+              preview === "square" && "max-h-full max-w-full object-contain p-2",
               preview === "wide" && "size-full object-cover object-center",
             )}
             onError={(e) => {
               (e.target as HTMLImageElement).src = defaultAsset;
             }}
           />
-          {dragging ? (
-            <span className="absolute inset-0 flex items-center justify-center bg-background/70 text-xs font-medium text-primary">
-              Drop image
-            </span>
-          ) : null}
-        </button>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled || busy}
-            onClick={() => inputRef.current?.click()}
+          <span
+            className={cn(
+              "pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/45 text-white transition-opacity",
+              busy || dragging ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            )}
           >
             {busy ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+              <Loader2 className="size-5 animate-spin" />
             ) : (
-              <Upload className="mr-2 size-4" />
+              <>
+                <Upload className="size-4" />
+                <span className="text-[11px] font-medium">
+                  {dragging ? "Drop image" : "Change"}
+                </span>
+              </>
             )}
-            Upload image
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
-            disabled={disabled || busy || !showReset}
-            onClick={() => {
-              onChange(defaultAsset);
-              setError(null);
-            }}
-          >
-            <Trash2 className="mr-1 size-3.5" />
-            {resetLabel}
-          </Button>
+          </span>
+        </button>
+
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled || busy}
+              onClick={() => inputRef.current?.click()}
+            >
+              {busy ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 size-4" />
+              )}
+              Upload image
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              disabled={disabled || busy || !showReset}
+              onClick={() => {
+                onChange(defaultAsset);
+                setError(null);
+              }}
+            >
+              <Trash2 className="mr-1 size-3.5" />
+              {resetLabel}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Drag &amp; drop onto the preview, or click to browse. PNG, JPG, SVG, or WebP.
+          </p>
         </div>
       </div>
     </div>
