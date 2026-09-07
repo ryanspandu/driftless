@@ -2,6 +2,7 @@ import type { GatewayName } from '#modules/ecommerce/models/gateway_credential'
 import GatewayCredentialsService from '#modules/ecommerce/services/gateway_credentials_service'
 import StripeDriver from '#modules/ecommerce/services/gateways/stripe_driver'
 import PayPalDriver from '#modules/ecommerce/services/gateways/paypal_driver'
+import LemonSqueezyDriver from '#modules/ecommerce/services/gateways/lemonsqueezy_driver'
 import type { PaymentGatewayDriver } from '#modules/ecommerce/services/gateways/types'
 
 const credentials = new GatewayCredentialsService()
@@ -42,6 +43,8 @@ export async function gatewayDriver(name: GatewayName): Promise<PaymentGatewayDr
       return new StripeDriver(resolved)
     case 'paypal':
       return new PayPalDriver(resolved)
+    case 'lemonsqueezy':
+      return new LemonSqueezyDriver(resolved)
     default: {
       // Exhaustiveness guard: adding a gateway to the union without adding it
       // here becomes a compile error rather than a runtime surprise.

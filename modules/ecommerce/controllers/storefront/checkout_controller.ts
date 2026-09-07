@@ -41,7 +41,7 @@ const addressSchema = vine.object({
 const checkoutValidator = vine.compile(
   vine.object({
     email: vine.string().trim().email().maxLength(254),
-    gateway: vine.enum(['stripe', 'paypal'] as const),
+    gateway: vine.enum(['stripe', 'paypal', 'lemonsqueezy'] as const),
     shippingAddress: addressSchema.optional(),
     billingAddress: addressSchema.optional(),
     customerNote: vine.string().trim().maxLength(1_000).nullable().optional(),

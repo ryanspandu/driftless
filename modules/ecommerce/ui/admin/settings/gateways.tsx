@@ -11,10 +11,13 @@ import { cn } from '~/lib/utils'
 import { apiErrorMessage } from '~/lib/api-client'
 import { useGateways, useUpdateGateway, useVerifyGateway, type GatewayCredentialDto } from '../_api'
 
+type GatewayKey = 'stripe' | 'paypal' | 'lemonsqueezy'
+
 /** One card per gateway; a Dev/Live toggle switches which mode's form is shown. */
 const GATEWAYS = [
   { key: 'stripe', label: 'Stripe' },
   { key: 'paypal', label: 'PayPal' },
+  { key: 'lemonsqueezy', label: 'Lemon Squeezy' },
 ] as const
 
 const MODES = ['test', 'live'] as const
@@ -38,6 +41,15 @@ const LABELS = {
     webhookHint:
       'PayPal signs with a rotating certificate rather than a shared secret; verification quotes this ID.',
   },
+  lemonsqueezy: {
+    public: 'Store ID',
+    publicHint: '',
+    secret: 'API key',
+    secretHint: 'From Lemon Squeezy → Settings → API.',
+    webhook: 'Webhook signing secret',
+    webhookHint:
+      'The signing secret of the webhook you create in Lemon Squeezy → Settings → Webhooks (subscribe to “order_created”).',
+  },
 } as const
 
 /** The credential form for one (gateway, mode). Chrome lives in GatewaySection. */
@@ -46,16 +58,21 @@ function GatewayForm({
   mode,
   credential,
 }: {
-  gateway: 'stripe' | 'paypal'
+  gateway: GatewayKey
   mode: 'test' | 'live'
   credential: GatewayCredentialDto | undefined
 }) {
   const update = useUpdateGateway()
   const verify = useVerifyGateway()
   const labels = LABELS[gateway]
+  // Lemon Squeezy has no publishable key — it needs a store id + variant id (the
+  // catch-all product a custom-priced checkout is created against) instead.
+  const isLemon = gateway === 'lemonsqueezy'
 
   const [enabled, setEnabled] = useState(false)
   const [publicKey, setPublicKey] = useState('')
+  const [storeId, setStoreId] = useState('')
+  const [variantId, setVariantId] = useState('')
   /**
    * `null` means "not edited". Stored secrets never reach the browser — only a
    * mask — so an untouched field must leave the stored value alone, and the
@@ -70,6 +87,8 @@ function GatewayForm({
   useEffect(() => {
     setEnabled(credential?.enabled ?? false)
     setPublicKey(credential?.publicKey ?? '')
+    setStoreId(credential?.config?.storeId ?? '')
+    setVariantId(credential?.config?.variantId ?? '')
     setSecretKey(null)
     setWebhookSecret(null)
   }, [credential])
@@ -79,7 +98,12 @@ function GatewayForm({
     setError(null)
     setSaved(false)
 
-    const input: Record<string, unknown> = { enabled, publicKey: publicKey.trim() || null }
+    const input: Record<string, unknown> = { enabled }
+    if (isLemon) {
+      input.config = { storeId: storeId.trim(), variantId: variantId.trim() }
+    } else {
+      input.publicKey = publicKey.trim() || null
+    }
     if (secretKey !== null) input.secretKey = secretKey
     if (webhookSecret !== null) input.webhookSecret = webhookSecret
 
@@ -104,16 +128,47 @@ function GatewayForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor={`${gateway}-${mode}-public`}>{labels.public}</Label>
-        <Input
-          id={`${gateway}-${mode}-public`}
-          value={publicKey}
-          onChange={(e) => setPublicKey(e.target.value)}
-          placeholder={labels.publicHint}
-          autoComplete="off"
-        />
-      </div>
+      {isLemon ? (
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor={`${gateway}-${mode}-store`}>Store ID</Label>
+              <Input
+                id={`${gateway}-${mode}-store`}
+                value={storeId}
+                onChange={(e) => setStoreId(e.target.value)}
+                placeholder="e.g. 12345"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={`${gateway}-${mode}-variant`}>Variant ID</Label>
+              <Input
+                id={`${gateway}-${mode}-variant`}
+                value={variantId}
+                onChange={(e) => setVariantId(e.target.value)}
+                placeholder="Your catch-all product’s variant"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Create one “catch-all” product with a single variant in Lemon Squeezy (set the store to
+            tax-inclusive pricing). Every order is charged as a custom price against that variant.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Label htmlFor={`${gateway}-${mode}-public`}>{labels.public}</Label>
+          <Input
+            id={`${gateway}-${mode}-public`}
+            value={publicKey}
+            onChange={(e) => setPublicKey(e.target.value)}
+            placeholder={labels.publicHint}
+            autoComplete="off"
+          />
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor={`${gateway}-${mode}-secret`}>{labels.secret}</Label>
@@ -209,7 +264,7 @@ function GatewaySection({
   gateway,
   credentials,
 }: {
-  gateway: 'stripe' | 'paypal'
+  gateway: GatewayKey
   credentials: GatewayCredentialDto[]
 }) {
   const cred = (m: 'test' | 'live') =>
@@ -279,7 +334,8 @@ export default function GatewaysPage() {
         <p className="text-xs text-muted-foreground">
           Secrets never leave this server — the API returns only a masked form. Test and live keys
           are kept apart so a test key can never settle a live payment. Point your gateway&apos;s
-          webhook at <code>/api/webhooks/stripe</code> or <code>/api/webhooks/paypal</code>.
+          webhook at <code>/api/webhooks/stripe</code>, <code>/api/webhooks/paypal</code> or{' '}
+          <code>/api/webhooks/lemonsqueezy</code>.
         </p>
       </div>
 

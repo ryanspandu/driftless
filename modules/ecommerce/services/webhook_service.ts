@@ -12,6 +12,17 @@ import type { VerifiedWebhookEvent } from '#modules/ecommerce/services/gateways/
 const orders = new OrderService()
 const audit = new AuditLogService()
 
+/** True for a `(gateway, event_id)` unique-constraint violation (pg or SQLite). */
+function isUniqueViolation(error: unknown): boolean {
+  const e = error as { code?: string; message?: string }
+  return (
+    e?.code === '23505' ||
+    e?.code === 'SQLITE_CONSTRAINT_UNIQUE' ||
+    e?.code === 'SQLITE_CONSTRAINT' ||
+    /unique/i.test(e?.message ?? '')
+  )
+}
+
 /**
  * Event types that settle a payment. Anything else is recorded and ignored —
  * an unrecognised event must never be treated as "probably paid".
@@ -19,11 +30,17 @@ const audit = new AuditLogService()
 const PAID_EVENTS: Record<GatewayName, string[]> = {
   stripe: ['checkout.session.completed', 'checkout.session.async_payment_succeeded'],
   paypal: ['CHECKOUT.ORDER.APPROVED', 'PAYMENT.CAPTURE.COMPLETED'],
+  // Lemon Squeezy (Merchant of Record) creates an order only once payment
+  // succeeds, so `order_created` is the settlement event.
+  lemonsqueezy: ['order_created'],
 }
 
 const FAILED_EVENTS: Record<GatewayName, string[]> = {
   stripe: ['checkout.session.async_payment_failed', 'checkout.session.expired'],
   paypal: ['PAYMENT.CAPTURE.DENIED', 'CHECKOUT.ORDER.VOIDED'],
+  // LS never delivers a "checkout failed" event — an abandoned checkout simply
+  // never becomes an order — so there is nothing to mark failed here.
+  lemonsqueezy: [],
 }
 
 export interface WebhookOutcome {
@@ -57,9 +74,16 @@ export default class WebhookService {
         status: 'received',
         attempts: 0,
       })
-    } catch {
-      // Unique violation on (gateway, event_id) — we have seen this delivery.
-      return { processed: false, status: 'duplicate', eventType: event.eventType }
+    } catch (error) {
+      // A `(gateway, event_id)` unique violation means we have seen this
+      // delivery — return quietly so the endpoint can answer 2xx. Any OTHER
+      // error (a transient DB failure) must propagate so the endpoint answers
+      // non-2xx and the gateway retries, rather than being silently dropped as a
+      // "duplicate" and never processed.
+      if (isUniqueViolation(error)) {
+        return { processed: false, status: 'duplicate', eventType: event.eventType }
+      }
+      throw error
     }
 
     return this.process(record)
@@ -145,7 +169,15 @@ export default class WebhookService {
     }
 
     const driver = await gatewayDriver(payment.gateway)
-    const status = await driver.fetchPaymentStatus(payment.gatewayPaymentId)
+    /**
+     * Stripe/PayPal are re-fetched by an id we stored. A Merchant-of-Record
+     * gateway (Lemon Squeezy) confirms on an order our stored checkout id cannot
+     * fetch, so it derives the amount from the already-verified webhook — still
+     * checked against the order total by `markOrderPaid` below.
+     */
+    const status =
+      driver.settlementFromEvent?.(record.payload as Record<string, unknown>) ??
+      (await driver.fetchPaymentStatus(payment.gatewayPaymentId))
 
     if (status.status !== 'paid') {
       // Approved but not captured yet (PayPal), or still processing. The next
@@ -198,6 +230,25 @@ export default class WebhookService {
   }
 
   private async findPayment(record: WebhookEvent): Promise<Payment | null> {
+    /**
+     * Lemon Squeezy delivers an *order* whose id is not the *checkout* id we
+     * stored, so it is linked back through the order id we passed in
+     * `custom_data` — the most recent LS attempt for that order.
+     */
+    if (record.gateway === 'lemonsqueezy') {
+      const orderId = (record.payload as { meta?: { custom_data?: { order_id?: string } } })?.meta
+        ?.custom_data?.order_id
+      if (orderId) {
+        const payment = await Payment.query()
+          .where('order_id', orderId)
+          .where('gateway', 'lemonsqueezy')
+          .orderBy('created_at', 'desc')
+          .first()
+        if (payment) return payment
+      }
+      return null
+    }
+
     const payload = record.payload as { data?: { object?: { id?: string } }; resource?: unknown }
     const fromStripe = payload?.data?.object?.id
     const resource = payload?.resource as

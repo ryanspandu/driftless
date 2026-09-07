@@ -276,13 +276,15 @@ export interface OrderDetailDto extends OrderListItemDto {
 }
 
 export interface GatewayCredentialDto {
-  gateway: 'stripe' | 'paypal'
+  gateway: 'stripe' | 'paypal' | 'lemonsqueezy'
   mode: 'test' | 'live'
   enabled: boolean
   publicKey: string | null
   secretKeyMasked: string | null
   hasSecretKey: boolean
   hasWebhookSecret: boolean
+  /** Non-secret gateway extras (e.g. Lemon Squeezy storeId / variantId). */
+  config: Record<string, string>
   connectedAt: string | null
   lastVerifiedAt: string | null
   lastVerifyError: string | null
@@ -684,6 +686,8 @@ export interface UpdateGatewayInput {
   /** Only send when the operator typed one — omitting keeps the stored key. */
   secretKey?: string | null
   webhookSecret?: string | null
+  /** Non-secret gateway extras (e.g. Lemon Squeezy storeId / variantId). */
+  config?: Record<string, string>
 }
 
 export function useUpdateGateway() {

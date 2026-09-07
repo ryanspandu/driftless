@@ -69,6 +69,11 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
     .as('ecommerce.webhooks.paypal')
     .use(throttle.webhook)
 
+  router
+    .post('/api/webhooks/lemonsqueezy', [WebhooksCtrl, 'lemonsqueezy'])
+    .as('ecommerce.webhooks.lemonsqueezy')
+    .use(throttle.webhook)
+
   /**
    * ── Storefront API ────────────────────────────────────────────────────────
    *

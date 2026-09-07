@@ -6,15 +6,18 @@ import { CityInput } from '../components/city-input'
 import { CountrySelect } from '../components/country-select'
 import { newIdempotencyKey, shopApi, shopFetch, type CartDto, type ShippingOptionDto } from './_api'
 
+type CheckoutGateway = 'stripe' | 'paypal' | 'lemonsqueezy'
+
 export interface CheckoutConfig {
   /** Which gateways the store actually has credentials for. */
-  gateways: ('stripe' | 'paypal')[]
+  gateways: CheckoutGateway[]
   digitalOnly: boolean
 }
 
 const GATEWAY_LABEL: Record<string, string> = {
   stripe: 'Card',
   paypal: 'PayPal',
+  lemonsqueezy: 'Lemon Squeezy',
 }
 
 /**
@@ -51,7 +54,7 @@ export function CheckoutScreen(props: { embedded?: boolean } & Partial<CheckoutC
 
   const [cart, setCart] = useState<CartDto | null>(null)
   const [email, setEmail] = useState('')
-  const [gateway, setGateway] = useState<'stripe' | 'paypal'>('stripe')
+  const [gateway, setGateway] = useState<CheckoutGateway>('stripe')
   // Default to the first available gateway once the config resolves.
   useEffect(() => {
     if (gateways[0]) setGateway(gateways[0])

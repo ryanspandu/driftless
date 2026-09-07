@@ -31,6 +31,10 @@ export default class WebhooksController {
     return this.handle(ctx, 'paypal')
   }
 
+  async lemonsqueezy(ctx: HttpContext) {
+    return this.handle(ctx, 'lemonsqueezy')
+  }
+
   private async handle(ctx: HttpContext, gateway: GatewayName) {
     const { request, response } = ctx
 

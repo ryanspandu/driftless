@@ -17,6 +17,8 @@ const updateValidator = vine.compile(
      */
     secretKey: vine.string().maxLength(512).nullable().optional(),
     webhookSecret: vine.string().maxLength(512).nullable().optional(),
+    /** Non-secret gateway extras, e.g. Lemon Squeezy's storeId / variantId. */
+    config: vine.record(vine.string().trim().maxLength(256)).optional(),
   })
 )
 
@@ -30,7 +32,7 @@ function parseTarget(params: Record<string, unknown>) {
   const gateway = String(params.gateway)
   const mode = String(params.mode)
 
-  if (gateway !== 'stripe' && gateway !== 'paypal') return null
+  if (gateway !== 'stripe' && gateway !== 'paypal' && gateway !== 'lemonsqueezy') return null
   if (mode !== 'test' && mode !== 'live') return null
 
   return { gateway, mode } as const

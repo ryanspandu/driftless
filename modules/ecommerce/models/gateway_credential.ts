@@ -1,8 +1,8 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { booleanColumn } from '#models/_columns'
+import { booleanColumn, jsonColumn } from '#models/_columns'
 
-export type GatewayName = 'stripe' | 'paypal'
+export type GatewayName = 'stripe' | 'paypal' | 'lemonsqueezy'
 export type GatewayMode = 'test' | 'live'
 
 /**
@@ -37,6 +37,15 @@ export default class GatewayCredential extends BaseModel {
 
   @column({ serializeAs: null })
   declare webhookSecretEnc: string | null
+
+  /**
+   * Non-secret, gateway-specific settings. Empty `{}` for Stripe/PayPal; Lemon
+   * Squeezy stores its `{ storeId, variantId }` here (the catch-all product a
+   * custom-priced checkout is created against). Public by design — no secret
+   * lives here, so it is stored in the clear like `publicKey`.
+   */
+  @column(jsonColumn)
+  declare config: Record<string, string>
 
   @column(booleanColumn)
   declare enabled: boolean

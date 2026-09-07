@@ -125,4 +125,18 @@ export interface PaymentGatewayDriver {
 
   /** Cheap call used by the "test connection" button. Throws on failure. */
   verifyCredentials(): Promise<void>
+
+  /**
+   * Settlement status taken straight from an already-verified webhook event.
+   *
+   * For Stripe and PayPal this is absent: the flow re-fetches the payment by an
+   * id **we stored**, never trusting the delivered body's amount. A Merchant-of-
+   * Record gateway (Lemon Squeezy) confirms on an *order* it creates, which our
+   * stored *checkout* id cannot fetch — so it derives the amount from the signed
+   * (HMAC-verified) event instead. The amount is still checked against the order
+   * total in `markOrderPaid`, so trusting the *authenticated* body here does not
+   * weaken the over/under-charge guard. Returns null when the event is not a
+   * settlement.
+   */
+  settlementFromEvent?(payload: Record<string, unknown>): GatewayPaymentStatus | null
 }

@@ -26,6 +26,8 @@ export interface GatewayCredentialDto {
   secretKeyMasked: string | null
   hasSecretKey: boolean
   hasWebhookSecret: boolean
+  /** Non-secret gateway extras (e.g. Lemon Squeezy storeId/variantId). */
+  config: Record<string, string>
   connectedAt: string | null
   lastVerifiedAt: string | null
   lastVerifyError: string | null
@@ -38,6 +40,7 @@ export interface ResolvedGatewayCredentials {
   publicKey: string | null
   secretKey: string
   webhookSecret: string | null
+  config: Record<string, string>
 }
 
 export interface UpdateGatewayCredentialsDto {
@@ -46,6 +49,8 @@ export interface UpdateGatewayCredentialsDto {
   /** Omit to keep the stored key; empty string clears it. */
   secretKey?: string | null
   webhookSecret?: string | null
+  /** Non-secret gateway extras; replaces the stored object wholesale. */
+  config?: Record<string, string>
 }
 
 function maskSecret(value: string | null): string | null {
@@ -83,6 +88,7 @@ export default class GatewayCredentialsService {
     const row = await this.getOrCreate(gateway, mode)
 
     if (dto.publicKey !== undefined) row.publicKey = dto.publicKey || null
+    if (dto.config !== undefined) row.config = dto.config
 
     /**
      * `undefined` keeps the stored secret, `''` clears it. The admin UI only
@@ -107,11 +113,36 @@ export default class GatewayCredentialsService {
           'secret_key_required'
         )
       }
+      /**
+       * Lemon Squeezy settles ONLY through its webhook — a stored checkout id
+       * cannot be re-fetched for status — so enabling it without a signing
+       * secret would take payments that can never be confirmed.
+       */
+      if (dto.enabled && gateway === 'lemonsqueezy' && !row.webhookSecretEnc) {
+        throw publicError.unprocessable(
+          'Add a webhook signing secret before enabling Lemon Squeezy — it is the only way orders can settle.',
+          'webhook_secret_required'
+        )
+      }
       row.enabled = dto.enabled
       if (dto.enabled && !row.connectedAt) row.connectedAt = DateTime.now()
     }
 
     await row.save()
+
+    /**
+     * At most one mode per gateway is ever enabled. `resolve()` picks the
+     * enabled row, so two enabled rows would let it choose the wrong mode — a
+     * test key settling a live payment, or a live key charging a real card on
+     * an intended-test order. Enabling one mode disables its sibling.
+     */
+    if (dto.enabled === true) {
+      await GatewayCredential.query()
+        .where('gateway', gateway)
+        .whereNot('mode', mode)
+        .update({ enabled: false })
+    }
+
     return this.toDto(row)
   }
 
@@ -123,9 +154,13 @@ export default class GatewayCredentialsService {
    * other gateway or silently produce an unpayable order.
    */
   async resolve(gateway: GatewayName): Promise<ResolvedGatewayCredentials> {
+    // `update()` guarantees at most one enabled mode per gateway; `orderBy` is a
+    // deterministic backstop so a legacy two-enabled state can never resolve to
+    // a DB-arbitrary row.
     const row = await GatewayCredential.query()
       .where('gateway', gateway)
       .where('enabled', true)
+      .orderBy('mode', 'asc')
       .first()
 
     if (!row || !row.secretKeyEnc) {
@@ -161,6 +196,7 @@ export default class GatewayCredentialsService {
       webhookSecret: row.webhookSecretEnc
         ? encryption.decrypt<string>(row.webhookSecretEnc, PURPOSE.webhookSecret)
         : null,
+      config: row.config ?? {},
     }
   }
 
@@ -197,6 +233,7 @@ export default class GatewayCredentialsService {
       secretKeyMasked: maskSecret(secretKey),
       hasSecretKey: Boolean(row.secretKeyEnc),
       hasWebhookSecret: Boolean(row.webhookSecretEnc),
+      config: row.config ?? {},
       connectedAt: row.connectedAt?.toISO() ?? null,
       lastVerifiedAt: row.lastVerifiedAt?.toISO() ?? null,
       lastVerifyError: row.lastVerifyError,
