@@ -22,6 +22,8 @@ import { PageHeader } from '~/components/admin/page-header'
 import { Can } from '~/components/providers/ability-provider'
 import { useWebsiteSettings, useUpdateWebsiteSettings } from '~/hooks/api/use-website-settings'
 import { useModulesMenu } from '~/hooks/api/use-modules'
+import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
+import { buildCollectionSections } from '~/lib/collection_nav'
 
 /**
  * The core sidebar nav, described by title so this page can reorder and hide it.
@@ -126,7 +128,20 @@ function SortableRow({ id, children }: { id: string; children: ReactNode }) {
   )
 }
 
-function ChildList({ order, onReorder }: { order: string[]; onReorder: (next: string[]) => void }) {
+/**
+ * A nested drag-drop list of sub-items. Each item carries a stable `id` (the
+ * reorder key that gets persisted) and a `label` to display — they differ for
+ * collections, whose stable key is a slug but whose label is human text.
+ * `onReorder` returns the new id order.
+ */
+function ChildList({
+  items,
+  onReorder,
+}: {
+  items: { id: string; label: string }[]
+  onReorder: (nextIds: string[]) => void
+}) {
+  const order = items.map((i) => i.id)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e
@@ -140,9 +155,9 @@ function ChildList({ order, onReorder }: { order: string[]; onReorder: (next: st
     <div className="ml-9 mt-1 space-y-1 border-l border-border pl-2">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
-          {order.map((title) => (
-            <SortableRow key={title} id={title}>
-              <span className="flex-1 truncate text-sm">{title}</span>
+          {items.map((item) => (
+            <SortableRow key={item.id} id={item.id}>
+              <span className="flex-1 truncate text-sm">{item.label}</span>
             </SortableRow>
           ))}
         </SortableContext>
@@ -156,6 +171,11 @@ function NavArranger() {
   const update = useUpdateWebsiteSettings()
   const moduleMenu = useModulesMenu()
   const moduleGroups = useMemo(() => moduleMenu.data ?? [], [moduleMenu.data])
+  const collectionsQuery = useCmsCollectionsList()
+  const collectionSections = useMemo(
+    () => buildCollectionSections(collectionsQuery.data ?? []),
+    [collectionsQuery.data]
+  )
   const appCfg = useMemo(() => data?.sections?.['app_config'] ?? {}, [data])
 
   const savedOrder = useMemo<Record<string, string[]>>(() => {
@@ -185,9 +205,14 @@ function NavArranger() {
   // query that can arrive after the settings.
   const [appsOrder, setAppsOrder] = useState<string[]>([])
   const [appItemOrder, setAppItemOrder] = useState<Record<string, string[]>>({})
+  // Collections section: section (group) order + per-section collection order,
+  // keyed by section.key and col.key. Seeded once collections load.
+  const [collectionsOrder, setCollectionsOrder] = useState<string[]>([])
+  const [collectionColOrder, setCollectionColOrder] = useState<Record<string, string[]>>({})
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const seeded = useRef(false)
   const appsSeeded = useRef(false)
+  const collectionsSeeded = useRef(false)
 
   // Seed core nav order once the settings load; keep local edits across the
   // refetch a save triggers.
@@ -223,6 +248,31 @@ function NavArranger() {
     [moduleGroups]
   )
 
+  // Seed the Collections order once both the settings and the collections are in.
+  useEffect(() => {
+    if (!data || collectionSections.length === 0 || collectionsSeeded.current) return
+    collectionsSeeded.current = true
+    setCollectionsOrder(
+      mergeOrder(
+        savedOrder.collections,
+        collectionSections.map((s) => s.key)
+      )
+    )
+    const cols: Record<string, string[]> = {}
+    for (const s of collectionSections) {
+      cols[s.key] = mergeOrder(
+        savedOrder[`col:${s.key}`],
+        s.cols.map((c) => c.key)
+      )
+    }
+    setCollectionColOrder(cols)
+  }, [data, collectionSections, savedOrder])
+
+  const collectionSectionByKey = useMemo(
+    () => new Map(collectionSections.map((s) => [s.key, s])),
+    [collectionSections]
+  )
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   // Merge onto the last-saved order so a save from one section never wipes keys
@@ -233,6 +283,8 @@ function NavArranger() {
     children?: Record<string, string[]>
     apps?: string[]
     appItems?: Record<string, string[]>
+    collections?: string[]
+    collectionCols?: Record<string, string[]>
   }) => {
     const payload: Record<string, string[]> = { ...savedOrder }
     payload.root = over.root ?? rootOrder
@@ -240,6 +292,10 @@ function NavArranger() {
     const apps = over.apps ?? appsOrder
     if (apps.length > 0) payload.apps = apps
     for (const [k, v] of Object.entries(over.appItems ?? appItemOrder)) payload[`app:${k}`] = v
+    const collections = over.collections ?? collectionsOrder
+    if (collections.length > 0) payload.collections = collections
+    for (const [k, v] of Object.entries(over.collectionCols ?? collectionColOrder))
+      payload[`col:${k}`] = v
     update.mutate({
       patches: [{ section: 'app_config', key: 'nav_order', value: JSON.stringify(payload) }],
     })
@@ -277,6 +333,23 @@ function NavArranger() {
     const merged = { ...appItemOrder, [key]: next }
     setAppItemOrder(merged)
     persist({ appItems: merged })
+  }
+
+  const onCollectionsDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const from = collectionsOrder.indexOf(String(active.id))
+    const to = collectionsOrder.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+    const next = arrayMove(collectionsOrder, from, to)
+    setCollectionsOrder(next)
+    persist({ collections: next })
+  }
+
+  const onCollectionColsReorder = (key: string) => (next: string[]) => {
+    const merged = { ...collectionColOrder, [key]: next }
+    setCollectionColOrder(merged)
+    persist({ collectionCols: merged })
   }
 
   const toggleHidden = (title: string, visible: boolean) => {
@@ -347,7 +420,7 @@ function NavArranger() {
                 </SortableRow>
                 {hasChildren && isOpen ? (
                   <ChildList
-                    order={childOrder[title] ?? meta!.children!}
+                    items={(childOrder[title] ?? meta!.children!).map((t) => ({ id: t, label: t }))}
                     onReorder={onChildReorder(title)}
                   />
                 ) : null}
@@ -404,8 +477,64 @@ function NavArranger() {
                     </SortableRow>
                     {hasChildren && isOpen ? (
                       <ChildList
-                        order={appItemOrder[key] ?? group.items!.map((i) => i.label)}
+                        items={(appItemOrder[key] ?? group.items!.map((i) => i.label)).map((l) => ({
+                          id: l,
+                          label: l,
+                        }))}
                         onReorder={onAppItemsReorder(key)}
+                      />
+                    ) : null}
+                  </div>
+                )
+              })}
+            </SortableContext>
+          </DndContext>
+        </div>
+      ) : null}
+
+      {/* Collections — dynamic CMS collections grouped into sidebar sections.
+          Drag a section header to reorder groups, expand one to reorder the
+          collections inside it. Collections are keyed by their stable slug, so
+          renaming one keeps its saved position. */}
+      {collectionsOrder.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 px-1 pt-3">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Collections
+            </span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onCollectionsDragEnd}
+          >
+            <SortableContext items={collectionsOrder} strategy={verticalListSortingStrategy}>
+              {collectionsOrder.map((key) => {
+                const section = collectionSectionByKey.get(key)
+                if (!section) return null
+                const isOpen = expanded.has(key)
+                const labelByColKey = new Map(section.cols.map((c) => [c.key, c.label]))
+                const colIds = collectionColOrder[key] ?? section.cols.map((c) => c.key)
+                return (
+                  <div key={key}>
+                    <SortableRow id={key}>
+                      <span className="flex-1 truncate text-sm font-medium">{section.label}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggle(key)}
+                        className="rounded p-1 text-muted-foreground hover:text-foreground"
+                        aria-label={isOpen ? 'Collapse' : 'Expand'}
+                      >
+                        <ChevronDown
+                          className={cn('size-4 transition-transform', isOpen ? '' : '-rotate-90')}
+                        />
+                      </button>
+                    </SortableRow>
+                    {isOpen ? (
+                      <ChildList
+                        items={colIds.map((ck) => ({ id: ck, label: labelByColKey.get(ck) ?? ck }))}
+                        onReorder={onCollectionColsReorder(key)}
                       />
                     ) : null}
                   </div>

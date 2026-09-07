@@ -29,6 +29,7 @@ import { cn } from '~/lib/utils'
 import { useAdminBranding } from '~/hooks/use-admin-branding'
 import { useAutoHideScrollbar } from '~/hooks/use-auto-hide-scrollbar'
 import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
+import { buildCollectionSections } from '~/lib/collection_nav'
 import { useModulesMenu } from '~/hooks/api/use-modules'
 import { useNavConfig } from '~/hooks/api/use-nav-config'
 import { useAbility } from '~/components/providers/ability-provider'
@@ -290,40 +291,18 @@ export function AppSidebar({ pathname }: { pathname: string }) {
     })
   }
 
-  // Collections without a group fall under the default "Collections" section.
-  // Each distinct group value becomes its own section (header = group name).
-  const collectionSections = useMemo(() => {
-    type Section = { key: string; label: string; cols: typeof collections }
-    const ungrouped: typeof collections = []
-    const grouped = new Map<string, typeof collections>()
-
-    // Native collections (source PRISMA: content / media / user) each already
-    // have a dedicated top-level nav item, so only list dynamic collections here
-    // to avoid duplicate sidebar entries.
-    const dynamicCollections = collections.filter((c) => c.source === 'DYNAMIC')
-
-    for (const col of dynamicCollections) {
-      const group = col.group?.trim()
-      if (!group) {
-        ungrouped.push(col)
-        continue
-      }
-      const existing = grouped.get(group)
-      if (existing) existing.push(col)
-      else grouped.set(group, [col])
-    }
-
-    const sections: Section[] = []
-    if (ungrouped.length > 0) {
-      sections.push({ key: '__ungrouped__', label: 'Collections', cols: ungrouped })
-    }
-    for (const [label, cols] of Array.from(grouped.entries()).sort(([a], [b]) =>
-      a.localeCompare(b)
-    )) {
-      sections.push({ key: `group:${label}`, label, cols })
-    }
-    return sections
-  }, [collections])
+  // Collections grouped into sidebar sections (shared with the arranger), then
+  // ordered by the operator's saved order: `nav_order.collections` reorders the
+  // sections, `nav_order['col:'+sectionKey]` reorders collections within one.
+  const collectionSections = useMemo(() => buildCollectionSections(collections), [collections])
+  const orderedCollectionSections = applyOrderBy(
+    collectionSections,
+    navOrder.collections,
+    (s) => s.key
+  ).map((s) => ({
+    ...s,
+    cols: applyOrderBy(s.cols, navOrder[`col:${s.key}`], (c) => c.key),
+  }))
 
   const logout = () => router.post('/logout')
 
@@ -593,7 +572,7 @@ export function AppSidebar({ pathname }: { pathname: string }) {
         )}
 
         {/* Dynamic collections, grouped by each collection's `group` value */}
-        {collectionSections.map((section) => (
+        {orderedCollectionSections.map((section) => (
           <Fragment key={section.key}>
             {sectionHeader(section.label)}
             {section.cols.map((col) => {
