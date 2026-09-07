@@ -39,9 +39,21 @@ export interface FilePage {
 
 export const FILE_PAGES: readonly FilePage[] = [
   {
+    "path": "kit-example/about",
+    "kit": "example",
+    "file": "about",
+    "title": "About (example file-page)"
+  },
+  {
     "path": "kit-example/hello",
     "kit": "example",
     "file": "hello",
     "title": "Hello from a file-page"
+  },
+  {
+    "path": "kit-example/pricing",
+    "kit": "example",
+    "file": "pricing",
+    "title": "Pricing (example file-page)"
   }
 ]

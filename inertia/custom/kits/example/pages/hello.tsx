@@ -1,5 +1,5 @@
-import { SiteChrome } from '~/custom/site-chrome'
 import type { CodePageProps } from '~/custom/types'
+import { PageShell } from '../components/page_shell'
 
 /**
  * A file-page: this file IS a route. It lives in the kit folder with no database
@@ -15,18 +15,20 @@ export const title = 'Hello from a file-page'
 
 export default function Hello({ path: url, header, footer }: CodePageProps) {
   return (
-    <SiteChrome header={header} footer={footer}>
-      <main className="mx-auto max-w-2xl px-6 py-24">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">File-page</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-foreground">
-          Hello from a file-page
-        </h1>
-        <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-          Served at <code className="font-mono">/{url}</code> by{' '}
-          <code className="font-mono">inertia/custom/kits/example/pages/hello.tsx</code> — no CMS
-          row behind it. It shows up in the admin pages list as a read-only “File page”.
-        </p>
-      </main>
-    </SiteChrome>
+    <PageShell
+      header={header}
+      footer={footer}
+      eyebrow="File-page"
+      title="Hello from a file-page"
+      intro="This whole page is one .tsx file in the kit's pages/ folder — no CMS row behind it. It appears in the admin pages list as a read-only “File page”."
+    >
+      <p className="text-sm text-muted-foreground">
+        Served at <code className="font-mono">/{url}</code> by{' '}
+        <code className="font-mono">inertia/custom/kits/example/pages/hello.tsx</code>. See{' '}
+        <code className="font-mono">/kit-example/about</code> and{' '}
+        <code className="font-mono">/kit-example/pricing</code> for sibling pages sharing the same{' '}
+        <code className="font-mono">PageShell</code> component.
+      </p>
+    </PageShell>
   )
 }

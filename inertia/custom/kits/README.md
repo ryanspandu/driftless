@@ -10,11 +10,24 @@ sub-components, imported assets) lives in its own folder here.
 ```
 inertia/custom/kits/<name>/
   kit.json          required — marks the folder as a kit + names it for the picker
-  index.tsx         required — default export: (props: CodePageProps) => JSX
+  index.tsx         a template a DB page points at (kit:<name>) — optional if you only ship pages/
+  pages/*.tsx       file-pages — each file is a route with NO DB row (see below)
   components/…       optional — sub-components, imported with relative paths
   styles.css        optional — co-located CSS, imported by index.tsx
   assets/…           optional — images/fonts, IMPORTED (never referenced by raw path)
 ```
+
+The committed **`example/`** kit is a complete reference: `index.tsx` (a template) **and** a
+`pages/` folder (file-pages at `/kit-example/*`) sharing `components/page-shell.tsx`. Copy it,
+rename it, and edit.
+
+## File-pages — a folder of routes, no database rows
+
+Each `pages/*.tsx` is a standalone route served with no DB row. The filename is the URL path
+(root-level; `index` → home), overridable with `export const path = 'company/about'`; the title
+is the titleized filename, overridable with `export const title = '...'`. A database page always
+wins on a path clash. File-pages are pure code (no editable region) and show in the admin pages
+list as read-only rows. Full reference: [`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md).
 
 - The **folder name is the id.** A page selects a kit by storing
   `component = "kit:<folder>"`; the public URL comes from the page record, not
