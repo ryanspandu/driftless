@@ -30,6 +30,8 @@ declare module '@adonisjs/inertia/types' {
     'admin/integrations/google-analytics': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/google-analytics.tsx'))['default']>
     'admin/integrations/google': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/google.tsx'))['default']>
     'admin/media': ExtractProps<(typeof import('../../inertia/pages/admin/media.tsx'))['default']>
+    'admin/menus/builder': ExtractProps<(typeof import('../../inertia/pages/admin/menus/builder.tsx'))['default']>
+    'admin/menus/index': ExtractProps<(typeof import('../../inertia/pages/admin/menus/index.tsx'))['default']>
     'admin/not_found': ExtractProps<(typeof import('../../inertia/pages/admin/not_found.tsx'))['default']>
     'admin/pages/builder': ExtractProps<(typeof import('../../inertia/pages/admin/pages/builder.tsx'))['default']>
     'admin/pages/index': ExtractProps<(typeof import('../../inertia/pages/admin/pages/index.tsx'))['default']>

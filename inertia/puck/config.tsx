@@ -19,6 +19,8 @@ import {
   IconView,
   ICON_NAMES,
   LightboxView,
+  MegaMenuView,
+  MenuBarView,
   NavbarView,
   ReviewsView,
   SliderView,
@@ -450,6 +452,8 @@ export const baseConfig: Config = {
         'Search',
         'BackgroundVideo',
         'Dropdown',
+        'MegaMenu',
+        'MenuBar',
         'CodeEmbed',
         'Lightbox',
         'Navbar',
@@ -1816,6 +1820,33 @@ export const baseConfig: Config = {
       render: (props) => <DropdownView {...props} />,
     },
 
+    MegaMenu: {
+      label: 'Mega Menu',
+      fields: {
+        label: { type: 'text', label: 'Button label' },
+        openOn: {
+          type: 'select',
+          label: 'Open on',
+          options: [
+            { label: 'Click / tap', value: 'click' },
+            { label: 'Hover', value: 'hover' },
+          ],
+        },
+        fullWidth: {
+          type: 'select',
+          label: 'Panel width',
+          options: [
+            { label: 'Anchored dropdown', value: 'inline' },
+            { label: 'Full width', value: 'full' },
+          ],
+        },
+        content: { type: 'slot' },
+        ...styleFields,
+      },
+      defaultProps: { label: 'Menu', openOn: 'click', fullWidth: 'inline', content: [] },
+      render: (props) => <MegaMenuView {...props} />,
+    },
+
     Lightbox: {
       label: 'Lightbox',
       fields: {
@@ -1837,6 +1868,17 @@ export const baseConfig: Config = {
       },
       defaultProps: { brand: 'Brand', content: [] },
       render: (props) => <NavbarView {...props} />,
+    },
+
+    MenuBar: {
+      label: 'Menu Bar',
+      fields: {
+        menuHandle: { type: 'text', label: 'Menu handle' },
+        brand: { type: 'text', label: 'Brand (optional)' },
+        ...styleFields,
+      },
+      defaultProps: { menuHandle: '', brand: '' },
+      render: (props) => <MenuBarView {...props} />,
     },
 
     Slider: {

@@ -439,6 +439,78 @@ export interface UpdateTemplateRequest {
   renderedHtml?: string | null
 }
 
+// ── Menus (WordPress-style navigation menu manager) ─────────────────────────
+
+export type MenuItemType = 'page' | 'url' | 'collection'
+export type MenuItemOpenMode = 'link' | 'mega'
+
+export interface MenuSummaryDto {
+  id: string
+  handle: string
+  name: string
+  itemCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** A menu item as edited in the admin (the raw stored reference, not resolved). */
+export interface MenuItemDto {
+  id: string
+  label: string
+  type: MenuItemType
+  pageId: string | null
+  url: string | null
+  collectionKey: string | null
+  recordId: string | null
+  target: '_self' | '_blank'
+  openMode: MenuItemOpenMode
+  children: MenuItemDto[]
+}
+
+export interface MenuDto extends MenuSummaryDto {
+  items: MenuItemDto[]
+}
+
+export interface CreateMenuRequest {
+  name: string
+  handle?: string
+}
+
+export interface UpdateMenuRequest {
+  name?: string
+  handle?: string
+}
+
+/** One node submitted when saving a menu's whole tree. */
+export interface MenuItemInputDto {
+  id?: string
+  label: string
+  type?: MenuItemType
+  pageId?: string | null
+  url?: string | null
+  collectionKey?: string | null
+  recordId?: string | null
+  target?: '_self' | '_blank'
+  openMode?: MenuItemOpenMode
+  children?: MenuItemInputDto[]
+}
+
+/** A menu item ready to render — reference resolved to a concrete `href`. */
+export interface ResolvedMenuItemDto {
+  id: string
+  label: string
+  href: string
+  target: '_self' | '_blank'
+  openMode: MenuItemOpenMode
+  children: ResolvedMenuItemDto[]
+}
+
+export interface ResolvedMenuDto {
+  handle: string
+  name: string
+  items: ResolvedMenuItemDto[]
+}
+
 export interface ModuleNavSubItem {
   label: string
   href: string

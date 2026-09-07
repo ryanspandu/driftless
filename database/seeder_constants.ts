@@ -24,6 +24,10 @@ export const BUILTIN_PERMISSIONS: { name: string; description: string }[] = [
   { name: 'template:read', description: 'Read templates.' },
   { name: 'template:update', description: 'Update templates.' },
   { name: 'template:delete', description: 'Delete templates.' },
+  { name: 'menu:create', description: 'Create navigation menus.' },
+  { name: 'menu:read', description: 'Read navigation menus.' },
+  { name: 'menu:update', description: 'Update navigation menus and their items.' },
+  { name: 'menu:delete', description: 'Delete navigation menus.' },
   { name: 'role:manage', description: 'Create / edit / delete roles and assign permissions.' },
   { name: 'permission:manage', description: 'Create / edit / delete permission codes.' },
   {
@@ -85,6 +89,10 @@ export const ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     'template:read',
     'template:update',
     'template:delete',
+    'menu:create',
+    'menu:read',
+    'menu:update',
+    'menu:delete',
     'settings:manage',
     'module:manage',
     /**

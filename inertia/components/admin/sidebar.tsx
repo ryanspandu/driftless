@@ -18,6 +18,7 @@ import {
   Stack,
   SquaresFour,
   Tray,
+  TreeStructure,
   Users,
   type Icon,
 } from '@phosphor-icons/react'
@@ -72,6 +73,7 @@ const navEntries: NavEntry[] = [
       { title: 'Content', href: '/admin/content', icon: FileText, activeMatch: 'prefix' },
       { title: 'Pages', href: '/admin/pages', icon: Browsers, activeMatch: 'prefix' },
       { title: 'Templates', href: '/admin/templates', icon: Layout, activeMatch: 'prefix' },
+      { title: 'Menus', href: '/admin/menus', icon: TreeStructure, activeMatch: 'prefix' },
       {
         title: 'Website settings',
         href: '/admin/website-settings',

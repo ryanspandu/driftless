@@ -78,6 +78,12 @@ router.get('/api/public/templates/:id', [
   'show',
 ])
 
+// Public, read-only resolved menu tree (consumed by client-side MenuBar blocks)
+router.get('/api/public/menus/:handle', [
+  () => import('#controllers/public_menus_controller'),
+  'show',
+])
+
 /**
  * Media files, from wherever `MEDIA_STORAGE_PATH` puts them.
  *
@@ -667,6 +673,41 @@ router
         ])
       })
       .use(middleware.permission({ resource: 'template' }))
+
+    // Menus (reusable WordPress-style navigation menu manager)
+    router.get('/admin/menus', [() => import('#controllers/admin/menus_controller'), 'page'])
+    router.get('/admin/menus/:id/edit', [
+      () => import('#controllers/admin/menus_controller'),
+      'edit',
+    ])
+    router
+      .group(() => {
+        router.get('/api/admin/menus', [
+          () => import('#controllers/admin/menus_controller'),
+          'index',
+        ])
+        router.post('/api/admin/menus', [
+          () => import('#controllers/admin/menus_controller'),
+          'store',
+        ])
+        router.get('/api/admin/menus/:id', [
+          () => import('#controllers/admin/menus_controller'),
+          'show',
+        ])
+        router.put('/api/admin/menus/:id', [
+          () => import('#controllers/admin/menus_controller'),
+          'update',
+        ])
+        router.put('/api/admin/menus/:id/items', [
+          () => import('#controllers/admin/menus_controller'),
+          'saveItems',
+        ])
+        router.delete('/api/admin/menus/:id', [
+          () => import('#controllers/admin/menus_controller'),
+          'destroy',
+        ])
+      })
+      .use(middleware.permission({ resource: 'menu' }))
 
     // CMS Collections
     router.get('/admin/cms/collections', [

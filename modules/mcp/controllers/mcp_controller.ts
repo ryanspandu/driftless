@@ -16,6 +16,7 @@ export const MCP_ABILITIES = [
   'builder:collections',
   'builder:pages',
   'builder:templates',
+  'builder:menus',
   'builder:settings',
   'builder:media',
   'builder:products',

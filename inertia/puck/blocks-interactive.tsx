@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type ComponentType, type CSSProperties } from 'react'
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ComponentType,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import {
   Award,
   BadgeCheck,
@@ -37,6 +45,8 @@ import {
 } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { Box } from './style-fields'
+import { useBlockData } from '~/puck/block-data'
+import type { ResolvedMenuDto, ResolvedMenuItemDto } from '~/types/api'
 
 /**
  * Curated icon set for the `Icon` block — enough to dress a trust bar, a feature
@@ -610,6 +620,346 @@ export function AccordionView({
           </details>
         ))}
       </div>
+    </Box>
+  )
+}
+
+/**
+ * Mega-menu: a navbar item whose trigger opens a popup panel. The panel is a
+ * Puck slot, so it can hold any blocks (a grid of links, a promo card, an
+ * image) — that freedom is what makes it a "mega" menu rather than a flat
+ * dropdown. It drops into the `Navbar` slot alongside plain links.
+ *
+ * Ergonomics are borrowed from `LightboxView` (Escape closes + returns focus to
+ * the trigger) and `DropdownView` (click toggle, force-open while editing):
+ *   • `openOn: 'click'` (default) toggles on click/tap; `'hover'` opens on a
+ *     pointer that isn't a touch (touch always uses the click toggle) and closes
+ *     on a short delay so the pointer can cross the gap into the panel.
+ *   • A click outside the block closes it.
+ *   • `fullWidth: 'full'` stretches the panel across the whole bar (a true mega
+ *     panel); `'inline'` is a normal anchored dropdown.
+ *   • On mobile the panel renders inline (in normal flow, an accordion-style
+ *     expand) instead of as an overlay — the `md:` classes only switch it to an
+ *     absolute overlay at the nav breakpoint.
+ */
+export function MegaMenuView({
+  label,
+  openOn,
+  fullWidth,
+  content: Content,
+  ...s
+}: {
+  label?: string
+  openOn?: 'click' | 'hover'
+  fullWidth?: 'inline' | 'full'
+  content?: Slot
+} & StyleBag) {
+  const [open, setOpen] = useState(false)
+  const editing = editingFlag(s)
+  const hover = openOn === 'hover'
+  const full = fullWidth === 'full'
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const panelId = useId()
+  const shown = open || editing
+
+  // Escape closes and returns focus to the trigger; a pointer-down outside the
+  // block closes it. Mirrors the modal ergonomics of LightboxView (:209).
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('mousedown', onDown)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onDown)
+    }
+  }, [open])
+
+  const clearTimer = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+  }
+  // Clear any pending close-timer when the block unmounts.
+  useEffect(() => clearTimer, [])
+
+  const onEnter = (e: ReactPointerEvent<HTMLElement>) => {
+    if (!hover || e.pointerType === 'touch') return
+    clearTimer()
+    setOpen(true)
+  }
+  const onLeave = (e: ReactPointerEvent<HTMLElement>) => {
+    if (!hover || e.pointerType === 'touch') return
+    clearTimer()
+    closeTimer.current = setTimeout(() => setOpen(false), 150)
+  }
+
+  return (
+    <Box
+      s={s}
+      style={{ display: 'inline-block' }}
+      onPointerEnter={onEnter}
+      onPointerLeave={onLeave}
+    >
+      <div ref={rootRef} style={{ position: 'relative' }}>
+        <button
+          type="button"
+          ref={triggerRef}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          aria-controls={panelId}
+          className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-4 py-2 text-sm"
+        >
+          {label || 'Menu'}
+          <ChevronDown
+            className={cn('size-4 transition-transform duration-200', open && 'rotate-180')}
+            aria-hidden
+          />
+        </button>
+        <div
+          id={panelId}
+          role="region"
+          aria-label={label || 'Menu'}
+          className={cn(
+            'w-full rounded-md border border-border bg-background p-4 shadow-lg md:absolute md:top-full md:mt-1 md:w-auto md:min-w-56',
+            full ? 'md:left-0 md:right-0' : 'md:left-0'
+          )}
+          style={{ display: shown ? 'block' : 'none', zIndex: 20 }}
+        >
+          {Content ? <Content /> : null}
+        </div>
+      </div>
+    </Box>
+  )
+}
+
+/** Must match the server's `menuDataKey` in core_block_resolvers.ts. */
+function menuDataKey(handle: string): string {
+  return `menu:${handle}`
+}
+
+async function fetchMenu(handle: string): Promise<ResolvedMenuDto> {
+  const res = await fetch(`/api/public/menus/${encodeURIComponent(handle)}`)
+  if (!res.ok) throw new Error('menu fetch failed')
+  return res.json()
+}
+
+/** A dropdown/mega panel built from a menu item's children. */
+function MenuPanelContent({ items }: { items: ResolvedMenuItemDto[] }) {
+  const isMega = items.some((c) => c.children.length > 0)
+  if (!isMega) {
+    return (
+      <ul className="min-w-48 list-none">
+        {items.map((c) => (
+          <li key={c.id}>
+            <a
+              href={c.href}
+              target={c.target}
+              rel={c.target === '_blank' ? 'noopener noreferrer' : undefined}
+              className="block rounded px-3 py-2 text-sm hover:bg-muted"
+            >
+              {c.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  return (
+    <div
+      className="grid gap-6"
+      style={{
+        gridTemplateColumns: `repeat(${Math.min(items.length, 4)}, minmax(10rem, 1fr))`,
+      }}
+    >
+      {items.map((col) => (
+        <div key={col.id}>
+          <a href={col.href} target={col.target} className="mb-2 block text-sm font-semibold">
+            {col.label}
+          </a>
+          {col.children.length > 0 && (
+            <ul className="list-none space-y-1">
+              {col.children.map((l) => (
+                <li key={l.id}>
+                  <a
+                    href={l.href}
+                    target={l.target}
+                    rel={l.target === '_blank' ? 'noopener noreferrer' : undefined}
+                    className="block py-0.5 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** One top-level bar entry: a plain link, or a trigger that opens a popup. */
+function MenuBarItem({ item }: { item: ResolvedMenuItemDto }) {
+  const hasPanel = item.children.length > 0 || item.openMode === 'mega'
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLLIElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const panelId = useId()
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('mousedown', onDown)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onDown)
+    }
+  }, [open])
+
+  const clearTimer = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+  }
+  useEffect(() => clearTimer, [])
+
+  if (!hasPanel) {
+    return (
+      <li>
+        <a
+          href={item.href}
+          target={item.target}
+          rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
+          className="block rounded-md px-3 py-2 text-sm"
+        >
+          {item.label}
+        </a>
+      </li>
+    )
+  }
+
+  const full = item.openMode === 'mega'
+  return (
+    <li
+      ref={rootRef}
+      className="md:relative"
+      onPointerEnter={(e) => {
+        if (e.pointerType === 'touch') return
+        clearTimer()
+        setOpen(true)
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType === 'touch') return
+        clearTimer()
+        closeTimer.current = setTimeout(() => setOpen(false), 150)
+      }}
+    >
+      <button
+        type="button"
+        ref={triggerRef}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-controls={panelId}
+        className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm"
+      >
+        {item.label}
+        <ChevronDown
+          className={cn('size-4 transition-transform duration-200', open && 'rotate-180')}
+          aria-hidden
+        />
+      </button>
+      <div
+        id={panelId}
+        role="region"
+        aria-label={item.label}
+        className={cn(
+          'w-full rounded-md border border-border bg-background p-4 shadow-lg md:absolute md:top-full md:mt-1 md:w-auto',
+          full ? 'md:left-0' : 'md:left-0 md:min-w-52'
+        )}
+        style={{ display: open ? 'block' : 'none', zIndex: 20 }}
+      >
+        <MenuPanelContent items={item.children} />
+      </div>
+    </li>
+  )
+}
+
+/**
+ * A navigation bar rendered from a reusable menu (the Menu Manager), bound by
+ * `menuHandle`. The menu tree is resolved server-side through the block-data
+ * pipeline, so the nav is in the initial HTML; on a CSR/preview page it falls
+ * back to fetching `/api/public/menus/:handle`. Items with children open a
+ * dropdown/mega panel.
+ */
+export function MenuBarView({
+  menuHandle,
+  brand,
+  ...s
+}: { menuHandle?: string; brand?: string } & StyleBag) {
+  const handle = (menuHandle || '').trim()
+  const editing = editingFlag(s)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const { data } = useBlockData<ResolvedMenuDto | null>(handle ? menuDataKey(handle) : null, () =>
+    fetchMenu(handle)
+  )
+
+  if (!handle) {
+    return (
+      <Box as="nav" s={s} className="px-4 py-3">
+        <div className={placeholderCls}>
+          Set this MenuBar’s “Menu handle” to a menu you created.
+        </div>
+      </Box>
+    )
+  }
+
+  const items = data?.items ?? []
+  return (
+    <Box as="nav" s={s} className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
+      {brand ? <span className="text-base font-semibold">{brand}</span> : <span />}
+      <button
+        type="button"
+        onClick={() => setMobileOpen((o) => !o)}
+        aria-label="Toggle menu"
+        className="rounded-md border border-input px-2 py-1 text-sm md:hidden"
+      >
+        ☰
+      </button>
+      <ul
+        className={cn(
+          'w-full list-none md:flex md:w-auto md:items-center md:gap-1',
+          mobileOpen || editing ? 'block' : 'hidden md:flex'
+        )}
+      >
+        {items.map((it) => (
+          <MenuBarItem key={it.id} item={it} />
+        ))}
+      </ul>
     </Box>
   )
 }

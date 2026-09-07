@@ -1,7 +1,18 @@
 import { registerBlockResolver } from '#services/block_data_resolvers'
 import { IntegrationSettingsService } from '#services/settings_service'
+import MenusService from '#services/menus_service'
 
 const integrationService = new IntegrationSettingsService()
+const menusService = new MenusService()
+
+/**
+ * The key a `MenuBar` block's resolved menu tree is stored/looked-up under.
+ * The client `MenuBar` component computes the identical string — keep the two in
+ * sync (mirrors the ecommerce `shopKeys` "must match" contract).
+ */
+export function menuDataKey(handle: string): string {
+  return `menu:${handle}`
+}
 
 /**
  * The one key every auth block looks its config up under.
@@ -42,6 +53,26 @@ const AUTH_BLOCK_TYPES = [
  * credential screen reads as the page not being finished loading.
  */
 export function registerCoreBlockResolvers(): void {
+  /**
+   * A `MenuBar` renders a reusable menu (from the Menu Manager) server-side, so
+   * the nav is in the initial HTML on every page the header renders. Not
+   * volatile — menu structure is stable content and belongs in the SSG snapshot.
+   */
+  registerBlockResolver('MenuBar', {
+    collect(props) {
+      const handle = String(props.menuHandle ?? '').trim()
+      if (!handle) return null
+      return { key: menuDataKey(handle), handle } as { key: string; handle: string }
+    },
+    async resolve(refs) {
+      const out: Record<string, unknown> = {}
+      for (const ref of refs as Array<{ key: string; handle: string }>) {
+        out[ref.key] = await menusService.resolveByHandle(ref.handle)
+      }
+      return out
+    },
+  })
+
   for (const type of AUTH_BLOCK_TYPES) {
     registerBlockResolver(type, {
       collect(props) {

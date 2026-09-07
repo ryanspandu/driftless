@@ -1,8 +1,10 @@
-import { useContext, useEffect, useState } from 'react'
-import { BlockDataContext, BlockBindingsContext, useBinding } from '~/puck/block-data'
+import { useEffect, useState } from 'react'
+import { BlockDataContext, BlockBindingsContext, useBinding, useBlockData } from '~/puck/block-data'
 
 // Re-exported so the commerce blocks keep one import for all of this plumbing.
-export { BlockDataContext, BlockBindingsContext, useBinding }
+// `useBlockData` now lives in core (its contexts always did); re-exported here so
+// the commerce blocks' existing imports keep working.
+export { BlockDataContext, BlockBindingsContext, useBinding, useBlockData }
 
 /**
  * Shared plumbing for the commerce blocks.
@@ -76,63 +78,6 @@ export const shopKeys = {
   }) =>
     `products:${opts.categorySlug ?? '*'}:${opts.limit}:${opts.featured ? 'featured' : 'all'}:${opts.sort ?? 'default'}`,
   productDetail: (slug: string) => `product:${slug}`,
-}
-
-/**
- * Read a key from the server-resolved data, falling back to a fetch.
- *
- * The fetch only runs when the key is missing, so an SSR page does no client
- * work and a CSR or preview page does exactly one request.
- */
-export function useBlockData<T>(
-  key: string | null,
-  fetcher: () => Promise<T>
-): {
-  data: T | null
-  loading: boolean
-} {
-  const preloaded = useContext(BlockDataContext)
-  const fromServer = key ? (preloaded[key] as T | undefined) : undefined
-
-  const [data, setData] = useState<T | null>(fromServer ?? null)
-  // When there IS a key but no server-resolved value (a volatile block withheld
-  // from the SSG snapshot, or a CSR/preview page), the data will be fetched — so
-  // start in `loading`. Otherwise the server render bakes a block's negative
-  // empty state ("Nothing to show" / "no longer available") into the cached
-  // snapshot for a page that actually has products. A neutral skeleton is what
-  // belongs in the snapshot until the client fills it in.
-  const [loading, setLoading] = useState(key != null && fromServer === undefined)
-
-  useEffect(() => {
-    if (!key || fromServer !== undefined) {
-      if (fromServer !== undefined) setData(fromServer)
-      return
-    }
-
-    let alive = true
-    setLoading(true)
-
-    fetcher()
-      .then((result) => {
-        if (alive) setData(result)
-      })
-      .catch(() => {
-        // A block that cannot load its data renders empty rather than throwing
-        // inside a render and taking the page with it.
-        if (alive) setData(null)
-      })
-      .finally(() => {
-        if (alive) setLoading(false)
-      })
-
-    return () => {
-      alive = false
-    }
-    // `fetcher` is recreated per render by design; the key is the real dependency.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, fromServer])
-
-  return { data, loading }
 }
 
 /**

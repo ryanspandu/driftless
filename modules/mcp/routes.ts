@@ -8,6 +8,7 @@ const CatalogCtrl = () => import('#modules/mcp/controllers/api/catalog_controlle
 const CollectionsCtrl = () => import('#modules/mcp/controllers/api/collections_controller')
 const PagesCtrl = () => import('#modules/mcp/controllers/api/pages_controller')
 const TemplatesCtrl = () => import('#modules/mcp/controllers/api/templates_controller')
+const MenusCtrl = () => import('#modules/mcp/controllers/api/menus_controller')
 const SettingsCtrl = () => import('#modules/mcp/controllers/api/settings_controller')
 const MediaCtrl = () => import('#modules/mcp/controllers/api/media_controller')
 const ProductsCtrl = () => import('#modules/mcp/controllers/api/products_controller')
@@ -238,6 +239,28 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .use(read('builder:templates'))
         })
         .use(middleware.permission({ resource: 'template' }))
+
+      // Menus — RBAC resource `menu`.
+      router
+        .group(() => {
+          router
+            .get('/api/mcp/v1/menus', [MenusCtrl, 'index'])
+            .as('mcp.menus.index')
+            .use(read('builder:read'))
+          router
+            .get('/api/mcp/v1/menus/:id', [MenusCtrl, 'show'])
+            .as('mcp.menus.show')
+            .use(read('builder:read'))
+          router
+            .post('/api/mcp/v1/menus', [MenusCtrl, 'store'])
+            .as('mcp.menus.store')
+            .use(read('builder:menus'))
+          router
+            .put('/api/mcp/v1/menus/:id/items', [MenusCtrl, 'saveItems'])
+            .as('mcp.menus.items')
+            .use(read('builder:menus'))
+        })
+        .use(middleware.permission({ resource: 'menu' }))
 
       // Appearance + site config — RBAC `settings:manage`.
       router

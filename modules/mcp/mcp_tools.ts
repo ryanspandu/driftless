@@ -82,6 +82,10 @@ export const MCP_TOOL_PROFILES: Record<string, string[]> = {
     'upload_media',
     'crop_media',
     'list_media',
+    'list_menus',
+    'get_menu',
+    'create_menu',
+    'set_menu_items',
   ],
 }
 
@@ -561,6 +565,52 @@ export function registerTools(
     'Make a template the default for its type.',
     { id: z.string() },
     ({ id }) => run(() => call('POST', `/api/mcp/v1/templates/${id}/default`))
+  )
+
+  // ── Menus (reusable navigation menu manager) ───────────────────────────────
+  const MenuItemNode: z.ZodType<unknown> = z.lazy(() =>
+    z.object({
+      id: z.string().optional().describe('Existing item id to update; omit for a new item.'),
+      label: z.string(),
+      type: z.enum(['page', 'url']).optional().describe('Default "url".'),
+      pageId: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('For type "page": an existing page id (from list_pages).'),
+      url: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('For type "url": an href, e.g. "/about" or "https://example.com".'),
+      target: z.enum(['_self', '_blank']).optional(),
+      openMode: z
+        .enum(['link', 'mega'])
+        .optional()
+        .describe('"mega" opens a popup panel built from this item\'s children.'),
+      children: z.array(MenuItemNode).optional(),
+    })
+  )
+  server.tool('list_menus', 'List reusable navigation menus (the Menu Manager).', {}, () =>
+    run(() => call('GET', '/api/mcp/v1/menus'))
+  )
+  server.tool(
+    'get_menu',
+    'Get one menu with its full nested item tree.',
+    { id: z.string() },
+    ({ id }) => run(() => call('GET', `/api/mcp/v1/menus/${id}`))
+  )
+  server.tool(
+    'create_menu',
+    'Create a reusable navigation menu. `handle` is the key a MenuBar block binds to (derived from the name if omitted).',
+    { name: z.string(), handle: z.string().optional() },
+    (args) => run(() => call('POST', '/api/mcp/v1/menus', args))
+  )
+  server.tool(
+    'set_menu_items',
+    "Replace a menu's WHOLE item tree. Submit items nested (each may carry `children`); array order is display order. Then render the menu by adding a MenuBar block (menuHandle = the menu's handle) to a HEADER/FOOTER template.",
+    { id: z.string(), items: z.array(MenuItemNode) },
+    ({ id, items }) => run(() => call('PUT', `/api/mcp/v1/menus/${id}/items`, { items }))
   )
 
   // ── Appearance + site config ────────────────────────────────────────────────
