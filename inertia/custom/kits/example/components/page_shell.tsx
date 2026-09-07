@@ -22,16 +22,22 @@ export function PageShell({
 }) {
   return (
     <SiteChrome header={header} footer={footer}>
-      <main className="mx-auto max-w-3xl px-6 py-20 sm:py-24">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{eyebrow}</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          {title}
-        </h1>
-        {intro ? (
-          <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">{intro}</p>
-        ) : null}
-        {children ? <div className="mt-10">{children}</div> : null}
-      </main>
+      {/* Full-width themed background so the content matches the site palette
+          (without it, a transparent page shows the body colour through). */}
+      <div className="bg-background text-foreground">
+        <main className="mx-auto max-w-3xl px-6 py-20 sm:py-24">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+            {eyebrow}
+          </p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+            {title}
+          </h1>
+          {intro ? (
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">{intro}</p>
+          ) : null}
+          {children ? <div className="mt-10">{children}</div> : null}
+        </main>
+      </div>
     </SiteChrome>
   )
 }
