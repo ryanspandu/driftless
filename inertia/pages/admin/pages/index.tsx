@@ -3,6 +3,7 @@ import { router } from '@inertiajs/react'
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { toast } from 'sonner'
 import {
+  Code2,
   Copy,
   Download,
   ExternalLink,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react'
 import { PAGE_ROLE_SLOTS, type PageSummaryDto } from '~/types/api'
 import { modulePageRoles } from '~/lib/module-page-roles'
+import { customPageHasRegion } from '~/custom/registry'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
@@ -56,6 +58,28 @@ const RENDER_MODE_LABEL: Record<string, string> = {
 }
 
 type DialogMode = { kind: 'create' } | { kind: 'edit'; row: PageSummaryDto }
+
+/**
+ * How a CODE page is authored, for the list badge and the "Open builder" gate.
+ * A kit is a folder (`component = "kit:<id>"`); a single-file code page is a bare
+ * slug. `canBuild` is false for a coded page with no editable region — the
+ * builder has nothing to show it, so that action is disabled rather than opening
+ * the "built in code" notice. Returns null for a visual-builder page.
+ */
+function codePageInfo(
+  page: PageSummaryDto
+): { label: string; hint: string; canBuild: boolean } | null {
+  if (page.kind !== 'CODE') return null
+  const component = page.component ?? ''
+  const isKit = component.startsWith('kit:')
+  return {
+    label: isKit ? 'Custom template' : 'Code',
+    hint: isKit
+      ? `Custom template kit: ${component.slice('kit:'.length)}`
+      : `Code component: ${component || '(none)'}`,
+    canBuild: customPageHasRegion(component),
+  }
+}
 
 export default function PagesPage() {
   const confirmDelete = useConfirmDelete()
@@ -160,13 +184,29 @@ export default function PagesPage() {
         id: 'title',
         accessorFn: (r) => r.title,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
-        // Primary cell: title with the page path as muted secondary text beneath it.
-        cell: ({ row }) => (
-          <div className="flex flex-col leading-tight">
-            <span className="font-medium">{row.original.title}</span>
-            <span className="text-xs text-muted-foreground">/{row.original.path}</span>
-          </div>
-        ),
+        // Primary cell: title with the page path as muted secondary text beneath
+        // it, plus a badge marking a coded page (single-file or custom template).
+        cell: ({ row }) => {
+          const code = codePageInfo(row.original)
+          return (
+            <div className="flex flex-col leading-tight">
+              <span className="flex items-center gap-1.5 font-medium">
+                <span className="truncate">{row.original.title}</span>
+                {code ? (
+                  <Badge
+                    variant="outline"
+                    className="gap-1 whitespace-nowrap text-[10px] font-normal"
+                    title={code.hint}
+                  >
+                    <Code2 className="size-3" />
+                    {code.label}
+                  </Badge>
+                ) : null}
+              </span>
+              <span className="text-xs text-muted-foreground">/{row.original.path}</span>
+            </div>
+          )
+        },
       },
       {
         id: 'status',
@@ -251,69 +291,94 @@ export default function PagesPage() {
         id: 'actions',
         enableSorting: false,
         header: () => <span className="sr-only">Actions</span>,
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon" className="size-8" />}
-              aria-label="Row actions"
-            >
-              <MoreHorizontal className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                className="gap-2"
-                render={
-                  <a
-                    href={`/admin/pages/${row.original.id}/edit`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
-                }
+        cell: ({ row }) => {
+          // The builder opens a visual-builder page, or the editable region of a
+          // coded page that exposes one (labelled to say so). A fully code-owned
+          // page has nothing to show, so the action is disabled rather than
+          // opening the "built in code" notice.
+          const code = codePageInfo(row.original)
+          const canBuild = code?.canBuild ?? true
+          const builderLabel = code ? 'Edit content region' : 'Open builder'
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="ghost" size="icon" className="size-8" />}
+                aria-label="Row actions"
               >
-                <SquarePen className="size-4" />
-                Open builder
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gap-2"
-                onClick={() => setDialog({ open: true, mode: { kind: 'edit', row: row.original } })}
-              >
-                <Pencil className="size-4" />
-                Edit settings
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2" onClick={() => void onDuplicate(row.original.id)}>
-                <Copy className="size-4" />
-                Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gap-2"
-                onClick={() => void onExport(row.original.id, row.original.title)}
-              >
-                <Download className="size-4" />
-                Export JSON
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gap-2"
-                onClick={() => void onCopyPreviewLink(row.original.id)}
-              >
-                <Link2 className="size-4" />
-                Copy preview link
-              </DropdownMenuItem>
-              <PageRoleMenu page={row.original} />
-              <DropdownMenuItem
-                variant="destructive"
-                className="gap-2"
-                onClick={() => {
-                  void confirmDelete({ description: 'Delete this page?' }).then((confirmed) => {
-                    if (confirmed) void deleteMut.mutateAsync(row.original.id)
-                  })
-                }}
-              >
-                <Trash2 className="size-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canBuild ? (
+                  <DropdownMenuItem
+                    className="gap-2"
+                    render={
+                      <a
+                        href={`/admin/pages/${row.original.id}/edit`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    }
+                  >
+                    <SquarePen className="size-4" />
+                    {builderLabel}
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    className="gap-2"
+                    disabled
+                    title="This page is built entirely in code — there is nothing to edit in the visual builder."
+                  >
+                    <SquarePen className="size-4" />
+                    Open builder
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  className="gap-2"
+                  onClick={() =>
+                    setDialog({ open: true, mode: { kind: 'edit', row: row.original } })
+                  }
+                >
+                  <Pencil className="size-4" />
+                  Edit settings
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2"
+                  onClick={() => void onDuplicate(row.original.id)}
+                >
+                  <Copy className="size-4" />
+                  Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2"
+                  onClick={() => void onExport(row.original.id, row.original.title)}
+                >
+                  <Download className="size-4" />
+                  Export JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2"
+                  onClick={() => void onCopyPreviewLink(row.original.id)}
+                >
+                  <Link2 className="size-4" />
+                  Copy preview link
+                </DropdownMenuItem>
+                <PageRoleMenu page={row.original} />
+                <DropdownMenuItem
+                  variant="destructive"
+                  className="gap-2"
+                  onClick={() => {
+                    void confirmDelete({ description: 'Delete this page?' }).then((confirmed) => {
+                      if (confirmed) void deleteMut.mutateAsync(row.original.id)
+                    })
+                  }}
+                >
+                  <Trash2 className="size-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        },
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
