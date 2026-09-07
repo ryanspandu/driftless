@@ -1,12 +1,4 @@
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ComponentType,
-  type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
-} from 'react'
+import { useEffect, useId, useRef, useState, type ComponentType, type CSSProperties } from 'react'
 import {
   Award,
   BadgeCheck,
@@ -624,127 +616,6 @@ export function AccordionView({
   )
 }
 
-/**
- * Mega-menu: a navbar item whose trigger opens a popup panel. The panel is a
- * Puck slot, so it can hold any blocks (a grid of links, a promo card, an
- * image) — that freedom is what makes it a "mega" menu rather than a flat
- * dropdown. It drops into the `Navbar` slot alongside plain links.
- *
- * Ergonomics are borrowed from `LightboxView` (Escape closes + returns focus to
- * the trigger) and `DropdownView` (click toggle, force-open while editing):
- *   • `openOn: 'click'` (default) toggles on click/tap; `'hover'` opens on a
- *     pointer that isn't a touch (touch always uses the click toggle) and closes
- *     on a short delay so the pointer can cross the gap into the panel.
- *   • A click outside the block closes it.
- *   • `fullWidth: 'full'` stretches the panel across the whole bar (a true mega
- *     panel); `'inline'` is a normal anchored dropdown.
- *   • On mobile the panel renders inline (in normal flow, an accordion-style
- *     expand) instead of as an overlay — the `md:` classes only switch it to an
- *     absolute overlay at the nav breakpoint.
- */
-export function MegaMenuView({
-  label,
-  openOn,
-  fullWidth,
-  content: Content,
-  ...s
-}: {
-  label?: string
-  openOn?: 'click' | 'hover'
-  fullWidth?: 'inline' | 'full'
-  content?: Slot
-} & StyleBag) {
-  const [open, setOpen] = useState(false)
-  const editing = editingFlag(s)
-  const hover = openOn === 'hover'
-  const full = fullWidth === 'full'
-  const rootRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const panelId = useId()
-  const shown = open || editing
-
-  // Escape closes and returns focus to the trigger; a pointer-down outside the
-  // block closes it. Mirrors the modal ergonomics of LightboxView (:209).
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false)
-        triggerRef.current?.focus()
-      }
-    }
-    const onDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('keydown', onKey)
-    document.addEventListener('mousedown', onDown)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.removeEventListener('mousedown', onDown)
-    }
-  }, [open])
-
-  const clearTimer = () => {
-    if (closeTimer.current) {
-      clearTimeout(closeTimer.current)
-      closeTimer.current = null
-    }
-  }
-  // Clear any pending close-timer when the block unmounts.
-  useEffect(() => clearTimer, [])
-
-  const onEnter = (e: ReactPointerEvent<HTMLElement>) => {
-    if (!hover || e.pointerType === 'touch') return
-    clearTimer()
-    setOpen(true)
-  }
-  const onLeave = (e: ReactPointerEvent<HTMLElement>) => {
-    if (!hover || e.pointerType === 'touch') return
-    clearTimer()
-    closeTimer.current = setTimeout(() => setOpen(false), 150)
-  }
-
-  return (
-    <Box
-      s={s}
-      style={{ display: 'inline-block' }}
-      onPointerEnter={onEnter}
-      onPointerLeave={onLeave}
-    >
-      <div ref={rootRef} style={{ position: 'relative' }}>
-        <button
-          type="button"
-          ref={triggerRef}
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-haspopup="menu"
-          aria-controls={panelId}
-          className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-4 py-2 text-sm"
-        >
-          {label || 'Menu'}
-          <ChevronDown
-            className={cn('size-4 transition-transform duration-200', open && 'rotate-180')}
-            aria-hidden
-          />
-        </button>
-        <div
-          id={panelId}
-          role="region"
-          aria-label={label || 'Menu'}
-          className={cn(
-            'w-full rounded-md border border-border bg-background p-4 shadow-lg md:absolute md:top-full md:mt-1 md:w-auto md:min-w-56',
-            full ? 'md:left-0 md:right-0' : 'md:left-0'
-          )}
-          style={{ display: shown ? 'block' : 'none', zIndex: 20 }}
-        >
-          {Content ? <Content /> : null}
-        </div>
-      </div>
-    </Box>
-  )
-}
-
 /** Must match the server's `menuDataKey` in core_block_resolvers.ts. */
 function menuDataKey(handle: string): string {
   return `menu:${handle}`
@@ -813,7 +684,10 @@ function MenuPanelContent({ items }: { items: ResolvedMenuItemDto[] }) {
 
 /** One top-level bar entry: a plain link, or a trigger that opens a popup. */
 function MenuBarItem({ item }: { item: ResolvedMenuItemDto }) {
-  const hasPanel = item.children.length > 0 || item.openMode === 'mega'
+  // A popup appears automatically for any item that has sub-items. Its layout is
+  // derived from the structure: a full-width MEGA panel when the sub-items
+  // themselves have children (columns), otherwise a simple anchored dropdown.
+  const hasPanel = item.children.length > 0
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLLIElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -862,7 +736,7 @@ function MenuBarItem({ item }: { item: ResolvedMenuItemDto }) {
     )
   }
 
-  const full = item.openMode === 'mega'
+  const full = item.children.some((c) => c.children.length > 0)
   return (
     <li
       ref={rootRef}

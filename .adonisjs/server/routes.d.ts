@@ -208,6 +208,10 @@ export type ScannedRoutes = {
     'mcp.templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.default': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.menus.index': { paramsTuple?: []; params?: {} }
+    'mcp.menus.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.menus.store': { paramsTuple?: []; params?: {} }
+    'mcp.menus.items': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.appearance.get': { paramsTuple?: []; params?: {} }
     'mcp.appearance': { paramsTuple?: []; params?: {} }
     'mcp.breakpoints': { paramsTuple?: []; params?: {} }
@@ -332,6 +336,8 @@ export type ScannedRoutes = {
     'mcp.pages.coverage': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.index': { paramsTuple?: []; params?: {} }
     'mcp.templates.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.menus.index': { paramsTuple?: []; params?: {} }
+    'mcp.menus.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.appearance.get': { paramsTuple?: []; params?: {} }
     'mcp.media.index': { paramsTuple?: []; params?: {} }
     'mcp.products.index': { paramsTuple?: []; params?: {} }
@@ -436,6 +442,8 @@ export type ScannedRoutes = {
     'mcp.pages.coverage': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.index': { paramsTuple?: []; params?: {} }
     'mcp.templates.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.menus.index': { paramsTuple?: []; params?: {} }
+    'mcp.menus.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.appearance.get': { paramsTuple?: []; params?: {} }
     'mcp.media.index': { paramsTuple?: []; params?: {} }
     'mcp.products.index': { paramsTuple?: []; params?: {} }
@@ -508,6 +516,7 @@ export type ScannedRoutes = {
     'mcp.pages.discard': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.store': { paramsTuple?: []; params?: {} }
     'mcp.templates.default': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.menus.store': { paramsTuple?: []; params?: {} }
     'mcp.media.store': { paramsTuple?: []; params?: {} }
     'mcp.media.crop': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.products.store': { paramsTuple?: []; params?: {} }
@@ -545,6 +554,7 @@ export type ScannedRoutes = {
     'mcp.pages.patch': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.pages.brief': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'mcp.menus.items': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'mcp.appearance': { paramsTuple?: []; params?: {} }
     'mcp.breakpoints': { paramsTuple?: []; params?: {} }
     'mcp.globalcode': { paramsTuple?: []; params?: {} }

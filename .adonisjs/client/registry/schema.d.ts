@@ -139,6 +139,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/public_templates_controller').default['show']>>>
     }
   }
+  'public_menus.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/public/menus/:handle'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { handle: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/public_menus_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/public_menus_controller').default['show']>>>
+    }
+  }
   'media.serve': {
     methods: ["GET","HEAD"]
     pattern: '/media/*'
@@ -1505,6 +1517,102 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/templates_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/templates_controller').default['destroy']>>>
+    }
+  }
+  'menus.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/menus'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['page']>>>
+    }
+  }
+  'menus.edit': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/menus/:id/edit'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['edit']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['edit']>>>
+    }
+  }
+  'menus.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/menus'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['index']>>>
+    }
+  }
+  'menus.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/menus'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['store']>>>
+    }
+  }
+  'menus.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/menus/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['show']>>>
+    }
+  }
+  'menus.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/menus/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['update']>>>
+    }
+  }
+  'menus.save_items': {
+    methods: ["PUT"]
+    pattern: '/api/admin/menus/:id/items'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['saveItems']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['saveItems']>>>
+    }
+  }
+  'menus.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/menus/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/menus_controller').default['destroy']>>>
     }
   }
   'cms.collections_page': {
@@ -4805,6 +4913,54 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['setDefault']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/templates_controller').default['setDefault']>>>
+    }
+  }
+  'mcp.menus.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/menus'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/menus_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/menus_controller').default['index']>>>
+    }
+  }
+  'mcp.menus.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/menus/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/menus_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/menus_controller').default['show']>>>
+    }
+  }
+  'mcp.menus.store': {
+    methods: ["POST"]
+    pattern: '/api/mcp/v1/menus'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/menus_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/menus_controller').default['store']>>>
+    }
+  }
+  'mcp.menus.items': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/menus/:id/items'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/menus_controller').default['saveItems']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/menus_controller').default['saveItems']>>>
     }
   }
   'mcp.appearance.get': {

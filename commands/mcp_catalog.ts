@@ -89,10 +89,8 @@ const BLOCK_HINTS: Record<string, string> = {
   Icon: 'A single icon for trust-bar / feature glyphs. Match the design in FIDELITY ORDER: (1) if the design’s icons are visible in a reference image, crop_media them and set the Icon `src` to the crop url; (2) if you have the icon files, upload_media them and set `src`; (3) otherwise set "name" to the closest curated key (e.g. palette, truck, shield-check, leaf) and colour it with the `textColor` styleProp = the design’s icon/accent colour (for a tinted badge add bg + borderRadius:"999px" + padding). Use an EMOJI only when the design literally shows emoji, and report it as a substitution. `src` overrides `name`.',
   Accordion: 'An expandable question/answer list. Use for any FAQ or "common questions" section.',
   Tabs: 'Tabbed content panels for switching between related bodies of content.',
-  MegaMenu:
-    'A navbar item that opens a popup panel — put it inside a Navbar slot for a menu with a rich dropdown. The panel is a slot: fill it with a Grid/Columns of links, a promo Image, whatever the design shows. Set openOn ("click"/"hover") and fullWidth ("inline" anchored dropdown / "full" full-width mega panel). For a plain single-column link list use Dropdown instead; to render a REUSABLE menu managed in the Menu Manager, use MenuBar.',
   MenuBar:
-    'Renders a REUSABLE navigation menu (built in the admin Menu Manager) as a nav bar with nested dropdown/mega popups. REQUIRED: set `menuHandle` to an existing menu\'s handle — without it the bar renders a placeholder. Use this (not hand-placed links) when the same menu should appear across pages and be editable in one place; the tree (labels, nesting, order, page/URL targets, which items open a mega panel) is managed in Menus, not here. Drop it in a HEADER/FOOTER template so the nav is shared site-wide.',
+    'THE navigation menu block (labelled "Menu"). Renders a REUSABLE menu built in the admin Menu Manager as a nav bar. REQUIRED: set `menuHandle` to an existing menu\'s handle (from list_menus) — without it it renders a placeholder. Popups are AUTOMATIC from the menu\'s structure: a top-level item that has sub-items opens a dropdown, and a full-width MEGA panel when those sub-items themselves have children (columns). Build/nest the tree with the menu tools (create_menu + set_menu_items) or the Menus admin, not here. Drop it in a HEADER/FOOTER template so the nav is shared site-wide.',
   CollectionList:
     'Lists PUBLISHED records of a CMS collection you created (blogs, articles, generic content). REQUIRED: set source to { collectionKey:"<an existing collection key>" } (from list_collections) — WITHOUT a collectionKey the block renders NOTHING on the published page and reports no error, so it silently vanishes. Leave template:"builtin" (the default) to get a ready-made card — set cardStyle ("card"|"plain"|"overlay"), columns and imageAspect; the record\'s image field can be a MEDIA field (a media id, resolved to its URL) or a TEXT field holding an image URL. Only set template:"template" if you have created a COLLECTION template to repeat. Do NOT use this for e-commerce products — use ProductList.',
   // Commerce module blocks:
@@ -124,7 +122,10 @@ const GUIDANCE_RULES: string[] = [
 const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string }> = [
   {
     section: 'Brand setup (do this FIRST, before any section)',
-    blocks: ['get_appearance', 'set_appearance(primaryColor, secondaryColor, fontFamily, savedColors)'],
+    blocks: [
+      'get_appearance',
+      'set_appearance(primaryColor, secondaryColor, fontFamily, savedColors)',
+    ],
     note: 'Extract the design’s palette + typeface and apply them with set_appearance BEFORE composing. primary/secondary drive every CTA and product button; savedColors (bg, ink, accent, surface) become var(--color-<slug>) for use in any block’s bg/textColor/borderColor. Skipping this ships the default purple CTAs — the #1 reason a build looks off-brand.',
   },
   {
@@ -219,7 +220,14 @@ const GUIDANCE_EXAMPLE = {
           padding: '96px 0',
           backgrounds: [
             { type: 'overlay', color: 'rgba(11,18,32,0.55)' },
-            { type: 'image', url: '/uploads/hero.jpg', sizeMode: 'cover', posX: 'center', posY: 'center', repeat: 'no-repeat' },
+            {
+              type: 'image',
+              url: '/uploads/hero.jpg',
+              sizeMode: 'cover',
+              posX: 'center',
+              posY: 'center',
+              repeat: 'no-repeat',
+            },
           ],
           content: [
             {
@@ -239,15 +247,45 @@ const GUIDANCE_EXAMPLE = {
                             width: '55%',
                             gap: '20px',
                             content: [
-                              { type: 'Heading', props: { text: 'Furniture that fits your life', level: '1', textSize: '48px', fontWeight: '700', textColor: '#ffffff' } },
-                              { type: 'Paragraph', props: { text: 'Handcrafted pieces, delivered to your door.', textSize: '18px', textColor: 'rgba(255,255,255,0.8)' } },
+                              {
+                                type: 'Heading',
+                                props: {
+                                  text: 'Furniture that fits your life',
+                                  level: '1',
+                                  textSize: '48px',
+                                  fontWeight: '700',
+                                  textColor: '#ffffff',
+                                },
+                              },
+                              {
+                                type: 'Paragraph',
+                                props: {
+                                  text: 'Handcrafted pieces, delivered to your door.',
+                                  textSize: '18px',
+                                  textColor: 'rgba(255,255,255,0.8)',
+                                },
+                              },
                               {
                                 type: 'HFlex',
                                 props: {
                                   gap: '12px',
                                   content: [
-                                    { type: 'Button', props: { label: 'Shop now', variant: 'primary', href: '/shop' } },
-                                    { type: 'Button', props: { label: 'Learn more', variant: 'outline', href: '/about' } },
+                                    {
+                                      type: 'Button',
+                                      props: {
+                                        label: 'Shop now',
+                                        variant: 'primary',
+                                        href: '/shop',
+                                      },
+                                    },
+                                    {
+                                      type: 'Button',
+                                      props: {
+                                        label: 'Learn more',
+                                        variant: 'outline',
+                                        href: '/about',
+                                      },
+                                    },
                                   ],
                                 },
                               },
@@ -256,7 +294,11 @@ const GUIDANCE_EXAMPLE = {
                         },
                         {
                           type: 'Image',
-                          props: { width: '45%', borderRadius: '16px', src: { url: '/uploads/hero-product.jpg' } },
+                          props: {
+                            width: '45%',
+                            borderRadius: '16px',
+                            src: { url: '/uploads/hero-product.jpg' },
+                          },
                         },
                       ],
                     },

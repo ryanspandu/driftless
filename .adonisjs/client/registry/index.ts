@@ -72,6 +72,12 @@ const routes = {
     tokens: [{"old":"/api/public/templates/:id","type":0,"val":"api","end":""},{"old":"/api/public/templates/:id","type":0,"val":"public","end":""},{"old":"/api/public/templates/:id","type":0,"val":"templates","end":""},{"old":"/api/public/templates/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['public_templates.show']['types'],
   },
+  'public_menus.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/public/menus/:handle',
+    tokens: [{"old":"/api/public/menus/:handle","type":0,"val":"api","end":""},{"old":"/api/public/menus/:handle","type":0,"val":"public","end":""},{"old":"/api/public/menus/:handle","type":0,"val":"menus","end":""},{"old":"/api/public/menus/:handle","type":1,"val":"handle","end":""}],
+    types: placeholder as Registry['public_menus.show']['types'],
+  },
   'media.serve': {
     methods: ["GET","HEAD"],
     pattern: '/media/*',
@@ -755,6 +761,54 @@ const routes = {
     pattern: '/api/admin/templates/:id',
     tokens: [{"old":"/api/admin/templates/:id","type":0,"val":"api","end":""},{"old":"/api/admin/templates/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/templates/:id","type":0,"val":"templates","end":""},{"old":"/api/admin/templates/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['templates.destroy']['types'],
+  },
+  'menus.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/menus',
+    tokens: [{"old":"/admin/menus","type":0,"val":"admin","end":""},{"old":"/admin/menus","type":0,"val":"menus","end":""}],
+    types: placeholder as Registry['menus.page']['types'],
+  },
+  'menus.edit': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/menus/:id/edit',
+    tokens: [{"old":"/admin/menus/:id/edit","type":0,"val":"admin","end":""},{"old":"/admin/menus/:id/edit","type":0,"val":"menus","end":""},{"old":"/admin/menus/:id/edit","type":1,"val":"id","end":""},{"old":"/admin/menus/:id/edit","type":0,"val":"edit","end":""}],
+    types: placeholder as Registry['menus.edit']['types'],
+  },
+  'menus.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/menus',
+    tokens: [{"old":"/api/admin/menus","type":0,"val":"api","end":""},{"old":"/api/admin/menus","type":0,"val":"admin","end":""},{"old":"/api/admin/menus","type":0,"val":"menus","end":""}],
+    types: placeholder as Registry['menus.index']['types'],
+  },
+  'menus.store': {
+    methods: ["POST"],
+    pattern: '/api/admin/menus',
+    tokens: [{"old":"/api/admin/menus","type":0,"val":"api","end":""},{"old":"/api/admin/menus","type":0,"val":"admin","end":""},{"old":"/api/admin/menus","type":0,"val":"menus","end":""}],
+    types: placeholder as Registry['menus.store']['types'],
+  },
+  'menus.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/menus/:id',
+    tokens: [{"old":"/api/admin/menus/:id","type":0,"val":"api","end":""},{"old":"/api/admin/menus/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/menus/:id","type":0,"val":"menus","end":""},{"old":"/api/admin/menus/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['menus.show']['types'],
+  },
+  'menus.update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/menus/:id',
+    tokens: [{"old":"/api/admin/menus/:id","type":0,"val":"api","end":""},{"old":"/api/admin/menus/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/menus/:id","type":0,"val":"menus","end":""},{"old":"/api/admin/menus/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['menus.update']['types'],
+  },
+  'menus.save_items': {
+    methods: ["PUT"],
+    pattern: '/api/admin/menus/:id/items',
+    tokens: [{"old":"/api/admin/menus/:id/items","type":0,"val":"api","end":""},{"old":"/api/admin/menus/:id/items","type":0,"val":"admin","end":""},{"old":"/api/admin/menus/:id/items","type":0,"val":"menus","end":""},{"old":"/api/admin/menus/:id/items","type":1,"val":"id","end":""},{"old":"/api/admin/menus/:id/items","type":0,"val":"items","end":""}],
+    types: placeholder as Registry['menus.save_items']['types'],
+  },
+  'menus.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/menus/:id',
+    tokens: [{"old":"/api/admin/menus/:id","type":0,"val":"api","end":""},{"old":"/api/admin/menus/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/menus/:id","type":0,"val":"menus","end":""},{"old":"/api/admin/menus/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['menus.destroy']['types'],
   },
   'cms.collections_page': {
     methods: ["GET","HEAD"],
@@ -2405,6 +2459,30 @@ const routes = {
     pattern: '/api/mcp/v1/templates/:id/default',
     tokens: [{"old":"/api/mcp/v1/templates/:id/default","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/templates/:id/default","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/templates/:id/default","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/templates/:id/default","type":0,"val":"templates","end":""},{"old":"/api/mcp/v1/templates/:id/default","type":1,"val":"id","end":""},{"old":"/api/mcp/v1/templates/:id/default","type":0,"val":"default","end":""}],
     types: placeholder as Registry['mcp.templates.default']['types'],
+  },
+  'mcp.menus.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/mcp/v1/menus',
+    tokens: [{"old":"/api/mcp/v1/menus","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/menus","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/menus","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/menus","type":0,"val":"menus","end":""}],
+    types: placeholder as Registry['mcp.menus.index']['types'],
+  },
+  'mcp.menus.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/mcp/v1/menus/:id',
+    tokens: [{"old":"/api/mcp/v1/menus/:id","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/menus/:id","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/menus/:id","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/menus/:id","type":0,"val":"menus","end":""},{"old":"/api/mcp/v1/menus/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['mcp.menus.show']['types'],
+  },
+  'mcp.menus.store': {
+    methods: ["POST"],
+    pattern: '/api/mcp/v1/menus',
+    tokens: [{"old":"/api/mcp/v1/menus","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/menus","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/menus","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/menus","type":0,"val":"menus","end":""}],
+    types: placeholder as Registry['mcp.menus.store']['types'],
+  },
+  'mcp.menus.items': {
+    methods: ["PUT"],
+    pattern: '/api/mcp/v1/menus/:id/items',
+    tokens: [{"old":"/api/mcp/v1/menus/:id/items","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/menus/:id/items","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/menus/:id/items","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/menus/:id/items","type":0,"val":"menus","end":""},{"old":"/api/mcp/v1/menus/:id/items","type":1,"val":"id","end":""},{"old":"/api/mcp/v1/menus/:id/items","type":0,"val":"items","end":""}],
+    types: placeholder as Registry['mcp.menus.items']['types'],
   },
   'mcp.appearance.get': {
     methods: ["GET","HEAD"],

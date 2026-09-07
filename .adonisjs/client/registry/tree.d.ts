@@ -35,6 +35,9 @@ export interface ApiDefinition {
   publicTemplates: {
     show: typeof routes['public_templates.show']
   }
+  publicMenus: {
+    show: typeof routes['public_menus.show']
+  }
   media: {
     serve: typeof routes['media.serve']
     serveLegacy: typeof routes['media.serveLegacy']
@@ -212,6 +215,16 @@ export interface ApiDefinition {
     show: typeof routes['templates.show']
     update: typeof routes['templates.update']
     destroy: typeof routes['templates.destroy']
+  }
+  menus: {
+    page: typeof routes['menus.page']
+    edit: typeof routes['menus.edit']
+    index: typeof routes['menus.index']
+    store: typeof routes['menus.store']
+    show: typeof routes['menus.show']
+    update: typeof routes['menus.update']
+    saveItems: typeof routes['menus.save_items']
+    destroy: typeof routes['menus.destroy']
   }
   cms: {
     collectionsPage: typeof routes['cms.collections_page']
@@ -581,6 +594,12 @@ export interface ApiDefinition {
       update: typeof routes['mcp.templates.update']
       destroy: typeof routes['mcp.templates.destroy']
       default: typeof routes['mcp.templates.default']
+    }
+    menus: {
+      index: typeof routes['mcp.menus.index']
+      show: typeof routes['mcp.menus.show']
+      store: typeof routes['mcp.menus.store']
+      items: typeof routes['mcp.menus.items']
     }
     appearance: typeof routes['mcp.appearance'] & {
       get: typeof routes['mcp.appearance.get']

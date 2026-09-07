@@ -3,6 +3,7 @@ import { usePage } from '@inertiajs/react'
 import type { Config } from '@measured/puck'
 import { cn } from '~/lib/utils'
 import { CollectionSourceField, CollectionList } from '~/puck/collection-list'
+import { MenuHandleField } from '~/puck/menu-field'
 import { CollectionTemplateField } from '~/puck/collection-template-field'
 import { withModuleBlocks } from '~/puck/module-blocks'
 import { withCustomBlocks } from '~/puck/custom-blocks'
@@ -19,7 +20,6 @@ import {
   IconView,
   ICON_NAMES,
   LightboxView,
-  MegaMenuView,
   MenuBarView,
   NavbarView,
   ReviewsView,
@@ -452,7 +452,6 @@ export const baseConfig: Config = {
         'Search',
         'BackgroundVideo',
         'Dropdown',
-        'MegaMenu',
         'MenuBar',
         'CodeEmbed',
         'Lightbox',
@@ -1820,33 +1819,6 @@ export const baseConfig: Config = {
       render: (props) => <DropdownView {...props} />,
     },
 
-    MegaMenu: {
-      label: 'Mega Menu',
-      fields: {
-        label: { type: 'text', label: 'Button label' },
-        openOn: {
-          type: 'select',
-          label: 'Open on',
-          options: [
-            { label: 'Click / tap', value: 'click' },
-            { label: 'Hover', value: 'hover' },
-          ],
-        },
-        fullWidth: {
-          type: 'select',
-          label: 'Panel width',
-          options: [
-            { label: 'Anchored dropdown', value: 'inline' },
-            { label: 'Full width', value: 'full' },
-          ],
-        },
-        content: { type: 'slot' },
-        ...styleFields,
-      },
-      defaultProps: { label: 'Menu', openOn: 'click', fullWidth: 'inline', content: [] },
-      render: (props) => <MegaMenuView {...props} />,
-    },
-
     Lightbox: {
       label: 'Lightbox',
       fields: {
@@ -1871,9 +1843,15 @@ export const baseConfig: Config = {
     },
 
     MenuBar: {
-      label: 'Menu Bar',
+      label: 'Menu',
       fields: {
-        menuHandle: { type: 'text', label: 'Menu handle' },
+        menuHandle: {
+          type: 'custom',
+          label: 'Menu',
+          render: ({ value, onChange }) => (
+            <MenuHandleField value={value as string | undefined} onChange={onChange} />
+          ),
+        },
         brand: { type: 'text', label: 'Brand (optional)' },
         ...styleFields,
       },

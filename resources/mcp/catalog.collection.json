@@ -1,6 +1,6 @@
 {
   "target": "collection",
-  "generatedAt": "2026-09-06T19:17:37.280Z",
+  "generatedAt": "2026-09-07T04:00:53.559Z",
   "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] } — only the ROOT uses a top-level \"content\" array. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children INSIDE props, keyed by the slot name (see each block's \"slots\") — e.g. { type: \"Section\", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a top-level \"content\" on the block (a sibling of props) — that renders EMPTY. Every block also accepts the shared \"styleProps\" (see the block's \"styleProps\" list and the catalog's \"styleSchemas\") — most are a plain CSS STRING value (e.g. padding:\"16px 24px\", display:\"flex\", gap:\"16px\", alignItems:\"center\", position:\"absolute\", top:\"0\", zIndex:\"2\", width:\"60%\", bg:\"#ffffff\", textColor:\"#111827\"). A FEW are structured and documented under \"styleSchemas\": \"backgrounds\" (a layer stack), \"responsive\" ({ breakpointId: { …styleProps } }), and \"states\" ({ hover|focus|active: { …styleProps } }) — these ARE honoured, not dropped. A style value that is neither a string nor one of those structured shapes is dropped on render. A field with type \"object\" documents its shape under \"objectFields\"; a field with type \"array\" documents each item's shape under \"arrayFields\" (+ \"defaultItemProps\" as an example). Each block's \"defaultProps\" is a ready-to-use worked example of valid props. Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled — see the catalog's \"enabledModules\" and prefer core blocks unless the site uses that module.",
   "guidance": {
     "rules": [
@@ -3764,125 +3764,15 @@
       ]
     },
     {
-      "type": "MegaMenu",
-      "label": "Mega Menu",
-      "category": "Advanced",
-      "module": null,
-      "slots": [
-        "content"
-      ],
-      "fields": {
-        "label": {
-          "type": "text",
-          "label": "Button label"
-        },
-        "openOn": {
-          "type": "select",
-          "label": "Open on",
-          "options": [
-            {
-              "label": "Click / tap",
-              "value": "click"
-            },
-            {
-              "label": "Hover",
-              "value": "hover"
-            }
-          ]
-        },
-        "fullWidth": {
-          "type": "select",
-          "label": "Panel width",
-          "options": [
-            {
-              "label": "Anchored dropdown",
-              "value": "inline"
-            },
-            {
-              "label": "Full width",
-              "value": "full"
-            }
-          ]
-        }
-      },
-      "defaultProps": {
-        "label": "Menu",
-        "openOn": "click",
-        "fullWidth": "inline",
-        "content": []
-      },
-      "useFor": "A navbar item that opens a popup panel — put it inside a Navbar slot for a menu with a rich dropdown. The panel is a slot: fill it with a Grid/Columns of links, a promo Image, whatever the design shows. Set openOn (\"click\"/\"hover\") and fullWidth (\"inline\" anchored dropdown / \"full\" full-width mega panel). For a plain single-column link list use Dropdown instead; to render a REUSABLE menu managed in the Menu Manager, use MenuBar.",
-      "styleProps": [
-        "padding",
-        "margin",
-        "width",
-        "height",
-        "minWidth",
-        "minHeight",
-        "maxWidth",
-        "maxHeight",
-        "overflow",
-        "display",
-        "flexDirection",
-        "flexWrap",
-        "justifyContent",
-        "alignItems",
-        "alignSelf",
-        "gap",
-        "flexGrow",
-        "flexShrink",
-        "flexBasis",
-        "order",
-        "gridTemplateColumns",
-        "gridTemplateRows",
-        "gridAutoFlow",
-        "position",
-        "top",
-        "right",
-        "bottom",
-        "left",
-        "zIndex",
-        "float",
-        "clear",
-        "textSize",
-        "fontWeight",
-        "lineHeight",
-        "font",
-        "textColor",
-        "align",
-        "letterSpacing",
-        "textIndent",
-        "textTransform",
-        "textDecoration",
-        "fontStyle",
-        "direction",
-        "whiteSpace",
-        "bg",
-        "backgrounds",
-        "borderWidth",
-        "borderStyle",
-        "borderColor",
-        "borderRadius",
-        "boxShadow",
-        "opacity",
-        "mixBlendMode",
-        "transform",
-        "transition",
-        "filter",
-        "cursor",
-        "className"
-      ]
-    },
-    {
       "type": "MenuBar",
-      "label": "Menu Bar",
+      "label": "Menu",
       "category": "Advanced",
       "module": null,
       "slots": [],
       "fields": {
         "menuHandle": {
-          "type": "text",
-          "label": "Menu handle"
+          "type": "custom",
+          "label": "Menu"
         },
         "brand": {
           "type": "text",
@@ -3893,7 +3783,7 @@
         "menuHandle": "",
         "brand": ""
       },
-      "useFor": "Renders a REUSABLE navigation menu (built in the admin Menu Manager) as a nav bar with nested dropdown/mega popups. REQUIRED: set `menuHandle` to an existing menu's handle — without it the bar renders a placeholder. Use this (not hand-placed links) when the same menu should appear across pages and be editable in one place; the tree (labels, nesting, order, page/URL targets, which items open a mega panel) is managed in Menus, not here. Drop it in a HEADER/FOOTER template so the nav is shared site-wide.",
+      "useFor": "THE navigation menu block (labelled \"Menu\"). Renders a REUSABLE menu built in the admin Menu Manager as a nav bar. REQUIRED: set `menuHandle` to an existing menu's handle (from list_menus) — without it it renders a placeholder. Popups are AUTOMATIC from the menu's structure: a top-level item that has sub-items opens a dropdown, and a full-width MEGA panel when those sub-items themselves have children (columns). Build/nest the tree with the menu tools (create_menu + set_menu_items) or the Menus admin, not here. Drop it in a HEADER/FOOTER template so the nav is shared site-wide.",
       "styleProps": [
         "padding",
         "margin",
