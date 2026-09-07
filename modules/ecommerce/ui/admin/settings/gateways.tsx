@@ -6,16 +6,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { Switch } from '~/components/ui/switch'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '~/components/ui/tabs'
+import { cn } from '~/lib/utils'
 import { apiErrorMessage } from '~/lib/api-client'
 import { useGateways, useUpdateGateway, useVerifyGateway, type GatewayCredentialDto } from '../_api'
 
-/** Every (gateway, mode) pair gets a card, whether or not a row exists yet. */
-const TARGETS = [
-  { gateway: 'stripe', mode: 'test' },
-  { gateway: 'stripe', mode: 'live' },
-  { gateway: 'paypal', mode: 'test' },
-  { gateway: 'paypal', mode: 'live' },
+/** One card per gateway; a Dev/Live toggle switches which mode's form is shown. */
+const GATEWAYS = [
+  { key: 'stripe', label: 'Stripe' },
+  { key: 'paypal', label: 'PayPal' },
 ] as const
+
+const MODES = ['test', 'live'] as const
 
 /** Field labels differ per gateway — PayPal has no signing secret. */
 const LABELS = {
@@ -38,7 +40,8 @@ const LABELS = {
   },
 } as const
 
-function GatewayCard({
+/** The credential form for one (gateway, mode). Chrome lives in GatewaySection. */
+function GatewayForm({
   gateway,
   mode,
   credential,
@@ -100,123 +103,165 @@ function GatewayCard({
   }
 
   return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor={`${gateway}-${mode}-public`}>{labels.public}</Label>
+        <Input
+          id={`${gateway}-${mode}-public`}
+          value={publicKey}
+          onChange={(e) => setPublicKey(e.target.value)}
+          placeholder={labels.publicHint}
+          autoComplete="off"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`${gateway}-${mode}-secret`}>{labels.secret}</Label>
+        <Input
+          id={`${gateway}-${mode}-secret`}
+          type="password"
+          value={secretKey ?? ''}
+          onChange={(e) => setSecretKey(e.target.value)}
+          placeholder={credential?.secretKeyMasked ?? labels.secretHint}
+          autoComplete="new-password"
+        />
+        <p className="text-xs text-muted-foreground">
+          {credential?.hasSecretKey
+            ? 'Stored and encrypted. Leave blank to keep it.'
+            : labels.secretHint}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`${gateway}-${mode}-webhook`}>{labels.webhook}</Label>
+        <Input
+          id={`${gateway}-${mode}-webhook`}
+          type="password"
+          value={webhookSecret ?? ''}
+          onChange={(e) => setWebhookSecret(e.target.value)}
+          placeholder={credential?.hasWebhookSecret ? '••••••••' : ''}
+          autoComplete="new-password"
+        />
+        <p className="text-xs text-muted-foreground">{labels.webhookHint}</p>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-3 py-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">Accept payments</p>
+          <p className="text-xs text-muted-foreground">
+            Requires a secret key. Only one mode per gateway should be active.
+          </p>
+        </div>
+        <Switch checked={enabled} onCheckedChange={setEnabled} />
+      </div>
+
+      {credential?.lastVerifiedAt ? (
+        <div className="flex items-start gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+          {credential.lastVerifyError ? (
+            <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+          ) : (
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden />
+          )}
+          <div className="min-w-0">
+            <p className="font-medium">
+              {credential.lastVerifyError ? 'Last check failed' : 'Credentials verified'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {new Date(credential.lastVerifiedAt).toLocaleString()}
+              {credential.lastVerifyError ? ` — ${credential.lastVerifyError}` : ''}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {saved ? (
+        <p className="text-sm text-green-600 dark:text-green-500" role="status">
+          Saved.
+        </p>
+      ) : null}
+
+      <div className="flex items-center justify-end gap-2 border-t pt-4">
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2"
+          disabled={verify.isPending || !credential?.hasSecretKey}
+          onClick={onVerify}
+        >
+          <Plug className="size-4" aria-hidden />
+          {verify.isPending ? 'Checking…' : 'Test connection'}
+        </Button>
+        <Button type="submit" disabled={update.isPending}>
+          {update.isPending ? 'Saving…' : 'Save'}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/** One full-width gateway card with a Dev/Live toggle in its header. */
+function GatewaySection({
+  gateway,
+  credentials,
+}: {
+  gateway: 'stripe' | 'paypal'
+  credentials: GatewayCredentialDto[]
+}) {
+  const cred = (m: 'test' | 'live') =>
+    credentials.find((c) => c.gateway === gateway && c.mode === m)
+  // Default to the enabled mode if there is one, otherwise start in Dev.
+  const [mode, setMode] = useState<'test' | 'live'>(
+    () => MODES.find((m) => cred(m)?.enabled) ?? 'test'
+  )
+
+  return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <CardTitle className="flex items-center gap-2 capitalize">
-              {gateway}
-              <Badge variant={mode === 'live' ? 'warning' : 'secondary'} className="uppercase">
-                {mode}
-              </Badge>
-              {credential?.enabled ? <Badge variant="success">Active</Badge> : null}
+            {/* The gateway is named by the tab; the title states the current mode. */}
+            <CardTitle className="flex items-center gap-2">
+              {mode === 'live' ? 'Live mode' : 'Dev mode'}
+              {cred(mode)?.enabled ? <Badge variant="success">Active</Badge> : null}
             </CardTitle>
             <CardDescription>
               Checkout is hosted by {gateway} — card details never reach this server.
             </CardDescription>
           </div>
+          <div className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-1.5">
+            <span
+              className={cn(
+                'text-xs font-medium',
+                mode === 'test' ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              Dev
+            </span>
+            <Switch
+              checked={mode === 'live'}
+              onCheckedChange={(c) => setMode(c ? 'live' : 'test')}
+              aria-label="Switch between dev and live mode"
+            />
+            <span
+              className={cn(
+                'text-xs font-medium',
+                mode === 'live' ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              Live
+            </span>
+          </div>
         </div>
       </CardHeader>
 
       <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor={`${gateway}-${mode}-public`}>{labels.public}</Label>
-            <Input
-              id={`${gateway}-${mode}-public`}
-              value={publicKey}
-              onChange={(e) => setPublicKey(e.target.value)}
-              placeholder={labels.publicHint}
-              autoComplete="off"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor={`${gateway}-${mode}-secret`}>{labels.secret}</Label>
-            <Input
-              id={`${gateway}-${mode}-secret`}
-              type="password"
-              value={secretKey ?? ''}
-              onChange={(e) => setSecretKey(e.target.value)}
-              placeholder={credential?.secretKeyMasked ?? labels.secretHint}
-              autoComplete="new-password"
-            />
-            <p className="text-xs text-muted-foreground">
-              {credential?.hasSecretKey
-                ? 'Stored and encrypted. Leave blank to keep it.'
-                : labels.secretHint}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor={`${gateway}-${mode}-webhook`}>{labels.webhook}</Label>
-            <Input
-              id={`${gateway}-${mode}-webhook`}
-              type="password"
-              value={webhookSecret ?? ''}
-              onChange={(e) => setWebhookSecret(e.target.value)}
-              placeholder={credential?.hasWebhookSecret ? '••••••••' : ''}
-              autoComplete="new-password"
-            />
-            <p className="text-xs text-muted-foreground">{labels.webhookHint}</p>
-          </div>
-
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-3 py-2">
-            <div className="min-w-0">
-              <p className="text-sm font-medium">Accept payments</p>
-              <p className="text-xs text-muted-foreground">
-                Requires a secret key. Only one mode per gateway should be active.
-              </p>
-            </div>
-            <Switch checked={enabled} onCheckedChange={setEnabled} />
-          </div>
-
-          {credential?.lastVerifiedAt ? (
-            <div className="flex items-start gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-              {credential.lastVerifyError ? (
-                <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
-              ) : (
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden />
-              )}
-              <div className="min-w-0">
-                <p className="font-medium">
-                  {credential.lastVerifyError ? 'Last check failed' : 'Credentials verified'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(credential.lastVerifiedAt).toLocaleString()}
-                  {credential.lastVerifyError ? ` — ${credential.lastVerifyError}` : ''}
-                </p>
-              </div>
-            </div>
-          ) : null}
-
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
-          {saved ? (
-            <p className="text-sm text-green-600 dark:text-green-500" role="status">
-              Saved.
-            </p>
-          ) : null}
-
-          <div className="flex items-center justify-end gap-2 border-t pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              disabled={verify.isPending || !credential?.hasSecretKey}
-              onClick={onVerify}
-            >
-              <Plug className="size-4" aria-hidden />
-              {verify.isPending ? 'Checking…' : 'Test connection'}
-            </Button>
-            <Button type="submit" disabled={update.isPending}>
-              {update.isPending ? 'Saving…' : 'Save'}
-            </Button>
-          </div>
-        </form>
+        {/* Keyed by mode so the form remounts and re-seeds on toggle. */}
+        <GatewayForm key={mode} gateway={gateway} mode={mode} credential={cred(mode)} />
       </CardContent>
     </Card>
   )
@@ -225,6 +270,7 @@ function GatewayCard({
 export default function GatewaysPage() {
   const query = useGateways()
   const credentials = query.data ?? []
+  const [tab, setTab] = useState<(typeof GATEWAYS)[number]['key']>('stripe')
 
   return (
     <div className="space-y-6">
@@ -237,18 +283,27 @@ export default function GatewaysPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        {TARGETS.map((target) => (
-          <GatewayCard
-            key={`${target.gateway}:${target.mode}`}
-            gateway={target.gateway}
-            mode={target.mode}
-            credential={credentials.find(
-              (c) => c.gateway === target.gateway && c.mode === target.mode
-            )}
-          />
+      <Tabs value={tab} onValueChange={(v) => setTab(v as (typeof GATEWAYS)[number]['key'])}>
+        <TabsList>
+          {GATEWAYS.map((g) => {
+            const active = MODES.some(
+              (m) => credentials.find((c) => c.gateway === g.key && c.mode === m)?.enabled
+            )
+            return (
+              <TabsTrigger key={g.key} value={g.key} className="gap-2">
+                {g.label}
+                {active ? <Badge variant="success">Active</Badge> : null}
+              </TabsTrigger>
+            )
+          })}
+        </TabsList>
+
+        {GATEWAYS.map((g) => (
+          <TabsContent key={g.key} value={g.key} className="mt-4">
+            <GatewaySection gateway={g.key} credentials={credentials} />
+          </TabsContent>
         ))}
-      </div>
+      </Tabs>
     </div>
   )
 }
