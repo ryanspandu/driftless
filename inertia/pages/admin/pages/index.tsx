@@ -89,6 +89,20 @@ function codePageInfo(
   }
 }
 
+/**
+ * The custom-template kit a page belongs to — its folder id — from a
+ * `kit:<id>` (custom-template page) or `kitpage:<kit>/<file>` (file-page)
+ * pointer. Null for a visual-builder page or a single-file code page (no kit).
+ */
+function kitOf(page: PageSummaryDto): string | null {
+  const component = page.component ?? ''
+  if (component.startsWith('kitpage:')) {
+    return component.slice('kitpage:'.length).split('/')[0] || null
+  }
+  if (component.startsWith('kit:')) return component.slice('kit:'.length) || null
+  return null
+}
+
 export default function PagesPage() {
   const confirmDelete = useConfirmDelete()
   const listQuery = usePagesList()
@@ -250,6 +264,28 @@ export default function PagesPage() {
             {RENDER_MODE_LABEL[row.original.renderMode] ?? row.original.renderMode}
           </Badge>
         ),
+      },
+      {
+        id: 'kit',
+        accessorFn: (r) => kitOf(r) ?? '',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Template kit" />,
+        // Which coded kit a page comes from — a `kit:<id>` custom-template page or
+        // a `kitpage:` file-page. A builder page has no kit, so it shows a dash.
+        cell: ({ row }) => {
+          const kit = kitOf(row.original)
+          return kit ? (
+            <Badge
+              variant="outline"
+              className="gap-1 whitespace-nowrap font-normal"
+              title={`Custom template kit: inertia/custom/kits/${kit}`}
+            >
+              <Code2 className="size-3" />
+              {kit}
+            </Badge>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )
+        },
       },
       {
         id: 'updatedAt',

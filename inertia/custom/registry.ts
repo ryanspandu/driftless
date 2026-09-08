@@ -75,9 +75,35 @@ const CUSTOM_KIT_COLLECTIONS = import.meta.glob<CustomCollectionModule>(
   { eager: true }
 )
 
+/**
+ * Each kit's `kit.json`, so the renderer can ask whether a kit opted into CSS
+ * isolation. Eager for the same SSR reason as the component globs above.
+ */
+const KIT_META = import.meta.glob<{ default: { isolate?: boolean } }>('./kits/*/kit.json', {
+  eager: true,
+})
+
 const KIT_PREFIX = 'kit:'
 const KITPAGE_PREFIX = 'kitpage:'
 const CODETPL_PREFIX = 'codetpl:'
+
+/** The kit id inside a `kit:<id>` or `kitpage:<kit>/<file>` pointer, or null. */
+export function kitIdOf(pointer: string): string | null {
+  if (pointer.startsWith(KITPAGE_PREFIX)) {
+    return pointer.slice(KITPAGE_PREFIX.length).split('/')[0] || null
+  }
+  if (pointer.startsWith(KIT_PREFIX)) return pointer.slice(KIT_PREFIX.length) || null
+  return null
+}
+
+/**
+ * Whether a kit declared `"isolate": true` in its `kit.json`. Such a kit's CSS
+ * is build-time scoped (see `scopeIsolatedKitCss` in `vite.config.ts`) and its
+ * body must be wrapped in `<div class="kit-<id>">` so the `@scope` matches.
+ */
+export function isKitIsolated(id: string): boolean {
+  return KIT_META[`./kits/${id}/kit.json`]?.default?.isolate === true
+}
 
 /** Resolve a `codetpl:<kit>/<type>` chrome pointer to its component, or null. */
 export function getCodeTemplate(pointer: string): ComponentType<{ children?: ReactNode }> | null {

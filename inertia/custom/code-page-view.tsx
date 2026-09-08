@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react'
 import { PublicPageFrame } from '~/components/public-page-frame'
 import { ChromeCodeContext } from '~/puck/chrome_slot'
 import { BuilderRegionContext } from '~/custom/builder-region'
-import { customPageSlugs, getCustomPage } from '~/custom/registry'
+import { customPageSlugs, getCustomPage, isKitIsolated, kitIdOf } from '~/custom/registry'
 import type { CodePageEnvelope, CodePageProps } from '~/custom/types'
 
 /**
@@ -73,22 +74,37 @@ export function CodePageView({ page }: { page: CodePageEnvelope }) {
         <BuilderRegionContext.Provider
           value={{ content: page.content ?? null, preview: page.preview ?? false }}
         >
-          {Component ? (
-            /*
-            Not a component created during render, despite how it reads to the
-            rule: `getCustomPage` is a lookup into a build-time glob, so a given
-            slug returns the identical module export every render and React's
-            reconciliation — and therefore component state — is stable.
-          */
-            // eslint-disable-next-line react-hooks/static-components
-            <Component {...props} />
-          ) : (
-            <MissingComponent slug={component} known={customPageSlugs()} />
-          )}
+          <KitScope component={component}>
+            {Component ? (
+              /*
+              Not a component created during render, despite how it reads to the
+              rule: `getCustomPage` is a lookup into a build-time glob, so a given
+              slug returns the identical module export every render and React's
+              reconciliation — and therefore component state — is stable.
+            */
+              // eslint-disable-next-line react-hooks/static-components
+              <Component {...props} />
+            ) : (
+              <MissingComponent slug={component} known={customPageSlugs()} />
+            )}
+          </KitScope>
         </BuilderRegionContext.Provider>
       </ChromeCodeContext.Provider>
     </PublicPageFrame>
   )
+}
+
+/**
+ * Wraps an isolated kit's body in the scope root (`kit-<id>`) that the
+ * build-time `@scope (.kit-<id>)` transform (see `scopeIsolatedKitCss` in
+ * `vite.config.ts`) targets — so the kit's CSS stays confined to this subtree
+ * and the app's base styles are reverted inside it. A no-op for non-isolated
+ * kits and single-file code pages, so it never changes their DOM.
+ */
+function KitScope({ component, children }: { component: string; children: ReactNode }) {
+  const kitId = kitIdOf(component)
+  if (!kitId || !isKitIsolated(kitId)) return <>{children}</>
+  return <div className={`kit-scope kit-${kitId}`}>{children}</div>
 }
 
 /**

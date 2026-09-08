@@ -66,6 +66,12 @@ function codeTemplatePath(id: string): string {
   return `inertia/custom/kits/${kit}/templates/${rest}.tsx`
 }
 
+/** The kit a code template belongs to, from its `codetpl:<kit>/…` id — or null
+ *  for a visual-builder template (which has no kit). */
+function templateKit(id: string): string | null {
+  return id.match(/^codetpl:([^/]+)\//)?.[1] ?? null
+}
+
 // Read the active tab from `?tab=` so views are linkable. URLs stay lowercase
 // (`?tab=header`); `all` is the default and omitted from the query string.
 function parseTemplatesTab(sp: ReturnType<typeof useSearchParams>): TabValue {
@@ -168,6 +174,28 @@ export default function TemplatesPage() {
           ) : (
             <span className="text-sm text-muted-foreground">—</span>
           ),
+      },
+      {
+        id: 'kit',
+        accessorFn: (r) => templateKit(r.id) ?? '',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Template kit" />,
+        // Which coded kit a code template comes from (its `codetpl:<kit>/…` id).
+        // A visual-builder template has no kit, so it shows a dash.
+        cell: ({ row }) => {
+          const kit = templateKit(row.original.id)
+          return kit ? (
+            <Badge
+              variant="outline"
+              className="gap-1 whitespace-nowrap font-normal"
+              title={`Custom template kit: inertia/custom/kits/${kit}`}
+            >
+              <Code2 className="size-3" />
+              {kit}
+            </Badge>
+          ) : (
+            <span className="text-sm text-muted-foreground">—</span>
+          )
+        },
       },
       {
         id: 'updatedAt',

@@ -22,6 +22,7 @@
     "test": "node ace test",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "pretypecheck": "node scripts/generate-module-sources.mjs && node scripts/generate-code-pages.mjs && node scripts/generate-custom-templates.mjs",
     "typecheck": "tsc --noEmit && tsc --noEmit --project inertia/tsconfig.json && tsc --noEmit --project modules/tsconfig.json",
     "worker": "node ace queue:work"
   },
