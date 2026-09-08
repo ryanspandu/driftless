@@ -87,6 +87,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
    */
   router
     .group(() => {
+      // Public storefront config (no-secret CAPTCHA config) — needed by the
+      // login/register/checkout screens before they submit.
+      router.get('/api/shop/config', [ShopCatalogCtrl, 'config']).as('shop.config')
       router.get('/api/shop/products', [ShopCatalogCtrl, 'index']).as('shop.products.index')
       router.get('/api/shop/products/:slug', [ShopCatalogCtrl, 'show']).as('shop.products.show')
       router.get('/api/shop/categories', [ShopCatalogCtrl, 'categories']).as('shop.categories')
@@ -139,14 +142,24 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
     .post('/api/shop/checkout', [ShopCheckoutCtrl, 'start'])
     .as('shop.checkout')
     .use(throttle.checkout)
+    // Second axis: per cart cookie, so IP rotation alone can't multiply
+    // card-testing attempts (see throttles.ts).
+    .use(throttle.checkoutByCart)
     .use(moduleEnabled)
 
   router
     .group(() => {
+      // Login and register also carry a per-email limit (throttle.accountAuthByEmail),
+      // so one account can't be brute-forced from rotating IPs. 2fa-verify posts
+      // no email and is covered by the per-IP limit plus the pending token.
       router
         .post('/api/shop/account/register', [ShopAccountCtrl, 'register'])
         .as('shop.account.register')
-      router.post('/api/shop/account/login', [ShopAccountCtrl, 'login']).as('shop.account.login')
+        .use(throttle.accountAuthByEmail)
+      router
+        .post('/api/shop/account/login', [ShopAccountCtrl, 'login'])
+        .as('shop.account.login')
+        .use(throttle.accountAuthByEmail)
       // Second factor of login — same IP limit as the password step.
       router
         .post('/api/shop/account/2fa/verify', [ShopAccountCtrl, 'verify2fa'])
@@ -174,6 +187,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .put('/api/shop/account/password', [ShopAccountCtrl, 'changePassword'])
         .as('shop.account.password')
+        // Tight per-session cap: a hijacked session can't online-brute the
+        // current password (see throttle.accountSecurity).
+        .use(throttle.accountSecurity)
       router
         .get('/api/shop/account/addresses', [ShopAccountCtrl, 'addresses'])
         .as('shop.account.addresses')
@@ -210,6 +226,8 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .post('/api/shop/account/2fa/disable', [ShopAccountCtrl, 'disable2fa'])
         .as('shop.account.two_factor.disable')
+        // Same password re-check surface as changePassword — cap it per session.
+        .use(throttle.accountSecurity)
     })
     .use(throttle.storefront)
     .use(moduleEnabled)

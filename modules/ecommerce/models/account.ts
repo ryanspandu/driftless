@@ -61,6 +61,14 @@ export default class Account extends BaseModel {
   @column({ ...recoveryCodesColumn, serializeAs: null })
   declare twoFactorRecoveryCodes: RecoveryCode[]
 
+  /**
+   * Makes the login-challenge token single-use. Rotated when a challenge is
+   * issued and cleared when it is spent, so a captured pending token cannot be
+   * replayed. Never serialized.
+   */
+  @column({ serializeAs: null })
+  declare twoFactorChallengeNonce: string | null
+
   @column(booleanColumn)
   declare acceptsMarketing: boolean
 

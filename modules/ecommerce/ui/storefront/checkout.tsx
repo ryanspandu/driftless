@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Head, usePage } from '@inertiajs/react'
+import { CaptchaWidget } from '~/components/auth/captcha-widget'
 import { StorefrontLayout } from './_layout'
 import { EmptyBasket } from './_empty-basket'
+import { useStorefrontCaptcha } from './_use_captcha'
 import { CityInput } from '../components/city-input'
 import { CountrySelect } from '../components/country-select'
 import { newIdempotencyKey, shopApi, shopFetch, type CartDto, type ShippingOptionDto } from './_api'
@@ -74,6 +76,9 @@ export function CheckoutScreen(props: { embedded?: boolean } & Partial<CheckoutC
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Invisible on the buy path — the server only sets `onCheckout` for an
+  // invisible-capable provider (Turnstile), so a real puzzle never lands here.
+  const captcha = useStorefrontCaptcha('onCheckout')
 
   /**
    * Delivery options for the address so far.
@@ -137,6 +142,11 @@ export function CheckoutScreen(props: { embedded?: boolean } & Partial<CheckoutC
       return
     }
 
+    if (captcha.required && !captcha.token?.trim()) {
+      setError('Just a moment — completing a quick verification.')
+      return
+    }
+
     setSubmitting(true)
 
     try {
@@ -148,6 +158,8 @@ export function CheckoutScreen(props: { embedded?: boolean } & Partial<CheckoutC
           gateway,
           // A method id, never a rate — the server re-derives what it costs.
           shippingMethodId,
+          // Present only when the store gates checkout behind an invisible CAPTCHA.
+          ...(captcha.token ? { captchaToken: captcha.token } : {}),
           // Digital-only baskets need no shipping address at all.
           ...(digitalOnly || !address.line1.trim()
             ? {}
@@ -417,6 +429,14 @@ export function CheckoutScreen(props: { embedded?: boolean } & Partial<CheckoutC
               </div>
             )}
           </section>
+
+          {captcha.required && captcha.provider && captcha.siteKey ? (
+            <CaptchaWidget
+              provider={captcha.provider}
+              siteKey={captcha.siteKey}
+              onToken={captcha.setToken}
+            />
+          ) : null}
 
           {error ? (
             <p

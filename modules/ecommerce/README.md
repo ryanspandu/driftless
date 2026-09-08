@@ -35,6 +35,42 @@ If everything else here is forgotten, these five are the module's security:
    transition commits synchronously in whichever process observes it. Kill the worker and
    orders still get paid.
 
+## Settlement guards
+
+Beyond rule 2, three checks run before an order is marked paid — in
+[`order_service.markOrderPaid`](../../modules/ecommerce/services/order_service.ts) and the two
+callers that reach it ([`webhook_service.handlePaid`](../../modules/ecommerce/services/webhook_service.ts),
+[`checkout_service.confirmFromReturn`](../../modules/ecommerce/services/checkout_service.ts)):
+
+- **Amount + currency must equal the order.** A gateway that collected the wrong amount is
+  logged (`payment.amount_mismatch`) and refused. The gateway's figure is **never** fallen back
+  to our own stored amount — doing so would compare the order total against itself and skip the
+  check. A `paid` status with a null amount/currency therefore does not settle.
+- **Mode must match.** A live event cannot settle a test payment or vice versa
+  (`webhook.mode_mismatch`); signature verification already rejects a cross-mode event, this is
+  the second line.
+- **The paid transition is atomic and single.** `UPDATE … WHERE payment_status = 'unpaid'`, so a
+  duplicate webhook, a webhook racing the return page, or a replay each settle exactly once.
+
+## Abuse controls (CAPTCHA + rate limits)
+
+The storefront is an unauthenticated, money-touching surface, so it is defended in depth:
+
+- **CAPTCHA** covers shopper **login, register and checkout** (not just admin auth). It is wired
+  through the shared, fail-closed [`CaptchaService`](../../app/services/captcha_service.ts) and
+  toggled per flow in *Admin → Integrations*. Checkout uses an **invisible** provider only
+  (Turnstile) so the buy path shows no puzzle; other providers fall back to the checkout rate
+  limit. The server re-verifies every token — the client flags in `GET /api/shop/config` only
+  decide whether to render a widget.
+- **Rate limits** ([`throttles.ts`](../../modules/ecommerce/throttles.ts)) key on more than the
+  IP: login/register add a **per-email** bucket (a single account can't be brute-forced from
+  rotating IPs), checkout adds a **per-cart-cookie** bucket (IP rotation alone can't multiply
+  card-testing), and password-change / 2FA-disable add a tight **per-session** bucket (a hijacked
+  session can't online-brute the password). Every IP-keyed limit assumes `TRUST_PROXY` matches
+  the deployment — see [docs/DEPLOYMENT.md](../../docs/DEPLOYMENT.md).
+- **The 2FA login-challenge token is single-use** — bound to a per-account nonce that a completed
+  verification burns and a fresh login rotates, so a captured pending token cannot be replayed.
+
 ## Money
 
 `BIGINT` minor units (cents), never `NUMERIC` and never a float.

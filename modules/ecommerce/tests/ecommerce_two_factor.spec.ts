@@ -69,12 +69,31 @@ test.group('E-commerce | Account 2FA', (group) => {
     assert.isNull(customer.twoFactorSecretEnc)
   })
 
-  test('challenge token round-trips the customer id and rejects garbage', async ({ assert }) => {
+  test('challenge token resolves the customer and rejects garbage', async ({ assert }) => {
     const customer = await customerWithPassword()
-    const token = twoFactor.issueChallengeToken(customer)
+    const token = await twoFactor.issueChallengeToken(customer)
 
-    assert.equal(twoFactor.resolveChallengeToken(token), customer.id)
-    assert.isNull(twoFactor.resolveChallengeToken('not-a-real-token'))
+    const resolved = await twoFactor.consumeChallengeToken(token)
+    assert.equal(resolved?.id, customer.id)
+    assert.isNull(await twoFactor.consumeChallengeToken('not-a-real-token'))
+  })
+
+  test('challenge token is single-use — a spent or superseded token is rejected', async ({
+    assert,
+  }) => {
+    const customer = await customerWithPassword()
+
+    // Spending it (clearing the nonce, as a successful verify does) kills it.
+    const first = await twoFactor.issueChallengeToken(customer)
+    const spent = await twoFactor.consumeChallengeToken(first)
+    assert.isNotNull(spent)
+    await twoFactor.clearChallenge(spent!)
+    assert.isNull(await twoFactor.consumeChallengeToken(first))
+
+    // Issuing a fresh token supersedes any earlier one (nonce rotates).
+    const older = await twoFactor.issueChallengeToken(customer)
+    await twoFactor.issueChallengeToken(customer)
+    assert.isNull(await twoFactor.consumeChallengeToken(older))
   })
 
   test('a passwordless (guest) account cannot disable via password', async ({ assert }) => {

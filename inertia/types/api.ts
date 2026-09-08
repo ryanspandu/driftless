@@ -148,18 +148,27 @@ export interface PublicWebAppearance {
   metaTags: { name?: string; property?: string; content?: string }[]
 }
 
+/**
+ * Public (no-secret) CAPTCHA config a browser needs to render a widget and know
+ * which flows require one. Shared by the admin auth pages and the storefront
+ * (`GET /api/shop/config`). Mirror of the server's `PublicCaptchaConfig`.
+ */
+export interface PublicCaptchaConfig {
+  enabled: boolean
+  provider: CaptchaProviderId | null
+  siteKey: string | null
+  onLogin: boolean
+  onRegister: boolean
+  /** True only when checkout CAPTCHA is on AND the provider is invisible (Turnstile). */
+  onCheckout: boolean
+}
+
 export interface AuthPublicConfig {
   /** Whether public self-service signup is open. When false, `/register` 404s,
    *  so the login page must not offer a link to it. */
   registrationEnabled: boolean
   google: { enabled: boolean; configured: boolean }
-  captcha: {
-    enabled: boolean
-    provider: CaptchaProviderId | null
-    siteKey: string | null
-    onLogin: boolean
-    onRegister: boolean
-  }
+  captcha: PublicCaptchaConfig
   analytics: {
     googleAnalytics: { enabled: boolean; measurementId: string | null }
     microsoftClarity: { enabled: boolean; projectId: string | null }
@@ -183,6 +192,7 @@ export interface IntegrationSettingsAdmin {
   captchaSecretUnreadable: boolean
   captchaOnLogin: boolean
   captchaOnRegister: boolean
+  captchaOnCheckout: boolean
   envCaptchaFallback: boolean
   ga4Enabled: boolean
   ga4MeasurementId: string | null
@@ -203,6 +213,7 @@ export interface UpdateIntegrationSettingsRequest {
   captchaSecret?: string | null
   captchaOnLogin?: boolean
   captchaOnRegister?: boolean
+  captchaOnCheckout?: boolean
   ga4Enabled?: boolean
   ga4MeasurementId?: string | null
   clarityEnabled?: boolean

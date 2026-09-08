@@ -1,6 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import hash from '@adonisjs/core/services/hash'
 import encryption from '@adonisjs/core/services/encryption'
-import type Account from '#modules/ecommerce/models/account'
+import Account from '#modules/ecommerce/models/account'
 import {
   beginEnroll,
   confirmEnroll,
@@ -52,16 +53,42 @@ export default class AccountTwoFactorService {
   }
 
   /**
-   * A short-lived, tamper-proof token that stands in for "password verified,
-   * awaiting a code". Encrypted (APP_KEY) and self-expiring, so no server-side
-   * challenge state is needed and it can't be forged.
+   * A short-lived, tamper-proof token standing in for "password verified,
+   * awaiting a code". Encrypted (APP_KEY) and self-expiring, so it can't be
+   * forged. Made **single-use** by binding a fresh nonce that is stored on the
+   * account: {@link consumeChallengeToken} only accepts a token whose nonce
+   * still matches, and {@link clearChallenge} burns it once the code verifies.
+   * A captured token therefore cannot be replayed after the login completes,
+   * and issuing a new one supersedes any earlier pending token.
    */
-  issueChallengeToken(customer: Account): string {
-    return encryption.encrypt(customer.id, '10 mins', CHALLENGE_PURPOSE)
+  async issueChallengeToken(customer: Account): Promise<string> {
+    const nonce = randomUUID()
+    customer.twoFactorChallengeNonce = nonce
+    await customer.save()
+    return encryption.encrypt({ id: customer.id, nonce }, '10 mins', CHALLENGE_PURPOSE)
   }
 
-  /** The customer id inside a challenge token, or null if invalid/expired. */
-  resolveChallengeToken(token: string): string | null {
-    return encryption.decrypt<string>(token, CHALLENGE_PURPOSE)
+  /**
+   * The account a challenge token names, or null if the token is invalid,
+   * expired, or its nonce no longer matches the account's (a spent or
+   * superseded token). Returns the loaded account so the caller need not
+   * re-read it. Does not burn the nonce — a wrong code should be retryable;
+   * {@link clearChallenge} burns it on success.
+   */
+  async consumeChallengeToken(token: string): Promise<Account | null> {
+    const payload = encryption.decrypt<{ id: string; nonce: string }>(token, CHALLENGE_PURPOSE)
+    if (!payload || typeof payload.id !== 'string' || typeof payload.nonce !== 'string') {
+      return null
+    }
+    const account = await Account.query().where('id', payload.id).whereNull('deleted_at').first()
+    if (!account || !account.twoFactorChallengeNonce) return null
+    if (account.twoFactorChallengeNonce !== payload.nonce) return null
+    return account
+  }
+
+  /** Burn the challenge nonce so the token that carried it cannot be replayed. */
+  async clearChallenge(customer: Account): Promise<void> {
+    customer.twoFactorChallengeNonce = null
+    await customer.save()
   }
 }

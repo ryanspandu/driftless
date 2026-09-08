@@ -50,6 +50,21 @@ export default class CaptchaService {
     return Boolean(this.resolveSiteKey(row))
   }
 
+  /**
+   * Whether a provider can challenge without interrupting the user — the bar
+   * for gating **checkout**, where a visible puzzle on the buy path costs sales.
+   *
+   * Only Turnstile qualifies: its managed mode is non-interactive for almost
+   * every visitor. The shipped hCaptcha and reCAPTCHA widgets are interactive
+   * (the reCAPTCHA client here is v2, a checkbox — not the invisible v3), so a
+   * store using them falls back to the checkout rate limit rather than showing
+   * shoppers a challenge. Login/register are unaffected by this — a challenge
+   * there is acceptable and uses whatever provider is configured.
+   */
+  isInvisibleCapable(row: IntegrationSetting): boolean {
+    return this.resolveProvider(row) === 'turnstile'
+  }
+
   async verifyToken(
     row: IntegrationSetting,
     token: string | undefined,

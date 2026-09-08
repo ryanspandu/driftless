@@ -3,6 +3,7 @@ import vine from '@vinejs/vine'
 import { apiFail } from '#helpers/api_error_response'
 import StorefrontCatalogService from '#modules/ecommerce/services/storefront_catalog_service'
 import CurrencyService from '#modules/ecommerce/services/currency_service'
+import { IntegrationSettingsService } from '#services/settings_service'
 
 const availabilityValidator = vine.compile(
   vine.object({
@@ -12,6 +13,7 @@ const availabilityValidator = vine.compile(
 
 const catalog = new StorefrontCatalogService()
 const currencies = new CurrencyService()
+const integrations = new IntegrationSettingsService()
 
 const fail = (response: HttpContext['response'], error: unknown) =>
   apiFail(response, error, 'ecommerce/storefront-catalog')
@@ -26,6 +28,22 @@ const fail = (response: HttpContext['response'], error: unknown) =>
  * exactly that.
  */
 export default class StorefrontCatalogController {
+  /**
+   * Public storefront config a page needs before it can render — currently the
+   * no-secret CAPTCHA config (which flows require a challenge, and the site key
+   * to render the widget). Sourced from the same `IntegrationSettingsService`
+   * the admin auth pages use, so the rule lives in one place. Never returns a
+   * secret.
+   */
+  async config(ctx: HttpContext) {
+    try {
+      const captcha = await integrations.getPublicCaptchaConfig()
+      return ctx.response.json({ captcha })
+    } catch (error) {
+      return fail(ctx.response, error)
+    }
+  }
+
   async index(ctx: HttpContext) {
     const { request, response } = ctx
     const result = await catalog.list(

@@ -213,6 +213,16 @@ the restart layer:
    confirm **zero connection errors** and one band of elevated latency matching `bootMs`.
 5. **The full drop-in loop** — copy a module folder onto a running server, press Install, and
    confirm one restart brings it up loaded, migrated, built and enabled.
+6. **`TRUST_PROXY` matches the real topology** — every rate limit (login, storefront checkout,
+   webhooks, password reset) keys on `request.ip()`, and behind a reverse proxy that resolves to
+   the client only when `config/app.ts` `trustProxy` trusts the proxy. It defaults to `loopback`
+   (a proxy on the same host). If Driftless sits behind a load balancer on another host, set
+   `TRUST_PROXY` in `shared/.env` to that hop (an IP/CIDR or the hop count) — otherwise every
+   request appears to come from the balancer and one shared bucket throttles all clients at once,
+   silently defeating the limits. Verify: hit a throttled endpoint from two machines and confirm
+   `request.ip()` (visible in request logs) differs, and that one machine tripping its limit does
+   not 429 the other. This is a config check with no visible symptom until abused, so it is easy
+   to miss.
 
 ## Recovering a broken install
 

@@ -4,7 +4,6 @@ import vine from '@vinejs/vine'
 import { apiFail } from '#helpers/api_error_response'
 import { publicError } from '#exceptions/public_error'
 import Order from '#modules/ecommerce/models/order'
-import Account from '#modules/ecommerce/models/account'
 import AccountAuthService, { toAccountDto } from '#modules/ecommerce/services/account_auth_service'
 import CustomerAddressService from '#modules/ecommerce/services/customer_address_service'
 import AccountTwoFactorService from '#modules/ecommerce/services/account_two_factor_service'
@@ -14,6 +13,8 @@ import { stageOf } from '#modules/ecommerce/services/order_state_machine'
 import { Money } from '#modules/ecommerce/services/money'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 import { countryCode } from '#modules/ecommerce/validators/country'
+import CaptchaService from '#services/captcha_service'
+import { IntegrationSettingsService } from '#services/settings_service'
 
 const registerValidator = vine.compile(
   vine.object({
@@ -87,6 +88,8 @@ const addressUpdateValidator = vine.compile(
 
 const accounts = new AccountAuthService()
 const settings = new StoreSettingsService()
+const integrations = new IntegrationSettingsService()
+const captcha = new CaptchaService()
 const addresses = new CustomerAddressService()
 const delivery = new DigitalDeliveryService()
 const twoFactor = new AccountTwoFactorService()
@@ -122,9 +125,34 @@ const fail = (response: HttpContext['response'], error: unknown) =>
  * thing for a known and an unknown address.
  */
 export default class StorefrontAccountController {
+  /**
+   * Server-side CAPTCHA gate, mirroring the admin auth pattern in
+   * `session_controller`. Reuses the shared, fail-closed `CaptchaService`: a
+   * missing token or secret fails verification. Returns true when the flow does
+   * not require a challenge or the token verifies; false only on a real
+   * failure. The storefront register/login screens read the same requirement
+   * from `GET /api/shop/config` and render the widget, but this — the server —
+   * is authoritative.
+   */
+  private async captchaOk(
+    ctx: HttpContext,
+    flag: 'captchaOnLogin' | 'captchaOnRegister'
+  ): Promise<boolean> {
+    const row = await integrations.getOrCreate()
+    if (!captcha.isCaptchaEffective(row) || !row[flag]) return true
+    const token = ctx.request.input('captchaToken')
+    return captcha.verifyToken(row, typeof token === 'string' ? token : undefined, ctx.request.ip())
+  }
+
   async register(ctx: HttpContext) {
     const { request, response } = ctx
     try {
+      if (!(await this.captchaOk(ctx, 'captchaOnRegister'))) {
+        return response
+          .status(400)
+          .json({ message: 'CAPTCHA verification failed.', reason: 'captcha_failed' })
+      }
+
       const payload = await request.validateUsing(registerValidator)
       const { account } = await accounts.register(payload)
 
@@ -151,6 +179,12 @@ export default class StorefrontAccountController {
   async login(ctx: HttpContext) {
     const { request, response } = ctx
     try {
+      if (!(await this.captchaOk(ctx, 'captchaOnLogin'))) {
+        return response
+          .status(400)
+          .json({ message: 'CAPTCHA verification failed.', reason: 'captcha_failed' })
+      }
+
       const { email, password } = await request.validateUsing(loginValidator)
       const account = await accounts.verify(email, password)
 
@@ -173,7 +207,7 @@ export default class StorefrontAccountController {
       if (twoFactor.isEnabled(account)) {
         return response.json({
           needs2fa: true,
-          pendingToken: twoFactor.issueChallengeToken(account),
+          pendingToken: await twoFactor.issueChallengeToken(account),
         })
       }
 
@@ -195,10 +229,9 @@ export default class StorefrontAccountController {
       const pendingToken = String(request.input('pendingToken') ?? '')
       const { code } = await request.validateUsing(codeValidator)
 
-      const accountId = pendingToken ? twoFactor.resolveChallengeToken(pendingToken) : null
-      const account = accountId
-        ? await Account.query().where('id', accountId).whereNull('deleted_at').first()
-        : null
+      // Resolves the account only if the token's nonce still matches — a spent
+      // or superseded pending token returns null (single-use, see the service).
+      const account = pendingToken ? await twoFactor.consumeChallengeToken(pendingToken) : null
 
       if (!account || !account.isActive || !twoFactor.isEnabled(account)) {
         return response.status(401).json({ message: 'That code did not match.', reason: 'invalid' })
@@ -209,6 +242,8 @@ export default class StorefrontAccountController {
         return response.status(401).json({ message: 'That code did not match.', reason: 'invalid' })
       }
 
+      // Code was right — burn the challenge nonce so this token can't be replayed.
+      await twoFactor.clearChallenge(account)
       await accounts.startSession(ctx, account)
       const store = await settings.getOrCreate()
       return response.json({

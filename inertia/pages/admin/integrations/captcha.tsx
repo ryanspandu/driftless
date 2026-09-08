@@ -39,6 +39,7 @@ export default function CaptchaIntegrationPage() {
   const [clearCaptchaSecret, setClearCaptchaSecret] = useState(false)
   const [captchaOnLogin, setCaptchaOnLogin] = useState(false)
   const [captchaOnRegister, setCaptchaOnRegister] = useState(false)
+  const [captchaOnCheckout, setCaptchaOnCheckout] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -52,6 +53,7 @@ export default function CaptchaIntegrationPage() {
     setClearCaptchaSecret(false)
     setCaptchaOnLogin(d.captchaOnLogin)
     setCaptchaOnRegister(d.captchaOnRegister)
+    setCaptchaOnCheckout(d.captchaOnCheckout)
   }, [query.data])
 
   async function onSubmit(e: FormEvent) {
@@ -73,6 +75,7 @@ export default function CaptchaIntegrationPage() {
             : {}),
         captchaOnLogin,
         captchaOnRegister,
+        captchaOnCheckout,
       })
       setCaptchaSecretNew('')
       setClearCaptchaSecret(false)
@@ -239,7 +242,32 @@ export default function CaptchaIntegrationPage() {
                       disabled={!captchaEnabled}
                     />
                   </div>
+                  <div className="flex flex-1 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+                    <Label
+                      htmlFor="captchaOnCheckout"
+                      className={`font-normal ${
+                        !captchaEnabled || captchaProvider !== 'turnstile'
+                          ? 'text-muted-foreground'
+                          : ''
+                      }`}
+                    >
+                      Require on storefront checkout
+                    </Label>
+                    <Switch
+                      id="captchaOnCheckout"
+                      checked={captchaOnCheckout}
+                      onCheckedChange={(v) => setCaptchaOnCheckout(v)}
+                      // Only Turnstile runs invisibly, so checkout — the buy path
+                      // — accepts it alone; other providers stay on the rate limit.
+                      disabled={!captchaEnabled || captchaProvider !== 'turnstile'}
+                    />
+                  </div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Login and registration cover both the admin sign-in and the storefront (shopper)
+                  accounts. Checkout uses an invisible challenge, so it takes effect only with
+                  Turnstile — other providers fall back to rate limiting there.
+                </p>
               </CardContent>
             </Card>
 

@@ -25,6 +25,7 @@ const updateIntegrationValidator = vine.compile(
     captchaSecret: vine.string().trim().nullable().optional(),
     captchaOnLogin: vine.boolean().optional(),
     captchaOnRegister: vine.boolean().optional(),
+    captchaOnCheckout: vine.boolean().optional(),
     ga4Enabled: vine.boolean().optional(),
     ga4MeasurementId: vine.string().trim().nullable().optional(),
     clarityEnabled: vine.boolean().optional(),

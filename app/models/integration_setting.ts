@@ -36,6 +36,9 @@ export default class IntegrationSetting extends BaseModel {
   declare captchaOnRegister: boolean
 
   @column()
+  declare captchaOnCheckout: boolean
+
+  @column()
   declare ga4Enabled: boolean
 
   @column()

@@ -459,12 +459,24 @@ export default class CheckoutService {
       return { paid: false, order }
     }
 
+    /**
+     * The same two guards the webhook path applies before settling (see
+     * `WebhookService.handlePaid`): a mode mismatch, or a `paid` status with no
+     * amount/currency to reconcile, leaves the order unpaid rather than settling
+     * on our own stored figure. Never fall the amount back to `payment.amount` —
+     * that compares the order total against itself and skips reconciliation.
+     */
+    if (driver.mode !== payment.mode) return { paid: false, order }
+    if (typeof status.amount !== 'number' || typeof status.currency !== 'string') {
+      return { paid: false, order }
+    }
+
     const result = await orders.markOrderPaid(
       order.id,
       {
         gatewayPaymentId: payment.gatewayPaymentId,
-        amount: status.amount ?? payment.amount,
-        currency: status.currency ?? payment.currency,
+        amount: status.amount,
+        currency: status.currency,
         source: 'pull',
         raw: status.raw,
       },

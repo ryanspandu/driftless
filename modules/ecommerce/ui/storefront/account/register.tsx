@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Head } from '@inertiajs/react'
+import { CaptchaWidget } from '~/components/auth/captcha-widget'
 import { accountApi } from '../_api'
+import { useStorefrontCaptcha } from '../_use_captcha'
 import { StorefrontLayout, FIELD_CLASS, SUBMIT_CLASS } from '../_layout'
 
 /**
@@ -24,10 +26,17 @@ export function RegisterScreen({ embedded }: { embedded?: boolean } = {}) {
   const [acceptsMarketing, setAcceptsMarketing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const captcha = useStorefrontCaptcha('onRegister')
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+
+    if (captcha.required && !captcha.token?.trim()) {
+      setError('Complete the verification challenge before creating your account.')
+      return
+    }
+
     setSubmitting(true)
 
     try {
@@ -37,6 +46,7 @@ export function RegisterScreen({ embedded }: { embedded?: boolean } = {}) {
         firstName: firstName.trim() || null,
         lastName: lastName.trim() || null,
         acceptsMarketing,
+        ...(captcha.token ? { captchaToken: captcha.token } : {}),
       })
       window.location.href = '/shop/account'
     } catch (err) {
@@ -132,6 +142,14 @@ export function RegisterScreen({ embedded }: { embedded?: boolean } = {}) {
                 Email me about offers and things I left in my basket. You can stop this at any time.
               </span>
             </label>
+
+            {captcha.required && captcha.provider && captcha.siteKey ? (
+              <CaptchaWidget
+                provider={captcha.provider}
+                siteKey={captcha.siteKey}
+                onToken={captcha.setToken}
+              />
+            ) : null}
 
             {error ? (
               <p

@@ -16,6 +16,8 @@ import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 import DigitalDeliveryService from '#modules/ecommerce/services/digital_delivery_service'
 import GatewayCredentialsService from '#modules/ecommerce/services/gateway_credentials_service'
 import { countryCode } from '#modules/ecommerce/validators/country'
+import CaptchaService from '#services/captcha_service'
+import { IntegrationSettingsService } from '#services/settings_service'
 
 const addressSchema = vine.object({
   firstName: vine.string().trim().maxLength(80).nullable().optional(),
@@ -74,6 +76,8 @@ const idempotency = new IdempotencyService()
 const settings = new StoreSettingsService()
 const delivery = new DigitalDeliveryService()
 const credentials = new GatewayCredentialsService()
+const integrations = new IntegrationSettingsService()
+const captcha = new CaptchaService()
 
 const fail = (response: HttpContext['response'], error: unknown) =>
   apiFail(response, error, 'ecommerce/checkout')
@@ -118,6 +122,32 @@ export default class StorefrontCheckoutController {
         message: 'An Idempotency-Key header is required to start checkout.',
         reason: 'idempotency_key_required',
       })
+    }
+
+    /**
+     * CAPTCHA gate for the card-testing surface. Enforced only when the store
+     * enabled it AND the provider is invisible (Turnstile) — see
+     * `CaptchaService.isInvisibleCapable` — so a visible puzzle never lands on
+     * the buy path. When it is not enforced, the checkout rate limit is the
+     * card-testing control instead. Fail-closed via the shared `CaptchaService`.
+     */
+    const captchaRow = await integrations.getOrCreate()
+    if (
+      captcha.isCaptchaEffective(captchaRow) &&
+      captchaRow.captchaOnCheckout &&
+      captcha.isInvisibleCapable(captchaRow)
+    ) {
+      const token = request.input('captchaToken')
+      const ok = await captcha.verifyToken(
+        captchaRow,
+        typeof token === 'string' ? token : undefined,
+        request.ip()
+      )
+      if (!ok) {
+        return response
+          .status(400)
+          .json({ message: 'CAPTCHA verification failed.', reason: 'captcha_failed' })
+      }
     }
 
     try {

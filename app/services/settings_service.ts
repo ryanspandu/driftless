@@ -431,6 +431,7 @@ export interface IntegrationSettingsAdmin {
   captchaSecretUnreadable: boolean
   captchaOnLogin: boolean
   captchaOnRegister: boolean
+  captchaOnCheckout: boolean
   envCaptchaFallback: boolean
   ga4Enabled: boolean
   ga4MeasurementId: string | null
@@ -441,18 +442,31 @@ export interface IntegrationSettingsAdmin {
   updatedAt: string
 }
 
+/**
+ * The public (no-secret) CAPTCHA config a browser needs to render a widget and
+ * know which flows require one. Shared by the admin auth pages and the
+ * storefront (`GET /api/shop/config`) so the rule lives in one place.
+ */
+export interface PublicCaptchaConfig {
+  enabled: boolean
+  provider: string | null
+  siteKey: string | null
+  onLogin: boolean
+  onRegister: boolean
+  /**
+   * True only when checkout CAPTCHA is enabled AND the provider is
+   * invisible-capable (Turnstile). The storefront shows a checkout challenge
+   * only when this is set; otherwise checkout relies on its rate limit.
+   */
+  onCheckout: boolean
+}
+
 export interface AuthPublicConfig {
   /** Whether public self-service signup is open. Lets the login page hide its
    * "create an account" affordance instead of linking to a 404. */
   registrationEnabled: boolean
   google: { enabled: boolean; configured: boolean }
-  captcha: {
-    enabled: boolean
-    provider: string | null
-    siteKey: string | null
-    onLogin: boolean
-    onRegister: boolean
-  }
+  captcha: PublicCaptchaConfig
   analytics: {
     googleAnalytics: { enabled: boolean; measurementId: string | null }
     microsoftClarity: { enabled: boolean; projectId: string | null }
@@ -815,13 +829,38 @@ export class IntegrationSettingsService {
     return { clientId, clientSecret, redirectUri: this.buildGoogleRedirectUri() }
   }
 
-  async getAuthPublicConfig(): Promise<AuthPublicConfig> {
-    const row = await this.getOrCreate()
-    const google = await this.resolveGoogleOAuth()
+  /**
+   * The public (no-secret) CAPTCHA config, from the stored row (with the
+   * Turnstile env-key fallback the resolver honours). Single source of truth
+   * for both the admin auth pages and the storefront.
+   */
+  buildPublicCaptchaConfig(row: IntegrationSetting): PublicCaptchaConfig {
     const captchaOk =
       row.captchaEnabled && !!(row.captchaSiteKey || env.get('TURNSTILE_SITE_KEY', ''))
     const siteKey = captchaOk ? row.captchaSiteKey || env.get('TURNSTILE_SITE_KEY', '') : null
     const provider = captchaOk ? row.captchaProvider || 'turnstile' : null
+    // Invisible-capable == Turnstile (mirrors CaptchaService.isInvisibleCapable);
+    // checkout only shows a challenge for an invisible provider.
+    const invisible = provider === 'turnstile'
+
+    return {
+      enabled: captchaOk,
+      provider,
+      siteKey,
+      onLogin: captchaOk && row.captchaOnLogin,
+      onRegister: captchaOk && row.captchaOnRegister,
+      onCheckout: captchaOk && row.captchaOnCheckout && invisible,
+    }
+  }
+
+  /** The public CAPTCHA config for the current settings row. */
+  async getPublicCaptchaConfig(): Promise<PublicCaptchaConfig> {
+    return this.buildPublicCaptchaConfig(await this.getOrCreate())
+  }
+
+  async getAuthPublicConfig(): Promise<AuthPublicConfig> {
+    const row = await this.getOrCreate()
+    const google = await this.resolveGoogleOAuth()
 
     const webSvc = new WebSettingsService()
     const web = await webSvc.getPublicAppearance()
@@ -830,13 +869,7 @@ export class IntegrationSettingsService {
     return {
       registrationEnabled: appConfig.registrationEnabled,
       google: { enabled: !!google, configured: !!google },
-      captcha: {
-        enabled: captchaOk,
-        provider,
-        siteKey,
-        onLogin: captchaOk && row.captchaOnLogin,
-        onRegister: captchaOk && row.captchaOnRegister,
-      },
+      captcha: this.buildPublicCaptchaConfig(row),
       analytics: {
         googleAnalytics: {
           enabled: row.ga4Enabled && !!(row.ga4MeasurementId || env.get('GA4_MEASUREMENT_ID', '')),
@@ -883,6 +916,7 @@ export class IntegrationSettingsService {
       captchaSecretUnreadable: !!row.captchaSecretEnc && !captchaSecretPlain,
       captchaOnLogin: row.captchaOnLogin,
       captchaOnRegister: row.captchaOnRegister,
+      captchaOnCheckout: row.captchaOnCheckout,
       // Only the Turnstile env key is actually consumed by the public captcha
       // resolver (getAuthPublicConfig), so an HCAPTCHA_SITE_KEY env alone must
       // NOT report captcha as configured — that made the integrations hub show
@@ -909,6 +943,7 @@ export class IntegrationSettingsService {
       captchaSecret: string | null
       captchaOnLogin: boolean
       captchaOnRegister: boolean
+      captchaOnCheckout: boolean
       ga4Enabled: boolean
       ga4MeasurementId: string | null
       clarityEnabled: boolean
@@ -934,6 +969,7 @@ export class IntegrationSettingsService {
     }
     if (dto.captchaOnLogin !== undefined) row.captchaOnLogin = dto.captchaOnLogin
     if (dto.captchaOnRegister !== undefined) row.captchaOnRegister = dto.captchaOnRegister
+    if (dto.captchaOnCheckout !== undefined) row.captchaOnCheckout = dto.captchaOnCheckout
     if (dto.ga4Enabled !== undefined) row.ga4Enabled = dto.ga4Enabled
     if (dto.ga4MeasurementId !== undefined)
       row.ga4MeasurementId = dto.ga4MeasurementId?.trim() || null

@@ -82,6 +82,21 @@ export interface OrderStatusDto {
   }[]
 }
 
+/**
+ * Public (no-secret) CAPTCHA config for the storefront, from
+ * `GET /api/shop/config`. Mirrors the server's `PublicCaptchaConfig`. The
+ * server is authoritative; these flags only tell the client which screens to
+ * render a widget on.
+ */
+export interface PublicCaptchaConfig {
+  enabled: boolean
+  provider: 'turnstile' | 'hcaptcha' | 'recaptcha' | null
+  siteKey: string | null
+  onLogin: boolean
+  onRegister: boolean
+  onCheckout: boolean
+}
+
 export interface AccountDto {
   id: string
   email: string
@@ -164,6 +179,9 @@ export function newIdempotencyKey(): string {
 }
 
 export const shopApi = {
+  /** Public storefront config (no-secret CAPTCHA config) for login/register/checkout. */
+  config: () => shopFetch<{ captcha: PublicCaptchaConfig }>('/api/shop/config'),
+
   cart: () => shopFetch<CartDto>('/api/shop/cart'),
 
   addToCart: (variantId: string, quantity = 1) =>
@@ -323,6 +341,8 @@ export const accountApi = {
     firstName?: string | null
     lastName?: string | null
     acceptsMarketing?: boolean
+    /** Present only when the store requires a CAPTCHA on register. */
+    captchaToken?: string | null
   }) =>
     shopFetch<{ account: AccountDto }>('/api/shop/account/register', {
       method: 'POST',
@@ -334,7 +354,7 @@ export const accountApi = {
    * doesn't throw) instead of a signed-in `{ account }`; the caller then posts
    * a code to {@link verify2fa}.
    */
-  login: (input: { email: string; password: string }) =>
+  login: (input: { email: string; password: string; captchaToken?: string | null }) =>
     shopFetch<{ account: AccountDto } | { needs2fa: true; pendingToken: string }>(
       '/api/shop/account/login',
       { method: 'POST', body: JSON.stringify(input) }

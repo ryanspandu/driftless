@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Head } from '@inertiajs/react'
+import { CaptchaWidget } from '~/components/auth/captcha-widget'
 import { accountApi } from '../_api'
+import { useStorefrontCaptcha } from '../_use_captcha'
 import { StorefrontLayout, FIELD_CLASS, SUBMIT_CLASS } from '../_layout'
 
 /**
@@ -24,14 +26,25 @@ export function LoginScreen({ embedded }: { embedded?: boolean } = {}) {
   const [error, setError] = useState<string | null>(null)
   // Set once the password step reports a 2FA account; swaps the form for the code step.
   const [pendingToken, setPendingToken] = useState<string | null>(null)
+  const captcha = useStorefrontCaptcha('onLogin')
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+
+    if (captcha.required && !captcha.token?.trim()) {
+      setError('Complete the verification challenge before signing in.')
+      return
+    }
+
     setSubmitting(true)
 
     try {
-      const res = await accountApi.login({ email: email.trim(), password })
+      const res = await accountApi.login({
+        email: email.trim(),
+        password,
+        ...(captcha.token ? { captchaToken: captcha.token } : {}),
+      })
       if ('needs2fa' in res) {
         setPendingToken(res.pendingToken)
         setSubmitting(false)
@@ -104,6 +117,14 @@ export function LoginScreen({ embedded }: { embedded?: boolean } = {}) {
                 className={FIELD_CLASS}
               />
             </div>
+
+            {captcha.required && captcha.provider && captcha.siteKey ? (
+              <CaptchaWidget
+                provider={captcha.provider}
+                siteKey={captcha.siteKey}
+                onToken={captcha.setToken}
+              />
+            ) : null}
 
             {error ? (
               <p

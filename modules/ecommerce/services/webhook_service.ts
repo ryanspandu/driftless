@@ -186,12 +186,50 @@ export default class WebhookService {
       return
     }
 
+    /**
+     * A live event must not settle a test payment, or the reverse. Signature
+     * verification already rejects an event signed with the other mode's secret,
+     * but assert it here too — Lemon Squeezy is the only driver that checks mode
+     * itself, and defence-in-depth on the money path is cheap. Leaves the order
+     * unpaid rather than settling on an ambiguous mode.
+     */
+    if (driver.mode !== payment.mode) {
+      await audit.record({
+        actor: { type: 'system', label: `${record.gateway} webhook` },
+        action: 'webhook.mode_mismatch',
+        subjectType: 'webhook_event',
+        subjectId: record.id,
+        changes: { eventMode: driver.mode, paymentMode: payment.mode, orderId: payment.orderId },
+      })
+      return
+    }
+
+    /**
+     * Reconciliation depends on a real amount + currency. If a driver ever
+     * reports `paid` without them, do NOT fall back to our own stored figure:
+     * that would hand `markOrderPaid` the order's own total to compare against
+     * itself — always equal — silently skipping the amount check that is the
+     * whole point of settling through it. No current driver does this; the guard
+     * is here so a future one cannot bypass reconciliation. The order stays
+     * unpaid and the anomaly is audited.
+     */
+    if (typeof status.amount !== 'number' || typeof status.currency !== 'string') {
+      await audit.record({
+        actor: { type: 'system', label: `${record.gateway} webhook` },
+        action: 'webhook.unreconcilable_amount',
+        subjectType: 'webhook_event',
+        subjectId: record.id,
+        changes: { orderId: payment.orderId, amount: status.amount, currency: status.currency },
+      })
+      return
+    }
+
     await orders.markOrderPaid(
       payment.orderId,
       {
         gatewayPaymentId: payment.gatewayPaymentId,
-        amount: status.amount ?? payment.amount,
-        currency: status.currency ?? payment.currency,
+        amount: status.amount,
+        currency: status.currency,
         source: 'webhook',
         raw: status.raw,
       },
