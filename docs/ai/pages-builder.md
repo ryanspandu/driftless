@@ -251,10 +251,10 @@ Plus `page_revisions` (mirror `cms_revisions`).
   Block) · **Other** (Grid, Columns, Spacer, Divider, Template Reference). `Box` forwards extra DOM
   attrs (e.g. `href`) so blocks render as real `<a>`/`<li>`/`<input>`/etc.
   \*The four auth blocks submit for real, and `FormBlock`'s **Submits to** field wires a
-  hand-assembled form to the same endpoints — see [auth-pages.md](./auth-pages.md). The
-  remaining native form elements are still render-only (there is no generic form-submission
-  backend), and reCAPTCHA is a placeholder. Webflow's "Locales List" is skipped (no i18n
-  locales).
+  hand-assembled form to the same endpoints — see [auth-pages.md](./auth-pages.md). `FormBlock`
+  set to *Collect* also captures submissions to an inbox, and picking a **Saved form**
+  auto-renders + validates a defined form's schema — see [forms.md](./forms.md). reCAPTCHA is a
+  placeholder. Webflow's "Locales List" is skipped (no i18n locales).
 - `inertia/puck/media-embeds.tsx` (+ `media-rive-inner.tsx`) — **lazy, client-only** players for
   Lottie (`@lottiefiles/dotlottie-react`), Spline (`@splinetool/react-spline`), Rive
   (`@rive-app/react-canvas`); mount-guarded so the heavy runtimes stay out of the main + SSR bundles

@@ -114,6 +114,28 @@ command — see [docs/ai/modules.md](./ai/modules.md).
 - Tables everywhere share the same toolbar (search + filters), tinted status badges, and
   pagination, so every list page feels identical.
 
+## Forms
+
+Collect messages from visitors — contact forms, sign-up lists, applications — without touching code.
+
+- **Build a form** under **Forms → New form**. On its **Fields** tab, add fields (short text,
+  paragraph, email, phone, number, date, link, dropdown, radio, checkbox, checkbox group, or **file
+  upload**), drag the handle to reorder, and set each field's **width** so a row holds one field or
+  up to six side by side. Nothing saves until you press **Save fields**.
+- **Put it on a page**: in the page builder, drop a **Form Block**, set *Submits to* →
+  **Collect**, and pick your form under **Saved form** — the form's fields render on the page
+  automatically, and Driftless checks each answer (a bad email, a missing required field) and shows
+  the visitor an inline message.
+- **Read submissions** in the form's **Submissions** tab (or the global inbox under *All
+  submissions*): mark them read, flag spam, or delete. Every form's messages are always saved to the
+  inbox; you can also add a **webhook** under *Settings → Email* to be notified elsewhere.
+- **Uploaded files** are stored privately and can only be downloaded from the inbox — never from a
+  public link.
+- Spam is caught automatically (a hidden honeypot + rate limiting), and a flagged message lands in
+  **Spam** rather than being lost, so a false positive is recoverable.
+
+Developer detail (field validation, the submit API, secure uploads): [`docs/ai/forms.md`](./ai/forms.md).
+
 ## Custom code templates (kits)
 
 When the visual builder isn't enough, a developer can ship a **kit** — a folder of hand-coded pages
