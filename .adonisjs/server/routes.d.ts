@@ -7,6 +7,7 @@ export type ScannedRoutes = {
     'home': { paramsTuple?: []; params?: {} }
     'analytics.collect': { paramsTuple?: []; params?: {} }
     'forms.submit': { paramsTuple?: []; params?: {} }
+    'forms.upload': { paramsTuple?: []; params?: {} }
     'media.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'media.serveLegacy': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'new_account.create': { paramsTuple?: []; params?: {} }
@@ -460,6 +461,7 @@ export type ScannedRoutes = {
   POST: {
     'analytics.collect': { paramsTuple?: []; params?: {} }
     'forms.submit': { paramsTuple?: []; params?: {} }
+    'forms.upload': { paramsTuple?: []; params?: {} }
     'new_account.store': { paramsTuple?: []; params?: {} }
     'session.store': { paramsTuple?: []; params?: {} }
     'session.two_factor.verify': { paramsTuple?: []; params?: {} }

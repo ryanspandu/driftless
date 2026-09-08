@@ -1,7 +1,8 @@
-import { useContext, useState, type FormEvent, type ReactNode } from 'react'
+import { useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, router, usePage } from '@inertiajs/react'
 import { Eye, EyeOff } from 'lucide-react'
-import type { AuthPublicConfig } from '~/types/api'
+import type { AuthPublicConfig, FormFieldDef, PublicFormDto } from '~/types/api'
+import { PublicFormFields } from '~/puck/public-form-renderer'
 import { CaptchaWidget } from '~/components/auth/captcha-widget'
 import { GoogleSignInButton } from '~/components/auth/google-sign-in-button'
 import { useAuthPublicConfig } from '~/hooks/api/use-auth'
@@ -641,6 +642,7 @@ export function FormBlockView({
   action,
   method,
   handler,
+  formSlug,
   formName,
   successMessage,
   ...s
@@ -649,6 +651,7 @@ export function FormBlockView({
   action?: string
   method?: string
   handler?: string
+  formSlug?: string
   formName?: string
   successMessage?: string
 } & StyleBag) {
@@ -656,7 +659,71 @@ export function FormBlockView({
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [collectError, setCollectError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [definedForm, setDefinedForm] = useState<PublicFormDto | null>(null)
   const target = handler && handler !== 'none' ? FORM_HANDLERS[handler] : undefined
+
+  // When a saved form is picked, fetch its schema and render its fields (works
+  // in the builder preview too, since the endpoint is public).
+  useEffect(() => {
+    if (handler !== 'collect' || !formSlug) {
+      setDefinedForm(null)
+      return
+    }
+    let alive = true
+    fetch(`/api/public/forms/${encodeURIComponent(formSlug)}`, { headers: { Accept: 'application/json' } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => alive && setDefinedForm(d))
+      .catch(() => alive && setDefinedForm(null))
+    return () => {
+      alive = false
+    }
+  }, [handler, formSlug])
+
+  // Build the payload from the schema — arrays for checkbox groups, single values
+  // otherwise (plain `Object.fromEntries(FormData)` would collapse duplicates).
+  function collectDefined(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (editing || !definedForm) return
+    const form = e.currentTarget
+    const fd = new FormData(form)
+    const fields: Record<string, unknown> = {}
+    for (const field of definedForm.fields as FormFieldDef[]) {
+      fields[field.key] =
+        field.type === 'checkbox_group' ? fd.getAll(field.key).map(String) : (fd.get(field.key) ?? '')
+    }
+    setLoading(true)
+    setCollectError(null)
+    setFieldErrors({})
+    fetch('/api/forms/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(readXsrfCookie() ? { 'X-XSRF-TOKEN': readXsrfCookie()! } : {}),
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        form: formSlug,
+        page: typeof window !== 'undefined' ? window.location.pathname : null,
+        fields,
+      }),
+    })
+      .then(async (res) => {
+        if (res.ok) {
+          setDone(true)
+          form.reset()
+        } else if (res.status === 422) {
+          const body = (await res.json().catch(() => ({}))) as { errors?: Record<string, string> }
+          setFieldErrors(body.errors ?? {})
+        } else if (res.status === 429) {
+          setCollectError('Too many submissions. Please wait a moment and try again.')
+        } else {
+          setCollectError('Sorry — your message could not be sent. Please try again.')
+        }
+      })
+      .catch(() => setCollectError('Could not send. Check your connection and try again.'))
+      .finally(() => setLoading(false))
+  }
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -715,16 +782,37 @@ export function FormBlockView({
   }
 
   if (handler === 'collect') {
+    const auto = Boolean(formSlug && definedForm)
     if (done) {
       return (
         <Box s={s} data-form-success="">
-          {successMessage || 'Thanks — we’ve received your message.'}
+          {definedForm?.successMessage || successMessage || 'Thanks — we’ve received your message.'}
         </Box>
       )
     }
     return (
-      <Box as="form" s={s} onSubmit={onCollect} data-loading={loading ? '' : undefined}>
-        {Content ? <Content /> : null}
+      <Box
+        as="form"
+        s={s}
+        onSubmit={auto ? collectDefined : onCollect}
+        data-loading={loading ? '' : undefined}
+      >
+        {auto ? (
+          <div className="space-y-4">
+            <PublicFormFields fields={definedForm!.fields as FormFieldDef[]} errors={fieldErrors} />
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {loading ? 'Sending…' : 'Submit'}
+            </button>
+          </div>
+        ) : formSlug ? (
+          <p className="text-sm text-muted-foreground">Loading form…</p>
+        ) : Content ? (
+          <Content />
+        ) : null}
         {/* Honeypot: hidden from real users, catches naive bots. */}
         <input
           type="text"

@@ -50,15 +50,19 @@ function preview(sub: FormSubmission): string {
   return String(pick[1] ?? '').slice(0, 120) || '—'
 }
 
-export default function FormsPage() {
+/**
+ * The form-submissions inbox: status tabs + a list + a read-only detail dialog.
+ * `formId` scopes it to one defined form (the per-form detail page); omit it for
+ * the global inbox. The page above provides its own header.
+ */
+export function FormsInbox({ formId }: { formId?: string }) {
   const [filter, setFilter] = useState<Filter>('all')
   const [open, setOpen] = useState<FormSubmission | null>(null)
-  const { data, isPending, isError } = useFormSubmissions(filter)
+  const { data, isPending, isError } = useFormSubmissions(filter, formId)
   const updateStatus = useUpdateFormStatus()
   const del = useDeleteFormSubmission()
 
   const items = data?.items ?? []
-  const unread = data?.unread ?? 0
 
   const openDetail = (sub: FormSubmission) => {
     setOpen(sub)
@@ -68,21 +72,7 @@ export default function FormsPage() {
   const detailEntries = useMemo(() => (open ? Object.entries(open.data) : []), [open])
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Form submissions</h1>
-          <p className="text-sm text-muted-foreground">
-            Messages captured by builder forms set to “Collect submissions”.
-          </p>
-        </div>
-        {unread > 0 && (
-          <Badge variant="default" className="h-6">
-            {unread} unread
-          </Badge>
-        )}
-      </div>
-
+    <div className="space-y-4">
       <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
         <TabsList>
           {FILTERS.map((f) => (
@@ -168,7 +158,9 @@ export default function FormsPage() {
                         {key}
                       </dt>
                       <dd className="mt-0.5 whitespace-pre-wrap break-words">
-                        {String(value ?? '') || '—'}
+                        {Array.isArray(value)
+                          ? value.join(', ') || '—'
+                          : String(value ?? '') || '—'}
                       </dd>
                     </div>
                   ))

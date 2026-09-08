@@ -12,6 +12,10 @@ export default class FormSubmission extends BaseModel {
   @column()
   declare formName: string
 
+  /** The form definition this belongs to, or null for a legacy free-text form. */
+  @column()
+  declare formId: string | null
+
   @column()
   declare pagePath: string | null
 

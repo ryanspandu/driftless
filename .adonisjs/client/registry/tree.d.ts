@@ -14,7 +14,6 @@ export interface ApiDefinition {
   }
   forms: {
     submit: typeof routes['forms.submit']
-    page: typeof routes['forms.page']
     list: typeof routes['forms.list']
     updateStatus: typeof routes['forms.update_status']
     destroy: typeof routes['forms.destroy']
@@ -31,6 +30,9 @@ export interface ApiDefinition {
   publicCms: {
     records: typeof routes['public_cms.records']
     record: typeof routes['public_cms.record']
+  }
+  publicForms: {
+    show: typeof routes['public_forms.show']
   }
   publicTemplates: {
     show: typeof routes['public_templates.show']
@@ -122,6 +124,17 @@ export interface ApiDefinition {
     index: typeof routes['dashboard.index']
     analyticsPage: typeof routes['dashboard.analytics_page']
     profilePage: typeof routes['dashboard.profile_page']
+  }
+  formsDefinitions: {
+    page: typeof routes['forms_definitions.page']
+    submissionsPage: typeof routes['forms_definitions.submissions_page']
+    detailPage: typeof routes['forms_definitions.detail_page']
+    index: typeof routes['forms_definitions.index']
+    store: typeof routes['forms_definitions.store']
+    show: typeof routes['forms_definitions.show']
+    update: typeof routes['forms_definitions.update']
+    destroy: typeof routes['forms_definitions.destroy']
+    duplicate: typeof routes['forms_definitions.duplicate']
   }
   redirects: {
     page: typeof routes['redirects.page']

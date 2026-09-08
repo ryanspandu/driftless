@@ -127,6 +127,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/public_cms_controller').default['record']>>>
     }
   }
+  'public_forms.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/public/forms/:slug'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { slug: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/public_forms_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/public_forms_controller').default['show']>>>
+    }
+  }
   'public_templates.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/public/templates/:id'
@@ -499,7 +511,7 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/analytics_controller').default['report']>>>
     }
   }
-  'forms.page': {
+  'forms_definitions.page': {
     methods: ["GET","HEAD"]
     pattern: '/admin/forms'
     types: {
@@ -507,8 +519,104 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['page']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['page']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['page']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['page']>>>
+    }
+  }
+  'forms_definitions.submissions_page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/forms/submissions'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['submissionsPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['submissionsPage']>>>
+    }
+  }
+  'forms_definitions.detail_page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/forms/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['detailPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['detailPage']>>>
+    }
+  }
+  'forms_definitions.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/forms/definitions'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['index']>>>
+    }
+  }
+  'forms_definitions.store': {
+    methods: ["POST"]
+    pattern: '/api/admin/forms/definitions'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['store']>>>
+    }
+  }
+  'forms_definitions.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/forms/definitions/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['show']>>>
+    }
+  }
+  'forms_definitions.update': {
+    methods: ["PUT"]
+    pattern: '/api/admin/forms/definitions/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['update']>>>
+    }
+  }
+  'forms_definitions.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/forms/definitions/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['destroy']>>>
+    }
+  }
+  'forms_definitions.duplicate': {
+    methods: ["POST"]
+    pattern: '/api/admin/forms/definitions/:id/duplicate'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['duplicate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['duplicate']>>>
     }
   }
   'forms.list': {

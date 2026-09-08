@@ -3,6 +3,9 @@ import type { HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
 import { newUlid } from '#services/ulid_service'
 import FormSubmission from '#models/form_submission'
+import Form from '#models/form'
+import { validateSubmission, type FormFieldDef } from '#services/form_schema'
+import FormUploadService from '#services/form_upload_service'
 import { WebSettingsService } from '#services/settings_service'
 
 /** The hidden field a bot fills in. A real user never sees or touches it. */
@@ -11,8 +14,28 @@ export const HONEYPOT_FIELD = '_hp_url'
 const MAX_FIELDS = 40
 const MAX_NAME_LEN = 100
 const MAX_VALUE_LEN = 5_000
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const web = new WebSettingsService()
+const uploads = new FormUploadService()
+
+/**
+ * A defined form rejected the submission on validation (missing required, bad
+ * type, invalid choice). Distinct from an infra failure so the controller can
+ * answer 422-with-errors instead of the swallow-to-200 path.
+ */
+export class FormValidationError extends Error {
+  constructor(public readonly errors: Record<string, string>) {
+    super('Form validation failed')
+  }
+}
+
+/** The sender email: the defined `email` field's value, else a field named `email`. */
+function extractEmail(fields: FormFieldDef[] | null, data: Record<string, unknown>): string | null {
+  const emailField = fields?.find((f) => f.type === 'email')
+  const raw = String((emailField ? data[emailField.key] : data.email) ?? '').trim()
+  return EMAIL_RE.test(raw) ? raw.slice(0, 254) : null
+}
 
 function hashIp(ip: string | null | undefined): string | null {
   if (!ip) return null
@@ -37,6 +60,7 @@ function sanitiseFields(input: unknown): Record<string, string> {
 export interface FormSubmissionDto {
   id: string
   formName: string
+  formId: string | null
   pagePath: string | null
   data: Record<string, unknown>
   email: string | null
@@ -56,21 +80,51 @@ export default class FormSubmissionService {
   ): Promise<FormSubmission> {
     const raw = (input.fields ?? {}) as Record<string, unknown>
     const isSpam = Boolean(String(raw[HONEYPOT_FIELD] ?? '').trim())
-    const data = sanitiseFields(raw)
 
-    const emailRaw = String(data.email ?? '').trim()
-    const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw) ? emailRaw.slice(0, 254) : null
+    // A submission whose `form` matches an active definition is validated +
+    // whitelisted against its schema; anything else keeps the legacy accept-all
+    // path so free-text builder forms (and their tests) still work.
+    const def = input.form
+      ? await Form.query().where('slug', input.form).where('status', 'active').first()
+      : null
+
+    let data: Record<string, unknown>
+    let formName: string
+    let formId: string | null = null
+
+    if (def) {
+      const result = validateSubmission(def.fields, raw)
+      // Real validation errors surface to the visitor (422). A honeypot hit still
+      // looks like success and is quietly filed as spam.
+      if (!isSpam && Object.keys(result.errors).length) throw new FormValidationError(result.errors)
+      data = result.data
+      formName = def.title.slice(0, 200)
+      formId = def.id
+    } else {
+      data = sanitiseFields(raw)
+      formName = (input.form || 'Form').slice(0, 200)
+    }
 
     const submission = await FormSubmission.create({
       id: newUlid(),
-      formName: (input.form || 'Form').slice(0, 200),
+      formName,
+      formId,
       pagePath: input.page ? String(input.page).slice(0, 512) : null,
       data,
-      email,
+      email: extractEmail(def?.fields ?? null, data),
       ipHash: hashIp(ctx.request.ip()),
       userAgent: ctx.request.header('user-agent')?.slice(0, 512) ?? null,
       status: isSpam ? 'spam' : 'new',
     })
+
+    // Attach any uploaded files to this submission (defined forms only — the
+    // file field's value is the upload token minted by `/api/forms/upload`).
+    if (def) {
+      for (const field of def.fields) {
+        const token = field.type === 'file' ? data[field.key] : null
+        if (typeof token === 'string' && token) await uploads.bind(token, submission.id)
+      }
+    }
 
     if (!isSpam) void this.notify(submission)
     return submission
@@ -98,19 +152,19 @@ export default class FormSubmissionService {
     }
   }
 
-  async list(filter: { status?: 'new' | 'read' | 'spam'; form?: string } = {}): Promise<{
-    items: FormSubmissionDto[]
-    unread: number
-  }> {
+  async list(
+    filter: { status?: 'new' | 'read' | 'spam'; form?: string; formId?: string } = {}
+  ): Promise<{ items: FormSubmissionDto[]; unread: number }> {
     const query = FormSubmission.query().orderBy('created_at', 'desc').limit(500)
     if (filter.status) query.where('status', filter.status)
     if (filter.form) query.where('form_name', filter.form)
+    if (filter.formId) query.where('form_id', filter.formId)
     const rows = await query
 
-    const unreadRow = await FormSubmission.query()
-      .where('status', 'new')
-      .count('* as total')
-      .first()
+    // Unread count is scoped the same way as the list (per-form when filtered).
+    const unreadQuery = FormSubmission.query().where('status', 'new')
+    if (filter.formId) unreadQuery.where('form_id', filter.formId)
+    const unreadRow = await unreadQuery.count('* as total').first()
 
     return {
       items: rows.map((r) => this.toDto(r)),
@@ -126,6 +180,8 @@ export default class FormSubmissionService {
   }
 
   async delete(id: string): Promise<void> {
+    // Remove any attached files first, then the row.
+    await uploads.deleteForSubmission(id)
     await FormSubmission.query().where('id', id).delete()
   }
 
@@ -133,6 +189,7 @@ export default class FormSubmissionService {
     return {
       id: row.id,
       formName: row.formName,
+      formId: row.formId,
       pagePath: row.pagePath,
       data: row.data,
       email: row.email,

@@ -6,6 +6,7 @@ export type FormStatus = 'new' | 'read' | 'spam'
 export interface FormSubmission {
   id: string
   formName: string
+  formId: string | null
   pagePath: string | null
   data: Record<string, unknown>
   email: string | null
@@ -18,11 +19,15 @@ export interface FormSubmissionList {
   unread: number
 }
 
-export function useFormSubmissions(status?: FormStatus | 'all') {
-  const qs = status && status !== 'all' ? `?status=${status}` : ''
+/** `formId` scopes the inbox to one defined form (its detail-page Submissions tab). */
+export function useFormSubmissions(status?: FormStatus | 'all', formId?: string) {
+  const params = new URLSearchParams()
+  if (status && status !== 'all') params.set('status', status)
+  if (formId) params.set('formId', formId)
+  const qs = params.toString()
   return useQuery({
-    queryKey: ['forms', 'list', status ?? 'all'] as const,
-    queryFn: () => apiGet<FormSubmissionList>(`/api/admin/forms${qs}`),
+    queryKey: ['forms', 'list', status ?? 'all', formId ?? 'all'] as const,
+    queryFn: () => apiGet<FormSubmissionList>(`/api/admin/forms${qs ? `?${qs}` : ''}`),
     staleTime: 15_000,
     placeholderData: (prev) => prev,
   })

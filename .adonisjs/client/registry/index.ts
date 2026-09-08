@@ -66,6 +66,12 @@ const routes = {
     tokens: [{"old":"/api/public/cms/:key/records/:id","type":0,"val":"api","end":""},{"old":"/api/public/cms/:key/records/:id","type":0,"val":"public","end":""},{"old":"/api/public/cms/:key/records/:id","type":0,"val":"cms","end":""},{"old":"/api/public/cms/:key/records/:id","type":1,"val":"key","end":""},{"old":"/api/public/cms/:key/records/:id","type":0,"val":"records","end":""},{"old":"/api/public/cms/:key/records/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['public_cms.record']['types'],
   },
+  'public_forms.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/public/forms/:slug',
+    tokens: [{"old":"/api/public/forms/:slug","type":0,"val":"api","end":""},{"old":"/api/public/forms/:slug","type":0,"val":"public","end":""},{"old":"/api/public/forms/:slug","type":0,"val":"forms","end":""},{"old":"/api/public/forms/:slug","type":1,"val":"slug","end":""}],
+    types: placeholder as Registry['public_forms.show']['types'],
+  },
   'public_templates.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/public/templates/:id',
@@ -252,11 +258,59 @@ const routes = {
     tokens: [{"old":"/api/admin/analytics/report","type":0,"val":"api","end":""},{"old":"/api/admin/analytics/report","type":0,"val":"admin","end":""},{"old":"/api/admin/analytics/report","type":0,"val":"analytics","end":""},{"old":"/api/admin/analytics/report","type":0,"val":"report","end":""}],
     types: placeholder as Registry['analytics.report']['types'],
   },
-  'forms.page': {
+  'forms_definitions.page': {
     methods: ["GET","HEAD"],
     pattern: '/admin/forms',
     tokens: [{"old":"/admin/forms","type":0,"val":"admin","end":""},{"old":"/admin/forms","type":0,"val":"forms","end":""}],
-    types: placeholder as Registry['forms.page']['types'],
+    types: placeholder as Registry['forms_definitions.page']['types'],
+  },
+  'forms_definitions.submissions_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/forms/submissions',
+    tokens: [{"old":"/admin/forms/submissions","type":0,"val":"admin","end":""},{"old":"/admin/forms/submissions","type":0,"val":"forms","end":""},{"old":"/admin/forms/submissions","type":0,"val":"submissions","end":""}],
+    types: placeholder as Registry['forms_definitions.submissions_page']['types'],
+  },
+  'forms_definitions.detail_page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/forms/:id',
+    tokens: [{"old":"/admin/forms/:id","type":0,"val":"admin","end":""},{"old":"/admin/forms/:id","type":0,"val":"forms","end":""},{"old":"/admin/forms/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['forms_definitions.detail_page']['types'],
+  },
+  'forms_definitions.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/forms/definitions',
+    tokens: [{"old":"/api/admin/forms/definitions","type":0,"val":"api","end":""},{"old":"/api/admin/forms/definitions","type":0,"val":"admin","end":""},{"old":"/api/admin/forms/definitions","type":0,"val":"forms","end":""},{"old":"/api/admin/forms/definitions","type":0,"val":"definitions","end":""}],
+    types: placeholder as Registry['forms_definitions.index']['types'],
+  },
+  'forms_definitions.store': {
+    methods: ["POST"],
+    pattern: '/api/admin/forms/definitions',
+    tokens: [{"old":"/api/admin/forms/definitions","type":0,"val":"api","end":""},{"old":"/api/admin/forms/definitions","type":0,"val":"admin","end":""},{"old":"/api/admin/forms/definitions","type":0,"val":"forms","end":""},{"old":"/api/admin/forms/definitions","type":0,"val":"definitions","end":""}],
+    types: placeholder as Registry['forms_definitions.store']['types'],
+  },
+  'forms_definitions.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/forms/definitions/:id',
+    tokens: [{"old":"/api/admin/forms/definitions/:id","type":0,"val":"api","end":""},{"old":"/api/admin/forms/definitions/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/forms/definitions/:id","type":0,"val":"forms","end":""},{"old":"/api/admin/forms/definitions/:id","type":0,"val":"definitions","end":""},{"old":"/api/admin/forms/definitions/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['forms_definitions.show']['types'],
+  },
+  'forms_definitions.update': {
+    methods: ["PUT"],
+    pattern: '/api/admin/forms/definitions/:id',
+    tokens: [{"old":"/api/admin/forms/definitions/:id","type":0,"val":"api","end":""},{"old":"/api/admin/forms/definitions/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/forms/definitions/:id","type":0,"val":"forms","end":""},{"old":"/api/admin/forms/definitions/:id","type":0,"val":"definitions","end":""},{"old":"/api/admin/forms/definitions/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['forms_definitions.update']['types'],
+  },
+  'forms_definitions.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/forms/definitions/:id',
+    tokens: [{"old":"/api/admin/forms/definitions/:id","type":0,"val":"api","end":""},{"old":"/api/admin/forms/definitions/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/forms/definitions/:id","type":0,"val":"forms","end":""},{"old":"/api/admin/forms/definitions/:id","type":0,"val":"definitions","end":""},{"old":"/api/admin/forms/definitions/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['forms_definitions.destroy']['types'],
+  },
+  'forms_definitions.duplicate': {
+    methods: ["POST"],
+    pattern: '/api/admin/forms/definitions/:id/duplicate',
+    tokens: [{"old":"/api/admin/forms/definitions/:id/duplicate","type":0,"val":"api","end":""},{"old":"/api/admin/forms/definitions/:id/duplicate","type":0,"val":"admin","end":""},{"old":"/api/admin/forms/definitions/:id/duplicate","type":0,"val":"forms","end":""},{"old":"/api/admin/forms/definitions/:id/duplicate","type":0,"val":"definitions","end":""},{"old":"/api/admin/forms/definitions/:id/duplicate","type":1,"val":"id","end":""},{"old":"/api/admin/forms/definitions/:id/duplicate","type":0,"val":"duplicate","end":""}],
+    types: placeholder as Registry['forms_definitions.duplicate']['types'],
   },
   'forms.list': {
     methods: ["GET","HEAD"],

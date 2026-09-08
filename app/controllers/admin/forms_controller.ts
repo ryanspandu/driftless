@@ -1,7 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import FormSubmissionService from '#services/form_submission_service'
+import FormSubmissionService, { FormValidationError } from '#services/form_submission_service'
+import FormUploadService, { FormUploadError } from '#services/form_upload_service'
 
 const service = new FormSubmissionService()
+const uploads = new FormUploadService()
 
 export default class FormsController {
   /**
@@ -17,21 +19,52 @@ export default class FormsController {
         page: request.input('page') ? String(request.input('page')) : null,
         fields: request.input('fields') ?? {},
       })
-    } catch {
-      // Swallow — a submission failure must not read as a broken page.
+    } catch (error) {
+      // A defined form's validation failure is the visitor's to fix — surface it
+      // as 422 with per-field messages. Anything else is swallowed (a broken
+      // store must not read as a broken page).
+      if (error instanceof FormValidationError) {
+        return response.status(422).json({ ok: false, errors: error.errors })
+      }
     }
     return response.json({ ok: true })
   }
 
-  // ── Admin inbox ──────────────────────────────────────────────────────────
-
-  async page({ inertia }: HttpContext) {
-    return inertia.render('admin/forms', {})
+  /**
+   * Public: receive one file for a form's `file` field. Rate-limited harder than
+   * submit. Returns an opaque token the form then submits; the file is validated
+   * by magic bytes, stored in isolation, and only ever served to an admin.
+   */
+  async upload({ request, response }: HttpContext) {
+    const file = request.file('file', { size: '10mb' })
+    if (!file) return response.status(422).json({ message: 'No file was uploaded.' })
+    try {
+      const form = request.input('form') ? String(request.input('form')) : undefined
+      return response.json(await uploads.store(file, form))
+    } catch (e) {
+      const message = e instanceof FormUploadError ? e.message : 'That file could not be accepted.'
+      return response.status(422).json({ message })
+    }
   }
+
+  /** Admin-only: stream an uploaded file (never publicly reachable). */
+  async serveUpload({ params, response }: HttpContext) {
+    const found = await uploads.find(String(params.token))
+    if (!found) return response.status(404).json({ message: 'Not found.' })
+    const safe = found.filename.replace(/[^\w.\- ]+/g, '_')
+    response.header('Content-Disposition', `attachment; filename="${safe}"`)
+    response.type(found.mime)
+    return response.download(found.path)
+  }
+
+  // ── Admin inbox API (pages render from forms_definitions_controller) ───────
 
   async list({ request, response }: HttpContext) {
     const status = request.input('status')
-    return response.json(await service.list({ status: status || undefined }))
+    const formId = request.input('formId')
+    return response.json(
+      await service.list({ status: status || undefined, formId: formId || undefined })
+    )
   }
 
   async updateStatus({ params, request, response }: HttpContext) {

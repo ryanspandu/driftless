@@ -34,6 +34,7 @@ import {
   RegisterFormView,
   ResetPasswordFormView,
 } from '~/puck/blocks-auth'
+import { FormPickerField } from '~/puck/form-picker-field'
 import { TemplateRefField, TemplateRefView } from '~/puck/template-ref'
 import { PageOutletView } from '~/puck/page-outlet'
 import { cssFromSnippets, readSnippets } from '~/puck/custom-code'
@@ -1374,9 +1375,16 @@ export const baseConfig: Config = {
             },
           ],
         },
+        formSlug: {
+          type: 'custom',
+          label: 'Saved form (Collect only — renders its fields)',
+          render: ({ onChange, value }) => (
+            <FormPickerField value={value as string} onChange={onChange} />
+          ),
+        },
         formName: {
           type: 'text',
-          label: 'Form name (Collect only — labels submissions in the inbox)',
+          label: 'Form name (Collect, no saved form — labels submissions)',
         },
         successMessage: {
           type: 'text',
@@ -1398,6 +1406,7 @@ export const baseConfig: Config = {
         handler: 'none',
         action: '',
         method: 'post',
+        formSlug: '',
         formName: 'Contact form',
         successMessage: 'Thanks — we’ve received your message.',
         content: [],

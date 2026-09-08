@@ -66,6 +66,13 @@ export const formsSubmitThrottle = limiter.define('forms_submit', ((ctx) =>
     .every('10 minutes')
     .usingKey(`forms_${ctx.request.ip()}`)) as LimiterBuilder)
 
+/** Public form file uploads — stricter still (a byte-heavy, storage-touching path). */
+export const formsUploadThrottle = limiter.define('forms_upload', ((ctx) =>
+  limiter
+    .allowRequests(10)
+    .every('10 minutes')
+    .usingKey(`forms_upload_${ctx.request.ip()}`)) as LimiterBuilder)
+
 /**
  * Per-account budget for password login. Applied *in addition to*
  * `authIpThrottle` so a distributed attempt against a single account is capped

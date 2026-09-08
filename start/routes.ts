@@ -6,6 +6,7 @@ import {
   apiV1Throttle,
   authIpThrottle,
   formsSubmitThrottle,
+  formsUploadThrottle,
   forgotPasswordAccountThrottle,
   forgotPasswordIpThrottle,
   loginAccountThrottle,
@@ -50,6 +51,13 @@ router
   .as('forms.submit')
   .use(formsSubmitThrottle)
 
+// Public form file upload — validated by magic bytes, stored in isolation,
+// returns an opaque token. Stricter throttle than submit.
+router
+  .post('/api/forms/upload', [() => import('#controllers/admin/forms_controller'), 'upload'])
+  .as('forms.upload')
+  .use(formsUploadThrottle)
+
 // Shareable draft-preview links (no login; token-gated, never indexed).
 router.get('/preview/:token', [
   () => import('#controllers/pages_public_controller'),
@@ -70,6 +78,12 @@ router.get('/api/public/cms/:key/records', [
 router.get('/api/public/cms/:key/records/:id', [
   () => import('#controllers/public_cms_controller'),
   'record',
+])
+
+// Public, read-only form definition (consumed by the builder FormBlock auto-render)
+router.get('/api/public/forms/:slug', [
+  () => import('#controllers/public_forms_controller'),
+  'show',
 ])
 
 // Public, read-only template content (consumed by client-side TemplateRef blocks)
@@ -279,10 +293,72 @@ router
       ])
       .use(middleware.permission({ permission: 'analytics:read' }))
 
-    // Form submissions inbox
+    // Forms — page renders: list, global submissions inbox, per-form detail.
+    // `submissions` is registered before `:id` so the literal wins.
     router
-      .get('/admin/forms', [() => import('#controllers/admin/forms_controller'), 'page'])
+      .get('/admin/forms', [() => import('#controllers/admin/forms_definitions_controller'), 'page'])
       .use(middleware.pagePermission({ permission: 'forms:read' }))
+    router
+      .get('/admin/forms/submissions', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'submissionsPage',
+      ])
+      .use(middleware.pagePermission({ permission: 'forms:read' }))
+    router
+      .get('/admin/forms/:id', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'detailPage',
+      ])
+      .use(middleware.pagePermission({ permission: 'forms:read' }))
+
+    // Form definitions API (under `/definitions` so it never collides with the
+    // submission `:id` routes below). Registered first for the same reason.
+    router
+      .get('/api/admin/forms/definitions', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'index',
+      ])
+      .use(middleware.permission({ permission: 'forms:read' }))
+    router
+      .post('/api/admin/forms/definitions', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'store',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+    router
+      .get('/api/admin/forms/definitions/:id', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'show',
+      ])
+      .use(middleware.permission({ permission: 'forms:read' }))
+    router
+      .put('/api/admin/forms/definitions/:id', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'update',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+    router
+      .delete('/api/admin/forms/definitions/:id', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'destroy',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+    router
+      .post('/api/admin/forms/definitions/:id/duplicate', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'duplicate',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+
+    // Admin-only download of an uploaded form file (never publicly reachable).
+    router
+      .get('/api/admin/forms/uploads/:token', [
+        () => import('#controllers/admin/forms_controller'),
+        'serveUpload',
+      ])
+      .use(middleware.permission({ permission: 'forms:read' }))
+
+    // Form submissions inbox API
     router
       .get('/api/admin/forms', [() => import('#controllers/admin/forms_controller'), 'list'])
       .use(middleware.permission({ permission: 'forms:read' }))

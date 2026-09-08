@@ -795,3 +795,84 @@ export const API_TOKEN_ABILITIES = [
 ] as const
 
 export type ApiTokenAbility = (typeof API_TOKEN_ABILITIES)[number]['id']
+
+// ── Custom forms (named form definitions) ────────────────────────────────────
+
+/** Field types a custom form may use. Mirrors `FORM_FIELD_TYPES` on the server. */
+export type FormFieldType =
+  | 'text'
+  | 'textarea'
+  | 'email'
+  | 'tel'
+  | 'number'
+  | 'date'
+  | 'url'
+  | 'select'
+  | 'radio'
+  | 'checkbox'
+  | 'checkbox_group'
+  | 'file'
+
+export type FormFieldWidth = 'full' | 'half' | 'third'
+
+export interface FormFieldDef {
+  key: string
+  label: string
+  type: FormFieldType
+  required?: boolean
+  placeholder?: string
+  help?: string
+  /** select | radio | checkbox_group */
+  options?: string[]
+  width?: FormFieldWidth
+  min?: number | null
+  max?: number | null
+  /** file — accepted types hint (the server also enforces its own allow-list) */
+  accept?: string
+}
+
+export type FormDefinitionStatus = 'active' | 'inactive' | 'draft'
+
+export interface FormSummaryDto {
+  id: string
+  slug: string
+  title: string
+  status: FormDefinitionStatus
+  fieldCount: number
+  submissionCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FormDefinitionDto {
+  id: string
+  slug: string
+  title: string
+  fields: FormFieldDef[]
+  successMessage: string | null
+  status: FormDefinitionStatus
+  submissionCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** The public shape of a form — what a page renders. No internal fields. */
+export interface PublicFormDto {
+  slug: string
+  title: string
+  fields: FormFieldDef[]
+  successMessage: string | null
+}
+
+export interface CreateFormRequest {
+  title: string
+  slug?: string
+}
+
+export interface UpdateFormRequest {
+  title?: string
+  slug?: string
+  successMessage?: string | null
+  status?: FormDefinitionStatus
+  fields?: FormFieldDef[]
+}

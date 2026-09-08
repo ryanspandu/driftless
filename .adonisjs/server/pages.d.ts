@@ -23,7 +23,9 @@ declare module '@adonisjs/inertia/types' {
     'admin/content/edit': ExtractProps<(typeof import('../../inertia/pages/admin/content/edit.tsx'))['default']>
     'admin/content/new': ExtractProps<(typeof import('../../inertia/pages/admin/content/new.tsx'))['default']>
     'admin/dashboard': ExtractProps<(typeof import('../../inertia/pages/admin/dashboard.tsx'))['default']>
-    'admin/forms': ExtractProps<(typeof import('../../inertia/pages/admin/forms.tsx'))['default']>
+    'admin/forms/detail': ExtractProps<(typeof import('../../inertia/pages/admin/forms/detail.tsx'))['default']>
+    'admin/forms/index': ExtractProps<(typeof import('../../inertia/pages/admin/forms/index.tsx'))['default']>
+    'admin/forms/submissions': ExtractProps<(typeof import('../../inertia/pages/admin/forms/submissions.tsx'))['default']>
     'admin/integrations': ExtractProps<(typeof import('../../inertia/pages/admin/integrations.tsx'))['default']>
     'admin/integrations/captcha': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/captcha.tsx'))['default']>
     'admin/integrations/clarity': ExtractProps<(typeof import('../../inertia/pages/admin/integrations/clarity.tsx'))['default']>
