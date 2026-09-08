@@ -14,6 +14,8 @@ export interface ApiDefinition {
   }
   forms: {
     submit: typeof routes['forms.submit']
+    upload: typeof routes['forms.upload']
+    serveUpload: typeof routes['forms.serve_upload']
     list: typeof routes['forms.list']
     updateStatus: typeof routes['forms.update_status']
     destroy: typeof routes['forms.destroy']

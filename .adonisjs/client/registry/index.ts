@@ -36,6 +36,12 @@ const routes = {
     tokens: [{"old":"/api/forms/submit","type":0,"val":"api","end":""},{"old":"/api/forms/submit","type":0,"val":"forms","end":""},{"old":"/api/forms/submit","type":0,"val":"submit","end":""}],
     types: placeholder as Registry['forms.submit']['types'],
   },
+  'forms.upload': {
+    methods: ["POST"],
+    pattern: '/api/forms/upload',
+    tokens: [{"old":"/api/forms/upload","type":0,"val":"api","end":""},{"old":"/api/forms/upload","type":0,"val":"forms","end":""},{"old":"/api/forms/upload","type":0,"val":"upload","end":""}],
+    types: placeholder as Registry['forms.upload']['types'],
+  },
   'pages_public.preview_by_token': {
     methods: ["GET","HEAD"],
     pattern: '/preview/:token',
@@ -311,6 +317,12 @@ const routes = {
     pattern: '/api/admin/forms/definitions/:id/duplicate',
     tokens: [{"old":"/api/admin/forms/definitions/:id/duplicate","type":0,"val":"api","end":""},{"old":"/api/admin/forms/definitions/:id/duplicate","type":0,"val":"admin","end":""},{"old":"/api/admin/forms/definitions/:id/duplicate","type":0,"val":"forms","end":""},{"old":"/api/admin/forms/definitions/:id/duplicate","type":0,"val":"definitions","end":""},{"old":"/api/admin/forms/definitions/:id/duplicate","type":1,"val":"id","end":""},{"old":"/api/admin/forms/definitions/:id/duplicate","type":0,"val":"duplicate","end":""}],
     types: placeholder as Registry['forms_definitions.duplicate']['types'],
+  },
+  'forms.serve_upload': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/forms/uploads/:token',
+    tokens: [{"old":"/api/admin/forms/uploads/:token","type":0,"val":"api","end":""},{"old":"/api/admin/forms/uploads/:token","type":0,"val":"admin","end":""},{"old":"/api/admin/forms/uploads/:token","type":0,"val":"forms","end":""},{"old":"/api/admin/forms/uploads/:token","type":0,"val":"uploads","end":""},{"old":"/api/admin/forms/uploads/:token","type":1,"val":"token","end":""}],
+    types: placeholder as Registry['forms.serve_upload']['types'],
   },
   'forms.list': {
     methods: ["GET","HEAD"],

@@ -67,6 +67,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['submit']>>>
     }
   }
+  'forms.upload': {
+    methods: ["POST"]
+    pattern: '/api/forms/upload'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['upload']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['upload']>>>
+    }
+  }
   'pages_public.preview_by_token': {
     methods: ["GET","HEAD"]
     pattern: '/preview/:token'
@@ -617,6 +629,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['duplicate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_definitions_controller').default['duplicate']>>>
+    }
+  }
+  'forms.serve_upload': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/forms/uploads/:token'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { token: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['serveUpload']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/forms_controller').default['serveUpload']>>>
     }
   }
   'forms.list': {
