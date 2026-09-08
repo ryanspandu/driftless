@@ -14,6 +14,7 @@ inertia/custom/kits/<name>/
   pages/*.tsx       file-pages — each file is a route with NO DB row (see below)
   templates/*.tsx   code chrome — header/footer/layout a page points at (codetpl:<kit>/<type>)
   collection/*.tsx  collection templates — one CMS record as code; filename = collection key
+  emails/*.tsx      code EMAIL templates — a transactional email as code (codetpl:<kit>/email/<name>)
   components/…       optional — sub-components, imported with relative paths
   styles.css        optional — co-located CSS, imported by index.tsx
   assets/…           optional — images/fonts, IMPORTED (never referenced by raw path)
@@ -39,6 +40,17 @@ block, set *Item design → Code template* and pick it (the **filename is the co
 default-exports `({ record }) => JSX` and gets the whole record — `record.data` holds the fields,
 with `record.id` / `status` / `createdAt` / `updatedAt` alongside. Type the prop with
 `CustomCollectionRecord` from `~/custom/registry`. See `example/collection/posts.tsx`.
+
+## Email templates — a transactional email as code
+
+Each `emails/<name>.tsx` is a transactional email authored in code — the coded twin of a
+Puck-designed EMAIL template. Wire it to a mail event under **Settings → Email → Notifications →
+Design**. The component default-exports `(vars: EmailVars) => JSX`; import the email-safe
+primitives (`EmailRoot`, `EmailHeading`, `EmailText`, `EmailButton`, `EmailBody`, …) from
+`~/custom/email_kit`. Read `vars.<name>` for the event's `{{placeholders}}`, and place one
+`<EmailBody/>` where the service inserts the reset link / order table. Inline styles + literal hex
+only (no Tailwind/oklch); it is flattened to HTML at BUILD time, so adding or editing one needs a
+rebuild. See `example/emails/password_reset.tsx`.
 
 - The **folder name is the id.** A page selects a kit by storing
   `component = "kit:<folder>"`; the public URL comes from the page record, not

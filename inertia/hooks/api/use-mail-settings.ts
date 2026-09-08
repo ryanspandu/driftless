@@ -86,6 +86,8 @@ export interface MailEventDto {
   customised: boolean
   /** A designed EMAIL template, or null for the built-in layout. */
   templateId: string | null
+  /** A code EMAIL template pointer (`codetpl:<kit>/email/<name>`), or null. */
+  codeTemplate: string | null
   /** The shipped copy, shown as placeholders in the editor. */
   defaults: MailEventCopy
   /** Placeholders usable in the copy, without braces. */
@@ -153,6 +155,22 @@ export function useUpdateMailEvent() {
       // The response is the whole list, so seed the cache rather than refetch.
       qc.setQueryData(mailEventsQueryKey, list)
     },
+  })
+}
+
+/** A code EMAIL template shipped by a kit (`emails/<name>.tsx`). */
+export interface CodeEmailTemplate {
+  kit: string
+  name: string
+}
+
+export const codeEmailTemplatesQueryKey = ['settings', 'mail', 'code-templates'] as const
+
+/** Kit code EMAIL templates offered in the Notifications Design picker. */
+export function useCodeEmailTemplates() {
+  return useQuery({
+    queryKey: codeEmailTemplatesQueryKey,
+    queryFn: () => apiFetch<CodeEmailTemplate[]>('/api/admin/settings/mail/code-templates'),
   })
 }
 

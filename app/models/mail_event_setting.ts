@@ -45,6 +45,14 @@ export default class MailEventSetting extends BaseModel {
   @column()
   declare templateId: string | null
 
+  /**
+   * A code EMAIL template (`codetpl:<kit>/email/<name>`) to use instead — a kit's
+   * `emails/<name>.tsx`, pre-rendered to HTML at build time. Mutually exclusive
+   * with `templateId`; both null renders through `emails/event.edge`.
+   */
+  @column()
+  declare codeTemplate: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

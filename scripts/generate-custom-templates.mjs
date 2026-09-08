@@ -1,5 +1,7 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 /**
@@ -24,8 +26,10 @@ import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const kitsDir = join(root, 'inertia/custom/kits')
+const inertiaDir = join(root, 'inertia')
 const tsOut = join(root, 'app/services/custom_templates.generated.ts')
 const cssOut = join(root, 'inertia/css/custom-templates.generated.css')
+const emailOut = join(root, 'app/services/custom_email_templates.generated.ts')
 
 /** A kit = a directory holding `kit.json`; `.`/`_`-prefixed folders are skipped. */
 function kitFolders() {
@@ -148,6 +152,110 @@ function codeCollections() {
   return out
 }
 
+/**
+ * Code EMAIL templates: `inertia/custom/kits/<kit>/emails/<name>.tsx`. Each is a
+ * React component flattened to inline-styled email HTML, wired to a mail event
+ * via the pointer `codetpl:<kit>/email/<name>`. `.`/`_`-prefixed files skipped.
+ */
+function codeEmails() {
+  const out = []
+  for (const kit of kitFolders()) {
+    const dir = join(kitsDir, kit, 'emails')
+    if (!existsSync(dir)) continue
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith('.tsx')) continue
+      if (entry.name.startsWith('.') || entry.name.startsWith('_')) continue
+      out.push({ kit, name: entry.name.replace(/\.tsx$/, '') })
+    }
+  }
+  out.sort((a, b) => `${a.kit}/${a.name}`.localeCompare(`${b.kit}/${b.name}`))
+  return out
+}
+
+/**
+ * Flatten every kit email to inline-styled HTML at BUILD time.
+ *
+ * The send-time worker has no React/Vite bundle (see docs/ai/mail.md), so a code
+ * email — like a Puck EMAIL template rendered in the operator's browser — must be
+ * pre-rendered to a plain HTML string the worker can string-substitute. We bundle
+ * a tiny self-contained render program per email (component + react + the
+ * `{{token}}`-proxy) with esbuild and run it, capturing the markup. esbuild is
+ * dynamic-imported so a build with no kit emails pays nothing for it.
+ */
+async function renderEmails(emails) {
+  if (!emails.length) return []
+  const { build } = await import('esbuild')
+  const work = mkdtempSync(join(tmpdir(), 'kit-emails-'))
+  try {
+    const rows = []
+    for (const { kit, name } of emails) {
+      const component = join(kitsDir, kit, 'emails', `${name}.tsx`)
+      const entry = join(work, `entry-${kit}-${name}.tsx`)
+      const bundle = join(work, `bundle-${kit}-${name}.cjs`)
+      // Every variable access yields its own `{{token}}` so the send path can
+      // substitute it — the generator never needs the runtime event catalog.
+      writeFileSync(
+        entry,
+        [
+          "import { renderToStaticMarkup } from 'react-dom/server'",
+          `import Component from ${JSON.stringify(component)}`,
+          "const vars = new Proxy({}, { get: (_t, k) => (typeof k === 'string' ? '{{' + k + '}}' : '') })",
+          // Call the component directly (not via createElement, which copies only
+          // enumerable keys and would drop the proxy's every-key {{token}} trap).
+          // Email components are pure, so calling them with props is safe.
+          'process.stdout.write(renderToStaticMarkup(Component(vars)))',
+          '',
+        ].join('\n')
+      )
+      try {
+        await build({
+          entryPoints: [entry],
+          outfile: bundle,
+          bundle: true,
+          format: 'cjs',
+          platform: 'node',
+          jsx: 'automatic',
+          alias: { '~': inertiaDir },
+          // The entry lives in a temp dir with no node_modules above it — point
+          // bare imports (react, react-dom/server) at the repo's, like NODE_PATH.
+          nodePaths: [join(root, 'node_modules')],
+          loader: {
+            '.css': 'empty',
+            '.svg': 'dataurl',
+            '.png': 'dataurl',
+            '.jpg': 'dataurl',
+            '.jpeg': 'dataurl',
+            '.webp': 'dataurl',
+            '.gif': 'dataurl',
+            '.woff': 'dataurl',
+            '.woff2': 'dataurl',
+          },
+          logLevel: 'silent',
+        })
+        const html = execFileSync(process.execPath, [bundle], {
+          encoding: 'utf8',
+          maxBuffer: 32 * 1024 * 1024,
+        })
+        if (!html.includes('data-email-body-slot')) {
+          // Not fatal — a marketing email needs no service slot — but usually a mistake.
+          console.warn(
+            `[custom-templates] warning: ${kit}/emails/${name}.tsx has no <EmailBody/> — ` +
+              'the order table / reset link (bodyHtml) will be dropped for events that compose one.'
+          )
+        }
+        rows.push({ kit, name, html })
+      } catch (err) {
+        throw new Error(
+          `[custom-templates] could not render ${kit}/emails/${name}.tsx: ${(err && err.message) || err}`
+        )
+      }
+    }
+    return rows
+  } finally {
+    rmSync(work, { recursive: true, force: true })
+  }
+}
+
 const folders = kitFolders()
 // A single-template kit has an index.tsx (a page points at it via `kit:<id>`); a
 // kit may instead (or also) provide file-pages via `pages/`. Only index kits go
@@ -156,6 +264,8 @@ const kits = folders.filter((id) => existsSync(join(kitsDir, id, 'index.tsx'))).
 const pages = filePages()
 const chrome = codeTemplates()
 const collections = codeCollections()
+const emails = codeEmails()
+const emailRows = await renderEmails(emails)
 
 const tsBody = [
   '/* Generated by scripts/generate-custom-templates.mjs — do not edit. */',
@@ -232,6 +342,28 @@ const cssBody = [
   '',
 ].join('\n')
 
+const emailBody = [
+  '/* Generated by scripts/generate-custom-templates.mjs — do not edit. */',
+  '',
+  '/**',
+  ' * Code EMAIL templates a mail event can be wired to — `emails/<name>.tsx` in a',
+  ' * kit, referenced by the pointer `codetpl:<kit>/email/<name>`.',
+  ' *',
+  ' * Each `html` is the component flattened to inline-styled email HTML at BUILD',
+  ' * time, because the send-time worker has no React bundle (see docs/ai/mail.md).',
+  ' * The mail path substitutes `{{tokens}}` and the `data-email-body-slot` marker',
+  ' * into it, exactly as it does a Puck EMAIL template’s `renderedHtml`.',
+  ' */',
+  'export interface CodeEmailTemplate {',
+  '  kit: string',
+  '  name: string',
+  '  html: string',
+  '}',
+  '',
+  `export const EMAIL_TEMPLATES: readonly CodeEmailTemplate[] = ${JSON.stringify(emailRows, null, 2)}`,
+  '',
+].join('\n')
+
 function writeIfChanged(file, body) {
   const current = existsSync(file) ? readFileSync(file, 'utf8') : null
   if (current === body) return false
@@ -239,9 +371,13 @@ function writeIfChanged(file, body) {
   return true
 }
 
-const changed = [writeIfChanged(tsOut, tsBody), writeIfChanged(cssOut, cssBody)].some(Boolean)
+const changed = [
+  writeIfChanged(tsOut, tsBody),
+  writeIfChanged(cssOut, cssBody),
+  writeIfChanged(emailOut, emailBody),
+].some(Boolean)
 console.log(
   changed
-    ? `[custom-templates] wrote ${kits.length} kit(s), ${pages.length} file-page(s)`
-    : `[custom-templates] up to date (${kits.length} kit(s), ${pages.length} file-page(s))`
+    ? `[custom-templates] wrote ${kits.length} kit(s), ${pages.length} file-page(s), ${emailRows.length} email(s)`
+    : `[custom-templates] up to date (${kits.length} kit(s), ${pages.length} file-page(s), ${emailRows.length} email(s))`
 )

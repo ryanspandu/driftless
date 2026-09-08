@@ -5,6 +5,7 @@ import MailDispatcher, { MailNotConfiguredError } from '#services/mail_dispatche
 import TestMail from '#mails/test_mail'
 import AuditLogService from '#services/audit_log_service'
 import MailEventsService from '#services/mail_events_service'
+import { listCodeEmailTemplates } from '#services/code_email_templates'
 import { WebSettingsService } from '#services/settings_service'
 import { renderPage } from '#helpers/inertia_render'
 import type User from '#models/user'
@@ -46,8 +47,12 @@ const eventValidator = vine.compile(
     intro: vine.string().maxLength(4000).nullable().optional(),
     buttonLabel: vine.string().maxLength(128).nullable().optional(),
     outro: vine.string().maxLength(4000).nullable().optional(),
-    /** A designed EMAIL template, or null for the built-in layout. */
-    templateId: vine.string().maxLength(64).nullable().optional(),
+    /**
+     * The design to render with, or null for the built-in layout: a DB EMAIL
+     * template id, or a `codetpl:<kit>/email/<name>` code-template pointer (which
+     * needs the wider cap). `setTemplate` routes each to its column.
+     */
+    templateId: vine.string().maxLength(120).nullable().optional(),
   })
 )
 
@@ -69,6 +74,15 @@ export default class MailSettingsController {
   /** Every declared email with its effective on/off state. */
   async events({ response }: HttpContext) {
     return response.json(await mailEvents.list())
+  }
+
+  /**
+   * Code EMAIL templates (kit `emails/<name>.tsx`) for the Notifications Design
+   * picker, keyed `codetpl:<kit>/email/<name>` — the coded twin of a DB EMAIL
+   * template. Served from the generated manifest the service validates against.
+   */
+  async codeTemplates({ response }: HttpContext) {
+    return response.json(listCodeEmailTemplates())
   }
 
   async updateEvent(ctx: HttpContext) {

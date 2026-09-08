@@ -157,6 +157,12 @@ A template of type `EMAIL` (Templates → Emails) is designed with a **separate 
 [`inertia/puck/email-config.tsx`](../../inertia/puck/email-config.tsx) — about a dozen blocks
 emitting table markup with literal inline styles.
 
+> A kit can also ship a **code EMAIL template** (`emails/<name>.tsx`) — the same thing authored in
+> React and flattened to HTML at build time, wired to an event the same way. It stores
+> `mail_event_settings.code_template` (a `codetpl:<kit>/email/<name>` pointer) instead of the
+> `template_id` FK, and feeds the identical send-time substitution below. See
+> [custom-templates.md](./custom-templates.md#email-templates--a-transactional-email-as-code).
+
 **The page blocks cannot be reused, and inlining their CSS would not fix it.** Three independent
 reasons, each sufficient on its own:
 

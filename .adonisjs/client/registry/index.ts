@@ -612,6 +612,18 @@ const routes = {
     tokens: [{"old":"/api/admin/pages/custom-templates","type":0,"val":"api","end":""},{"old":"/api/admin/pages/custom-templates","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/custom-templates","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/custom-templates","type":0,"val":"custom-templates","end":""}],
     types: placeholder as Registry['pages.custom_templates']['types'],
   },
+  'pages.code_templates': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/pages/code-templates',
+    tokens: [{"old":"/api/admin/pages/code-templates","type":0,"val":"api","end":""},{"old":"/api/admin/pages/code-templates","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/code-templates","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/code-templates","type":0,"val":"code-templates","end":""}],
+    types: placeholder as Registry['pages.code_templates']['types'],
+  },
+  'pages.collection_templates': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/pages/collection-templates',
+    tokens: [{"old":"/api/admin/pages/collection-templates","type":0,"val":"api","end":""},{"old":"/api/admin/pages/collection-templates","type":0,"val":"admin","end":""},{"old":"/api/admin/pages/collection-templates","type":0,"val":"pages","end":""},{"old":"/api/admin/pages/collection-templates","type":0,"val":"collection-templates","end":""}],
+    types: placeholder as Registry['pages.collection_templates']['types'],
+  },
   'pages.import_one': {
     methods: ["POST"],
     pattern: '/api/admin/pages/import',
@@ -1169,6 +1181,12 @@ const routes = {
     pattern: '/api/admin/settings/mail/events/:key',
     tokens: [{"old":"/api/admin/settings/mail/events/:key","type":0,"val":"api","end":""},{"old":"/api/admin/settings/mail/events/:key","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/mail/events/:key","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/mail/events/:key","type":0,"val":"mail","end":""},{"old":"/api/admin/settings/mail/events/:key","type":0,"val":"events","end":""},{"old":"/api/admin/settings/mail/events/:key","type":1,"val":"key","end":""}],
     types: placeholder as Registry['mail_settings.update_event']['types'],
+  },
+  'mail_settings.code_templates': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/settings/mail/code-templates',
+    tokens: [{"old":"/api/admin/settings/mail/code-templates","type":0,"val":"api","end":""},{"old":"/api/admin/settings/mail/code-templates","type":0,"val":"admin","end":""},{"old":"/api/admin/settings/mail/code-templates","type":0,"val":"settings","end":""},{"old":"/api/admin/settings/mail/code-templates","type":0,"val":"mail","end":""},{"old":"/api/admin/settings/mail/code-templates","type":0,"val":"code-templates","end":""}],
+    types: placeholder as Registry['mail_settings.code_templates']['types'],
   },
   'mail_settings.deliveries': {
     methods: ["GET","HEAD"],

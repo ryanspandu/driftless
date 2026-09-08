@@ -11,6 +11,12 @@ import {
 } from '#services/mail_events'
 import { WebSettingsService, safeColor } from '#services/settings_service'
 import { newUlid } from '#services/ulid_service'
+import {
+  codeEmailExists,
+  codeEmailHtml,
+  isCodeEmailPointer,
+  isCodePointer,
+} from '#services/code_email_templates'
 
 const webSettingsService = new WebSettingsService()
 
@@ -30,6 +36,8 @@ export interface MailEventDto extends MailEvent {
   customised: boolean
   /** A designed EMAIL template, or null for the built-in layout. */
   templateId: string | null
+  /** A code EMAIL template pointer (`codetpl:<kit>/email/<name>`), or null. */
+  codeTemplate: string | null
   /** The operator's overrides only — null per field where none is set. */
   overrides: {
     subject: string | null
@@ -86,6 +94,7 @@ export default class MailEventsService {
         enabled: event.canDisable ? (override?.enabled ?? event.defaultEnabled) : true,
         customised: Boolean(override),
         templateId: override?.templateId ?? null,
+        codeTemplate: override?.codeTemplate ?? null,
         overrides: {
           subject: override?.subject ?? null,
           heading: override?.heading ?? null,
@@ -160,8 +169,12 @@ export default class MailEventsService {
    *    block but cannot author what goes in it, which is what stops a design
    *    change from shipping a receipt with no receipt in it.
    *
-   * Returns null when the template was deleted or never published, so a missing
-   * design degrades to the built-in email rather than to no email.
+   * The HTML comes from a code EMAIL template (a kit's `emails/<name>.tsx`,
+   * pre-rendered to HTML at build time) when one is wired, else from a designed
+   * DB template's `renderedHtml`. Returns null when neither is wired, or the
+   * template was deleted / never published / the build shipped no such code
+   * email — so a missing design degrades to the built-in email, never to no
+   * email.
    */
   async renderedTemplate(
     key: string,
@@ -169,34 +182,51 @@ export default class MailEventsService {
     bodyHtml = ''
   ): Promise<string | null> {
     const row = await MailEventSetting.find(key)
-    if (!row?.templateId) return null
+    if (!row) return null
 
-    const template = await Template.query()
-      .where('id', row.templateId)
-      .whereNull('deleted_at')
-      .first()
-    if (!template?.renderedHtml) return null
+    let html: string | null = null
+    if (row.codeTemplate) {
+      html = codeEmailHtml(row.codeTemplate)
+    } else if (row.templateId) {
+      const template = await Template.query()
+        .where('id', row.templateId)
+        .whereNull('deleted_at')
+        .first()
+      html = template?.renderedHtml ?? null
+    }
+    if (!html) return null
 
-    return applyMailVariables(template.renderedHtml, values).replace(
-      EMAIL_BODY_SLOT_PATTERN,
-      bodyHtml
-    )
+    return applyMailVariables(html, values).replace(EMAIL_BODY_SLOT_PATTERN, bodyHtml)
   }
 
-  /** Point an event at a designed template, or back at the built-in layout. */
-  async setTemplate(key: string, templateId: string | null): Promise<MailEventDto[]> {
+  /**
+   * Point an event at a designed template, a code EMAIL template, or back at the
+   * built-in layout.
+   *
+   * `ref` is a DB template id, a `codetpl:<kit>/email/<name>` pointer, or null.
+   * The two kinds live in separate columns (`template_id` is a real FK; a pointer
+   * has no row), and are mutually exclusive — setting one clears the other.
+   */
+  async setTemplate(key: string, ref: string | null): Promise<MailEventDto[]> {
     const event = getMailEvent(key)
     if (!event) throw new Error(`Unknown mail event "${key}"`)
 
-    if (templateId) {
-      const template = await Template.query()
-        .where('id', templateId)
-        .whereNull('deleted_at')
-        .first()
+    let templateId: string | null = null
+    let codeTemplate: string | null = null
+
+    if (ref && isCodePointer(ref)) {
+      // A code EMAIL template pointer — validate against this build's manifest.
+      if (!isCodeEmailPointer(ref) || !codeEmailExists(ref)) {
+        throw new Error('That email template no longer exists')
+      }
+      codeTemplate = ref
+    } else if (ref) {
+      const template = await Template.query().where('id', ref).whereNull('deleted_at').first()
       if (!template) throw new Error('That template no longer exists')
       // A header template would render flex layout and Tailwind classes into
       // an inbox. Refused rather than silently ignored.
       if (template.type !== 'EMAIL') throw new Error('Only Email templates can be used here')
+      templateId = ref
     }
 
     const row = (await MailEventSetting.find(key)) ?? new MailEventSetting()
@@ -205,6 +235,7 @@ export default class MailEventsService {
       row.enabled = event.defaultEnabled
     }
     row.templateId = templateId
+    row.codeTemplate = codeTemplate
     await row.save()
 
     return this.list()

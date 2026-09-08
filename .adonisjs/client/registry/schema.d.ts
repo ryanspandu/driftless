@@ -1219,6 +1219,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['customTemplates']>>>
     }
   }
+  'pages.code_templates': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/pages/code-templates'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['codeTemplates']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['codeTemplates']>>>
+    }
+  }
+  'pages.collection_templates': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/pages/collection-templates'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['collectionTemplates']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/pages_controller').default['collectionTemplates']>>>
+    }
+  }
   'pages.import_one': {
     methods: ["POST"]
     pattern: '/api/admin/pages/import'
@@ -2333,6 +2357,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['updateEvent']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['updateEvent']>>>
+    }
+  }
+  'mail_settings.code_templates': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/settings/mail/code-templates'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['codeTemplates']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/mail_settings_controller').default['codeTemplates']>>>
     }
   }
   'mail_settings.deliveries': {

@@ -992,6 +992,11 @@ router
           () => import('#controllers/admin/mail_settings_controller'),
           'updateEvent',
         ])
+        // Code EMAIL templates (kit `emails/*.tsx`) offered in the Design picker.
+        router.get('/api/admin/settings/mail/code-templates', [
+          () => import('#controllers/admin/mail_settings_controller'),
+          'codeTemplates',
+        ])
         router.get('/api/admin/settings/mail/deliveries', [
           () => import('#controllers/admin/mail_settings_controller'),
           'deliveries',

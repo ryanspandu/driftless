@@ -188,6 +188,8 @@ export interface ApiDefinition {
     collections: typeof routes['pages.collections']
     codeComponents: typeof routes['pages.code_components']
     customTemplates: typeof routes['pages.custom_templates']
+    codeTemplates: typeof routes['pages.code_templates']
+    collectionTemplates: typeof routes['pages.collection_templates']
     importOne: typeof routes['pages.import_one']
     bulk: typeof routes['pages.bulk']
     store: typeof routes['pages.store']
@@ -269,6 +271,7 @@ export interface ApiDefinition {
     sendTest: typeof routes['mail_settings.send_test']
     events: typeof routes['mail_settings.events']
     updateEvent: typeof routes['mail_settings.update_event']
+    codeTemplates: typeof routes['mail_settings.code_templates']
     deliveries: typeof routes['mail_settings.deliveries']
   }
   dataTransfer: {

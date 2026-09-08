@@ -163,6 +163,43 @@ inertia/custom/kits/<name>/
   handles fetching, paging, sort and filter (server-side) — the component only draws one record.
 - See `inertia/custom/kits/example/collection/posts.tsx` for a runnable post-card reference.
 
+## Email templates — a transactional email as code
+
+A kit can supply **code EMAIL templates** — `emails/<name>.tsx` — the coded twin of a
+Puck-designed email (Templates → Emails). Wire one to a mail event under **Settings → Email →
+Notifications → Design**; it renders that notification instead of the built-in layout.
+
+```
+inertia/custom/kits/<name>/
+  emails/
+    password_reset.tsx    → codetpl:<kit>/email/password_reset
+    order_confirmation.tsx
+```
+
+- The component default-exports `(vars: EmailVars) => JSX`. Import the email-safe primitives from
+  `~/custom/email_kit`: `EmailRoot` (the shell — wrap everything in one), `EmailHeading`,
+  `EmailText`, `EmailButton`, `EmailDivider`, `EmailSpacer`, and **`EmailBody`** (the slot the
+  service fills — see below). You may also hand-write inline-styled JSX.
+- **Variables** are `{{placeholders}}`: read `vars.siteName` / `vars.name` etc. and each renders
+  as `{{siteName}}`, filled in at send. Only the wired **event's** declared variables get a value
+  (Notifications lists them per event); any other token is left visible in the inbox.
+- **`<EmailBody/>`** marks where the service drops what the email exists to carry — the reset
+  link, the order table, the tracking number. Place exactly one where a notification needs it;
+  omitting it silently drops that content. You place it but never author it.
+- **Rendered at build time, not at send.** The queue worker has no React bundle, so the generator
+  flattens each `emails/*.tsx` to inline-styled HTML (`renderToStaticMarkup`) into
+  `app/services/custom_email_templates.generated.ts`; the send path only string-substitutes it —
+  identical to how a Puck email is flattened in the operator's browser at publish. **Adding or
+  editing an email needs a rebuild** (the pre-render is a build step).
+- **Email rules apply** (clients strip `<style>`, ignore flex/grid, block remote assets): inline
+  styles only, **literal hex colours** (no Tailwind, no CSS variables, no `oklch()`), tables not
+  flex/grid. The `email_kit` primitives already obey these.
+- Stored on the event as `mail_event_settings.code_template` (separate from the `template_id` FK,
+  since a pointer has no `templates` row); mutually exclusive with a DB template.
+- **Reach (v1):** a code email renders wherever the designed-template seam is honored — today the
+  **Password reset** email. The e-commerce order emails render their own layouts and would need a
+  seam retrofit first (a follow-up). See `inertia/custom/kits/example/emails/password_reset.tsx`.
+
 ## What you can build with
 
 ### Available libraries (root `package.json` only)
@@ -271,6 +308,9 @@ page leave room to add both without reworking this design.
 | `inertia/custom/kits/<name>/pages/` | File-pages — one `.tsx` per route, no DB row (`kitpage:<kit>/<file>`) |
 | `inertia/custom/kits/<name>/templates/` | Code chrome — `header/footer/layout.tsx` (`codetpl:<kit>/<type>`) |
 | `inertia/custom/kits/<name>/collection/` | Collection templates — `<key>.tsx` per collection (`codetpl:<kit>/collection/<key>`) |
+| `inertia/custom/kits/<name>/emails/` | Code EMAIL templates — `<name>.tsx` per email (`codetpl:<kit>/email/<name>`) |
+| `inertia/custom/email_kit.tsx` | Email-safe primitives (`EmailRoot`, `EmailBody`, …) for `emails/*.tsx` |
+| `app/services/custom_email_templates.generated.ts` | Generated: each email flattened to send-ready HTML (do not edit) |
 | `inertia/custom/kits/example/` | Committed reference kit — copy it |
 | `inertia/custom/kits/README.md` | The quick-start that lives where kits live |
 | `inertia/custom/registry.ts` | Resolves `kit:<id>` / `kitpage:` / `codetpl:` pointers → kit components |

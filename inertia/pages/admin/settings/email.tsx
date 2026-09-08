@@ -13,6 +13,7 @@ import { Can } from '~/components/providers/ability-provider'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
 import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
 import {
+  useCodeEmailTemplates,
   useMailDeliveries,
   useMailEvents,
   useMailSettings,
@@ -25,10 +26,7 @@ import {
 import { apiErrorMessage } from '~/lib/api-client'
 import { cn } from '~/lib/utils'
 import { useTemplatesList } from '~/hooks/api/use-templates'
-import {
-  useUpdateWebsiteSettings,
-  useWebsiteSettings,
-} from '~/hooks/api/use-website-settings'
+import { useUpdateWebsiteSettings, useWebsiteSettings } from '~/hooks/api/use-website-settings'
 import { AppSelect } from '~/components/ui/app-select'
 import {
   SMTP_DEFAULT_PRESET,
@@ -401,6 +399,9 @@ function EventCopyEditor({ event }: { event: MailEventDto }) {
   // classes into an inbox. The server refuses them too.
   const templates = useTemplatesList('EMAIL')
   const emailTemplates = templates.data ?? []
+  // Kit code EMAIL templates (`emails/<name>.tsx`), offered alongside designed ones.
+  const codeEmails = useCodeEmailTemplates()
+  const codeEmailTemplates = codeEmails.data ?? []
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -472,11 +473,15 @@ function EventCopyEditor({ event }: { event: MailEventDto }) {
         </Label>
         <AppSelect
           id={`${event.key}-template`}
-          value={event.templateId ?? ''}
+          value={event.codeTemplate ?? event.templateId ?? ''}
           onChange={(v) => void update.mutateAsync({ key: event.key, templateId: v || null })}
           options={[
             { value: '', label: 'Built-in layout' },
             ...emailTemplates.map((t) => ({ value: t.id, label: t.name })),
+            ...codeEmailTemplates.map((t) => ({
+              value: `codetpl:${t.kit}/email/${t.name}`,
+              label: `${t.kit} · ${t.name} · code`,
+            })),
           ]}
           isSearchable={false}
         />
@@ -485,8 +490,8 @@ function EventCopyEditor({ event }: { event: MailEventDto }) {
           <a href="/admin/templates?tab=email" className="font-medium text-primary hover:underline">
             Templates → Emails
           </a>
-          . Add an <strong>Order / details block</strong> where the order table or reset link
-          should go — that part is filled in when the email is sent and cannot be edited.
+          . Add an <strong>Order / details block</strong> where the order table or reset link should
+          go — that part is filled in when the email is sent and cannot be edited.
         </p>
       </div>
 
@@ -766,7 +771,10 @@ function DeliveryLog() {
           disabled={deliveries.isFetching}
           onClick={() => void deliveries.refetch()}
         >
-          <RefreshCw className={cn('size-4', deliveries.isFetching && 'animate-spin')} aria-hidden />
+          <RefreshCw
+            className={cn('size-4', deliveries.isFetching && 'animate-spin')}
+            aria-hidden
+          />
           {deliveries.isFetching ? 'Refreshing…' : 'Refresh'}
         </Button>
       </CardHeader>
