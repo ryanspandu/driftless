@@ -45,6 +45,12 @@ export const FILE_PAGES: readonly FilePage[] = [
     "title": "About (example file-page)"
   },
   {
+    "path": "kit-example/account-demo",
+    "kit": "example",
+    "file": "account-demo",
+    "title": "Customer account in a kit"
+  },
+  {
     "path": "kit-example/collection-demo",
     "kit": "example",
     "file": "collection-demo",

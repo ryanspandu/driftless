@@ -120,8 +120,9 @@ When the visual builder isn't enough, a developer can ship a **kit** — a folde
 and templates (React) that behaves like a WordPress theme. A kit's pages and templates show up in
 your **Pages** and **Templates** lists with a blue **Custom code** badge, read-only (edited in code,
 not the builder). Beyond static markup, a kit can **read your collections' published records** and
-**use your store** — showing products and driving cart and checkout — so you can build a fully custom
-storefront or landing experience without leaving Driftless. Adding a kit needs a rebuild/deploy;
+**use your store** — showing products and driving cart, checkout and customer accounts (sign in /
+register / order history) — so you can build a fully custom storefront or landing experience without
+leaving Driftless. Adding a kit needs a rebuild/deploy;
 after that it works like any other page. The developer reference is
 [`docs/ai/custom-templates.md`](./ai/custom-templates.md).
 

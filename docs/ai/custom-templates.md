@@ -269,8 +269,16 @@ A kit can build a full storefront experience, but **only through the store's pub
     own route (e.g. `/kit-example/shop-demo`) and drive views with client state.
 - **Detecting the store.** There is no public "is enabled" flag — a call to `/api/shop/*` returns
   **404** when the module is off. Branch on it and show a graceful "store unavailable" state.
-- The worked example is `inertia/custom/kits/example/pages/shop-demo.tsx` (catalogue → product
-  detail → add-to-cart → cart → checkout redirect), with a copy-paste client at
+- **Customer accounts** are a **separate login** from the admin users (their own table + cookie —
+  a shopper is never an admin). `GET /api/shop/me` **never 401s**: it returns `{ account: null }`
+  when signed out, so a page can always ask "who's here?" without a redirect. `POST
+  /api/shop/account/{register,login}` (throttled) sign in — login can hand back `{ needs2fa,
+  pendingToken }` (a 200, not an error) to finish via `/api/shop/account/2fa/verify`; `GET
+  /api/shop/account/orders` is the shopper's order history. Register is anti-enumeration (the same
+  response whether or not the email was new).
+- Worked examples: `inertia/custom/kits/example/pages/shop-demo.tsx` (catalogue → product detail →
+  add-to-cart → cart → checkout redirect) and `pages/account-demo.tsx` (sign in / register →
+  profile + order history), with a copy-paste client at
   `inertia/custom/kits/example/components/shop_api.ts`.
 
 ## What you can build with
@@ -388,6 +396,7 @@ page leave room to add both without reworking this design.
 | `inertia/custom/kits/example/components/shop_api.ts` | Copy-paste decoupled client for the `/api/shop/*` storefront API |
 | `inertia/custom/kits/example/pages/collection-demo.tsx` | Runnable `useCollectionRecords` demo |
 | `inertia/custom/kits/example/pages/shop-demo.tsx` | Runnable full storefront demo (catalogue → checkout) |
+| `inertia/custom/kits/example/pages/account-demo.tsx` | Runnable customer-account demo (login / register → orders) |
 | `inertia/custom/kits/example/` | Committed reference kit — copy it |
 | `inertia/custom/kits/README.md` | The quick-start that lives where kits live |
 | `inertia/custom/registry.ts` | Resolves `kit:<id>` / `kitpage:` / `codetpl:` pointers → kit components |

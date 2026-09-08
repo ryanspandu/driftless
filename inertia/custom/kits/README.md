@@ -75,11 +75,12 @@ reference in [`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.m
 ## Using the e-commerce module
 
 Build a storefront the **decoupled** way: product cards via `useCollectionRecords('products')`, and
-cart/checkout/account via plain `fetch('/api/shop/*')` — **never import the module**. Cart is
-server-side, the client never sends a price, checkout redirects to a hosted gateway, `/shop/*` is
-reserved, and the API 404s when the store is off (degrade gracefully). See `example/pages/shop-demo.tsx`
-+ `example/components/shop_api.ts`, and the full section in
-[`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md).
+cart/checkout/**customer accounts** via plain `fetch('/api/shop/*')` — **never import the module**.
+Cart is server-side, the client never sends a price, checkout redirects to a hosted gateway,
+customer accounts are a separate login from the admin users (`GET /api/shop/me` never 401s),
+`/shop/*` is reserved, and the API 404s when the store is off (degrade gracefully). See
+`example/pages/shop-demo.tsx` + `example/pages/account-demo.tsx` + `example/components/shop_api.ts`,
+and the full section in [`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md).
 
 ## Rules
 

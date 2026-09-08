@@ -98,6 +98,25 @@ export interface CheckoutBody {
   shippingMethodId?: string
 }
 
+/** A signed-in shopper. Storefront accounts are SEPARATE from admin users. */
+export interface Account {
+  id: string
+  email: string
+  firstName: string | null
+  lastName: string | null
+  fullName: string
+  ordersCount: number
+  memberSince: string | null
+}
+
+export interface AccountOrder {
+  number: string
+  status: string
+  placedAt: string
+  total: MoneyDto
+  itemCount: number
+}
+
 export class ShopError extends Error {
   constructor(
     public readonly status: number,
@@ -183,4 +202,27 @@ export const shop = {
       body: JSON.stringify(body),
       idempotencyKey,
     }),
+
+  // ── Customer account (a separate storefront login, not the admin users) ──
+  // `me` never 401s — it returns { account: null } when signed out.
+  me: () => shopFetch<{ account: Account | null }>('/api/shop/me'),
+  register: (input: { email: string; password: string; firstName?: string; lastName?: string }) =>
+    shopFetch<{ account: Account | null; message?: string }>('/api/shop/account/register', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  // Success → { account }. A 2FA account → { needs2fa, pendingToken } (a 200, not an error).
+  // Wrong details → 401 (thrown as ShopError).
+  login: (input: { email: string; password: string }) =>
+    shopFetch<{ ok?: boolean; account?: Account; needs2fa?: boolean; pendingToken?: string }>(
+      '/api/shop/account/login',
+      { method: 'POST', body: JSON.stringify(input) }
+    ),
+  verify2fa: (input: { pendingToken: string; code: string }) =>
+    shopFetch<{ account: Account }>('/api/shop/account/2fa/verify', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  logout: () => shopFetch<{ ok: true }>('/api/shop/account/logout', { method: 'POST' }),
+  getOrders: () => shopFetch<{ orders: AccountOrder[] }>('/api/shop/account/orders'),
 }
