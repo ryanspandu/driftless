@@ -13,6 +13,7 @@ inertia/custom/kits/<name>/
   index.tsx         a template a DB page points at (kit:<name>) — optional if you only ship pages/
   pages/*.tsx       file-pages — each file is a route with NO DB row (see below)
   templates/*.tsx   code chrome — header/footer/layout a page points at (codetpl:<kit>/<type>)
+  collection/*.tsx  collection templates — one CMS record as code; filename = collection key
   components/…       optional — sub-components, imported with relative paths
   styles.css        optional — co-located CSS, imported by index.tsx
   assets/…           optional — images/fonts, IMPORTED (never referenced by raw path)
@@ -29,6 +30,15 @@ Each `pages/*.tsx` is a standalone route served with no DB row. The filename is 
 is the titleized filename, overridable with `export const title = '...'`. A database page always
 wins on a path clash. File-pages are pure code (no editable region) and show in the admin pages
 list as read-only rows. Full reference: [`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md).
+
+## Collection templates — render CMS records as code
+
+Each `collection/<key>.tsx` draws **one** record of a collection as code. On a **Collection List**
+block, set *Item design → Code template* and pick it (the **filename is the collection key** — a
+`collection/posts.tsx` only offers itself on a list bound to `posts`). The component
+default-exports `({ record }) => JSX` and gets the whole record — `record.data` holds the fields,
+with `record.id` / `status` / `createdAt` / `updatedAt` alongside. Type the prop with
+`CustomCollectionRecord` from `~/custom/registry`. See `example/collection/posts.tsx`.
 
 - The **folder name is the id.** A page selects a kit by storing
   `component = "kit:<folder>"`; the public URL comes from the page record, not

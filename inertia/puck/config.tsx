@@ -5,6 +5,7 @@ import { cn } from '~/lib/utils'
 import { CollectionSourceField, CollectionList } from '~/puck/collection-list'
 import { MenuHandleField } from '~/puck/menu-field'
 import { CollectionTemplateField } from '~/puck/collection-template-field'
+import { CodeCollectionField } from '~/puck/code-collection-field'
 import { withModuleBlocks } from '~/puck/module-blocks'
 import { withCustomBlocks } from '~/puck/custom-blocks'
 import { RichTextView } from '~/puck/rich-text-view'
@@ -1024,6 +1025,7 @@ export const baseConfig: Config = {
           options: [
             { label: 'Built-in card', value: 'builtin' },
             { label: 'Select template', value: 'template' },
+            { label: 'Code template', value: 'code' },
             { label: 'Custom (design below)', value: 'custom' },
           ],
         },
@@ -1034,6 +1036,15 @@ export const baseConfig: Config = {
           label: 'Template',
           render: ({ value, onChange }) => (
             <CollectionTemplateField value={value} onChange={onChange} />
+          ),
+        },
+        // A kit code component (`codetpl:<kit>/collection/<key>`) repeated per
+        // record. Only used when Item design = Code template.
+        codeTemplate: {
+          type: 'custom',
+          label: 'Code template',
+          render: ({ value, onChange }) => (
+            <CodeCollectionField value={value} onChange={onChange} />
           ),
         },
         // The designed item, repeated once per record. Only used when Item
@@ -1118,6 +1129,7 @@ export const baseConfig: Config = {
         source: {},
         template: 'builtin',
         templateId: '',
+        codeTemplate: '',
         item: [],
         layout: 'grid',
         cardStyle: 'card',
@@ -1138,6 +1150,7 @@ export const baseConfig: Config = {
         source,
         template,
         templateId,
+        codeTemplate,
         item: Item,
         empty: Empty,
         layout,
@@ -1160,6 +1173,7 @@ export const baseConfig: Config = {
             source={source}
             template={template}
             templateId={templateId}
+            codeTemplate={codeTemplate}
             ItemSlot={Item as unknown as ComponentType}
             EmptySlot={Empty as unknown as ComponentType}
             editing={Boolean((s.puck as { isEditing?: boolean } | undefined)?.isEditing)}

@@ -1,6 +1,6 @@
 {
   "target": "page",
-  "generatedAt": "2026-09-07T04:00:53.559Z",
+  "generatedAt": "2026-09-08T01:15:51.161Z",
   "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] } — only the ROOT uses a top-level \"content\" array. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children INSIDE props, keyed by the slot name (see each block's \"slots\") — e.g. { type: \"Section\", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a top-level \"content\" on the block (a sibling of props) — that renders EMPTY. Every block also accepts the shared \"styleProps\" (see the block's \"styleProps\" list and the catalog's \"styleSchemas\") — most are a plain CSS STRING value (e.g. padding:\"16px 24px\", display:\"flex\", gap:\"16px\", alignItems:\"center\", position:\"absolute\", top:\"0\", zIndex:\"2\", width:\"60%\", bg:\"#ffffff\", textColor:\"#111827\"). A FEW are structured and documented under \"styleSchemas\": \"backgrounds\" (a layer stack), \"responsive\" ({ breakpointId: { …styleProps } }), and \"states\" ({ hover|focus|active: { …styleProps } }) — these ARE honoured, not dropped. A style value that is neither a string nor one of those structured shapes is dropped on render. A field with type \"object\" documents its shape under \"objectFields\"; a field with type \"array\" documents each item's shape under \"arrayFields\" (+ \"defaultItemProps\" as an example). Each block's \"defaultProps\" is a ready-to-use worked example of valid props. Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled — see the catalog's \"enabledModules\" and prefer core blocks unless the site uses that module.",
   "guidance": {
     "rules": [
@@ -1496,6 +1496,10 @@
               "value": "template"
             },
             {
+              "label": "Code template",
+              "value": "code"
+            },
+            {
               "label": "Custom (design below)",
               "value": "custom"
             }
@@ -1504,6 +1508,10 @@
         "templateId": {
           "type": "custom",
           "label": "Template"
+        },
+        "codeTemplate": {
+          "type": "custom",
+          "label": "Code template"
         },
         "layout": {
           "type": "select",
@@ -1678,6 +1686,7 @@
         "source": {},
         "template": "builtin",
         "templateId": "",
+        "codeTemplate": "",
         "item": [],
         "layout": "grid",
         "cardStyle": "card",

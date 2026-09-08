@@ -2,7 +2,11 @@ import type { HttpContext } from '@adonisjs/core/http'
 import PagesService from '#services/pages_service'
 import CmsService from '#services/cms_service'
 import { CODE_PAGES } from '#services/code_pages.generated'
-import { CUSTOM_TEMPLATES, CODE_TEMPLATES } from '#services/custom_templates.generated'
+import {
+  CUSTOM_TEMPLATES,
+  CODE_TEMPLATES,
+  COLLECTION_TEMPLATES,
+} from '#services/custom_templates.generated'
 import { fileSummaries } from '#services/file_pages'
 import type User from '#models/user'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
@@ -302,5 +306,13 @@ export default class PagesController {
    */
   async codeTemplates({ response }: HttpContext) {
     return response.json(CODE_TEMPLATES)
+  }
+
+  /**
+   * Code collection templates (kit `collection/<collectionKey>.tsx`) for the
+   * Collection List block's item picker, keyed `codetpl:<kit>/collection/<key>`.
+   */
+  async collectionTemplates({ response }: HttpContext) {
+    return response.json(COLLECTION_TEMPLATES)
   }
 }

@@ -79,3 +79,20 @@ export const CODE_TEMPLATES: readonly CodeTemplate[] = [
     "type": "HEADER"
   }
 ]
+
+/**
+ * Code collection templates a Collection List can render each record with —
+ * `collection/<collectionKey>.tsx` in a kit, referenced by the pointer
+ * `codetpl:<kit>/collection/<collectionKey>`. The component receives one record.
+ */
+export interface CodeCollectionTemplate {
+  kit: string
+  collectionKey: string
+}
+
+export const COLLECTION_TEMPLATES: readonly CodeCollectionTemplate[] = [
+  {
+    "kit": "example",
+    "collectionKey": "posts"
+  }
+]

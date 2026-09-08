@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { Render } from '@measured/puck'
+import { getCollectionTemplate } from '~/custom/registry'
 import { RecordContext } from '~/puck/record-binding'
 import { TemplateContext, hasBlocks, toData, usePuckConfig } from '~/puck/template-ref'
 import { PanelSelect } from '~/puck/panel-select'
@@ -384,6 +385,15 @@ const ASPECT_CLASS: Record<string, string> = {
   auto: '',
 }
 
+/** One record rendered by a kit's code collection template (`codetpl:<kit>/collection/<key>`). */
+function CodeItem({ code, record }: { code: string; record: CmsRecord | null }) {
+  const Component = getCollectionTemplate(code)
+  if (!Component || !record) return null
+  // A build-time glob lookup returns the identical export every render — stable.
+  // eslint-disable-next-line react-hooks/static-components
+  return <Component record={record} />
+}
+
 export function CollectionList({
   source,
   limit,
@@ -401,6 +411,7 @@ export function CollectionList({
   pageSize,
   template,
   templateId,
+  codeTemplate,
   ItemSlot,
   EmptySlot,
   editing = false,
@@ -429,6 +440,8 @@ export function CollectionList({
   template?: string
   /** The COLLECTION template to repeat when `template === 'template'`. */
   templateId?: string
+  /** The kit code collection template (`codetpl:<kit>/collection/<key>`) when `template === 'code'`. */
+  codeTemplate?: string
   /** The Puck-injected item slot component (the designed template). */
   ItemSlot?: ComponentType
   /** The Puck-injected empty-state slot (shown when there are no records). */
@@ -464,17 +477,20 @@ export function CollectionList({
   const visible = records
   const isCustom = template === 'custom' && !!ItemSlot
   const isTemplate = template === 'template'
+  const isCode = template === 'code' && !!codeTemplate
 
   // Hooks stay unconditional: the template loads only when there is an id.
   const tpl = useCollectionTemplate(isTemplate ? templateId || undefined : undefined, editing)
   const config = usePuckConfig()
-  // What one repeated item is — the designed slot or the shared template.
-  // `null` while the template is unset/loading; the branches below explain why.
-  const renderItem: (() => ReactNode) | null = isCustom
+  // What one repeated item is — the designed slot, the shared builder template,
+  // or a kit code component. `null` while unset/loading; the branches explain why.
+  const renderItem: ((rec: CmsRecord | null) => ReactNode) | null = isCustom
     ? () => <ItemSlot />
     : isTemplate && tpl.content && config && hasBlocks(tpl.content)
       ? () => <Render config={config} data={toData(tpl.content)} />
-      : null
+      : isCode
+        ? (rec) => <CodeItem code={codeTemplate} record={rec} />
+        : null
 
   const templateNotice = (() => {
     if (!isTemplate) return null
@@ -574,7 +590,7 @@ export function CollectionList({
               key={rec?.id ?? i}
               value={{ fields: rec ? recordFields(rec) : {}, editing: true }}
             >
-              {renderItem()}
+              {renderItem(rec)}
             </RecordContext.Provider>
           ))}
         </div>
@@ -651,7 +667,7 @@ export function CollectionList({
               key={rec.id}
               value={{ fields: recordFields(rec), editing: false }}
             >
-              {renderItem()}
+              {renderItem(rec)}
             </RecordContext.Provider>
           ))}
         </div>

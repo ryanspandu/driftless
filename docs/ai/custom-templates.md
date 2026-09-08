@@ -136,6 +136,33 @@ inertia/custom/kits/<name>/
 - Stored in the page's `code_header` / `code_footer` / `code_layout` columns as the pointer
   `codetpl:<kit>/<type>` (separate from the builder-template FK columns).
 
+## Collection templates — render CMS records as code
+
+A **Collection List** block normally repeats a built-in item card or a Puck *collection template*.
+A kit can instead supply a **code** item design — `collection/<collectionKey>.tsx` — and the list
+renders every record through it:
+
+```
+inertia/custom/kits/<name>/
+  collection/
+    posts.tsx       binds to the built-in Posts collection
+    products.tsx    binds to Products (store on)
+    <yourkey>.tsx   binds to a CMS collection by its key
+```
+
+- **The filename is the collection key.** `collection/posts.tsx` only offers itself on a
+  Collection List bound to `posts`; a `blog` collection needs `collection/blog.tsx`.
+- On the Collection List, set **Item design → Code template**, then pick the kit component in the
+  right panel (it shows as `<kit> · code`; only components whose filename matches the bound
+  collection appear).
+- The component default-exports `({ record }) => JSX`. It receives **one whole record**:
+  `record.data` holds the collection's fields, with `record.id`, `record.status`,
+  `record.createdAt`, `record.updatedAt` alongside. Read only what you need — an absent field is
+  just `undefined`. Type the prop with `CustomCollectionRecord` from `~/custom/registry`.
+- Stored on the block as the prop `codeTemplate = "codetpl:<kit>/collection/<key>"`. The list
+  handles fetching, paging, sort and filter (server-side) — the component only draws one record.
+- See `inertia/custom/kits/example/collection/posts.tsx` for a runnable post-card reference.
+
 ## What you can build with
 
 ### Available libraries (root `package.json` only)
@@ -241,9 +268,12 @@ page leave room to add both without reworking this design.
 | Path | Role |
 |---|---|
 | `inertia/custom/kits/<name>/` | A custom template (kit): `kit.json` + `index.tsx` + optional components/styles/assets |
+| `inertia/custom/kits/<name>/pages/` | File-pages — one `.tsx` per route, no DB row (`kitpage:<kit>/<file>`) |
+| `inertia/custom/kits/<name>/templates/` | Code chrome — `header/footer/layout.tsx` (`codetpl:<kit>/<type>`) |
+| `inertia/custom/kits/<name>/collection/` | Collection templates — `<key>.tsx` per collection (`codetpl:<kit>/collection/<key>`) |
 | `inertia/custom/kits/example/` | Committed reference kit — copy it |
 | `inertia/custom/kits/README.md` | The quick-start that lives where kits live |
-| `inertia/custom/registry.ts` | Resolves `kit:<id>` → the folder's `index.tsx` |
+| `inertia/custom/registry.ts` | Resolves `kit:<id>` / `kitpage:` / `codetpl:` pointers → kit components |
 | `inertia/custom/code-page-view.tsx` | Renders the resolved component (shared with code pages) |
 | `inertia/custom/types.ts` | `CodePageProps` |
 | `app/services/custom_templates.generated.ts` | Generated manifest (do not edit) |

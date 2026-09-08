@@ -569,6 +569,10 @@ router
           () => import('#controllers/admin/pages_controller'),
           'codeTemplates',
         ])
+        router.get('/api/admin/pages/collection-templates', [
+          () => import('#controllers/admin/pages_controller'),
+          'collectionTemplates',
+        ])
         router.post('/api/admin/pages/import', [
           () => import('#controllers/admin/pages_controller'),
           'importOne',

@@ -55,6 +55,26 @@ const CUSTOM_KIT_TEMPLATES = import.meta.glob<CustomChromeModule>('./kits/*/temp
   eager: true,
 })
 
+/**
+ * Code collection templates — `kits/<kit>/collection/<collectionKey>.tsx`. A
+ * Collection List renders each record with one via `codetpl:<kit>/collection/<key>`.
+ * The component receives a single record.
+ */
+export interface CustomCollectionRecord {
+  id: string
+  status: string
+  createdAt: string
+  updatedAt: string
+  data: Record<string, unknown>
+}
+export interface CustomCollectionModule {
+  default: ComponentType<{ record: CustomCollectionRecord }>
+}
+const CUSTOM_KIT_COLLECTIONS = import.meta.glob<CustomCollectionModule>(
+  './kits/*/collection/*.tsx',
+  { eager: true }
+)
+
 const KIT_PREFIX = 'kit:'
 const KITPAGE_PREFIX = 'kitpage:'
 const CODETPL_PREFIX = 'codetpl:'
@@ -69,6 +89,15 @@ export function getCodeTemplate(pointer: string): ComponentType<{ children?: Rea
     CUSTOM_KIT_TEMPLATES[`./kits/${rest.slice(0, slash)}/templates/${rest.slice(slash + 1)}.tsx`]
       ?.default ?? null
   )
+}
+
+/** Resolve a `codetpl:<kit>/collection/<key>` pointer to its record component, or null. */
+export function getCollectionTemplate(
+  pointer: string
+): ComponentType<{ record: CustomCollectionRecord }> | null {
+  const m = pointer.match(/^codetpl:([^/]+)\/collection\/(.+)$/)
+  if (!m) return null
+  return CUSTOM_KIT_COLLECTIONS[`./kits/${m[1]}/collection/${m[2]}.tsx`]?.default ?? null
 }
 
 /**
