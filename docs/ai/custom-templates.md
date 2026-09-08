@@ -163,6 +163,42 @@ inertia/custom/kits/<name>/
   handles fetching, paging, sort and filter (server-side) — the component only draws one record.
 - See `inertia/custom/kits/example/collection/posts.tsx` for a runnable post-card reference.
 
+## Reading collection data — fetch CMS records at runtime
+
+A *collection template* (above) renders **one** record inside a builder-driven Collection List.
+When kit-owned markup needs to **fetch records itself** — a "latest posts" strip, a product grid, a
+custom listing — use the `useCollectionRecords` hook from `~/hooks/cms/use-collection-records`.
+
+```tsx
+import { useCollectionRecords } from '~/hooks/cms/use-collection-records'
+
+export default function LatestPosts() {
+  const { data, isLoading, isError } = useCollectionRecords('posts', { limit: 6 })
+  if (isLoading) return <p>Loading…</p>
+  if (isError) return <p>Could not load posts.</p>
+  return <ul>{data?.items.map((r) => <li key={r.id}>{String(r.data.title)}</li>)}</ul>
+}
+```
+
+- It calls the public read API `GET /api/public/cms/:key/records` — **any** collection (`posts`,
+  `products`, or your own CMS collections), **published records only**. Relation fields come back as
+  display strings and media fields as public URLs.
+- **Options** (bold = the ones you'll reach for): `limit` — page size 1–100 (**note: `limit`, not
+  `pageSize`**; default 12); `page`; `sortField` (a field key, or `created_at`/`updated_at`) +
+  `sortDir`; `filterField`+`filterValue` (**both or neither**); `search`; `enabled`; `staleTime`.
+  Returns a react-query result whose `data` is `{ items, total, page, pageSize, totalPages }`.
+- **One record:** `useCollectionRecord(key, id)` returns a single `CmsRecord`; pair it with
+  `CodePageProps.bindings` for a detail file-page. Import the `CmsRecord` type from the same module.
+- Each record is `{ id, status, data, createdAt, updatedAt }` — the collection's fields live under
+  `data` (a `Record<string, unknown>`; narrow before use).
+
+> **SSR:** the hook fetches on the client, so the first server paint is empty and the data arrives
+> after hydration. That's fine for dynamic/interactive sections; for **SEO-critical, above-the-fold**
+> lists use the builder's Collection List block instead (it has the SSR preload).
+
+> There is **no public endpoint that lists collection keys** — you pass the key you want. See
+> `inertia/custom/kits/example/pages/collection-demo.tsx` for a runnable reference.
+
 ## Email templates — a transactional email as code
 
 A kit can supply **code EMAIL templates** — `emails/<name>.tsx` — the coded twin of a
@@ -199,6 +235,43 @@ inertia/custom/kits/<name>/
 - **Reach (v1):** a code email renders wherever the designed-template seam is honored — today the
   **Password reset** email. The e-commerce order emails render their own layouts and would need a
   seam retrofit first (a follow-up). See `inertia/custom/kits/example/emails/password_reset.tsx`.
+
+## Using the e-commerce module — cart, checkout, products
+
+A kit can build a full storefront experience, but **only through the store's public HTTP surface**
+— never by importing the module.
+
+| Situation | Use |
+|---|---|
+| Product cards / a catalogue grid | `useCollectionRecords('products')` (the `products` built-in collection) |
+| Cart, checkout, account, live pricing | `fetch('/api/shop/*')` |
+
+- **Never import the module.** `@modules/*` is a Vite-only alias — it is **not** in the kit's
+  TypeScript paths, so importing `modules/ecommerce/…` fails `tsc`; and the module rule
+  ([modules.md](./modules.md)) forbids core/kits importing module code regardless. So `MoneyInput`
+  and anything under `modules/ecommerce/ui/admin/*` are **off-limits** on a public page too (they
+  call authed admin endpoints — a 401 would bounce your shopper into `/login`).
+- **Products as a collection.** `useCollectionRecords('products')` returns product records
+  (`data`: title, subtitle, slug, `url` = `/shop/p/<slug>`, price(formatted), priceAmount, currency,
+  image, imageAlt, type, featured). Base-currency, active-only, and it simply vanishes when the
+  store is off — the most decoupled way to list products.
+- **Interactive commerce via `/api/shop/*`.** The full endpoint list (catalogue, cart, checkout,
+  account) is the storefront table in
+  [modules/ecommerce/README.md](../../modules/ecommerce/README.md#storefront). The non-negotiables:
+  - Use **plain `fetch`**, not the admin `apiFetch` (a storefront 401 must not redirect a shopper to
+    `/login`); send `credentials: 'same-origin'` and echo the `XSRF-TOKEN` cookie as `X-XSRF-TOKEN`;
+    put an `Idempotency-Key` on `POST /api/shop/checkout`.
+  - The **cart is server-side** (cookie `dl_cart`); the **client never sends a price** — the server
+    prices the basket. `POST /checkout` returns a **`redirectUrl`** to a hosted gateway page (a real
+    order is created there); the browser never marks an order paid. These are the store's
+    [five rules](../../modules/ecommerce/README.md#the-five-rules).
+  - **`/shop/*` is a reserved path** — a kit page cannot live there; put your storefront under your
+    own route (e.g. `/kit-example/shop-demo`) and drive views with client state.
+- **Detecting the store.** There is no public "is enabled" flag — a call to `/api/shop/*` returns
+  **404** when the module is off. Branch on it and show a graceful "store unavailable" state.
+- The worked example is `inertia/custom/kits/example/pages/shop-demo.tsx` (catalogue → product
+  detail → add-to-cart → cart → checkout redirect), with a copy-paste client at
+  `inertia/custom/kits/example/components/shop_api.ts`.
 
 ## What you can build with
 
@@ -311,6 +384,10 @@ page leave room to add both without reworking this design.
 | `inertia/custom/kits/<name>/emails/` | Code EMAIL templates — `<name>.tsx` per email (`codetpl:<kit>/email/<name>`) |
 | `inertia/custom/email_kit.tsx` | Email-safe primitives (`EmailRoot`, `EmailBody`, …) for `emails/*.tsx` |
 | `app/services/custom_email_templates.generated.ts` | Generated: each email flattened to send-ready HTML (do not edit) |
+| `inertia/hooks/cms/use-collection-records.ts` | Kit-facing hooks — read published collection records / one record |
+| `inertia/custom/kits/example/components/shop_api.ts` | Copy-paste decoupled client for the `/api/shop/*` storefront API |
+| `inertia/custom/kits/example/pages/collection-demo.tsx` | Runnable `useCollectionRecords` demo |
+| `inertia/custom/kits/example/pages/shop-demo.tsx` | Runnable full storefront demo (catalogue → checkout) |
 | `inertia/custom/kits/example/` | Committed reference kit — copy it |
 | `inertia/custom/kits/README.md` | The quick-start that lives where kits live |
 | `inertia/custom/registry.ts` | Resolves `kit:<id>` / `kitpage:` / `codetpl:` pointers → kit components |
@@ -319,3 +396,7 @@ page leave room to add both without reworking this design.
 | `app/services/custom_templates.generated.ts` | Generated manifest (do not edit) |
 | `inertia/css/custom-templates.generated.css` | Generated Tailwind `@source` lines (do not edit) |
 | `scripts/generate-custom-templates.mjs` | Writes both generated files |
+
+## Related
+
+- [code-pages.md](./code-pages.md) · [pages-builder.md](./pages-builder.md) · [mail.md](./mail.md) · [modules.md](./modules.md) · [e-commerce](../../modules/ecommerce/README.md)

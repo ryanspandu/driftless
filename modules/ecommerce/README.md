@@ -1237,3 +1237,4 @@ unaffected by either.
 
 - [modules.md](./modules.md) · [mail.md](./mail.md) · [auth-and-permissions.md](./auth-and-permissions.md)
 - [pages-builder.md](./pages-builder.md) — the storefront blocks in phase 4 plug into this.
+- [custom-templates.md](../../docs/ai/custom-templates.md) — using the store from a custom code kit (via `/api/shop/*`).

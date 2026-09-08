@@ -64,6 +64,23 @@ rebuild. See `example/emails/password_reset.tsx`.
 - Add `export const editableRegion = true` and render `<BuilderRegion />` to
   expose a slice of the page to the visual builder.
 
+## Reading collection data
+
+Kit markup can fetch collection records itself with `useCollectionRecords(key, options)` from
+`~/hooks/cms/use-collection-records` (and `useCollectionRecord(key, id)` for one). It reads the
+public API — any collection, published only — and hydrates on the client (empty first paint; use the
+builder's Collection List for SEO-critical lists). See `example/pages/collection-demo.tsx`; full
+reference in [`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md).
+
+## Using the e-commerce module
+
+Build a storefront the **decoupled** way: product cards via `useCollectionRecords('products')`, and
+cart/checkout/account via plain `fetch('/api/shop/*')` — **never import the module**. Cart is
+server-side, the client never sends a price, checkout redirects to a hosted gateway, `/shop/*` is
+reserved, and the API 404s when the store is off (degrade gracefully). See `example/pages/shop-demo.tsx`
++ `example/components/shop_api.ts`, and the full section in
+[`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md).
+
 ## Rules
 
 - **Use app libraries only.** Import anything already in the root `package.json`
@@ -72,6 +89,9 @@ rebuild. See `example/emails/password_reset.tsx`.
   kit — there is no per-folder dependency resolution.
 - **Import your assets** (`import hero from './assets/hero.jpg'`) so Vite
   fingerprints them; never reference a raw path. Large media → the media library.
+- **Reach a module (e.g. e-commerce) only over its public API** (`/api/shop/*`,
+  and `products` via `useCollectionRecords`) — never `import` module code
+  (`@modules/*` is not a kit alias and the module rule forbids it).
 - **A rebuild is required** after adding or renaming a kit (the lookup is a
   build-time glob). Editing an existing kit's code is picked up by the dev
   server's HMR.

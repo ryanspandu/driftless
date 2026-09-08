@@ -35,7 +35,7 @@ Reference docs for AI coding assistants (Cursor, Claude Code, GitHub Copilot, Co
 | [settings-ia.md](./settings-ia.md)       | Which settings screen owns which field, and the `web_settings` key map (incl. `theme` palette + saved colours) — read before adding a setting                                     |
 | [page-settings.md](./page-settings.md)   | Page Settings (SEO, General) + per-page & site-wide custom code/meta + Appearance (font + palette + saved colours); `/admin/website-settings`                                     |
 | [code-pages.md](./code-pages.md)         | Hand-written React pages (`kind = CODE`) and custom builder blocks — the escape hatches from the builder, and when **not** to use them                                            |
-| [custom-templates.md](./custom-templates.md) | Coded page "kits" — self-contained, gitignored folders (own components/styles/assets); the WordPress-theme form of a code page, and the future marketplace payload            |
+| [custom-templates.md](./custom-templates.md) | Coded page "kits" — self-contained folders (pages, file-pages, code chrome, collection & email templates); reading collections at runtime (`useCollectionRecords`) and using the store via `/api/shop/*`            |
 | [auth-pages.md](./auth-pages.md)         | Replacing `/login`, `/register`, password reset and the public 404/500 with builder pages; the working auth form blocks; the password-reset flow                                  |
 
 ## Legacy / ops
