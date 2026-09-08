@@ -1,12 +1,22 @@
-import { useState } from 'react'
-import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { GripVertical, Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react'
 import type { FormFieldDef, FormFieldType, FormFieldWidth } from '~/types/api'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { Switch } from '~/components/ui/switch'
 import { Badge } from '~/components/ui/badge'
-import { Card, CardContent } from '~/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { AppSelect } from '~/components/ui/app-select'
 import {
   Dialog,
@@ -16,31 +26,42 @@ import {
   DialogTitle,
 } from '~/components/ui/dialog'
 
-/** Human labels for each field type (mirrors the server `FORM_FIELD_TYPES`). */
-export const FORM_FIELD_META: { type: FormFieldType; label: string; hint: string }[] = [
-  { type: 'text', label: 'Short text', hint: 'A single line' },
-  { type: 'textarea', label: 'Paragraph', hint: 'Multi-line text' },
-  { type: 'email', label: 'Email', hint: 'A validated email address' },
-  { type: 'tel', label: 'Phone', hint: 'A phone number' },
-  { type: 'number', label: 'Number', hint: 'A number, optional min/max' },
-  { type: 'date', label: 'Date', hint: 'A calendar date' },
-  { type: 'url', label: 'Link (URL)', hint: 'An http(s) address' },
-  { type: 'select', label: 'Dropdown', hint: 'Pick one from a list' },
-  { type: 'radio', label: 'Radio', hint: 'Pick one (shown inline)' },
-  { type: 'checkbox', label: 'Checkbox', hint: 'A single yes/no or consent' },
-  { type: 'checkbox_group', label: 'Checkbox group', hint: 'Pick several' },
-  { type: 'file', label: 'File upload', hint: 'Attach a file' },
+export const FORM_FIELD_META: { type: FormFieldType; label: string }[] = [
+  { type: 'text', label: 'Short text' },
+  { type: 'textarea', label: 'Paragraph' },
+  { type: 'email', label: 'Email' },
+  { type: 'tel', label: 'Phone' },
+  { type: 'number', label: 'Number' },
+  { type: 'date', label: 'Date' },
+  { type: 'url', label: 'Link (URL)' },
+  { type: 'select', label: 'Dropdown' },
+  { type: 'radio', label: 'Radio' },
+  { type: 'checkbox', label: 'Checkbox' },
+  { type: 'checkbox_group', label: 'Checkbox group' },
+  { type: 'file', label: 'File upload' },
 ]
 
 const TYPE_LABEL = new Map(FORM_FIELD_META.map((m) => [m.type, m.label]))
 const OPTION_TYPES: FormFieldType[] = ['select', 'radio', 'checkbox_group']
-const WIDTHS: { value: FormFieldWidth; label: string }[] = [
-  { value: 'full', label: 'Full' },
-  { value: 'half', label: 'Half' },
-  { value: 'third', label: 'Third' },
-]
 
-/** A label → a valid field key (`^[a-z][a-z0-9_]{0,31}$`). */
+/** Widths as "N per row" in a 12-col grid — richer than the CMS full/half/third. */
+const WIDTHS: { value: FormFieldWidth; label: string }[] = [
+  { value: 'full', label: 'Full row (1)' },
+  { value: 'half', label: 'Half (2 per row)' },
+  { value: 'third', label: 'Third (3 per row)' },
+  { value: 'quarter', label: 'Quarter (4 per row)' },
+  { value: 'sixth', label: 'Sixth (6 per row)' },
+]
+const COLSPAN: Record<FormFieldWidth, string> = {
+  full: 'col-span-12',
+  half: 'col-span-12 sm:col-span-6',
+  third: 'col-span-12 sm:col-span-4',
+  quarter: 'col-span-6 sm:col-span-3',
+  sixth: 'col-span-6 sm:col-span-2',
+}
+
+const KEY_RE = /^[a-z][a-z0-9_]{0,31}$/
+
 function keyFromLabel(label: string): string {
   const s = label
     .toLowerCase()
@@ -51,101 +72,113 @@ function keyFromLabel(label: string): string {
   return s || 'field'
 }
 
-const KEY_RE = /^[a-z][a-z0-9_]{0,31}$/
-
 function emptyField(): FormFieldDef {
   return { key: '', label: '', type: 'text', width: 'full' }
 }
 
 /**
- * Edit a form's field schema — add, configure, reorder and remove fields.
- * Fully controlled: it never mutates; every change calls `onChange` with the
- * next `fields` array, which the page persists.
+ * Edit a form's field schema: add, configure, drag-reorder and remove fields,
+ * laid out at their real width (1–6 per row) so the card previews the form.
+ * Edits are LOCAL until "Save fields" — nothing auto-saves.
  */
 export function FormFieldsEditor({
-  fields,
-  onChange,
+  initialFields,
+  onSave,
+  saving,
 }: {
-  fields: FormFieldDef[]
-  onChange: (fields: FormFieldDef[]) => void
+  initialFields: FormFieldDef[]
+  onSave: (fields: FormFieldDef[]) => Promise<void>
+  saving?: boolean
 }) {
+  const [fields, setFields] = useState<FormFieldDef[]>(initialFields)
+  const [baseline, setBaseline] = useState<FormFieldDef[]>(initialFields)
   const [editing, setEditing] = useState<{ index: number; draft: FormFieldDef } | null>(null)
+  const [savedFlash, setSavedFlash] = useState(false)
 
-  const move = (index: number, delta: number) => {
-    const next = [...fields]
-    const to = index + delta
-    if (to < 0 || to >= next.length) return
-    ;[next[index], next[to]] = [next[to]!, next[index]!]
-    onChange(next)
+  const dirty = useMemo(
+    () => JSON.stringify(fields) !== JSON.stringify(baseline),
+    [fields, baseline]
+  )
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const from = fields.findIndex((f) => f.key === active.id)
+    const to = fields.findIndex((f) => f.key === over.id)
+    if (from < 0 || to < 0) return
+    setFields(arrayMove(fields, from, to))
   }
 
-  const remove = (index: number) => onChange(fields.filter((_, i) => i !== index))
-
+  const remove = (index: number) => setFields(fields.filter((_, i) => i !== index))
   const commit = (draft: FormFieldDef, index: number) => {
-    const next = [...fields]
-    if (index < 0) next.push(draft)
-    else next[index] = draft
-    onChange(next)
+    setFields(index < 0 ? [...fields, draft] : fields.map((f, i) => (i === index ? draft : f)))
     setEditing(null)
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-2">
-        {fields.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              No fields yet — add the first one.
-            </CardContent>
-          </Card>
-        ) : (
-          fields.map((field, index) => (
-            <Card key={`${field.key}-${index}`}>
-              <CardContent className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-sm font-medium">{field.label || '(no label)'}</span>
-                    <Badge variant="outline" className="text-[10px] font-normal">
-                      {TYPE_LABEL.get(field.type) ?? field.type}
-                    </Badge>
-                    {field.required ? (
-                      <Badge variant="secondary" className="text-[10px] font-normal">
-                        Required
-                      </Badge>
-                    ) : null}
-                    {field.width && field.width !== 'full' ? (
-                      <Badge variant="outline" className="text-[10px] font-normal">
-                        {field.width}
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-                    {field.key}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button variant="ghost" size="icon" className="size-8" onClick={() => move(index, -1)} disabled={index === 0} aria-label="Move up">
-                    <ArrowUp className="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="size-8" onClick={() => move(index, 1)} disabled={index === fields.length - 1} aria-label="Move down">
-                    <ArrowDown className="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="size-8" onClick={() => setEditing({ index, draft: { ...field } })} aria-label="Edit">
-                    <Pencil className="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => remove(index)} aria-label="Remove">
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+  const save = async () => {
+    await onSave(fields)
+    setBaseline(fields)
+    setSavedFlash(true)
+    window.setTimeout(() => setSavedFlash(false), 2000)
+  }
 
-      <Button variant="outline" className="gap-2" onClick={() => setEditing({ index: -1, draft: emptyField() })}>
-        <Plus className="size-4" /> Add field
-      </Button>
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1.5">
+            <CardTitle>Fields</CardTitle>
+            <CardDescription>
+              {fields.length} field{fields.length === 1 ? '' : 's'}. Drag the handle to reorder; set
+              each field’s width to pack 1–6 per row.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 gap-2"
+            onClick={() => setEditing({ index: -1, draft: emptyField() })}
+          >
+            <Plus className="size-4" /> Add field
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {fields.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+            No fields yet — add the first one.
+          </div>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={fields.map((f) => f.key)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-12 gap-2">
+                {fields.map((field, index) => (
+                  <SortableFieldCard
+                    key={field.key}
+                    field={field}
+                    onEdit={() => setEditing({ index, draft: { ...field } })}
+                    onRemove={() => remove(index)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+
+        <div className="flex items-center gap-3 border-t pt-4">
+          <Button onClick={save} disabled={!dirty || saving} className="gap-2">
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            Save fields
+          </Button>
+          {savedFlash ? <span className="text-sm text-emerald-600">Saved</span> : null}
+          {dirty && !saving ? (
+            <span className="text-sm text-muted-foreground">Unsaved changes</span>
+          ) : null}
+        </div>
+      </CardContent>
 
       {editing ? (
         <FieldDialog
@@ -155,6 +188,74 @@ export function FormFieldsEditor({
           onSave={(draft) => commit(draft, editing.index)}
         />
       ) : null}
+    </Card>
+  )
+}
+
+function SortableFieldCard({
+  field,
+  onEdit,
+  onRemove,
+}: {
+  field: FormFieldDef
+  onEdit: () => void
+  onRemove: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: field.key,
+  })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+  return (
+    <div ref={setNodeRef} style={style} className={COLSPAN[field.width ?? 'full']}>
+      <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card p-2.5">
+        <button
+          type="button"
+          className="shrink-0 cursor-grab text-muted-foreground touch-none"
+          aria-label="Drag to reorder"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-sm font-medium">{field.label || '(no label)'}</span>
+            <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
+              {TYPE_LABEL.get(field.type) ?? field.type}
+            </Badge>
+            {field.required ? (
+              <span className="shrink-0 text-destructive" title="Required">
+                *
+              </span>
+            ) : null}
+          </div>
+          <span className="block truncate font-mono text-xs text-muted-foreground">
+            {field.key}
+          </span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 shrink-0"
+          onClick={onEdit}
+          aria-label="Edit"
+        >
+          <Pencil className="size-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 shrink-0 text-destructive"
+          onClick={onRemove}
+          aria-label="Remove"
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </div>
     </div>
   )
 }
@@ -176,18 +277,17 @@ function FieldDialog({
   const set = (patch: Partial<FormFieldDef>) => setDraft((d) => ({ ...d, ...patch }))
 
   const key = draft.key || (keyTouched ? '' : keyFromLabel(draft.label))
-  const optionsText = (draft.options ?? []).join('\n')
 
-  const error =
-    !draft.label.trim()
-      ? 'A label is required'
-      : !KEY_RE.test(key)
-        ? 'Key must be lowercase letters, numbers and underscores, starting with a letter'
-        : existingKeys.includes(key)
-          ? 'Another field already uses this key'
-          : OPTION_TYPES.includes(draft.type) && (draft.options ?? []).filter((o) => o.trim()).length === 0
-            ? 'Add at least one option'
-            : null
+  const error = !draft.label.trim()
+    ? 'A label is required'
+    : !KEY_RE.test(key)
+      ? 'Key must be lowercase letters, numbers and underscores, starting with a letter'
+      : existingKeys.includes(key)
+        ? 'Another field already uses this key'
+        : OPTION_TYPES.includes(draft.type) &&
+            (draft.options ?? []).filter((o) => o.trim()).length === 0
+          ? 'Add at least one option'
+          : null
 
   const save = () => {
     if (error) return
@@ -211,6 +311,8 @@ function FieldDialog({
     onSave(clean)
   }
 
+  const showPlaceholder = ['text', 'textarea', 'email', 'tel', 'url', 'number'].includes(draft.type)
+
   return (
     <Dialog open onOpenChange={(o) => !o && onCancel()}>
       <DialogContent className="max-w-md">
@@ -218,7 +320,7 @@ function FieldDialog({
           <DialogTitle>{isNew ? 'Add field' : 'Edit field'}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
           <div className="space-y-1.5">
             <Label className="text-xs">Type</Label>
             <AppSelect
@@ -248,10 +350,13 @@ function FieldDialog({
             <p className="text-xs text-muted-foreground">The name stored in submissions.</p>
           </div>
 
-          {draft.type === 'text' || draft.type === 'textarea' || draft.type === 'email' || draft.type === 'tel' || draft.type === 'url' || draft.type === 'number' ? (
+          {showPlaceholder ? (
             <div className="space-y-1.5">
               <Label className="text-xs">Placeholder</Label>
-              <Input value={draft.placeholder ?? ''} onChange={(e) => set({ placeholder: e.target.value })} />
+              <Input
+                value={draft.placeholder ?? ''}
+                onChange={(e) => set({ placeholder: e.target.value })}
+              />
             </div>
           ) : null}
 
@@ -260,7 +365,7 @@ function FieldDialog({
               <Label className="text-xs">Options (one per line)</Label>
               <textarea
                 rows={4}
-                value={optionsText}
+                value={(draft.options ?? []).join('\n')}
                 onChange={(e) => set({ options: e.target.value.split('\n') })}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               />
@@ -271,11 +376,23 @@ function FieldDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Min</Label>
-                <Input type="number" value={draft.min ?? ''} onChange={(e) => set({ min: e.target.value === '' ? null : Number(e.target.value) })} />
+                <Input
+                  type="number"
+                  value={draft.min ?? ''}
+                  onChange={(e) =>
+                    set({ min: e.target.value === '' ? null : Number(e.target.value) })
+                  }
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Max</Label>
-                <Input type="number" value={draft.max ?? ''} onChange={(e) => set({ max: e.target.value === '' ? null : Number(e.target.value) })} />
+                <Input
+                  type="number"
+                  value={draft.max ?? ''}
+                  onChange={(e) =>
+                    set({ max: e.target.value === '' ? null : Number(e.target.value) })
+                  }
+                />
               </div>
             </div>
           ) : null}
@@ -283,12 +400,16 @@ function FieldDialog({
           {draft.type === 'file' ? (
             <div className="space-y-1.5">
               <Label className="text-xs">Accepted types (hint)</Label>
-              <Input value={draft.accept ?? ''} onChange={(e) => set({ accept: e.target.value })} placeholder=".pdf,image/*" />
+              <Input
+                value={draft.accept ?? ''}
+                onChange={(e) => set({ accept: e.target.value })}
+                placeholder=".pdf,image/*"
+              />
             </div>
           ) : null}
 
           <div className="space-y-1.5">
-            <Label className="text-xs">Width</Label>
+            <Label className="text-xs">Width (fields per row)</Label>
             <AppSelect
               value={draft.width ?? 'full'}
               onChange={(v) => set({ width: v as FormFieldWidth })}
@@ -298,7 +419,10 @@ function FieldDialog({
           </div>
 
           <label className="flex items-center gap-2 text-sm">
-            <Switch checked={Boolean(draft.required)} onCheckedChange={(v) => set({ required: v })} />
+            <Switch
+              checked={Boolean(draft.required)}
+              onCheckedChange={(v) => set({ required: v })}
+            />
             Required
           </label>
 

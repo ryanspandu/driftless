@@ -34,7 +34,7 @@ export type FormFieldType = (typeof FORM_FIELD_TYPES)[number]
 /** Types whose meaning depends on a fixed option list. */
 export const OPTION_FIELD_TYPES: readonly FormFieldType[] = ['select', 'radio', 'checkbox_group']
 
-export type FormFieldWidth = 'full' | 'half' | 'third'
+export type FormFieldWidth = 'full' | 'half' | 'third' | 'quarter' | 'sixth'
 
 export interface FormFieldDef {
   key: string
@@ -59,7 +59,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 /** Same key shape as CMS fields, and never `_`-prefixed (those are dropped as internal). */
 export const FORM_KEY_RE = /^[a-z][a-z0-9_]{0,31}$/
 const TEL_RE = /^[+\d][\d\s\-()]{2,31}$/
-const WIDTHS: readonly FormFieldWidth[] = ['full', 'half', 'third']
+const WIDTHS: readonly FormFieldWidth[] = ['full', 'half', 'third', 'quarter', 'sixth']
 
 function str(value: unknown): string {
   return String(value ?? '')

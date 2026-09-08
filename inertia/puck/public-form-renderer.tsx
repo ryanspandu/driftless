@@ -14,9 +14,12 @@ const INPUT_CLASS =
   'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
 
 function widthClass(width: FormFieldDef['width']): string {
-  if (width === 'half') return 'col-span-6 sm:col-span-3'
-  if (width === 'third') return 'col-span-6 sm:col-span-2'
-  return 'col-span-6'
+  // 12-col row; collapses to full width on mobile.
+  if (width === 'half') return 'col-span-12 sm:col-span-6'
+  if (width === 'third') return 'col-span-12 sm:col-span-4'
+  if (width === 'quarter') return 'col-span-12 sm:col-span-3'
+  if (width === 'sixth') return 'col-span-6 sm:col-span-2'
+  return 'col-span-12'
 }
 
 const TEXT_INPUT_TYPES: Record<string, string> = {
@@ -36,7 +39,7 @@ export function PublicFormFields({
   errors?: Record<string, string>
 }) {
   return (
-    <div className="grid grid-cols-6 gap-4">
+    <div className="grid grid-cols-12 gap-4">
       {fields.map((field) => (
         <div key={field.key} className={widthClass(field.width)}>
           <FieldControl field={field} error={errors?.[field.key]} />
@@ -81,7 +84,13 @@ function FieldControl({ field, error }: { field: FormFieldDef; error?: string })
   let control: React.ReactNode
   if (field.type === 'textarea') {
     control = (
-      <textarea name={field.key} rows={4} placeholder={field.placeholder} required={req} className={INPUT_CLASS} />
+      <textarea
+        name={field.key}
+        rows={4}
+        placeholder={field.placeholder}
+        required={req}
+        className={INPUT_CLASS}
+      />
     )
   } else if (field.type === 'select') {
     control = (
@@ -152,7 +161,8 @@ function FileField({ field }: { field: FormFieldDef }) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   function xsrf(): string | undefined {
-    const m = typeof document !== 'undefined' ? document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/) : null
+    const m =
+      typeof document !== 'undefined' ? document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/) : null
     return m ? decodeURIComponent(m[1]!) : undefined
   }
 

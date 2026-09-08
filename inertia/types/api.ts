@@ -813,7 +813,8 @@ export type FormFieldType =
   | 'checkbox_group'
   | 'file'
 
-export type FormFieldWidth = 'full' | 'half' | 'third'
+/** Column span in a 12-col row: full=1, half=2, third=3, quarter=4, sixth=6 per row. */
+export type FormFieldWidth = 'full' | 'half' | 'third' | 'quarter' | 'sixth'
 
 export interface FormFieldDef {
   key: string
