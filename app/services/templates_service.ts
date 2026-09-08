@@ -5,6 +5,8 @@ import PagesService from '#services/pages_service'
 import { newUlid } from '#services/ulid_service'
 import { DateTime } from 'luxon'
 import { sanitizePuckDocument } from '#services/html_sanitizer_service'
+import { CODE_TEMPLATES, COLLECTION_TEMPLATES } from '#services/custom_templates.generated'
+import { listCodeEmailTemplates } from '#services/code_email_templates'
 
 const pagesService = new PagesService()
 
@@ -17,6 +19,51 @@ const MAX_REF_DEPTH = 10
 /** Template types that can be a site-wide default (something consumes the flag). */
 const DEFAULTABLE_TYPES: TemplateType[] = ['HEADER', 'FOOTER', 'LAYOUT', 'EMAIL']
 
+/**
+ * Kit code templates (`codetpl:<kit>/…`, no DB row) as read-only list rows, so an
+ * operator sees them in Templates the way a file-page appears in Pages. The id IS
+ * the pointer — unique, and the value a page/event stores to use it. Editing is
+ * in the `.tsx` file, so these rows carry no builder/default/delete actions.
+ */
+function codeTemplateSummaries(type?: TemplateType): TemplateSummaryDto[] {
+  const wants = (t: TemplateType) => !type || type === t
+  const row = (
+    id: string,
+    name: string,
+    t: TemplateType,
+    collectionKey: string | null
+  ): TemplateSummaryDto => ({
+    id,
+    name,
+    type: t,
+    isDefault: false,
+    collectionKey,
+    createdAt: '',
+    updatedAt: '',
+    source: 'code',
+  })
+
+  const out: TemplateSummaryDto[] = []
+  for (const c of CODE_TEMPLATES) {
+    if (wants(c.type))
+      out.push(row(`codetpl:${c.kit}/${c.type.toLowerCase()}`, c.kit, c.type, null))
+  }
+  if (wants('COLLECTION')) {
+    for (const c of COLLECTION_TEMPLATES) {
+      out.push(
+        row(`codetpl:${c.kit}/collection/${c.collectionKey}`, c.kit, 'COLLECTION', c.collectionKey)
+      )
+    }
+  }
+  if (wants('EMAIL')) {
+    for (const e of listCodeEmailTemplates()) {
+      out.push(row(`codetpl:${e.kit}/email/${e.name}`, `${e.kit} · ${e.name}`, 'EMAIL', null))
+    }
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name))
+  return out
+}
+
 export interface TemplateSummaryDto {
   id: string
   name: string
@@ -26,6 +73,12 @@ export interface TemplateSummaryDto {
   collectionKey: string | null
   createdAt: string
   updatedAt: string
+  /**
+   * `'db'` — an editable row in the `templates` table. `'code'` — a kit code
+   * template (`codetpl:<kit>/…`, no DB row), listed read-only so an operator can
+   * see it exists and where to edit it, the way a file-page appears in Pages.
+   */
+  source: 'db' | 'code'
 }
 
 export interface TemplateDto extends TemplateSummaryDto {
@@ -92,11 +145,15 @@ function collectRefIds(node: unknown, acc: string[]): void {
 }
 
 export default class TemplatesService {
-  async list(type?: TemplateType): Promise<TemplateSummaryDto[]> {
+  async list(type?: TemplateType, includeCode = false): Promise<TemplateSummaryDto[]> {
     const query = Template.query().whereNull('deleted_at').orderBy('updated_at', 'desc')
     if (type) query.where('type', type)
     const rows = await query
-    return rows.map((r) => this.toSummary(r))
+    const db = rows.map((r) => this.toSummary(r))
+    // Kit code templates (no DB row) as read-only entries — the Templates
+    // analogue of file-pages in the Pages list. Only when asked: the template
+    // pickers reuse this method and add their own code options separately.
+    return includeCode ? [...db, ...codeTemplateSummaries(type)] : db
   }
 
   async find(id: string): Promise<TemplateDto> {
@@ -321,6 +378,7 @@ export default class TemplatesService {
       collectionKey: row.collectionKey ?? null,
       createdAt: row.createdAt.toISO()!,
       updatedAt: row.updatedAt.toISO()!,
+      source: 'db',
     }
   }
 

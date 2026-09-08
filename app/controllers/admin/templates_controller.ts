@@ -13,7 +13,11 @@ export default class TemplatesController {
     return abilityAllowsCode(collectUserPermissions(user), 'settings:manage')
   }
   async index({ request, response }: HttpContext) {
-    return response.json(await templatesService.list(request.qs().type || undefined))
+    const qs = request.qs()
+    // `?code=1` also lists kit code templates (read-only) — the Templates page
+    // asks for them; the template pickers do not.
+    const includeCode = qs.code === '1' || qs.code === 'true'
+    return response.json(await templatesService.list(qs.type || undefined, includeCode))
   }
 
   async show({ params, response }: HttpContext) {

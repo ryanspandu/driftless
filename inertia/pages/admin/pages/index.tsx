@@ -202,12 +202,15 @@ export default function PagesPage() {
                 <span className="truncate">{row.original.title}</span>
                 {code ? (
                   <Badge
-                    variant="outline"
+                    // A file-page has no DB row — same "lives in a kit's code"
+                    // status as a code template, so it shares that light-blue badge
+                    // (blue, not green, so it doesn't blend with "Published").
+                    variant={row.original.source === 'file' ? 'info' : 'outline'}
                     className="gap-1 whitespace-nowrap text-[10px] font-normal"
                     title={code.hint}
                   >
                     <Code2 className="size-3" />
-                    {code.label}
+                    {row.original.source === 'file' ? 'Custom code' : code.label}
                   </Badge>
                 ) : null}
               </span>

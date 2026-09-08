@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { router } from '@inertiajs/react'
 import { toast } from 'sonner'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Copy, MoreHorizontal, Plus, SquarePen, Star, Trash2 } from 'lucide-react'
+import { Code2, Copy, MoreHorizontal, Plus, SquarePen, Star, Trash2 } from 'lucide-react'
 import type { TemplateSummaryDto, TemplateType } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -54,6 +54,18 @@ function isTemplateType(value: string): value is TemplateType {
   return value in TYPE_LABEL
 }
 
+/** Where a kit code template lives, from its `codetpl:<kit>/…` id — for the hint. */
+function codeTemplatePath(id: string): string {
+  const m = id.match(/^codetpl:([^/]+)\/(.+)$/)
+  if (!m) return id
+  const [, kit, rest] = m
+  if (rest.startsWith('collection/')) return `inertia/custom/kits/${kit}/${rest}.tsx`
+  if (rest.startsWith('email/')) {
+    return `inertia/custom/kits/${kit}/emails/${rest.slice('email/'.length)}.tsx`
+  }
+  return `inertia/custom/kits/${kit}/templates/${rest}.tsx`
+}
+
 // Read the active tab from `?tab=` so views are linkable. URLs stay lowercase
 // (`?tab=header`); `all` is the default and omitted from the query string.
 function parseTemplatesTab(sp: ReturnType<typeof useSearchParams>): TabValue {
@@ -89,7 +101,9 @@ export default function TemplatesPage() {
     })
     replaceUrlIfChanged(pathname, urlRouter, merged, { scroll: false })
   }
-  const listQuery = useTemplatesList(tab === 'all' ? undefined : tab)
+  // `includeCode` so kit code templates (codetpl:<kit>/…, no DB row) appear
+  // read-only, the way file-pages show in the Pages list.
+  const listQuery = useTemplatesList(tab === 'all' ? undefined : tab, true)
   const rows = useMemo(() => listQuery.data ?? [], [listQuery.data])
   const createMut = useCreateTemplate()
   const deleteMut = useDeleteTemplate()
@@ -117,10 +131,23 @@ export default function TemplatesPage() {
         id: 'name',
         accessorFn: (r) => r.name,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-        // Primary cell: template name with its type label as muted secondary text.
+        // Primary cell: template name with its type label as muted secondary text,
+        // plus a "Code" badge marking a kit code template (managed in a .tsx file).
         cell: ({ row }) => (
           <div className="flex flex-col leading-tight">
-            <span className="font-medium">{row.original.name}</span>
+            <span className="flex items-center gap-1.5 font-medium">
+              <span className="truncate">{row.original.name}</span>
+              {row.original.source === 'code' ? (
+                <Badge
+                  variant="info"
+                  className="gap-1 whitespace-nowrap text-[10px] font-normal"
+                  title={`Edit in code: ${codeTemplatePath(row.original.id)}`}
+                >
+                  <Code2 className="size-3" />
+                  Custom code
+                </Badge>
+              ) : null}
+            </span>
             <span className="text-xs text-muted-foreground">
               {TYPE_LABEL[row.original.type] ?? row.original.type}
               {row.original.collectionKey ? ` · ${row.original.collectionKey}` : null}
@@ -154,7 +181,7 @@ export default function TemplatesPage() {
         ),
         cell: ({ row }) => (
           <div className="text-right text-xs text-muted-foreground tabular-nums">
-            {formatAdminTableDateTime(row.original.updatedAt)}
+            {row.original.updatedAt ? formatAdminTableDateTime(row.original.updatedAt) : '—'}
           </div>
         ),
       },
@@ -162,79 +189,106 @@ export default function TemplatesPage() {
         id: 'actions',
         enableSorting: false,
         header: () => <span className="sr-only">Actions</span>,
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon" className="size-8" />}
-              aria-label="Row actions"
-            >
-              <MoreHorizontal className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                className="gap-2"
-                render={
-                  <a
-                    href={`/admin/templates/${row.original.id}/edit`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
-                }
+        cell: ({ row }) => {
+          // A code template has no DB row — it is managed in its .tsx file, so
+          // every DB-backed action (builder, default, duplicate, delete) is
+          // omitted; only a disabled hint pointing at the file remains.
+          if (row.original.source === 'code') {
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="ghost" size="icon" className="size-8" />}
+                  aria-label="Row actions"
+                >
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="gap-2"
+                    disabled
+                    title={codeTemplatePath(row.original.id)}
+                  >
+                    <Code2 className="size-4" />
+                    Managed in code
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )
+          }
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="ghost" size="icon" className="size-8" />}
+                aria-label="Row actions"
               >
-                <SquarePen className="size-4" />
-                Open builder
-              </DropdownMenuItem>
-              {/* Only HEADER/FOOTER/LAYOUT/EMAIL have something that consumes a
-                  site default; COLLECTION/COMPONENT are picked by reference. */}
-              {['HEADER', 'FOOTER', 'LAYOUT', 'EMAIL'].includes(row.original.type) ? (
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   className="gap-2"
-                  disabled={row.original.isDefault}
-                  onClick={() =>
-                    void setDefaultMut
-                      .mutateAsync(row.original.id)
-                      .then(() => toast.success('Set as default'))
-                      .catch((e) => toast.error(apiErrorMessage(e, 'Failed to set default')))
+                  render={
+                    <a
+                      href={`/admin/templates/${row.original.id}/edit`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    />
                   }
                 >
-                  <Star className="size-4" />
-                  Set default
+                  <SquarePen className="size-4" />
+                  Open builder
                 </DropdownMenuItem>
-              ) : null}
-              <DropdownMenuItem
-                className="gap-2"
-                onClick={() =>
-                  void duplicateMut
-                    .mutateAsync(row.original.id)
-                    .then(() => toast.success('Template duplicated'))
-                    .catch((e) => toast.error(apiErrorMessage(e, 'Failed to duplicate')))
-                }
-              >
-                <Copy className="size-4" />
-                Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                variant="destructive"
-                className="gap-2"
-                onClick={() => {
-                  void confirmDelete({ description: 'Delete this template?' }).then(
-                    async (confirmed) => {
-                      if (!confirmed) return
-                      try {
-                        await deleteMut.mutateAsync(row.original.id)
-                      } catch (e) {
-                        toast.error(apiErrorMessage(e, 'Failed to delete'))
-                      }
+                {/* Only HEADER/FOOTER/LAYOUT/EMAIL have something that consumes a
+                  site default; COLLECTION/COMPONENT are picked by reference. */}
+                {['HEADER', 'FOOTER', 'LAYOUT', 'EMAIL'].includes(row.original.type) ? (
+                  <DropdownMenuItem
+                    className="gap-2"
+                    disabled={row.original.isDefault}
+                    onClick={() =>
+                      void setDefaultMut
+                        .mutateAsync(row.original.id)
+                        .then(() => toast.success('Set as default'))
+                        .catch((e) => toast.error(apiErrorMessage(e, 'Failed to set default')))
                     }
-                  )
-                }}
-              >
-                <Trash2 className="size-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
+                  >
+                    <Star className="size-4" />
+                    Set default
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem
+                  className="gap-2"
+                  onClick={() =>
+                    void duplicateMut
+                      .mutateAsync(row.original.id)
+                      .then(() => toast.success('Template duplicated'))
+                      .catch((e) => toast.error(apiErrorMessage(e, 'Failed to duplicate')))
+                  }
+                >
+                  <Copy className="size-4" />
+                  Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  className="gap-2"
+                  onClick={() => {
+                    void confirmDelete({ description: 'Delete this template?' }).then(
+                      async (confirmed) => {
+                        if (!confirmed) return
+                        try {
+                          await deleteMut.mutateAsync(row.original.id)
+                        } catch (e) {
+                          toast.error(apiErrorMessage(e, 'Failed to delete'))
+                        }
+                      }
+                    )
+                  }}
+                >
+                  <Trash2 className="size-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        },
       },
     ],
     [confirmDelete, deleteMut, duplicateMut, setDefaultMut]

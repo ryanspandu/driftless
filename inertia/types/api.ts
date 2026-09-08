@@ -429,6 +429,8 @@ export interface TemplateSummaryDto {
   collectionKey: string | null
   createdAt: string
   updatedAt: string
+  /** `'db'` = an editable row; `'code'` = a kit code template, listed read-only. */
+  source: 'db' | 'code'
 }
 
 export interface TemplateDto extends TemplateSummaryDto {

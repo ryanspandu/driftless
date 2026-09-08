@@ -9,17 +9,27 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '~/lib/api-client'
 
 const qk = {
-  list: (type?: TemplateType) => ['templates', 'list', type ?? 'all'] as const,
+  list: (type?: TemplateType, includeCode = false) =>
+    ['templates', 'list', type ?? 'all', includeCode ? 'code' : 'db'] as const,
   one: (id: string) => ['templates', id] as const,
 }
 
-export function useTemplatesList(type?: TemplateType) {
+/**
+ * `includeCode` merges kit code templates (`codetpl:<kit>/…`, no DB row) as
+ * read-only rows — the Templates list wants them; the Header/Footer/Layout,
+ * Email and Collection pickers do NOT (they add their code options themselves,
+ * so mixing them in here would double every entry).
+ */
+export function useTemplatesList(type?: TemplateType, includeCode = false) {
   return useQuery({
-    queryKey: qk.list(type),
-    queryFn: () =>
-      apiFetch<TemplateSummaryDto[]>(
-        type ? `/api/admin/templates?type=${type}` : '/api/admin/templates'
-      ),
+    queryKey: qk.list(type, includeCode),
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (type) params.set('type', type)
+      if (includeCode) params.set('code', '1')
+      const qs = params.toString()
+      return apiFetch<TemplateSummaryDto[]>(`/api/admin/templates${qs ? `?${qs}` : ''}`)
+    },
     staleTime: 30_000,
   })
 }
@@ -62,8 +72,7 @@ export function useUpdateTemplate() {
 export function useDeleteTemplate() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) =>
-      apiFetch<void>(`/api/admin/templates/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiFetch<void>(`/api/admin/templates/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates', 'list'] }),
   })
 }
