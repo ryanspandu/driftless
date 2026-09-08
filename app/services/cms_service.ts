@@ -2,7 +2,6 @@ import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import hash from '@adonisjs/core/services/hash'
-import dbConfig from '#config/database'
 import CmsCollection from '#models/cms_collection'
 import CmsField from '#models/cms_field'
 import CmsComponent, { type CmsComponentField } from '#models/cms_component'
@@ -10,7 +9,7 @@ import CmsRevision from '#models/cms_revision'
 import { newUlid } from '#services/ulid_service'
 import CmsPermissionsService from '#services/cms_permissions_service'
 import PagesService from '#services/pages_service'
-import { sanitizeRichText } from '#services/html_sanitizer_service'
+import { isPostgres, recordLabel, coerceFieldValue, serializeFieldValue } from '#cms/field_values'
 import { nativeFieldColumn, nativeTableName } from '#cms/native_registry'
 import {
   builtinCollection,
@@ -45,12 +44,6 @@ interface FieldDescriptor {
   sqlType: string
   allowsUnique: boolean
   allowsIndex: boolean
-}
-
-function isPostgres(): boolean {
-  const connection = dbConfig.connection
-  const client = dbConfig.connections[connection]?.client
-  return client === 'pg'
 }
 
 function slugify(input: string): string {
@@ -163,30 +156,26 @@ function dynamicTableName(key: string): string {
   return `cms_${key}`
 }
 
-/**
- * A short human label for a related record — the first non-empty of
- * title/name/label/slug, else any string field, else the id.
- *
- * Ported from the admin `recordLabel` (`inertia/components/cms/field-renderer.tsx`)
- * so the page renderer can turn a relation's target id into readable text
- * server-side. A deliberate small duplication across the server/client boundary.
- */
-function recordLabel(record: CmsRecordDto): string {
-  const data = (record.data ?? {}) as Record<string, unknown>
-  for (const k of ['title', 'name', 'label', 'slug']) {
-    const v = data[k]
-    if (typeof v === 'string' && v.trim()) return v
-  }
-  for (const v of Object.values(data)) {
-    if (typeof v === 'string' && v.trim()) return v
-  }
-  return record.id
-}
-
 /** Join table backing a many-to-many relation field. */
 function relationJoinTableName(srcKey: string, fieldKey: string): string {
   return `cms_${srcKey}_${fieldKey}`
 }
+
+/** A dynamic collection's flavour: a stand-alone table, or the built-in Content schema. */
+export type CmsCollectionType = 'COLLECTION' | 'CONTENT'
+
+/**
+ * Collection keys that are off-limits to dynamic collections: `posts` is the
+ * built-in adapter (also blocked by isBuiltinCollectionKey), and `content` /
+ * `post` are reserved so a dynamic table never shadows the built-in Content.
+ */
+const RESERVED_COLLECTION_KEYS = new Set(['content', 'post', 'posts'])
+
+/**
+ * Field keys a Content-type collection may not define — the built-in Content
+ * editor owns these natively (its own columns).
+ */
+const CONTENT_RESERVED_FIELD_KEYS = new Set(['title', 'slug', 'body', 'status'])
 
 export interface CmsCollectionDto {
   id: string
@@ -195,6 +184,7 @@ export interface CmsCollectionDto {
   icon: string | null
   group: string | null
   source: string
+  type: CmsCollectionType
   modelName?: string | null
   tableName?: string | null
   listConfig?: Record<string, unknown>
@@ -373,7 +363,10 @@ export default class CmsService {
    */
   async listBindableCollections(): Promise<CmsCollectionDto[]> {
     const builtins = await listBuiltinCollections()
-    const dynamic = await this.listCollections()
+    // Content-type collections define fields for the built-in Content, not their
+    // own records — nothing to bind a CollectionList to, so they never appear here.
+    const allDynamic = await this.listCollections()
+    const dynamic = allDynamic.filter((c) => c.type !== 'CONTENT')
     const epoch = new Date(0).toISOString()
     const mapped: CmsCollectionDto[] = builtins.map((b) => ({
       id: `builtin:${b.key}`,
@@ -382,6 +375,7 @@ export default class CmsService {
       icon: b.icon ?? null,
       group: b.group ?? 'Built-in',
       source: 'BUILTIN',
+      type: 'COLLECTION',
       revisionsOn: false,
       draftsOn: false,
       kind: 'collection',
@@ -411,11 +405,31 @@ export default class CmsService {
     return this.collectionToDto(row)
   }
 
+  /**
+   * The singleton Content-type collection (its fields extend the built-in
+   * Content editor), or null when none has been created. Used by
+   * `ContentService` to coerce + resolve a post's custom `data`.
+   */
+  async contentTypeCollection(): Promise<CmsCollectionDto | null> {
+    const row = await CmsCollection.query()
+      .where('type', 'CONTENT')
+      .whereNull('deleted_at')
+      .preload('fields', (q) => q.whereNull('deleted_at').orderBy('order'))
+      .first()
+    return row ? this.collectionToDto(row) : null
+  }
+
+  /** Fetch dynamic records by id for a given collection key (public helper for label/media resolution). */
+  async recordsByIds(targetKey: string, ids: string[]): Promise<Map<string, CmsRecordDto>> {
+    return this.findRecordsByIds(targetKey, ids)
+  }
+
   async createCollection(dto: {
     key: string
     label: string
     icon?: string
     group?: string
+    type?: CmsCollectionType
     revisionsOn?: boolean
     draftsOn?: boolean
     kind?: 'collection' | 'single'
@@ -429,10 +443,29 @@ export default class CmsService {
     }>
   }): Promise<CmsCollectionDto> {
     assertValidKey(dto.key, 'collection')
+    const type: CmsCollectionType = dto.type === 'CONTENT' ? 'CONTENT' : 'COLLECTION'
     // `posts` / `products` are answered by their adapters; a dynamic collection
     // under the same key could never be reached from the builder.
     if (isBuiltinCollectionKey(dto.key)) {
       throw new Error(`"${dto.key}" is a built-in collection — pick another key`)
+    }
+    // `content` / `post` are reserved so a dynamic table never shadows the built-in Content.
+    if (RESERVED_COLLECTION_KEYS.has(dto.key)) {
+      throw new Error(`"${dto.key}" is a reserved collection key — pick another key`)
+    }
+
+    // A Content-type collection *is* the built-in Content's schema: only one may
+    // exist, and it owns no records of its own (metadata only).
+    if (type === 'CONTENT') {
+      const existingContent = await CmsCollection.query()
+        .where('type', 'CONTENT')
+        .whereNull('deleted_at')
+        .first()
+      if (existingContent) {
+        throw new Error(
+          `A Content-type collection ("${existingContent.key}") already exists — there can be only one`
+        )
+      }
     }
 
     const existing = await CmsCollection.query()
@@ -460,11 +493,22 @@ export default class CmsService {
     // created — leaving a "zombie" collection whose cms_<key> table never existed.
     const inputFields = dto.fields ?? []
     const seenFieldKeys = new Set<string>()
+    // Relation targets are validated here, BEFORE the transaction opens: the
+    // lookup runs on the default connection, and querying it while a write
+    // transaction is open deadlocks SQLite. Cached for the in-trx seeding below.
+    const relationTargetByKey = new Map<string, CmsCollection>()
     for (const f of inputFields) {
       assertValidKey(f.key, 'field')
+      if (type === 'CONTENT' && CONTENT_RESERVED_FIELD_KEYS.has(f.key)) {
+        throw new Error(`"${f.key}" is a built-in Content field — pick another field key`)
+      }
       if (seenFieldKeys.has(f.key)) throw new Error(`Duplicate field key "${f.key}"`)
       seenFieldKeys.add(f.key)
       if (!FIELD_REGISTRY[f.type]) throw new Error(`Unknown field type "${f.type}"`)
+      if (f.type === 'RELATION') {
+        const rel = this.parseRelationConfig(f.config)
+        relationTargetByKey.set(f.key, await this.validateRelationTarget(rel.targetKey))
+      }
     }
 
     // Metadata rows + the CREATE TABLE commit together (Postgres and SQLite both
@@ -480,7 +524,10 @@ export default class CmsService {
           icon: dto.icon ?? null,
           group: dto.group ?? null,
           source: 'DYNAMIC',
-          tableName: dynamicTableName(dto.key),
+          type,
+          // A Content-type collection has no physical table of its own — its
+          // fields are stored in `contents.data`.
+          tableName: type === 'CONTENT' ? null : dynamicTableName(dto.key),
           listConfig: {},
           revisionsOn: dto.revisionsOn ?? true,
           draftsOn: dto.draftsOn ?? true,
@@ -489,9 +536,30 @@ export default class CmsService {
         { client: trx }
       )
 
-      const fields: CmsField[] = []
+      // Scalar fields become physical columns; relation fields own their own
+      // storage (join table / FK) and must be created AFTER the main table
+      // exists, so they are deferred. On a CONTENT collection every field —
+      // relations included — is metadata only (stored in `contents.data`).
+      const scalarFields: CmsField[] = []
+      const relationInputs: Array<{ input: (typeof inputFields)[number]; order: number }> = []
+
       for (let i = 0; i < inputFields.length; i++) {
         const f = inputFields[i]!
+        if (f.type === 'RELATION' && type !== 'CONTENT') {
+          relationInputs.push({ input: f, order: i })
+          continue
+        }
+
+        let config = f.config ?? {}
+        let unique = f.unique ?? false
+        // A CONTENT relation is metadata only — normalize its config (target
+        // already validated above, before the transaction).
+        if (f.type === 'RELATION') {
+          const rel = this.parseRelationConfig(f.config)
+          config = { targetKey: rel.targetKey, relationType: rel.relationType }
+          unique = false
+        }
+
         const field = await CmsField.create(
           {
             id: newUlid(),
@@ -500,23 +568,50 @@ export default class CmsService {
             label: f.label,
             type: f.type,
             required: f.required ?? false,
-            unique: f.unique ?? false,
+            unique,
             order: i,
-            config: f.config ?? {},
+            config,
           },
           { client: trx }
         )
-        fields.push(field)
+        scalarFields.push(field)
       }
 
-      await this.createDynamicTable(dto.key, fields, trx)
+      // CONTENT collections are metadata only: no table, no records permissions.
+      if (type !== 'CONTENT') {
+        await this.createDynamicTable(dto.key, scalarFields, trx)
+        // Now the source table exists — seed each relation's storage + metadata.
+        // Targets were validated before the transaction (SQLite lock safety).
+        for (const { input: f, order } of relationInputs) {
+          const rel = this.parseRelationConfig(f.config)
+          const target = relationTargetByKey.get(f.key)!
+          const { config, ddl } = this.buildRelationDdl(collection, target, f.key, rel)
+          await CmsField.create(
+            {
+              id: newUlid(),
+              collectionId: collection.id,
+              key: f.key,
+              label: f.label,
+              type: 'RELATION',
+              required: false,
+              unique: rel.relationType === 'oneToOne',
+              order,
+              config,
+            },
+            { client: trx }
+          )
+          await trx.rawQuery(ddl)
+        }
+      }
       await trx.commit()
     } catch (e) {
       await trx.rollback()
       throw e
     }
 
-    await this.permissions.mintForCollection(dto.key)
+    if (type !== 'CONTENT') {
+      await this.permissions.mintForCollection(dto.key)
+    }
     return this.findCollection(dto.key)
   }
 
@@ -529,6 +624,10 @@ export default class CmsService {
       revisionsOn?: boolean
       draftsOn?: boolean
       kind?: 'collection' | 'single'
+      /** Rename the collection's key (renames its physical storage live). */
+      key?: string
+      /** Switch COLLECTION ↔ CONTENT (allowed only while empty). */
+      type?: CmsCollectionType
     }
   ): Promise<CmsCollectionDto> {
     const collection = await CmsCollection.query()
@@ -549,7 +648,215 @@ export default class CmsService {
     }
     await collection.save()
 
-    return this.collectionToDto(collection)
+    // Type switch first (it changes whether a physical table exists), then the
+    // rename (which renames whatever storage the final type has).
+    if (dto.type !== undefined && dto.type !== (collection.type ?? 'COLLECTION')) {
+      await this.switchCollectionType(collection, dto.type)
+    }
+    if (dto.key !== undefined && dto.key !== collection.key) {
+      await this.renameCollection(collection, dto.key)
+    }
+
+    return this.findCollection(collection.key)
+  }
+
+  /**
+   * Switch a collection between COLLECTION and CONTENT — allowed only while
+   * "empty", so no records are ever dropped:
+   * - COLLECTION → CONTENT: the records table must have no rows; it (and any
+   *   relation storage) is dropped, relation fields become metadata-only, and
+   *   the singleton rule is enforced.
+   * - CONTENT → COLLECTION: no Content post may already carry custom-field data;
+   *   a fresh records table (plus relation storage) is built from the fields.
+   */
+  private async switchCollectionType(
+    collection: CmsCollection,
+    newType: CmsCollectionType
+  ): Promise<void> {
+    if (newType === 'CONTENT') {
+      const existing = await CmsCollection.query()
+        .where('type', 'CONTENT')
+        .whereNull('deleted_at')
+        .whereNot('id', collection.id)
+        .first()
+      if (existing) {
+        throw new Error(
+          `A Content-type collection ("${existing.key}") already exists — there can be only one`
+        )
+      }
+      const table = dynamicTableName(collection.key)
+      if (await db.connection().schema.hasTable(table)) {
+        const counted = await db.from(table).count('* as total')
+        if (Number((counted[0] as any)?.total ?? 0) > 0) {
+          throw new Error('Switch to Content is only allowed while the collection has no records')
+        }
+      }
+
+      const trx = await db.transaction()
+      try {
+        for (const field of collection.fields) {
+          if (field.type === 'RELATION') {
+            const cfg = field.config as {
+              relationType?: string
+              joinTable?: string
+              inverseColumn?: string
+              targetKey?: string
+            }
+            if (cfg.relationType === 'manyToMany') {
+              const joinTable = cfg.joinTable ?? relationJoinTableName(collection.key, field.key)
+              await trx.rawQuery(`DROP TABLE IF EXISTS "${joinTable}"`)
+            } else if (cfg.relationType === 'oneToMany' && cfg.targetKey) {
+              const targetTable = dynamicTableName(cfg.targetKey)
+              const col = cfg.inverseColumn ?? `${collection.key}_${field.key}`
+              if (await db.connection().schema.hasColumn(targetTable, col)) {
+                await trx.rawQuery(`ALTER TABLE "${targetTable}" DROP COLUMN "${col}"`)
+              }
+            }
+            // Strip storage-specific config — CONTENT relations keep only the shape.
+            field.useTransaction(trx)
+            field.config = { targetKey: cfg.targetKey, relationType: cfg.relationType }
+            await field.save()
+          }
+        }
+        await trx.rawQuery(`DROP TABLE IF EXISTS "${table}"`)
+        collection.type = 'CONTENT'
+        collection.tableName = null
+        collection.useTransaction(trx)
+        await collection.save()
+        await trx.commit()
+      } catch (e) {
+        await trx.rollback()
+        throw e
+      }
+      await this.permissions.removeForCollection(collection.key)
+      return
+    }
+
+    // CONTENT → COLLECTION
+    const usedRow = await db
+      .from('contents')
+      .whereNotNull('data')
+      .whereNotIn('data', ['{}', 'null', ''])
+      .first()
+    if (usedRow) {
+      throw new Error(
+        'Switch to Collection is only allowed before any Content post has saved custom-field data'
+      )
+    }
+
+    // Validate every relation target BEFORE the transaction (SQLite lock safety).
+    const relationTargets = new Map<string, CmsCollection>()
+    for (const field of collection.fields) {
+      if (field.type !== 'RELATION') continue
+      const rel = this.parseRelationConfig(field.config)
+      relationTargets.set(field.key, await this.validateRelationTarget(rel.targetKey))
+    }
+
+    const trx = await db.transaction()
+    try {
+      const scalarFields = collection.fields.filter((f) => f.type !== 'RELATION')
+      await this.createDynamicTable(collection.key, scalarFields, trx)
+      for (const field of collection.fields) {
+        if (field.type !== 'RELATION') continue
+        const rel = this.parseRelationConfig(field.config)
+        const target = relationTargets.get(field.key)!
+        const { config, ddl } = this.buildRelationDdl(collection, target, field.key, rel)
+        field.useTransaction(trx)
+        field.config = config
+        await field.save()
+        await trx.rawQuery(ddl)
+      }
+      collection.type = 'COLLECTION'
+      collection.tableName = dynamicTableName(collection.key)
+      collection.useTransaction(trx)
+      await collection.save()
+      await trx.commit()
+    } catch (e) {
+      await trx.rollback()
+      throw e
+    }
+    await this.permissions.mintForCollection(collection.key)
+  }
+
+  /**
+   * Rename a collection's key live: the metadata row, its physical table and any
+   * relation storage it owns, its revisions, and its permissions all move to the
+   * new key in one transaction. Page-builder bindings that reference the old key
+   * must be re-pointed by the operator.
+   */
+  private async renameCollection(collection: CmsCollection, newKey: string): Promise<void> {
+    assertValidKey(newKey, 'collection')
+    if (isBuiltinCollectionKey(newKey)) {
+      throw new Error(`"${newKey}" is a built-in collection — pick another key`)
+    }
+    if (RESERVED_COLLECTION_KEYS.has(newKey)) {
+      throw new Error(`"${newKey}" is a reserved collection key — pick another key`)
+    }
+    const clash = await CmsCollection.query()
+      .where('key', newKey)
+      .whereNot('id', collection.id)
+      .first()
+    if (clash) {
+      throw new Error(`A collection with key "${newKey}" already exists (it may be in the Trash)`)
+    }
+
+    const oldKey = collection.key
+    const isCollectionType = (collection.type ?? 'COLLECTION') !== 'CONTENT'
+
+    const trx = await db.transaction()
+    try {
+      if (isCollectionType) {
+        const oldTable = dynamicTableName(oldKey)
+        const newTable = dynamicTableName(newKey)
+        await trx.rawQuery(`ALTER TABLE "${oldTable}" RENAME TO "${newTable}"`)
+
+        for (const field of collection.fields) {
+          if (field.type !== 'RELATION') continue
+          const cfg = field.config as {
+            relationType?: string
+            joinTable?: string
+            inverseColumn?: string
+            targetKey?: string
+          }
+          if (cfg.relationType === 'manyToMany') {
+            const oldJoin = cfg.joinTable ?? relationJoinTableName(oldKey, field.key)
+            const newJoin = relationJoinTableName(newKey, field.key)
+            await trx.rawQuery(`ALTER TABLE "${oldJoin}" RENAME TO "${newJoin}"`)
+            field.useTransaction(trx)
+            field.config = { ...cfg, joinTable: newJoin }
+            await field.save()
+          } else if (cfg.relationType === 'oneToMany' && cfg.targetKey) {
+            const targetTable = dynamicTableName(cfg.targetKey)
+            const oldCol = cfg.inverseColumn ?? `${oldKey}_${field.key}`
+            const newCol = `${newKey}_${field.key}`
+            await trx.rawQuery(
+              `ALTER TABLE "${targetTable}" RENAME COLUMN "${oldCol}" TO "${newCol}"`
+            )
+            field.useTransaction(trx)
+            field.config = { ...cfg, inverseColumn: newCol }
+            await field.save()
+          }
+        }
+        collection.tableName = newTable
+      }
+
+      await trx
+        .from('cms_revisions')
+        .where('collection_key', oldKey)
+        .update({ collection_key: newKey })
+      collection.key = newKey
+      collection.useTransaction(trx)
+      await collection.save()
+      await trx.commit()
+    } catch (e) {
+      await trx.rollback()
+      throw e
+    }
+
+    if (isCollectionType) {
+      await this.permissions.removeForCollection(oldKey)
+      await this.permissions.mintForCollection(newKey)
+    }
   }
 
   async deleteCollection(key: string): Promise<void> {
@@ -585,9 +892,25 @@ export default class CmsService {
     const clash = await CmsCollection.query().where('key', key).whereNull('deleted_at').first()
     if (clash) throw new Error(`A collection with key "${key}" already exists`)
 
+    // Restoring must not resurrect a second Content-type collection.
+    if (collection.type === 'CONTENT') {
+      const liveContent = await CmsCollection.query()
+        .where('type', 'CONTENT')
+        .whereNull('deleted_at')
+        .first()
+      if (liveContent) {
+        throw new Error(
+          `A Content-type collection ("${liveContent.key}") already exists — there can be only one`
+        )
+      }
+    }
+
     collection.deletedAt = null
     await collection.save()
-    await this.permissions.mintForCollection(key)
+    // CONTENT collections mint no records permissions (they have no records).
+    if (collection.type !== 'CONTENT') {
+      await this.permissions.mintForCollection(key)
+    }
     return this.collectionToDto(collection)
   }
 
@@ -709,6 +1032,10 @@ export default class CmsService {
 
     if (collection.source !== 'DYNAMIC') throw new Error('Native collections are read-only')
 
+    if (collection.type === 'CONTENT' && CONTENT_RESERVED_FIELD_KEYS.has(dto.key)) {
+      throw new Error(`"${dto.key}" is a built-in Content field — pick another field key`)
+    }
+
     const existing = collection.fields.find((f) => f.key === dto.key)
     if (existing) throw new Error(`Field "${dto.key}" already exists`)
 
@@ -718,6 +1045,12 @@ export default class CmsService {
     if (!desc) throw new Error(`Unknown field type "${dto.type}"`)
 
     const order = collection.fields.length
+
+    // A Content-type collection has no physical table — every field (relation
+    // included) is metadata only, stored in `contents.data`. No DDL at all.
+    if (collection.type === 'CONTENT') {
+      return this.addContentTypeField(collection, dto, order)
+    }
 
     if (dto.type === 'RELATION') {
       return this.addRelationField(collection, dto, order)
@@ -765,6 +1098,51 @@ export default class CmsService {
     }
   }
 
+  /**
+   * Persist a field on a Content-type collection: metadata only, no DDL. A
+   * relation just records its target + cardinality in `config` (its ids live in
+   * `contents.data[key]`); the target must be a real records collection, never
+   * another Content-type collection.
+   */
+  private async addContentTypeField(
+    collection: CmsCollection,
+    dto: {
+      key: string
+      label: string
+      type: CmsFieldType
+      config?: Record<string, unknown>
+    },
+    order: number
+  ): Promise<CmsFieldDto> {
+    let config: Record<string, unknown> = dto.config ?? {}
+
+    if (dto.type === 'RELATION') {
+      const rel = this.parseRelationConfig(dto.config)
+      const target = await CmsCollection.query()
+        .where('key', rel.targetKey)
+        .whereNull('deleted_at')
+        .first()
+      if (!target || target.source !== 'DYNAMIC' || target.type === 'CONTENT') {
+        throw new Error(`Relation target "${rel.targetKey}" must be an existing records collection`)
+      }
+      config = { targetKey: rel.targetKey, relationType: rel.relationType }
+    }
+
+    const field = await CmsField.create({
+      id: newUlid(),
+      collectionId: collection.id,
+      key: dto.key,
+      label: dto.label,
+      type: dto.type,
+      required: false,
+      // No physical column, so there is no DB-level uniqueness to enforce.
+      unique: false,
+      order,
+      config,
+    })
+    return this.fieldToDto(field)
+  }
+
   private parseRelationConfig(config: Record<string, unknown> | undefined): {
     targetKey: string
     relationType: CmsRelationType
@@ -789,30 +1167,40 @@ export default class CmsService {
    * - oneToMany → an inverse FK column on the target table.
    * The CmsField row + the DDL commit together in a transaction.
    */
-  private async addRelationField(
-    collection: CmsCollection,
-    dto: { key: string; label: string; config?: Record<string, unknown> },
-    order: number
-  ): Promise<CmsFieldDto> {
-    const rel = this.parseRelationConfig(dto.config)
-
+  /**
+   * Validate a relation target: it must be an existing, non-deleted dynamic
+   * records collection (never a native or Content-type collection).
+   */
+  private async validateRelationTarget(targetKey: string): Promise<CmsCollection> {
     const target = await CmsCollection.query()
-      .where('key', rel.targetKey)
+      .where('key', targetKey)
       .whereNull('deleted_at')
       .first()
     if (!target) {
       throw new Error(
-        `Relation target "${rel.targetKey}" does not exist — create that collection first ` +
+        `Relation target "${targetKey}" does not exist — create that collection first ` +
           `(relations can only point at dynamic collections)`
       )
     }
-    if (target.source !== 'DYNAMIC') {
-      throw new Error('Relations can only target dynamic collections')
+    if (target.source !== 'DYNAMIC' || target.type === 'CONTENT') {
+      throw new Error('Relations can only target dynamic records collections')
     }
+    return target
+  }
 
+  /**
+   * Build the `config` + `ddl` for a relation field on a records collection.
+   * Pure (no DB) — the caller runs the DDL on whatever transaction it owns, so
+   * this is shared by post-create `addRelationField` and create-time seeding.
+   */
+  private buildRelationDdl(
+    collection: CmsCollection,
+    target: CmsCollection,
+    fieldKey: string,
+    rel: { targetKey: string; relationType: CmsRelationType }
+  ): { config: Record<string, unknown>; ddl: string } {
     const srcTable = dynamicTableName(collection.key)
     const targetTable = dynamicTableName(target.key)
-
     const config: Record<string, unknown> = {
       targetKey: rel.targetKey,
       relationType: rel.relationType,
@@ -820,7 +1208,7 @@ export default class CmsService {
     let ddl: string
 
     if (rel.relationType === 'manyToMany') {
-      const joinTable = relationJoinTableName(collection.key, dto.key)
+      const joinTable = relationJoinTableName(collection.key, fieldKey)
       config.joinTable = joinTable
       ddl =
         `CREATE TABLE IF NOT EXISTS "${joinTable}" (` +
@@ -829,7 +1217,7 @@ export default class CmsService {
         `PRIMARY KEY ("source_id", "target_id"))`
     } else if (rel.relationType === 'oneToMany') {
       // The "many" side (target) holds the FK back to this record.
-      const inverseColumn = `${collection.key}_${dto.key}`
+      const inverseColumn = `${collection.key}_${fieldKey}`
       if (inverseColumn.length > 63) {
         throw new Error('Relation key is too long for a one-to-many column')
       }
@@ -841,9 +1229,21 @@ export default class CmsService {
       // manyToOne / oneToOne: a single FK column on the source row.
       const uniqueClause = rel.relationType === 'oneToOne' ? ' UNIQUE' : ''
       ddl =
-        `ALTER TABLE "${srcTable}" ADD COLUMN "${dto.key}" TEXT NULL${uniqueClause} ` +
+        `ALTER TABLE "${srcTable}" ADD COLUMN "${fieldKey}" TEXT NULL${uniqueClause} ` +
         `REFERENCES "${targetTable}" ("id") ON DELETE SET NULL`
     }
+
+    return { config, ddl }
+  }
+
+  private async addRelationField(
+    collection: CmsCollection,
+    dto: { key: string; label: string; config?: Record<string, unknown> },
+    order: number
+  ): Promise<CmsFieldDto> {
+    const rel = this.parseRelationConfig(dto.config)
+    const target = await this.validateRelationTarget(rel.targetKey)
+    const { config, ddl } = this.buildRelationDdl(collection, target, dto.key, rel)
 
     const trx = await db.transaction()
     try {
@@ -997,6 +1397,13 @@ export default class CmsService {
       .where('key', fieldKey)
       .whereNull('deleted_at')
       .firstOrFail()
+
+    // Content-type fields own no physical schema — just soft-delete the metadata.
+    if (collection.type === 'CONTENT') {
+      field.deletedAt = DateTime.now()
+      await field.save()
+      return
+    }
 
     if (field.type === 'RELATION') {
       // Relations own real schema (FK column, join table, or inverse FK) — drop
@@ -1383,6 +1790,7 @@ export default class CmsService {
     if (collection.source === 'PRISMA' && collectionKey === 'user') {
       throw new Error('User records must be created via Admin → Users')
     }
+    this.assertNotContentType(collection)
 
     const table = this.tableForCollection(collection)
 
@@ -1399,10 +1807,6 @@ export default class CmsService {
       (typeof data.status === 'string' && data.status) ||
       (collection.draftsOn ? 'DRAFT' : 'PUBLISHED')
     const now = new Date().toISOString()
-
-    if (collectionKey === 'content') {
-      await this.assertContentSlugAvailable(String(data.slug ?? ''), undefined)
-    }
 
     const payload: Record<string, unknown> = {
       status,
@@ -1432,7 +1836,7 @@ export default class CmsService {
       }
       // many-to-many / one-to-many live outside the row — synced after insert.
       if (this.isMultiRelation(field)) continue
-      payload[col] = this.serializeFieldValue(field.type, val)
+      payload[col] = serializeFieldValue(field.type, val)
     }
 
     // The row insert, relation sync and initial revision commit together, so a
@@ -1496,6 +1900,7 @@ export default class CmsService {
     if (collection.source === 'PRISMA' && collectionKey === 'user') {
       throw new Error('User records must be updated via Admin → Users')
     }
+    this.assertNotContentType(collection)
 
     const table = this.tableForCollection(collection)
     const existing = await db.from(table).where('id', id).whereNull('deleted_at').first()
@@ -1508,9 +1913,6 @@ export default class CmsService {
     if (dto.data) {
       const data = this.prepareRecordData(collection, dto.data, { partial: true })
       preparedData = data
-      if (collectionKey === 'content' && data.slug !== undefined) {
-        await this.assertContentSlugAvailable(String(data.slug), id)
-      }
       for (const field of collection.fields) {
         if (!(field.key in data)) continue
         const col = this.fieldToColumn(collection, field.key)
@@ -1525,7 +1927,7 @@ export default class CmsService {
         }
         // many-to-many / one-to-many live outside the row — synced below.
         if (this.isMultiRelation(field)) continue
-        payload[col] = this.serializeFieldValue(field.type, data[field.key])
+        payload[col] = serializeFieldValue(field.type, data[field.key])
       }
     }
 
@@ -1651,7 +2053,21 @@ export default class CmsService {
       .whereNull('deleted_at')
       .preload('fields', (q) => q.whereNull('deleted_at').orderBy('order'))
       .firstOrFail()
+    this.assertNotContentType(collection)
     return { table: this.tableForCollection(collection), collection }
+  }
+
+  /**
+   * A Content-type collection owns no table of its own — its "records" are the
+   * built-in Content posts (`/admin/content`), not generic CMS records. Guards
+   * every records path so a stray call can't hit a non-existent `cms_<key>` table.
+   */
+  private assertNotContentType(collection: CmsCollection): void {
+    if (collection.type === 'CONTENT') {
+      throw new Error(
+        `"${collection.key}" is a Content-type collection — its entries are managed in Admin → Content, not as generic records`
+      )
+    }
   }
 
   private tableForCollection(collection: CmsCollection): string {
@@ -1746,7 +2162,7 @@ export default class CmsService {
       // Coerce + validate typed scalars whenever a value is supplied
       // (applies to both create and partial update).
       if (field.key in out) {
-        out[field.key] = this.coerceFieldValue(field, out[field.key])
+        out[field.key] = coerceFieldValue(field, out[field.key])
       }
 
       if (opts?.partial) continue
@@ -1764,42 +2180,6 @@ export default class CmsService {
     return out
   }
 
-  /**
-   * Coerce + validate a supplied scalar value by field type. Throws a
-   * user-facing error for malformed input. Empty/nullish values pass through —
-   * required-ness is enforced separately in {@link prepareRecordData}.
-   */
-  private coerceFieldValue(field: CmsField, val: unknown): unknown {
-    if (val === undefined || val === null || val === '') return val
-    switch (field.type) {
-      case 'EMAIL': {
-        const s = String(val).trim()
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) {
-          throw new Error(`${field.label} must be a valid email address`)
-        }
-        return s
-      }
-      case 'INTEGER': {
-        const n = Number(val)
-        if (!Number.isFinite(n) || !Number.isInteger(n)) {
-          throw new Error(`${field.label} must be a whole number`)
-        }
-        return n
-      }
-      case 'DECIMAL': {
-        const n = Number(val)
-        if (!Number.isFinite(n)) {
-          throw new Error(`${field.label} must be a number`)
-        }
-        return n
-      }
-      case 'RICHTEXT':
-        return sanitizeRichText(val)
-      default:
-        return val
-    }
-  }
-
   private rethrowDbError(e: unknown): Error {
     const msg = e instanceof Error ? e.message : String(e)
     if (msg.includes('null value in column "slug"')) {
@@ -1809,26 +2189,6 @@ export default class CmsService {
       return new Error('Slug already in use')
     }
     return e instanceof Error ? e : new Error(msg)
-  }
-
-  private async assertContentSlugAvailable(slug: string, excludeId?: string): Promise<void> {
-    if (!slug) throw new Error('Slug is required')
-    let q = db.from('contents').where('slug', slug).whereNull('deleted_at')
-    if (excludeId) q = q.whereNot('id', excludeId)
-    const existing = await q.first()
-    if (existing) throw new Error('Slug already in use')
-  }
-
-  private serializeFieldValue(type: string, val: unknown): unknown {
-    if (val === undefined || val === null) return null
-    if (type === 'JSON' || type === 'RICHTEXT' || type === 'REPEATABLE' || type === 'COMPONENT') {
-      return typeof val === 'string' ? val : JSON.stringify(val)
-    }
-    if (type === 'BOOL') {
-      if (isPostgres()) return Boolean(val)
-      return val ? 1 : 0
-    }
-    return val
   }
 
   /** Null out write-only fields (PASSWORD) so secrets never leave the server. */
@@ -1881,6 +2241,7 @@ export default class CmsService {
       icon: col.icon,
       group: col.group,
       source: col.source,
+      type: col.type ?? 'COLLECTION',
       modelName: col.modelName,
       tableName: col.tableName,
       listConfig: col.listConfig ?? {},

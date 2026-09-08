@@ -18,6 +18,8 @@ const PATH_NAV: { prefix: string; nav: string }[] = [
   { prefix: '/admin/templates', nav: 'UI' },
   { prefix: '/admin/media', nav: 'Media' },
   { prefix: '/admin/cms/collections', nav: 'Collections' },
+  { prefix: '/admin/cms/components', nav: 'Collections' },
+  { prefix: '/admin/ui/template-kits', nav: 'UI' },
   /**
    * `/admin/integrations` is deliberately absent. It is reached from the
    * Settings hub rather than the sidebar, so there is no menu to hide — and

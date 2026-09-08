@@ -34,10 +34,14 @@ function toRecord(row: Content): CmsRecordDto {
     status: 'PUBLISHED',
     authorId: row.authorId === null || row.authorId === undefined ? null : String(row.authorId),
     data: {
+      // Custom fields (Content-type collection) first, so the built-in keys
+      // below always win on any name clash.
+      ...(row.data ?? {}),
       title: row.title,
       slug,
       excerpt: excerptOf(row.body),
       body: row.body,
+      featuredImage: row.featuredImage ?? null,
       url: `${POST_PATH_PREFIX}/${encodeURIComponent(slug)}`,
       author: row.author?.fullName ?? null,
       publishedAt: row.createdAt.toISO(),

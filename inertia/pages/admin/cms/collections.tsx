@@ -1,8 +1,8 @@
 import { Link } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { List, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-react'
-import type { CmsCollectionDto } from '~/types/api'
+import { Download, List, MoreHorizontal, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react'
+import type { CmsCollectionDto, CreateCmsCollectionRequest } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -17,11 +17,14 @@ import { DataTableColumnHeader } from '~/components/data-table'
 import { TrashModal } from '~/components/trash-modal'
 import {
   useCmsCollectionsList,
+  useCreateCmsCollection,
   useDeleteCmsCollection,
   useForceDeleteCmsCollection,
   useRestoreCmsCollection,
   useTrashedCmsCollections,
 } from '~/hooks/api/use-cms-collections'
+import { ImportJsonDialog } from '~/components/admin/import-json-dialog'
+import { downloadJson, fileStem } from '~/lib/export-download'
 import { formatAdminTableDateTime } from '~/lib/utils'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { cmsRecordListPath } from '~/components/cms/cms-record-actions'
@@ -32,6 +35,34 @@ import {
 import { useAbility } from '~/components/providers/ability-provider'
 
 type CollectionPermissions = ReturnType<typeof useAbility>['permissions']
+
+const COLLECTION_EXPORT_TYPE = 'driftless.collection'
+
+/** Serialize a collection's schema (no records) and trigger a JSON download. */
+function exportCollection(c: CmsCollectionDto): void {
+  downloadJson(fileStem(c.key, 'collection'), {
+    _type: COLLECTION_EXPORT_TYPE,
+    version: 1,
+    collection: {
+      key: c.key,
+      label: c.label,
+      icon: c.icon,
+      group: c.group,
+      type: c.type,
+      kind: c.kind,
+      revisionsOn: c.revisionsOn,
+      draftsOn: c.draftsOn,
+      fields: c.fields.map((f) => ({
+        key: f.key,
+        label: f.label,
+        type: f.type,
+        required: f.required,
+        unique: f.unique,
+        config: f.config,
+      })),
+    },
+  })
+}
 
 /** Strapi-style collection card: icon tile + name + meta + actions menu. */
 function CollectionCard({
@@ -117,6 +148,15 @@ function CollectionCard({
                   Edit schema
                 </DropdownMenuItem>
               ) : null}
+              {canManageSchema ? (
+                <DropdownMenuItem
+                  className="gap-2 cursor-pointer"
+                  onClick={() => exportCollection(collection)}
+                >
+                  <Download className="size-4" />
+                  Export JSON
+                </DropdownMenuItem>
+              ) : null}
               {canDeleteCollection ? (
                 <DropdownMenuItem
                   variant="destructive"
@@ -178,9 +218,18 @@ export default function CmsCollectionsPage() {
   const trashedQuery = useTrashedCmsCollections()
   const restoreMut = useRestoreCmsCollection()
   const forceMut = useForceDeleteCmsCollection()
+  const createMut = useCreateCmsCollection()
   const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data])
   const [trashOpen, setTrashOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const canManageSchema = permissions.canManageCms()
+
+  const onImportCollection = async (parsed: unknown) => {
+    const body = (parsed as { collection?: unknown }).collection
+    if (!body || typeof body !== 'object') throw new Error('This export has no collection.')
+    await createMut.mutateAsync(body as CreateCmsCollectionRequest)
+  }
 
   const handleDelete = (key: string) => {
     void confirmDelete({
@@ -285,6 +334,12 @@ export default function CmsCollectionsPage() {
         actions={
           <div className="flex items-center gap-2">
             {trashButton}
+            {canManageSchema ? (
+              <Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+                <Upload className="size-4" />
+                Import
+              </Button>
+            ) : null}
             <Button className="gap-2" render={<Link href="/admin/cms/collections/new" />}>
               <Plus className="size-4" />
               New collection
@@ -363,6 +418,17 @@ export default function CmsCollectionsPage() {
         }}
         onForceDelete={(id) => forceMut.mutateAsync(id)}
         emptyMessage="No deleted collections."
+      />
+
+      <ImportJsonDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="Import collection"
+        description="Recreates the collection schema. Referenced relation targets must already exist."
+        expectedType={COLLECTION_EXPORT_TYPE}
+        expectedLabel="collection"
+        successMessage="Collection imported"
+        onImport={onImportCollection}
       />
     </div>
   )

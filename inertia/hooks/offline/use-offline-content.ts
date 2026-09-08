@@ -182,6 +182,8 @@ export function useOfflineContent(): UseOfflineContentResult {
         slug: input.slug,
         body: input.body,
         status: input.status as ContentStatus,
+        featuredImage: input.featuredImage ?? null,
+        data: input.data ?? null,
         authorId: null,
         createdAt: now,
         updatedAt: now,
@@ -325,6 +327,8 @@ export function useOfflineContent(): UseOfflineContentResult {
         slug: d.slug,
         body: d.body,
         status: d.status,
+        featuredImage: d.featuredImage ?? null,
+        data: d.data ?? null,
       };
       await store.enqueueJob(
         buildJob({

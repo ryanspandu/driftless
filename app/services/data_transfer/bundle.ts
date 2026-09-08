@@ -57,13 +57,22 @@ export async function packArchive(files: ArchiveFile[]): Promise<Buffer> {
   return Buffer.concat(chunks)
 }
 
-/** Read a `.driftless` archive into a map of safe entry name → bytes. */
-export async function readArchive(buf: Buffer): Promise<Map<string, Buffer>> {
+/**
+ * Read a gzipped-tar archive into a map of safe entry name → bytes. Every entry
+ * name is run through `safeName`, which returns a normalized name to keep or
+ * `null` to drop it (traversal / disallowed layout). Defaults to the
+ * `.driftless` site-export layout; callers with a different layout (e.g. a kit
+ * bundle) pass their own guard.
+ */
+export async function readArchive(
+  buf: Buffer,
+  safeName: (raw: string) => string | null = safeEntryName
+): Promise<Map<string, Buffer>> {
   const out = new Map<string, Buffer>()
   const extractor = tarExtract()
 
   extractor.on('entry', (headers, stream, next) => {
-    const name = safeEntryName(headers.name)
+    const name = safeName(headers.name)
     if (!name) {
       stream.resume() // discard a disallowed entry
       stream.on('end', () => next())

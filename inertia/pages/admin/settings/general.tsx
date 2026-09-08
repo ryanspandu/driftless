@@ -46,11 +46,18 @@ const CORE_NAV: {
   {
     title: 'UI',
     hideable: true,
-    children: ['Content', 'Pages', 'Templates', 'Menus', 'Website settings', 'Redirects'],
+    children: [
+      'Content',
+      'Pages',
+      'Templates',
+      'Menus',
+      'Website settings',
+      'Redirects',
+      'Template Kit',
+    ],
   },
   { title: 'Media', hideable: true },
-  { title: 'Collections', hideable: true },
-  { title: 'Components' },
+  { title: 'Collections', hideable: true, children: ['Collections', 'Components'] },
   { title: 'User Management', hideable: true, children: ['Users', 'Roles', 'Permissions'] },
   { title: 'Settings', pinned: true },
 ]

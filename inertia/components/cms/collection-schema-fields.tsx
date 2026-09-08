@@ -9,7 +9,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Loader2, Pencil, Plus, Trash2, Workflow, X } from 'lucide-react'
+import { ArrowLeft, GripVertical, Loader2, Pencil, Plus, Trash2, Workflow, X } from 'lucide-react'
 import type { AddCmsFieldRequest, CmsCollectionDto, CmsFieldType } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -609,11 +609,23 @@ export function AddFieldDialog({
             <X className="size-4" />
           </button>
           <DialogHeader>
-            <DialogTitle>Add field</DialogTitle>
+            <div className="flex items-center gap-2">
+              {step === 'config' ? (
+                <button
+                  type="button"
+                  onClick={() => setStep('type')}
+                  aria-label="Back to all field types"
+                  className="-ml-1 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <ArrowLeft className="size-4" />
+                </button>
+              ) : null}
+              <DialogTitle>Add field</DialogTitle>
+            </div>
             <DialogDescription>
               {step === 'type'
                 ? 'Select a field type for this collection.'
-                : 'Name the field and set its constraints.'}
+                : 'Pick another type, or name the field and set its constraints.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -786,42 +798,45 @@ export function AddFieldDialog({
                 />
               ) : null}
 
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor={labelId}>Label</Label>
-                  <Input
-                    id={labelId}
-                    value={draft.label}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
-                    placeholder="e.g. Hero image"
-                    autoComplete="off"
-                    autoFocus
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={keyId}>Key</Label>
-                  <Input
-                    id={keyId}
-                    value={draft.key}
-                    onChange={(e) =>
-                      setDraft((prev) => ({
-                        ...prev,
-                        key: e.target.value.toLowerCase(),
-                      }))
-                    }
-                    placeholder="hero_image"
-                    autoComplete="off"
-                    spellCheck={false}
-                    className="font-mono text-sm"
-                    aria-invalid={!!keyMessage}
-                    aria-describedby={keyMessage ? `${keyId}-err` : undefined}
-                  />
-                  <div className="min-h-[1.25rem]">
-                    {keyMessage ? (
-                      <p id={`${keyId}-err`} className="text-xs text-destructive">
-                        {keyMessage}
-                      </p>
-                    ) : null}
+              <div className="rounded-lg border border-border/80 bg-muted/35 p-4">
+                <p className="mb-3 text-xs font-medium text-muted-foreground">Details</p>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor={labelId}>Label</Label>
+                    <Input
+                      id={labelId}
+                      value={draft.label}
+                      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
+                      placeholder="e.g. Hero image"
+                      autoComplete="off"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={keyId}>Key</Label>
+                    <Input
+                      id={keyId}
+                      value={draft.key}
+                      onChange={(e) =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          key: e.target.value.toLowerCase(),
+                        }))
+                      }
+                      placeholder="hero_image"
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="font-mono text-sm"
+                      aria-invalid={!!keyMessage}
+                      aria-describedby={keyMessage ? `${keyId}-err` : undefined}
+                    />
+                    <div className="min-h-[1.25rem]">
+                      {keyMessage ? (
+                        <p id={`${keyId}-err`} className="text-xs text-destructive">
+                          {keyMessage}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </div>

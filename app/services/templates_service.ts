@@ -286,6 +286,48 @@ export default class TemplatesService {
     return this.toDto(row)
   }
 
+  /** A portable JSON bundle for a single DB template (no id/timestamps/default flag). */
+  async exportTemplate(id: string): Promise<Record<string, unknown>> {
+    const t = await Template.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    return {
+      _type: 'driftless.template',
+      version: 1,
+      name: t.name,
+      type: t.type,
+      content: t.content,
+      collectionKey: t.collectionKey,
+      renderedHtml: t.type === 'EMAIL' ? t.renderedHtml : null,
+    }
+  }
+
+  /**
+   * Create a fresh template from an exported bundle. Always a brand-new,
+   * non-default row with sanitized content — mirrors how `duplicate` clones and
+   * how page import forces a draft. The caller (controller) enforces the
+   * privileged-content gate first, since `content` is attacker-controllable.
+   */
+  async importTemplate(payload: unknown): Promise<TemplateDto> {
+    if (!payload || typeof payload !== 'object') throw new Error('Invalid template file.')
+    const p = payload as Record<string, unknown>
+    if (p._type !== 'driftless.template') throw new Error('Not a Driftless template export.')
+    const type = p.type as TemplateType
+    const VALID: TemplateType[] = ['HEADER', 'FOOTER', 'COMPONENT', 'LAYOUT', 'EMAIL', 'COLLECTION']
+    if (!VALID.includes(type)) throw new Error('Unknown template type.')
+    const name = (typeof p.name === 'string' && p.name.trim()) || 'Imported template'
+
+    const row = await Template.create({
+      id: newUlid(),
+      name,
+      type,
+      content: sanitizePuckDocument((p.content as Record<string, unknown>) ?? EMPTY_DOC),
+      renderedHtml: type === 'EMAIL' && typeof p.renderedHtml === 'string' ? p.renderedHtml : null,
+      isDefault: false,
+      collectionKey: this.collectionKeyFor(type, (p.collectionKey as string | null) ?? null),
+    })
+    if (row.type !== 'EMAIL') await pagesService.invalidateAllSnapshots()
+    return this.toDto(row)
+  }
+
   /** The site default template for a type, or null. */
   async getDefault(type: TemplateType): Promise<TemplateDto | null> {
     const row = await Template.query()

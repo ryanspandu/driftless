@@ -11,6 +11,9 @@ const createContentValidator = vine.compile(
     slug: vine.string().trim().minLength(1),
     body: vine.string(),
     status: vine.enum(['DRAFT', 'PUBLISHED'] as const).optional(),
+    featuredImage: vine.string().nullable().optional(),
+    // Custom fields defined by the Content-type collection; coerced + filtered server-side.
+    data: vine.object({}).allowUnknownProperties().nullable().optional(),
   })
 )
 
@@ -20,6 +23,8 @@ const updateContentValidator = vine.compile(
     slug: vine.string().trim().minLength(1).optional(),
     body: vine.string().optional(),
     status: vine.enum(['DRAFT', 'PUBLISHED'] as const).optional(),
+    featuredImage: vine.string().nullable().optional(),
+    data: vine.object({}).allowUnknownProperties().nullable().optional(),
   })
 )
 
@@ -70,6 +75,8 @@ export default class ContentController {
         slug: payload.slug,
         body: payload.body,
         status: payload.status ?? 'DRAFT',
+        featuredImage: payload.featuredImage ?? null,
+        data: payload.data ?? null,
       })
       return response.status(201).json(item)
     } catch (e) {

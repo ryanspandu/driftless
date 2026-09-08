@@ -25,6 +25,11 @@ export default class CmsCollection extends BaseModel {
   @column()
   declare source: 'PRISMA' | 'DYNAMIC'
 
+  // COLLECTION = a dynamic collection with its own `cms_<key>` table.
+  // CONTENT = metadata-only; its fields extend the built-in Content editor.
+  @column()
+  declare type: 'COLLECTION' | 'CONTENT'
+
   @column()
   declare modelName: string | null
 

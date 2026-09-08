@@ -22,6 +22,18 @@ export default class Content extends BaseModel {
   @column()
   declare status: 'DRAFT' | 'PUBLISHED'
 
+  // Native featured image / thumbnail: a media URL (`/uploads/…`).
+  @column()
+  declare featuredImage: string | null
+
+  // Custom fields defined by the Content-type collection, keyed by field key.
+  // Stored as one JSON blob; mirrors `CmsCollection.listConfig`'s round-trip.
+  @column({
+    prepare: (v) => (v === null || v === undefined ? null : JSON.stringify(v)),
+    consume: (v) => (typeof v === 'string' ? JSON.parse(v) : (v ?? null)),
+  })
+  declare data: Record<string, unknown> | null
+
   @column()
   declare authorId: number | null
 

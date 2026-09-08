@@ -1,16 +1,18 @@
-import { Link } from '@inertiajs/react'
+import { Link, router } from '@inertiajs/react'
 import { useUrlState } from '~/hooks/use-url-state'
 import { useEffect, useMemo, useState } from 'react'
 import { Loader2, Save, Trash2 } from 'lucide-react'
-import type { CmsCollectionDto } from '~/types/api'
+import type { CmsCollectionDto, CmsCollectionType } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent } from '~/components/ui/card'
 import { Switch } from '~/components/ui/switch'
+import { AppSelect } from '~/components/ui/app-select'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { BackButton } from '~/components/admin/back-button'
 import { AddFieldDialog, ExistingFieldsCard } from '~/components/cms/collection-schema-fields'
+import { keyHint } from '~/components/cms/schema-builder'
 import {
   useAddCmsField,
   useCmsCollection,
@@ -42,6 +44,8 @@ import {
  * adding/removing fields at runtime.
  */
 interface SettingsForm {
+  key: string
+  type: CmsCollectionType
   label: string
   icon: string
   group: string
@@ -52,6 +56,8 @@ interface SettingsForm {
 
 function baselineOf(c: CmsCollectionDto): SettingsForm {
   return {
+    key: c.key,
+    type: c.type ?? 'COLLECTION',
     label: c.label,
     icon: c.icon ?? 'LayoutList',
     group: c.group ?? '',
@@ -106,20 +112,29 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
   // Until the user edits, mirror the server values (no flash, no init effect).
   const activeForm = form ?? baseline
   const dirty = !!form && !!baseline && JSON.stringify(form) !== JSON.stringify(baseline)
+  const keyInvalid = !!activeForm && !!keyHint(activeForm.key)
 
   const handleSave = async () => {
     if (!form) return
     setSaving(true)
     setSaveError(null)
     try {
-      await updateMut.mutateAsync({
+      const updated = await updateMut.mutateAsync({
         label: form.label,
         icon: form.icon.trim() ? form.icon.trim() : null,
         group: form.group.trim() ? form.group.trim() : null,
         revisionsOn: form.revisionsOn,
         draftsOn: form.draftsOn,
         kind: form.kind,
+        key: form.key.trim(),
+        type: form.type,
       })
+      // A key rename moves the page — the URL is keyed by the collection key.
+      if (updated.key !== key) {
+        router.visit(`/admin/cms/collections/${encodeURIComponent(updated.key)}`)
+        return
+      }
+      setForm(null)
     } catch (e) {
       setSaveError((e as Error).message)
     } finally {
@@ -132,7 +147,7 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
   const HeaderIcon = resolveCollectionLucideIcon(headerIcon || 'LayoutList')
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-8">
       <div className="flex items-center gap-3">
         <BackButton href="/admin/cms/collections" label="Back to collections" />
         <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/50 text-foreground/80">
@@ -149,7 +164,9 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
               {collection?.label ?? key}
             </h1>
             {collection ? (
-              <Badge variant="secondary">{isNative ? 'Native' : 'Dynamic'}</Badge>
+              <Badge variant="secondary">
+                {isNative ? 'Native' : collection.type === 'CONTENT' ? 'Content' : 'Dynamic'}
+              </Badge>
             ) : null}
           </div>
           <p className="text-sm text-muted-foreground">
@@ -167,9 +184,17 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
           <Button
             variant="outline"
             className="hidden shrink-0 gap-2 sm:inline-flex"
-            render={<Link href={`/admin/cms/${encodeURIComponent(collection.key)}`} />}
+            render={
+              <Link
+                href={
+                  collection.type === 'CONTENT'
+                    ? '/admin/content'
+                    : `/admin/cms/${encodeURIComponent(collection.key)}`
+                }
+              />
+            }
           >
-            Open records →
+            {collection.type === 'CONTENT' ? 'Open Content →' : 'Open records →'}
           </Button>
         ) : null}
       </div>
@@ -225,7 +250,9 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
                   <AddFieldDialog
                     disabled={addFieldMut.isPending}
                     existingKeys={collection.fields.map((f) => f.key)}
-                    relationTargets={(listQuery.data ?? []).filter((c) => c.source === 'DYNAMIC')}
+                    relationTargets={(listQuery.data ?? []).filter(
+                      (c) => c.source === 'DYNAMIC' && c.type !== 'CONTENT'
+                    )}
                     siblingFields={collection.fields}
                     onAdd={(body) => addFieldMut.mutateAsync(body)}
                     // A field added to an existing collection must be optional —
@@ -240,7 +267,7 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
       ) : null}
 
       {collection && activeForm && !isNative ? (
-        <div className="sticky bottom-4 z-20 flex w-full items-center justify-between gap-3 rounded-xl border bg-card px-4 py-2.5 shadow-sm">
+        <div className="flex w-full items-center justify-between gap-3 rounded-xl border bg-card px-4 py-2.5 shadow-sm">
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
             {dirty ? (
               <>
@@ -263,7 +290,7 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
             <Button
               type="button"
               onClick={handleSave}
-              disabled={saving || !dirty}
+              disabled={saving || !dirty || keyInvalid}
               className="gap-2"
             >
               {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
@@ -339,6 +366,8 @@ function SettingsPanel({
   error: string | null
 }) {
   const set = (patch: Partial<SettingsForm>) => onChange({ ...form, ...patch })
+  const isContent = form.type === 'CONTENT'
+  const keyError = keyHint(form.key)
 
   return (
     <Card>
@@ -358,6 +387,24 @@ function SettingsPanel({
                 onChange={(e) => set({ label: e.target.value })}
                 disabled={disabled}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="coll-key">Key</Label>
+              <Input
+                id="coll-key"
+                value={form.key}
+                onChange={(e) => set({ key: e.target.value.toLowerCase() })}
+                disabled={disabled}
+                spellCheck={false}
+                className="font-mono text-sm"
+                aria-invalid={!!keyError}
+              />
+              <p className={`text-xs ${keyError ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {keyError ??
+                  (isContent
+                    ? 'Identifier for this Content type. Renaming updates its stored key.'
+                    : `Renames the database table to cms_${form.key || '…'} and any relation tables. Page-builder blocks or links using the old key must be re-pointed.`)}
+              </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
               <div className="space-y-1.5">
@@ -387,25 +434,47 @@ function SettingsPanel({
           <div>
             <h3 className="text-sm font-medium">Type</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              How many entries this collection holds.
+              What this collection is, and how many entries it holds.
             </p>
           </div>
           <div className="space-y-5">
-            <div className="flex items-center justify-between gap-4">
-              <label htmlFor="coll-single" className="cursor-pointer">
-                <span className="block text-sm">Single type</span>
-                <span className="block text-xs text-muted-foreground">
-                  Exactly one entry (e.g. a homepage or global settings). No list view — opens
-                  straight to the entry.
-                </span>
-              </label>
-              <Switch
-                id="coll-single"
-                checked={form.kind === 'single'}
+            <div className="space-y-1.5">
+              <Label htmlFor="coll-type">Type</Label>
+              <AppSelect
+                id="coll-type"
+                value={form.type || 'COLLECTION'}
                 disabled={disabled}
-                onCheckedChange={(v) => set({ kind: v ? 'single' : 'collection' })}
+                onChange={(v) => set({ type: v as CmsCollectionType })}
+                options={[
+                  { value: 'COLLECTION', label: 'Collection — its own records + table' },
+                  { value: 'CONTENT', label: 'Content — custom fields for the built-in Content' },
+                ]}
+                isSearchable={false}
               />
+              <p className="text-xs text-muted-foreground">
+                {isContent
+                  ? 'Fields here appear on the Content editor (Admin → Content).'
+                  : 'A standalone content type with its own records.'}{' '}
+                Switching type is only allowed while empty (no records / no saved post data).
+              </p>
             </div>
+            {!isContent ? (
+              <div className="flex items-center justify-between gap-4">
+                <label htmlFor="coll-single" className="cursor-pointer">
+                  <span className="block text-sm">Single type</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Exactly one entry (e.g. a homepage or global settings). No list view — opens
+                    straight to the entry.
+                  </span>
+                </label>
+                <Switch
+                  id="coll-single"
+                  checked={form.kind === 'single'}
+                  disabled={disabled}
+                  onCheckedChange={(v) => set({ kind: v ? 'single' : 'collection' })}
+                />
+              </div>
+            ) : null}
           </div>
         </section>
 

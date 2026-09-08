@@ -25,9 +25,16 @@ export default class ContentController {
   }
 
   async store({ request, auth, response }: HttpContext) {
-    const { title, slug, body, status } = request.all()
+    const { title, slug, body, status, featuredImage, data } = request.all()
     try {
-      const item = await contentService.create(auth.user!.id, { title, slug, body, status })
+      const item = await contentService.create(auth.user!.id, {
+        title,
+        slug,
+        body,
+        status,
+        featuredImage,
+        data,
+      })
       return response.status(201).json(item)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
@@ -35,9 +42,16 @@ export default class ContentController {
   }
 
   async update({ params, request, response }: HttpContext) {
-    const { title, slug, body, status } = request.all()
+    const { title, slug, body, status, featuredImage, data } = request.all()
     try {
-      const item = await contentService.update(params.id, { title, slug, body, status })
+      const item = await contentService.update(params.id, {
+        title,
+        slug,
+        body,
+        status,
+        featuredImage,
+        data,
+      })
       return response.json(item)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })

@@ -311,6 +311,10 @@ export interface ContentDto {
   slug: string
   body: string
   status: ContentStatus
+  /** Native featured image / thumbnail — a media URL (`/uploads/…`). */
+  featuredImage: string | null
+  /** Custom fields from the Content-type collection (raw values, for editing). */
+  data: Record<string, unknown> | null
   // Mirrors the server DTO (`app/services/content_service.ts`); null until an
   // author is assigned (e.g. records created offline before sync).
   authorId: number | null
@@ -323,6 +327,9 @@ export interface PublicContentDto {
   title: string
   slug: string
   body: string
+  featuredImage: string | null
+  /** Custom fields with relation ids resolved to labels and media ids to URLs. */
+  data: Record<string, unknown> | null
   createdAt: string
   updatedAt: string
 }
@@ -332,6 +339,8 @@ export interface CreateContentRequest {
   slug: string
   body: string
   status: ContentStatus
+  featuredImage?: string | null
+  data?: Record<string, unknown> | null
 }
 
 export interface UpdateContentRequest {
@@ -339,6 +348,8 @@ export interface UpdateContentRequest {
   slug?: string
   body?: string
   status?: ContentStatus
+  featuredImage?: string | null
+  data?: Record<string, unknown> | null
 }
 
 export type PageRenderMode = 'SSR' | 'SSG' | 'CSR'
@@ -579,6 +590,8 @@ export interface ModuleDto {
 }
 
 export type CmsCollectionSource = 'PRISMA' | 'DYNAMIC'
+/** COLLECTION = a stand-alone dynamic table; CONTENT = fields for the built-in Content. */
+export type CmsCollectionType = 'COLLECTION' | 'CONTENT'
 export type CmsFieldType =
   | 'TEXT'
   | 'TEXTAREA'
@@ -619,6 +632,7 @@ export interface CmsCollectionDto {
   icon: string | null
   group: string | null
   source: CmsCollectionSource
+  type: CmsCollectionType
   modelName: string | null
   tableName: string | null
   listConfig: Record<string, unknown>
@@ -644,6 +658,7 @@ export interface CreateCmsCollectionRequest {
   label: string
   icon?: string
   group?: string
+  type?: CmsCollectionType
   revisionsOn?: boolean
   draftsOn?: boolean
   kind?: 'collection' | 'single'
@@ -657,6 +672,10 @@ export interface UpdateCmsCollectionRequest {
   revisionsOn?: boolean
   draftsOn?: boolean
   kind?: 'collection' | 'single'
+  /** Rename the collection key (renames its physical storage live). */
+  key?: string
+  /** Switch COLLECTION ↔ CONTENT (allowed only while empty). */
+  type?: CmsCollectionType
 }
 
 export interface AddCmsFieldRequest {

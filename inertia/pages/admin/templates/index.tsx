@@ -2,7 +2,17 @@ import { useEffect, useMemo, useState } from 'react'
 import { router } from '@inertiajs/react'
 import { toast } from 'sonner'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Code2, Copy, MoreHorizontal, Plus, SquarePen, Star, Trash2 } from 'lucide-react'
+import {
+  Code2,
+  Copy,
+  Download,
+  MoreHorizontal,
+  Plus,
+  SquarePen,
+  Star,
+  Trash2,
+  Upload,
+} from 'lucide-react'
 import type { TemplateSummaryDto, TemplateType } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -16,15 +26,18 @@ import {
 import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { TemplateFormDialog } from '~/components/admin/template-form-dialog'
+import { ImportJsonDialog } from '~/components/admin/import-json-dialog'
 import {
   useTemplatesList,
   useCreateTemplate,
+  useImportTemplate,
   useDeleteTemplate,
   useDuplicateTemplate,
   useSetDefaultTemplate,
 } from '~/hooks/api/use-templates'
+import { downloadJson, fileStem } from '~/lib/export-download'
 import { formatAdminTableDateTime } from '~/lib/utils'
-import { apiErrorMessage } from '~/lib/api'
+import { apiErrorMessage, apiGet } from '~/lib/api'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
 import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
@@ -36,6 +49,18 @@ const TYPE_LABEL: Record<TemplateType, string> = {
   LAYOUT: 'Layout',
   EMAIL: 'Email',
   COLLECTION: 'Collection',
+}
+
+const TEMPLATE_EXPORT_TYPE = 'driftless.template'
+
+/** Fetch a template's export bundle and download it as JSON. */
+async function exportTemplate(id: string, name: string): Promise<void> {
+  try {
+    const data = await apiGet<Record<string, unknown>>(`/api/admin/templates/${id}/export`)
+    downloadJson(fileStem(name, 'template'), data)
+  } catch (e) {
+    toast.error(apiErrorMessage(e, 'Could not export'))
+  }
 }
 
 type TabValue = 'all' | TemplateType
@@ -112,9 +137,11 @@ export default function TemplatesPage() {
   const listQuery = useTemplatesList(tab === 'all' ? undefined : tab, true)
   const rows = useMemo(() => listQuery.data ?? [], [listQuery.data])
   const createMut = useCreateTemplate()
+  const importMut = useImportTemplate()
   const deleteMut = useDeleteTemplate()
   const duplicateMut = useDuplicateTemplate()
   const setDefaultMut = useSetDefaultTemplate()
+  const [importOpen, setImportOpen] = useState(false)
   // Deep link from the page builder (`?new=COLLECTION&collection=posts`): the
   // page mounts with the dialog already open and pre-filled. Read once, at
   // mount — the link always opens in a fresh tab.
@@ -295,6 +322,13 @@ export default function TemplatesPage() {
                   Duplicate
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  className="gap-2"
+                  onClick={() => void exportTemplate(row.original.id, row.original.name)}
+                >
+                  <Download className="size-4" />
+                  Export JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   variant="destructive"
                   className="gap-2"
                   onClick={() => {
@@ -344,16 +378,22 @@ export default function TemplatesPage() {
         subtitle="Reusable headers, footers, layouts & components for your pages"
         count={listQuery.isLoading ? undefined : rows.length}
         actions={
-          <Button
-            className="gap-2"
-            onClick={() => {
-              setDialogInitial(null)
-              setDialogOpen(true)
-            }}
-          >
-            <Plus className="size-4" />
-            New template
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+              <Upload className="size-4" />
+              Import
+            </Button>
+            <Button
+              className="gap-2"
+              onClick={() => {
+                setDialogInitial(null)
+                setDialogOpen(true)
+              }}
+            >
+              <Plus className="size-4" />
+              New template
+            </Button>
+          </div>
         }
       />
 
@@ -377,6 +417,19 @@ export default function TemplatesPage() {
         onSubmit={async (values) => {
           const created = await createMut.mutateAsync(values)
           router.visit(`/admin/templates/${created.id}/edit`)
+        }}
+      />
+
+      <ImportJsonDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="Import template"
+        description="Creates a new, non-default template from a JSON export."
+        expectedType={TEMPLATE_EXPORT_TYPE}
+        expectedLabel="template"
+        successMessage="Template imported"
+        onImport={async (parsed) => {
+          await importMut.mutateAsync(parsed)
         }}
       />
     </div>

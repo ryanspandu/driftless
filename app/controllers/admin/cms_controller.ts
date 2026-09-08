@@ -16,9 +16,19 @@ export default class CmsController {
   }
 
   async collectionsStore({ request, response }: HttpContext) {
-    const { key, label, icon, group, revisionsOn, draftsOn, kind, fields } = request.all()
+    const { key, label, icon, group, type, revisionsOn, draftsOn, kind, fields } = request.all()
     try {
-      const col = await cmsService.createCollection({ key, label, icon, group, revisionsOn, draftsOn, kind, fields })
+      const col = await cmsService.createCollection({
+        key,
+        label,
+        icon,
+        group,
+        type,
+        revisionsOn,
+        draftsOn,
+        kind,
+        fields,
+      })
       return response.status(201).json(col)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
@@ -26,9 +36,18 @@ export default class CmsController {
   }
 
   async collectionsUpdate({ params, request, response }: HttpContext) {
-    const { label, icon, group, revisionsOn, draftsOn, kind } = request.all()
+    const { label, icon, group, revisionsOn, draftsOn, kind, key, type } = request.all()
     try {
-      const col = await cmsService.updateCollection(params.key, { label, icon, group, revisionsOn, draftsOn, kind })
+      const col = await cmsService.updateCollection(params.key, {
+        label,
+        icon,
+        group,
+        revisionsOn,
+        draftsOn,
+        kind,
+        key,
+        type,
+      })
       return response.json(col)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
@@ -70,7 +89,14 @@ export default class CmsController {
   async fieldsStore({ params, request, response }: HttpContext) {
     const { key, label, type, required, unique, config } = request.all()
     try {
-      const field = await cmsService.addField(params.key, { key, label, type, required, unique, config })
+      const field = await cmsService.addField(params.key, {
+        key,
+        label,
+        type,
+        required,
+        unique,
+        config,
+      })
       return response.status(201).json(field)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
@@ -170,7 +196,10 @@ export default class CmsController {
   async recordsUpdate({ params, request, auth, response }: HttpContext) {
     const { data, status } = request.all()
     try {
-      const record = await cmsService.updateRecord(params.key, params.id, auth.user!.id, { data, status })
+      const record = await cmsService.updateRecord(params.key, params.id, auth.user!.id, {
+        data,
+        status,
+      })
       return response.json(record)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
@@ -238,15 +267,18 @@ export default class CmsController {
   }
 
   async recordsPage({ params, inertia, response }: HttpContext) {
+    const collection = await cmsService.findCollection(params.key)
+    // Content-type collections own no records — their entries are the built-in
+    // Content posts. Send anyone landing here to the Content admin instead.
+    if (collection.type === 'CONTENT') {
+      return response.redirect('/admin/content')
+    }
     // Single types have no list view: jump straight to their sole entry,
     // or to the new-entry form if none exists yet.
-    const collection = await cmsService.findCollection(params.key)
     if (collection.kind === 'single') {
       const soleId = await cmsService.findSoleRecordId(params.key)
       return response.redirect(
-        soleId
-          ? `/admin/cms/${params.key}/${soleId}`
-          : `/admin/cms/${params.key}/new`
+        soleId ? `/admin/cms/${params.key}/${soleId}` : `/admin/cms/${params.key}/new`
       )
     }
     return inertia.render('admin/cms/records', { collectionKey: params.key })

@@ -180,14 +180,12 @@ export default defineModule({
   ],
 
   /**
-   * Two sidebar groups from one module.
-   *
-   * Discounts and affiliates are marketing work, usually done by different
-   * people than order fulfilment, so they get their own section rather than
-   * being buried under the store. They stay in the same module because they
-   * share the order and customer tables — splitting them into a second module
-   * would mean one module importing another's models, which the module system
-   * does not allow.
+   * One sidebar group for the whole module. Store fulfilment and marketing
+   * (discounts, affiliates) live under a single "E-commerce" menu with a
+   * "Marketing" sub-heading, because they are one module sharing the order and
+   * customer tables. No group-level permission: each item self-filters, and the
+   * sidebar hides the whole group when a user can see none of them — so a
+   * marketing-only role still sees exactly its marketing links.
    */
   // `/shop/*` belongs to the storefront; a CMS page there could never render.
   reservedSegments: ['shop'],
@@ -196,7 +194,6 @@ export default defineModule({
       label: 'E-commerce',
       icon: 'ShoppingCart',
       order: 30,
-      permission: 'ecommerce:dashboard:read',
       items: [
         {
           label: 'Dashboard',
@@ -223,20 +220,6 @@ export default defineModule({
           permission: 'ecommerce:customers:read',
         },
         {
-          label: 'Settings',
-          href: '/admin/ecommerce/settings',
-          icon: 'Faders',
-          permission: 'ecommerce:settings:manage',
-        },
-      ],
-    },
-    {
-      label: 'Marketing',
-      icon: 'Target',
-      order: 31,
-      permission: 'ecommerce:discounts:read',
-      items: [
-        {
           label: 'Discounts',
           href: '/admin/marketing/discounts',
           icon: 'Tag',
@@ -259,6 +242,12 @@ export default defineModule({
           href: '/admin/marketing/withdrawals',
           icon: 'Receipt',
           permission: 'ecommerce:commissions:read',
+        },
+        {
+          label: 'Settings',
+          href: '/admin/ecommerce/settings',
+          icon: 'Faders',
+          permission: 'ecommerce:settings:manage',
         },
       ],
     },

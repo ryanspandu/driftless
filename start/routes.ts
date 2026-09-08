@@ -404,6 +404,32 @@ router
       ])
       .use(middleware.permission({ permission: 'redirects:manage' }))
 
+    // Custom-code template kits (import installs executable code → settings:manage)
+    router
+      .get('/admin/ui/template-kits', [
+        () => import('#controllers/admin/template_kits_controller'),
+        'page',
+      ])
+      .use(middleware.pagePermission({ permission: 'settings:manage' }))
+    router
+      .get('/api/admin/template-kits', [
+        () => import('#controllers/admin/template_kits_controller'),
+        'list',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+    router
+      .post('/api/admin/template-kits/import', [
+        () => import('#controllers/admin/template_kits_controller'),
+        'importOne',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+    router
+      .get('/api/admin/template-kits/:id/export', [
+        () => import('#controllers/admin/template_kits_controller'),
+        'exportOne',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+
     router.get('/admin/profile', [
       () => import('#controllers/admin/dashboard_controller'),
       'profilePage',
@@ -738,6 +764,15 @@ router
         router.post('/api/admin/templates', [
           () => import('#controllers/admin/templates_controller'),
           'store',
+        ])
+        // Registered before the `:id` routes so `/import` isn't captured as an id.
+        router.post('/api/admin/templates/import', [
+          () => import('#controllers/admin/templates_controller'),
+          'importOne',
+        ])
+        router.get('/api/admin/templates/:id/export', [
+          () => import('#controllers/admin/templates_controller'),
+          'exportOne',
         ])
         router.post('/api/admin/templates/:id/duplicate', [
           () => import('#controllers/admin/templates_controller'),

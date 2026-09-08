@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Boxes, Loader2, MoreHorizontal, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
-import type { CmsComponentDto, CmsComponentField } from '~/types/api'
+import {
+  Boxes,
+  Download,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react'
+import type {
+  CmsComponentDto,
+  CmsComponentField,
+  CreateCmsComponentRequest,
+} from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -20,6 +35,8 @@ import {
   DialogTitle,
 } from '~/components/ui/dialog'
 import { PageHeader } from '~/components/admin/page-header'
+import { ImportJsonDialog } from '~/components/admin/import-json-dialog'
+import { downloadJson, fileStem } from '~/lib/export-download'
 import {
   ComponentSchemaEditor,
   componentSchemaError,
@@ -33,6 +50,17 @@ import {
   useDeleteCmsComponent,
   useUpdateCmsComponent,
 } from '~/hooks/api/use-cms-components'
+
+const COMPONENT_EXPORT_TYPE = 'driftless.component'
+
+/** Serialize a component and trigger a JSON download. */
+function exportComponent(c: CmsComponentDto): void {
+  downloadJson(fileStem(c.key, 'component'), {
+    _type: COMPONENT_EXPORT_TYPE,
+    version: 1,
+    component: { key: c.key, label: c.label, icon: c.icon, fields: c.fields },
+  })
+}
 
 /** Card mirroring the Collections page: icon tile + name + meta + actions menu. */
 function ComponentCard({
@@ -58,6 +86,13 @@ function ComponentCard({
             <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => onEdit(component)}>
               <Pencil className="size-4" />
               Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2 cursor-pointer"
+              onClick={() => exportComponent(component)}
+            >
+              <Download className="size-4" />
+              Export JSON
             </DropdownMenuItem>
             <DropdownMenuItem
               variant="destructive"
@@ -127,6 +162,13 @@ export default function CmsComponentsPage() {
   const [editing, setEditing] = useState<CmsComponentDto | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [importOpen, setImportOpen] = useState(false)
+
+  const onImportComponent = async (parsed: unknown) => {
+    const body = (parsed as { component?: unknown }).component
+    if (!body || typeof body !== 'object') throw new Error('This export has no component.')
+    await createMut.mutateAsync(body as CreateCmsComponentRequest)
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -166,10 +208,16 @@ export default function CmsComponentsPage() {
         subtitle="Reusable groups of fields you can attach to any collection."
         count={components.length}
         actions={
-          <Button onClick={openNew} className="gap-2">
-            <Plus className="size-4" />
-            New component
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+              <Upload className="size-4" />
+              Import
+            </Button>
+            <Button onClick={openNew} className="gap-2">
+              <Plus className="size-4" />
+              New component
+            </Button>
+          </div>
         }
       />
 
@@ -222,6 +270,17 @@ export default function CmsComponentsPage() {
         existingKeys={components.map((c) => c.key)}
         onCreate={(body) => createMut.mutateAsync(body)}
         onUpdate={(key, body) => updateMut.mutateAsync({ key, body })}
+      />
+
+      <ImportJsonDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="Import component"
+        description="Recreates the component from a JSON export."
+        expectedType={COMPONENT_EXPORT_TYPE}
+        expectedLabel="component"
+        successMessage="Component imported"
+        onImport={onImportComponent}
       />
     </div>
   )

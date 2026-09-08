@@ -89,6 +89,31 @@ export default class TemplatesController {
     }
   }
 
+  async exportOne({ params, response }: HttpContext) {
+    try {
+      return response.json(await templatesService.exportTemplate(params.id))
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  async importOne({ request, auth, response }: HttpContext) {
+    const payload = request.input('template')
+    // Imported content is attacker-controllable — same gate as create/update.
+    const content = (payload as { content?: unknown } | null)?.content
+    if (!(await this.canManageExecutableContent(auth.user as User, content))) {
+      return response
+        .status(403)
+        .json({ message: 'settings:manage is required for executable template content' })
+    }
+    try {
+      const item = await templatesService.importTemplate(payload)
+      return response.status(201).json(item)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
   async page({ inertia }: HttpContext) {
     return inertia.render('admin/templates/index', {})
   }

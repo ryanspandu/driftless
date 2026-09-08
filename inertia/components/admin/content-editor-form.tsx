@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, router } from '@inertiajs/react'
 import { toast } from 'sonner'
-import { ArrowLeft, Check, Loader2, X } from 'lucide-react'
+import { ArrowLeft, Check, ImagePlus, Loader2, X } from 'lucide-react'
 import type { ContentDto, ContentStatus } from '~/types/api'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -9,7 +9,10 @@ import { Label } from '~/components/ui/label'
 import { AppSelect } from '~/components/ui/app-select'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import { ArticleEditor } from '~/components/admin/article-editor'
+import { MediaImagePicker } from '~/components/admin/media-image-picker'
+import { FieldRenderer } from '~/components/cms/field-renderer'
 import { useContentSlugCheck } from '~/hooks/api/use-content'
+import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
 import { apiErrorMessage } from '~/lib/api'
 import { formatAdminTableDateTime } from '~/lib/utils'
 
@@ -18,6 +21,8 @@ export type ContentFormValues = {
   slug: string
   body: string
   status: ContentStatus
+  featuredImage: string | null
+  data: Record<string, unknown> | null
 }
 
 function slugify(input: string): string {
@@ -49,9 +54,19 @@ export function ContentEditorForm({
   const [slug, setSlug] = useState(initial?.slug ?? '')
   const [body, setBody] = useState(initial?.body ?? '')
   const [status, setStatus] = useState<ContentStatus>(initial?.status ?? 'DRAFT')
+  const [featuredImage, setFeaturedImage] = useState<string | null>(initial?.featuredImage ?? null)
+  const [data, setData] = useState<Record<string, unknown>>(
+    (initial?.data as Record<string, unknown> | null) ?? {}
+  )
   const [slugDirty, setSlugDirty] = useState(Boolean(initial))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+
+  // The singleton Content-type collection defines the custom fields shown here.
+  const collectionsQuery = useCmsCollectionsList()
+  const contentType = (collectionsQuery.data ?? []).find((c) => c.type === 'CONTENT')
+  const customFields = contentType?.fields ?? []
 
   // Live slug availability: debounce the input, then check against the DB.
   const [debouncedSlug, setDebouncedSlug] = useState(slug)
@@ -75,6 +90,8 @@ export function ContentEditorForm({
         slug: slug.trim() || slugify(title),
         body,
         status,
+        featuredImage,
+        data: customFields.length > 0 ? data : null,
       })
       toast.success(initial ? 'Content updated' : 'Content created')
       router.visit('/admin/content')
@@ -193,8 +210,79 @@ export function ContentEditorForm({
               ) : null}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Featured image</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {featuredImage ? (
+                <div className="space-y-2">
+                  <img
+                    src={featuredImage}
+                    alt="Featured"
+                    className="aspect-[16/9] w-full rounded-md border object-cover"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setPickerOpen(true)}
+                    >
+                      Replace
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground"
+                      onClick={() => setFeaturedImage(null)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(true)}
+                  className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-1.5 rounded-md border border-dashed text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+                >
+                  <ImagePlus className="size-6" />
+                  <span className="text-xs">Set featured image</span>
+                </button>
+              )}
+            </CardContent>
+          </Card>
+
+          {customFields.length > 0 ? (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">{contentType?.label ?? 'Details'}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {customFields.map((field) => (
+                  <FieldRenderer
+                    key={field.id}
+                    field={field}
+                    value={data[field.key]}
+                    onChange={(v) => setData((prev) => ({ ...prev, [field.key]: v }))}
+                    disabled={saving}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
         </aside>
       </div>
+
+      <MediaImagePicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onPick={(url) => setFeaturedImage(url)}
+      />
     </form>
   )
 }

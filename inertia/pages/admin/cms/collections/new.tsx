@@ -11,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Checkbox } from '~/components/ui/checkbox'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
+import { AppSelect } from '~/components/ui/app-select'
+import type { CmsCollectionType } from '~/types/api'
 import {
   emptyFieldDraft,
   isValidKey,
@@ -28,6 +30,56 @@ import { ComboboxInput } from '~/components/ui/combobox-input'
 import { CollectionIconPicker } from '~/components/cms/collection-icon-popover'
 import { BackButton } from '~/components/admin/back-button'
 import { useRouter } from '~/hooks/use-inertia-url'
+
+/**
+ * Derive a collection key from a label — snake_case, starting with a letter,
+ * matching the backend key rule (`^[a-z][a-z0-9_]{0,31}$`). "CMS 1" → "cms_1".
+ * (Keys become the physical table name, so hyphens/spaces are not allowed.)
+ */
+function keyify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^[^a-z]+/, '')
+    .replace(/_+$/g, '')
+    .slice(0, 32)
+}
+
+/** First free key: `base`, else `base_1`, `base_2`, … avoiding taken keys. */
+function uniqueKey(base: string, taken: Set<string>): string {
+  if (!base || !taken.has(base)) return base
+  for (let i = 1; i < 1000; i++) {
+    const candidate = `${base}_${i}`.slice(0, 32)
+    if (!taken.has(candidate)) return candidate
+  }
+  return base
+}
+
+/** The title + slug fields every new records collection starts with. */
+function defaultCollectionFields(): SchemaFieldDraft[] {
+  return [
+    { ...emptyFieldDraft(), key: 'title', label: 'Title', required: true },
+    {
+      ...emptyFieldDraft(),
+      key: 'slug',
+      label: 'Slug',
+      type: 'SLUG',
+      required: true,
+      unique: true,
+      config: { source: 'title' },
+    },
+  ]
+}
+
+/** True when the field list is still the untouched title + slug default. */
+function isDefaultCollectionFields(fields: SchemaFieldDraft[]): boolean {
+  return (
+    fields.length === 2 &&
+    fields[0]?.key === 'title' &&
+    fields[1]?.key === 'slug'
+  )
+}
 
 function hasDuplicates(values: string[]): boolean {
   const seen = new Set<string>()
@@ -61,26 +113,36 @@ export default function NewCmsCollectionPage() {
   )
 
   const [key, setKey] = useState('')
+  // Until the user edits the key by hand, it auto-derives from the label.
+  const [keyDirty, setKeyDirty] = useState(false)
   const keyAlreadyExists = isValidKey(key) && existingCollectionKeys.has(key.toLowerCase())
   const [label, setLabel] = useState('')
+
+  const onChangeLabel = (value: string) => {
+    setLabel(value)
+    if (!keyDirty) setKey(uniqueKey(keyify(value), existingCollectionKeys))
+  }
   const [icon, setIcon] = useState('')
   const [group, setGroup] = useState('')
   const [revisionsOn, setRevisionsOn] = useState(true)
   const [draftsOn, setDraftsOn] = useState(true)
   const [kind, setKind] = useState<'collection' | 'single'>('collection')
-  const [fields, setFields] = useState<SchemaFieldDraft[]>(() => [
-    { ...emptyFieldDraft(), key: 'title', label: 'Title', required: true },
-    {
-      ...emptyFieldDraft(),
-      key: 'slug',
-      label: 'Slug',
-      type: 'SLUG',
-      required: true,
-      unique: true,
-      config: { source: 'title' },
-    },
-  ])
+  const [type, setType] = useState<CmsCollectionType>('COLLECTION')
+  const isContent = type === 'CONTENT'
+  const [fields, setFields] = useState<SchemaFieldDraft[]>(defaultCollectionFields)
   const [error, setError] = useState<string | null>(null)
+
+  // Content-type collections extend the built-in Content, which already owns
+  // title/slug/body/status — so they seed no default fields (custom ones only).
+  function onChangeType(next: CmsCollectionType) {
+    setType(next)
+    setFields((prev) => {
+      if (next === 'CONTENT') {
+        return isDefaultCollectionFields(prev) ? [] : prev
+      }
+      return prev.length === 0 ? defaultCollectionFields() : prev
+    })
+  }
 
   const collectionKeyError = keyHint(key)
   const collectionKeyDuplicateError = collectionKeyError
@@ -102,7 +164,8 @@ export default function NewCmsCollectionPage() {
     !collectionKeyError &&
     !collectionKeyDuplicateError &&
     !labelError &&
-    fields.length > 0 &&
+    // A Content-type collection may start with no custom fields (add them later).
+    (isContent || fields.length > 0) &&
     !hasFieldErrors &&
     !duplicateKey &&
     !createMut.isPending
@@ -154,9 +217,10 @@ export default function NewCmsCollectionPage() {
         label,
         icon: icon.trim() ? icon.trim() : undefined,
         group: group.trim() || undefined,
+        type,
         revisionsOn,
         draftsOn,
-        kind,
+        kind: isContent ? 'collection' : kind,
         fields: fields.map<CreateCmsCollectionFieldRequest>((f) => ({
           key: f.key,
           label: f.label,
@@ -184,7 +248,7 @@ export default function NewCmsCollectionPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">New collection</h1>
           <p className="text-sm text-muted-foreground">
-            Define a content type backed by a dynamic database table.
+            Define a content type — its own records, or custom fields for the built-in Content.
           </p>
         </div>
       </div>
@@ -197,12 +261,47 @@ export default function NewCmsCollectionPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1 md:col-span-2">
+            <Label htmlFor="coll-type">Type</Label>
+            <AppSelect
+              id="coll-type"
+              value={type}
+              onChange={(v) => onChangeType(v as CmsCollectionType)}
+              options={[
+                { value: 'COLLECTION', label: 'Collection — its own records + table' },
+                { value: 'CONTENT', label: 'Content — custom fields for the built-in Content' },
+              ]}
+              isSearchable={false}
+            />
+            <p className="text-xs text-muted-foreground">
+              {isContent
+                ? 'Fields here appear on the Content editor (Admin → Content) and store on each post. Only one Content type may exist.'
+                : 'A standalone content type with its own records list and database table.'}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="coll-label">Label</Label>
+            <Input
+              id="coll-label"
+              value={label}
+              onChange={(e) => onChangeLabel(e.target.value)}
+              placeholder="Articles"
+            />
+            {labelError ? (
+              <p className="text-xs text-destructive">{labelError}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Shown across the admin.</p>
+            )}
+          </div>
           <div className="space-y-1">
             <Label htmlFor="coll-key">Key</Label>
             <Input
               id="coll-key"
               value={key}
-              onChange={(e) => setKey(e.target.value.toLowerCase())}
+              onChange={(e) => {
+                setKey(e.target.value.toLowerCase())
+                setKeyDirty(true)
+              }}
               placeholder="e.g. articles"
               aria-invalid={!!(collectionKeyError || collectionKeyDuplicateError)}
             />
@@ -215,18 +314,10 @@ export default function NewCmsCollectionPage() {
             >
               {collectionKeyError ??
                 collectionKeyDuplicateError ??
-                `Will become /cms/${key || '…'} and table cms_${key || '…'}.`}
+                (isContent
+                  ? `Auto-filled from the label — editable. Identifier for this Content type (no separate table).`
+                  : `Auto-filled from the label — editable. Becomes table cms_${key || '…'}.`)}
             </p>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="coll-label">Label</Label>
-            <Input
-              id="coll-label"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="Articles"
-            />
-            {labelError ? <p className="text-xs text-destructive">{labelError}</p> : null}
           </div>
           <div className="space-y-1">
             <Label htmlFor="coll-group">Group</Label>
@@ -254,13 +345,15 @@ export default function NewCmsCollectionPage() {
               <Checkbox checked={draftsOn} onCheckedChange={(v) => setDraftsOn(v === true)} />
               Enable draft / publish workflow
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={kind === 'single'}
-                onCheckedChange={(v) => setKind(v === true ? 'single' : 'collection')}
-              />
-              Single type (one entry only)
-            </label>
+            {!isContent ? (
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={kind === 'single'}
+                  onCheckedChange={(v) => setKind(v === true ? 'single' : 'collection')}
+                />
+                Single type (one entry only)
+              </label>
+            ) : null}
           </div>
         </CardContent>
       </Card>
@@ -275,12 +368,14 @@ export default function NewCmsCollectionPage() {
           <AddFieldDialog
             disabled={createMut.isPending}
             existingKeys={fields.map((f) => f.key)}
-            relationTargets={(collectionsQuery.data ?? []).filter((c) => c.source === 'DYNAMIC')}
+            // A new collection can relate to any existing records collection
+            // (never a Content-type one). Its own relation storage is created
+            // right after the table, in the same transaction, on submit.
+            relationTargets={(collectionsQuery.data ?? []).filter(
+              (c) => c.source === 'DYNAMIC' && c.type !== 'CONTENT'
+            )}
             siblingFields={fields}
             onAdd={onAddField}
-            // Relations need a join table that only exists once the collection is
-            // created — add them afterwards from the collection editor.
-            allowRelation={false}
           />
         }
       />

@@ -11,6 +11,7 @@ import {
   Image as ImageIcon,
   Key,
   Layout,
+  Package,
   ShieldCheck,
   SidebarSimple,
   SignOut,
@@ -88,11 +89,24 @@ const navEntries: NavEntry[] = [
         activeMatch: 'prefix',
         permission: 'redirects:manage',
       },
+      {
+        title: 'Template Kit',
+        href: '/admin/ui/template-kits',
+        icon: Package,
+        activeMatch: 'prefix',
+        permission: 'settings:manage',
+      },
     ],
   },
   { title: 'Media', href: '/admin/media', icon: ImageIcon },
-  { title: 'Collections', href: '/admin/cms/collections', icon: Stack, activeMatch: 'prefix' },
-  { title: 'Components', href: '/admin/cms/components', icon: Boxes, activeMatch: 'prefix' },
+  {
+    title: 'Collections',
+    icon: Stack,
+    children: [
+      { title: 'Collections', href: '/admin/cms/collections', icon: Stack, activeMatch: 'prefix' },
+      { title: 'Components', href: '/admin/cms/components', icon: Boxes, activeMatch: 'prefix' },
+    ],
+  },
   /**
    * Integrations is deliberately **not** here. It is configured once and then
    * forgotten, which is what "settings" means — a top-level entry put it on a

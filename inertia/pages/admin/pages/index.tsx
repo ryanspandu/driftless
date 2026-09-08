@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { router } from '@inertiajs/react'
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { toast } from 'sonner'
@@ -34,6 +34,7 @@ import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { TrashModal } from '~/components/trash-modal'
 import { PageFormDialog } from '~/components/admin/page-form-dialog'
+import { ImportJsonDialog } from '~/components/admin/import-json-dialog'
 import {
   usePagesList,
   useCreatePage,
@@ -122,7 +123,7 @@ export default function PagesPage() {
   const [trashOpen, setTrashOpen] = useState(false)
   const [selection, setSelection] = useState<RowSelectionState>({})
   const selectedIds = useMemo(() => Object.keys(selection).filter((k) => selection[k]), [selection])
-  const importInputRef = useRef<HTMLInputElement>(null)
+  const [importOpen, setImportOpen] = useState(false)
 
   const onDuplicate = async (id: string) => {
     try {
@@ -150,15 +151,6 @@ export default function PagesPage() {
     }
   }
 
-  const onImportFile = async (file: File) => {
-    try {
-      const parsed = JSON.parse(await file.text())
-      await importMut.mutateAsync(parsed)
-      toast.success('Page imported as a draft')
-    } catch {
-      toast.error('Invalid page file')
-    }
-  }
 
   const onCopyPreviewLink = async (id: string) => {
     try {
@@ -487,22 +479,7 @@ export default function PagesPage() {
         count={listQuery.isLoading ? undefined : rows.length}
         actions={
           <div className="flex items-center gap-2">
-            <input
-              ref={importInputRef}
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) void onImportFile(file)
-                e.target.value = ''
-              }}
-            />
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => importInputRef.current?.click()}
-            >
+            <Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
               <Upload className="size-4" />
               Import
             </Button>
@@ -580,6 +557,19 @@ export default function PagesPage() {
             const created = await createMut.mutateAsync(values)
             router.visit(`/admin/pages/${created.id}/edit`)
           }
+        }}
+      />
+
+      <ImportJsonDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="Import page"
+        description="Imports as a new draft; the path is de-duplicated if it already exists."
+        expectedType="driftless.page"
+        expectedLabel="page"
+        successMessage="Page imported as a draft"
+        onImport={async (parsed) => {
+          await importMut.mutateAsync(parsed)
         }}
       />
     </div>

@@ -54,6 +54,18 @@ export function useCreateTemplate() {
   })
 }
 
+export function useImportTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (template: unknown) =>
+      apiFetch<TemplateDto>('/api/admin/templates/import', {
+        method: 'POST',
+        body: JSON.stringify({ template }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates', 'list'] }),
+  })
+}
+
 export function useUpdateTemplate() {
   const qc = useQueryClient()
   return useMutation({
