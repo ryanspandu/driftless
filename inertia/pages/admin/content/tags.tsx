@@ -130,15 +130,6 @@ export default function ContentTagsPage() {
   const deleteMut = useDeleteContentTag()
   const confirmDelete = useConfirmDelete()
   const [editing, setEditing] = useState<Editing>(null)
-  const [search, setSearch] = useState('')
-
-  const visible = useMemo(() => {
-    const needle = search.trim().toLowerCase()
-    if (!needle) return tags
-    return tags.filter(
-      (t) => t.name.toLowerCase().includes(needle) || t.slug.toLowerCase().includes(needle)
-    )
-  }, [tags, search])
 
   const onDelete = (t: ContentTagDto) => {
     void confirmDelete({
@@ -158,7 +149,9 @@ export default function ContentTagsPage() {
   const columns = useMemo<ColumnDef<ContentTagDto>[]>(
     () => [
       {
-        accessorKey: 'name',
+        id: 'name',
+        // Name + slug so the table's built-in search matches either.
+        accessorFn: (r) => `${r.name} ${r.slug}`,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Tag" />,
         cell: ({ row }) => (
           <div className="flex min-w-0 flex-col leading-tight">
@@ -231,13 +224,12 @@ export default function ContentTagsPage() {
 
       <DataTable
         columns={columns}
-        data={visible}
+        data={tags}
         getRowId={(row) => row.id}
         hideSyncColumn
         enableBulkSelect={false}
         searchPlaceholder="Search tags…"
-        searchValue={search}
-        onSearchChange={setSearch}
+        urlSync={{}}
         emptyMessage={
           <div className="flex flex-col items-center gap-2 py-8">
             <Tags className="size-8 text-muted-foreground" />

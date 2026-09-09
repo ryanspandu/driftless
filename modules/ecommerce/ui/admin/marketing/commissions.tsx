@@ -257,6 +257,7 @@ export default function CommissionsPage() {
         onRowSelectionChange={setSelection}
         filters={statusFilter}
         hideSearch
+        urlSync={{}}
         emptyMessage={
           <div className="flex flex-col items-center gap-2 py-8">
             <span className="flex size-10 items-center justify-center rounded-full bg-muted">

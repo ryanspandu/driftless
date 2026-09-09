@@ -59,7 +59,6 @@ export default function CategoriesPage() {
   const remove = useDeleteCategory()
   const confirmDelete = useConfirmDelete()
 
-  const [search, setSearch] = useState('')
   const [form, setForm] = useState<FormState | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -73,15 +72,6 @@ export default function CategoriesPage() {
     () => new Map(categories.map((category) => [category.id, category.name])),
     [categories]
   )
-
-  const visible = useMemo(() => {
-    const needle = search.trim().toLowerCase()
-    if (!needle) return categories
-    return categories.filter(
-      (category) =>
-        category.name.toLowerCase().includes(needle) || category.slug.toLowerCase().includes(needle)
-    )
-  }, [categories, search])
 
   /**
    * Parent options exclude the category being edited.
@@ -123,7 +113,9 @@ export default function CategoriesPage() {
   const columns = useMemo<ColumnDef<CategoryDto>[]>(
     () => [
       {
-        accessorKey: 'name',
+        id: 'name',
+        // Name + slug so the table's built-in search matches either.
+        accessorFn: (r) => `${r.name} ${r.slug}`,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Category" />,
         cell: ({ row }) => (
           <div className="flex min-w-0 flex-col leading-tight">
@@ -245,13 +237,12 @@ export default function CategoriesPage() {
 
       <DataTable
         columns={columns}
-        data={visible}
+        data={categories}
         getRowId={(row) => row.id}
         hideSyncColumn
         enableBulkSelect={false}
         searchPlaceholder="Search categories…"
-        searchValue={search}
-        onSearchChange={setSearch}
+        urlSync={{}}
         emptyMessage={
           <div className="flex flex-col items-center gap-2 py-8">
             <span className="flex size-10 items-center justify-center rounded-full bg-muted">

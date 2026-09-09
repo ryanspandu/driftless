@@ -57,7 +57,6 @@ export default function TagsPage() {
   const remove = useDeleteTag()
   const confirmDelete = useConfirmDelete()
 
-  const [search, setSearch] = useState('')
   const [form, setForm] = useState<FormState | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -66,14 +65,6 @@ export default function TagsPage() {
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
-
-  const visible = useMemo(() => {
-    const needle = search.trim().toLowerCase()
-    if (!needle) return tags
-    return tags.filter(
-      (tag) => tag.name.toLowerCase().includes(needle) || tag.slug.toLowerCase().includes(needle)
-    )
-  }, [tags, search])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -98,7 +89,9 @@ export default function TagsPage() {
   const columns = useMemo<ColumnDef<TagDto>[]>(
     () => [
       {
-        accessorKey: 'name',
+        id: 'name',
+        // Name + slug so the table's built-in search matches either.
+        accessorFn: (r) => `${r.name} ${r.slug}`,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Tag" />,
         cell: ({ row }) => (
           <div className="flex min-w-0 flex-col leading-tight">
@@ -210,13 +203,12 @@ export default function TagsPage() {
 
       <DataTable
         columns={columns}
-        data={visible}
+        data={tags}
         getRowId={(row) => row.id}
         hideSyncColumn
         enableBulkSelect={false}
         searchPlaceholder="Search tags…"
-        searchValue={search}
-        onSearchChange={setSearch}
+        urlSync={{}}
         emptyMessage={
           <div className="flex flex-col items-center gap-2 py-8">
             <span className="flex size-10 items-center justify-center rounded-full bg-muted">

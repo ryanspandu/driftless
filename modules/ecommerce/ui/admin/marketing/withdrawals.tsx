@@ -153,6 +153,7 @@ export default function WithdrawalsPage() {
             onChange={(value) => url.set({ status: value === DEFAULT_FILTER ? undefined : value })}
           />
         }
+        urlSync={{}}
         emptyMessage={
           <div className="flex flex-col items-center gap-2 py-8">
             <span className="flex size-10 items-center justify-center rounded-full bg-muted">

@@ -45,7 +45,7 @@ function parseUsersUrl(sp: ReturnType<typeof useSearchParams>) {
   const role = roleRaw && roleRaw.length > 0 && roleRaw !== 'ALL' ? roleRaw : 'ALL'
   const pageRaw = Number.parseInt(sp.get('page') ?? '1', 10)
   const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? pageRaw : 1
-  const rawSize = Number.parseInt(sp.get('size') ?? '20', 10)
+  const rawSize = Number.parseInt(sp.get('pageSize') ?? '20', 10)
   const pageSize = [10, 20, 50, 100].includes(rawSize) ? rawSize : 20
   return { q, role, page, pageSize }
 }
@@ -92,7 +92,7 @@ function UsersPageInner() {
       patch.q = r.search.trim() ? r.search.trim() : undefined
       patch.role = r.roleFilter === 'ALL' ? undefined : r.roleFilter
       patch.page = r.page > 1 ? String(r.page) : undefined
-      patch.size = r.pageSize !== 20 ? String(r.pageSize) : undefined
+      patch.pageSize = r.pageSize !== 20 ? String(r.pageSize) : undefined
       const merged = mergeSearchParamsLive(searchParams, patch)
       replaceUrlIfChanged(pathname, router, merged, { scroll: false })
     },

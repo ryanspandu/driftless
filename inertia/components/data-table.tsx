@@ -229,8 +229,11 @@ export type DataTableProps<TData> = {
   /**
    * When set, search / pagination / sort are reflected in the URL query string.
    * Use `paramPrefix` when multiple tables share one route (e.g. dashboard tabs).
+   * Set `includeQuery: false` when the page owns the `q` param itself (a
+   * server-side search): the table then syncs only page / pageSize / sort and
+   * never touches `q`, so it can't re-filter rows the server already filtered.
    */
-  urlSync?: { paramPrefix?: string };
+  urlSync?: { paramPrefix?: string; includeQuery?: boolean };
   /**
    * Server-driven pagination (e.g. API returns one page of rows).
    * Disables client-side page slicing; use a single shared pagination footer.
@@ -260,7 +263,7 @@ function DataTableUrlSynced<TData>(props: DataTableProps<TData>) {
     defaultPageSize: rest.defaultPageSize ?? 10,
     pageSizeOptions: rest.pageSizeOptions ?? [5, 10, 20, 50],
     searchParams,
-    includeQueryInUrl: !rest.hideSearch,
+    includeQueryInUrl: urlSync?.includeQuery ?? !rest.hideSearch,
   });
   return <DataTableInner {...rest} urlSynced={sync} />;
 }

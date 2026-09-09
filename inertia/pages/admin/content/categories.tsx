@@ -161,17 +161,8 @@ export default function ContentCategoriesPage() {
   const deleteMut = useDeleteContentCategory()
   const confirmDelete = useConfirmDelete()
   const [editing, setEditing] = useState<Editing>(null)
-  const [search, setSearch] = useState('')
 
   const nameById = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories])
-
-  const visible = useMemo(() => {
-    const needle = search.trim().toLowerCase()
-    if (!needle) return categories
-    return categories.filter(
-      (c) => c.name.toLowerCase().includes(needle) || c.slug.toLowerCase().includes(needle)
-    )
-  }, [categories, search])
 
   const onDelete = (c: ContentCategoryDto) => {
     void confirmDelete({
@@ -191,7 +182,9 @@ export default function ContentCategoriesPage() {
   const columns = useMemo<ColumnDef<ContentCategoryDto>[]>(
     () => [
       {
-        accessorKey: 'name',
+        id: 'name',
+        // Name + slug so the table's built-in search matches either.
+        accessorFn: (r) => `${r.name} ${r.slug}`,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Category" />,
         cell: ({ row }) => (
           <div className="flex min-w-0 flex-col leading-tight">
@@ -274,13 +267,12 @@ export default function ContentCategoriesPage() {
 
       <DataTable
         columns={columns}
-        data={visible}
+        data={categories}
         getRowId={(row) => row.id}
         hideSyncColumn
         enableBulkSelect={false}
         searchPlaceholder="Search categories…"
-        searchValue={search}
-        onSearchChange={setSearch}
+        urlSync={{}}
         emptyMessage={
           <div className="flex flex-col items-center gap-2 py-8">
             <FolderTree className="size-8 text-muted-foreground" />

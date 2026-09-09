@@ -91,10 +91,10 @@ export default function AffiliatesPage() {
   const filter = url.one('filter', FILTER_VALUES, 'all')
 
   function setSearch(value: string) {
-    url.set({ q: value, aff_page: undefined })
+    url.set({ q: value, page: undefined })
   }
   function setFilter(value: FilterValue) {
-    url.set({ filter: value === 'all' ? undefined : value, aff_page: undefined })
+    url.set({ filter: value === 'all' ? undefined : value, page: undefined })
   }
 
   const [addOpen, setAddOpen] = useState(false)
@@ -376,7 +376,7 @@ export default function AffiliatesPage() {
         searchValue={search}
         onSearchChange={setSearch}
         filters={<TableFilterTabs value={filter} options={FILTERS} onChange={setFilter} />}
-        urlSync={{ paramPrefix: 'aff' }}
+        urlSync={{ includeQuery: false }}
         emptyMessage={
           <div className="flex flex-col items-center gap-2 py-8">
             <span className="flex size-10 items-center justify-center rounded-full bg-muted">

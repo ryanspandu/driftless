@@ -155,17 +155,17 @@ export default function DiscountsPage() {
   const filter = url.one('filter', FILTER_VALUES, 'all')
 
   /**
-   * Both writers clear `disc_page` — the paging key DataTable's `urlSync` writes
-   * for this table (see the `paramPrefix` below). Narrowing the list has to send
-   * you back to page 1: otherwise you keep whatever page number you were on and
-   * land in the middle of the new results, having never seen the first ones.
+   * Both writers clear `page` — the paging key DataTable's `urlSync` writes for
+   * this table. Narrowing the list has to send you back to page 1: otherwise you
+   * keep whatever page number you were on and land in the middle of the new
+   * results, having never seen the first ones.
    */
   function setSearch(value: string) {
-    url.set({ q: value, disc_page: undefined })
+    url.set({ q: value, page: undefined })
   }
 
   function setFilter(value: FilterValue) {
-    url.set({ filter: value === 'all' ? undefined : value, disc_page: undefined })
+    url.set({ filter: value === 'all' ? undefined : value, page: undefined })
   }
 
   const [form, setForm] = useState<FormState | null>(null)
@@ -390,12 +390,11 @@ export default function DiscountsPage() {
         filters={statusFilter}
         /**
          * Puts paging and sorting in the URL too, so the whole view is linkable
-         * and survives a reload. The `disc` prefix keeps the table's own keys
-         * (`disc_page`, `disc_size`, `disc_sort`) clear of the page-level `q`
-         * and `filter` above — sharing the bare `q` key would make the table
-         * re-filter rows this page has already filtered.
+         * and survives a reload. `includeQuery: false` keeps the table off the
+         * `q` param the page owns (server-side search) — otherwise the table
+         * would re-filter rows this page has already filtered.
          */
-        urlSync={{ paramPrefix: 'disc' }}
+        urlSync={{ includeQuery: false }}
         emptyMessage={
           <div className="flex flex-col items-center gap-2 py-8">
             <span className="flex size-10 items-center justify-center rounded-full bg-muted">
