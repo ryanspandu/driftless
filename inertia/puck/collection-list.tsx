@@ -76,12 +76,29 @@ export interface CollectionQuery {
   filterField: string
   filterValue: string
   /**
-   * Archive-override taxonomy inherited from the route's {slug,kind} binding —
-   * only a `posts` list on a `/category|tag/:slug` override page sets it. Part
-   * of the cache key; MUST mirror the server `cacheKey` in `page_data_resolver`.
+   * Content-post taxonomy filter, from one of two sources (a `posts` list only):
+   *   1. an explicit **pin** on the block (`taxonomy` prop) — works on any page;
+   *   2. else the **archive-override** route's `{slug,kind}` binding, auto-inherited.
+   * A pin wins over the binding (see `withArchiveTaxonomy`). Part of the cache
+   * key; MUST mirror the server `cacheKey` in `page_data_resolver`.
    */
   categorySlug?: string
   tagSlug?: string
+}
+
+/** A block's pinned Content-post taxonomy (`taxonomy` prop). */
+export interface PostTaxonomy {
+  categorySlug?: string
+  tagSlug?: string
+}
+
+/** Normalise the block's `taxonomy` prop to trimmed slugs (empty → undefined). */
+export function normalizePostTaxonomy(raw: unknown): PostTaxonomy {
+  if (!raw || typeof raw !== 'object') return {}
+  const o = raw as Record<string, unknown>
+  const cat = typeof o.categorySlug === 'string' ? o.categorySlug.trim() : ''
+  const tag = typeof o.tagSlug === 'string' ? o.tagSlug.trim() : ''
+  return { categorySlug: cat || undefined, tagSlug: tag || undefined }
 }
 
 export function collectionQuery(
@@ -92,6 +109,7 @@ export function collectionQuery(
     sort?: unknown
     filterField?: unknown
     filterValue?: unknown
+    taxonomy?: unknown
   }
 ): CollectionQuery {
   const key = source?.collectionKey ?? ''
@@ -111,7 +129,15 @@ export function collectionQuery(
   }
   const filterField = String(props.filterField ?? '').trim()
   const filterValue = String(props.filterValue ?? '').trim()
-  return { key, pageSize, sortField, sortDir, filterField, filterValue }
+  const q: CollectionQuery = { key, pageSize, sortField, sortDir, filterField, filterValue }
+  // A `posts` list can pin a fixed category/tag; it filters to that taxonomy on
+  // ANY page (not just an archive override). Ignored for other collections.
+  if (key === 'posts') {
+    const tax = normalizePostTaxonomy(props.taxonomy)
+    if (tax.categorySlug) q.categorySlug = tax.categorySlug
+    if (tax.tagSlug) q.tagSlug = tax.tagSlug
+  }
+  return q
 }
 
 export function collectionCacheKey(q: CollectionQuery, page: number): string {
@@ -139,14 +165,18 @@ function collectionQueryString(q: CollectionQuery, page: number): string {
  * category/tag filter — the client mirror of the SSR logic in
  * `page_data_resolver.resolvePageCollections`. No-op for any other collection
  * or when the page carries no taxonomy binding (i.e. a normal page).
+ *
+ * Fill-only: an explicit block **pin** (already on the query from
+ * `collectionQuery`) wins, so the binding only supplies a slot the author left
+ * empty. Change this together with the SSR mirror.
  */
 export function withArchiveTaxonomy(
   q: CollectionQuery,
   binding: { slug?: string; kind?: string }
 ): CollectionQuery {
   if (q.key !== 'posts' || !binding.slug) return q
-  if (binding.kind === 'category') return { ...q, categorySlug: binding.slug }
-  if (binding.kind === 'tag') return { ...q, tagSlug: binding.slug }
+  if (binding.kind === 'category' && !q.categorySlug) return { ...q, categorySlug: binding.slug }
+  if (binding.kind === 'tag' && !q.tagSlug) return { ...q, tagSlug: binding.slug }
   return q
 }
 
@@ -278,6 +308,91 @@ export function CollectionSourceField({
           </label>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+/** A taxonomy term as offered in the pin dropdowns. */
+interface TermOption {
+  slug: string
+  name: string
+}
+
+/** Load Content categories + tags for the pin field (admin API, builder-only). */
+function useContentTaxonomies(): { categories: TermOption[]; tags: TermOption[] } {
+  const [state, setState] = useState<{ categories: TermOption[]; tags: TermOption[] }>({
+    categories: [],
+    tags: [],
+  })
+  useEffect(() => {
+    let alive = true
+    const load = (url: string) =>
+      fetch(url, { headers: { Accept: 'application/json' } })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((d) => (Array.isArray(d) ? (d as TermOption[]) : []))
+        .catch(() => [])
+    Promise.all([load('/api/admin/content-categories'), load('/api/admin/content-tags')]).then(
+      ([categories, tags]) => {
+        if (alive) setState({ categories, tags })
+      }
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
+  return state
+}
+
+/**
+ * Pin a `posts` CollectionList to a fixed category and/or tag, so it lists that
+ * taxonomy's posts on ANY page (not only a `/category|tag/:slug` archive, which
+ * auto-inherits its own). Both slugs AND together. A term the store doesn't have
+ * (e.g. an imported slug) is preserved as a manual option so it never silently
+ * drops. Non-`posts` collections ignore these values.
+ */
+export function PostTaxonomyField({
+  value,
+  onChange,
+}: {
+  value?: PostTaxonomy
+  onChange: (value: PostTaxonomy) => void
+}) {
+  const { categories, tags } = useContentTaxonomies()
+  const v = value ?? {}
+  const toOpts = (terms: TermOption[], selected?: string): AppSelectOption[] => {
+    const opts = terms.map((t) => ({ value: t.slug, label: t.name }))
+    // Keep an unknown pinned slug selectable rather than resetting it to blank.
+    if (selected && !terms.some((t) => t.slug === selected))
+      opts.unshift({ value: selected, label: selected })
+    return opts
+  }
+  const set = (patch: Partial<PostTaxonomy>) => onChange({ ...v, ...patch })
+  return (
+    <div className="space-y-2">
+      <label className="block space-y-1">
+        <span className="text-xs text-muted-foreground">Category</span>
+        <PanelSelect
+          value={v.categorySlug || undefined}
+          onChange={(slug) => set({ categorySlug: slug || undefined })}
+          options={toOpts(categories, v.categorySlug)}
+          placeholder="Any"
+          isClearable
+        />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-xs text-muted-foreground">Tag</span>
+        <PanelSelect
+          value={v.tagSlug || undefined}
+          onChange={(slug) => set({ tagSlug: slug || undefined })}
+          options={toOpts(tags, v.tagSlug)}
+          placeholder="Any"
+          isClearable
+        />
+      </label>
+      <p className="text-[11px] leading-snug text-muted-foreground">
+        Applies to a <span className="font-medium">Content posts</span> list only. Leave blank on a
+        category/tag archive page — it inherits that taxonomy automatically.
+      </p>
     </div>
   )
 }
@@ -457,6 +572,7 @@ export function CollectionList({
   sort,
   filterField,
   filterValue,
+  taxonomy,
   pageSize,
   template,
   templateId,
@@ -478,6 +594,8 @@ export function CollectionList({
   sort?: string
   filterField?: string
   filterValue?: string
+  /** Pinned Content-post taxonomy (category/tag slugs); `posts` collection only. */
+  taxonomy?: PostTaxonomy
   pageSize?: string | number
   /**
    * 'builtin' (the default) renders the ready-made card styled by
@@ -509,7 +627,7 @@ export function CollectionList({
   const boundSlug = useBinding('slug')
   const boundKind = useBinding('kind')
   const q = withArchiveTaxonomy(
-    collectionQuery(src, { limit, pageSize, sort, filterField, filterValue }),
+    collectionQuery(src, { limit, pageSize, sort, filterField, filterValue, taxonomy }),
     { slug: boundSlug, kind: boundKind }
   )
   const [page, setPage] = useState(1)

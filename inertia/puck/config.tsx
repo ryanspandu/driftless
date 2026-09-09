@@ -2,7 +2,7 @@ import { lazy, Suspense, type ComponentType, type ElementType, type ReactNode } 
 import { usePage } from '@inertiajs/react'
 import type { Config } from '@measured/puck'
 import { cn } from '~/lib/utils'
-import { CollectionSourceField, CollectionList } from '~/puck/collection-list'
+import { CollectionSourceField, CollectionList, PostTaxonomyField } from '~/puck/collection-list'
 import { MenuHandleField } from '~/puck/menu-field'
 import { CollectionTemplateField } from '~/puck/collection-template-field'
 import { CodeCollectionField } from '~/puck/code-collection-field'
@@ -1122,6 +1122,13 @@ export const baseConfig: Config = {
         },
         filterField: { type: 'text', label: 'Filter field (key)' },
         filterValue: { type: 'text', label: 'Filter contains' },
+        // Pin a Content posts list to a fixed category/tag (works on any page).
+        // A no-op for other collections (the field's own caption says so).
+        taxonomy: {
+          type: 'custom',
+          label: 'Post taxonomy',
+          render: ({ value, onChange }) => <PostTaxonomyField value={value} onChange={onChange} />,
+        },
         limit: { type: 'number', label: 'Total items to load' },
         pageSize: { type: 'number', label: 'Items per page (0 = all)' },
         ...styleFields,
@@ -1143,6 +1150,7 @@ export const baseConfig: Config = {
         sort: 'newest',
         filterField: '',
         filterValue: '',
+        taxonomy: {},
         limit: 12,
         pageSize: 0,
         empty: [],
@@ -1165,6 +1173,7 @@ export const baseConfig: Config = {
         sort,
         filterField,
         filterValue,
+        taxonomy,
         limit,
         pageSize,
         ...s
@@ -1189,6 +1198,7 @@ export const baseConfig: Config = {
             sort={sort}
             filterField={filterField}
             filterValue={filterValue}
+            taxonomy={taxonomy}
             limit={limit}
             pageSize={pageSize}
           />

@@ -46,9 +46,14 @@ async function post(
 }
 
 /** A minimal Puck doc holding a CollectionList bound to `posts`. */
-function postsListDoc(pageSize = 10) {
+function postsListDoc(pageSize = 10, extraProps: Record<string, unknown> = {}) {
   return {
-    content: [{ type: 'CollectionList', props: { source: { collectionKey: 'posts' }, pageSize } }],
+    content: [
+      {
+        type: 'CollectionList',
+        props: { source: { collectionKey: 'posts' }, pageSize, ...extraProps },
+      },
+    ],
   }
 }
 
@@ -125,6 +130,47 @@ test.group('Content archive — taxonomy list', (group) => {
     assert.deepEqual(
       boundItems.map((r) => r.data.slug),
       ['in-news']
+    )
+  })
+
+  test('a pinned taxonomy filters a posts list on a normal page (no binding)', async ({
+    assert,
+  }) => {
+    const cat = await new ContentCategoryService().create({ name: 'News', slug: 'news' })
+    await post('In news', 'in-news', { categoryIds: [cat.id] })
+    await post('Elsewhere', 'elsewhere')
+
+    // No route binding — the pin alone must filter the list.
+    const pinned = await resolvePageCollections([
+      postsListDoc(10, { taxonomy: { categorySlug: 'news' } }),
+    ])
+    const keys = Object.keys(pinned)
+    assert.isTrue(
+      keys.some((k) => k.includes('|news|')),
+      'cache key must carry the pinned category slug'
+    )
+    const items = Object.values(pinned)[0] as Array<{ data: { slug: string } }>
+    assert.deepEqual(
+      items.map((r) => r.data.slug),
+      ['in-news']
+    )
+  })
+
+  test('an explicit pin wins over the archive route binding', async ({ assert }) => {
+    const news = await new ContentCategoryService().create({ name: 'News', slug: 'news' })
+    const guides = await new ContentCategoryService().create({ name: 'Guides', slug: 'guides' })
+    await post('In news', 'in-news', { categoryIds: [news.id] })
+    await post('In guides', 'in-guides', { categoryIds: [guides.id] })
+
+    // Page is the /category/news archive, but the block is pinned to `guides`.
+    const bound = await resolvePageCollections(
+      [postsListDoc(10, { taxonomy: { categorySlug: 'guides' } })],
+      { params: { slug: 'news', kind: 'category' } }
+    )
+    const items = Object.values(bound)[0] as Array<{ data: { slug: string } }>
+    assert.deepEqual(
+      items.map((r) => r.data.slug),
+      ['in-guides']
     )
   })
 })

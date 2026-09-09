@@ -10,9 +10,10 @@ interface CollectionQuery {
   filterField: string
   filterValue: string
   /**
-   * Archive-override taxonomy inherited from the route binding — only a `posts`
-   * list on a `/category|tag/:slug` override page carries it. Part of the cache
-   * key, so it MUST be mirrored in the client's `collectionCacheKey`.
+   * Content-post taxonomy filter (a `posts` list only), from either an explicit
+   * block **pin** (`taxonomy` prop) or, on a `/category|tag/:slug` override page,
+   * the auto-inherited route binding — a pin wins. Part of the cache key, so it
+   * MUST be mirrored in the client's `collectionCacheKey`.
    */
   categorySlug?: string
   tagSlug?: string
@@ -47,7 +48,17 @@ function collectionQuery(
   }
   const filterField = String(props.filterField ?? '').trim()
   const filterValue = String(props.filterValue ?? '').trim()
-  return { key, pageSize, sortField, sortDir, filterField, filterValue }
+  const q: CollectionQuery = { key, pageSize, sortField, sortDir, filterField, filterValue }
+  // Mirror of the client: a `posts` list can pin a fixed category/tag, applied
+  // on any page. Ignored for other collections.
+  if (key === 'posts' && props.taxonomy && typeof props.taxonomy === 'object') {
+    const tax = props.taxonomy as { categorySlug?: unknown; tagSlug?: unknown }
+    const cat = typeof tax.categorySlug === 'string' ? tax.categorySlug.trim() : ''
+    const tag = typeof tax.tagSlug === 'string' ? tax.tagSlug.trim() : ''
+    if (cat) q.categorySlug = cat
+    if (tag) q.tagSlug = tag
+  }
+  return q
 }
 
 function cacheKey(q: CollectionQuery, page: number): string {
@@ -114,8 +125,9 @@ export async function resolvePageCollections(
   if (boundSlug && (boundKind === 'category' || boundKind === 'tag')) {
     for (const q of refs) {
       if (q.key !== 'posts') continue
-      if (boundKind === 'category') q.categorySlug = boundSlug
-      else q.tagSlug = boundSlug
+      // Fill-only: an explicit block pin (set above) wins over the route binding.
+      if (boundKind === 'category') q.categorySlug ||= boundSlug
+      else q.tagSlug ||= boundSlug
     }
   }
 
