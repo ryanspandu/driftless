@@ -137,24 +137,45 @@ export function ContentEditorForm({
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <Card className="overflow-hidden focus-within:border-ring/40 focus-within:ring-2 focus-within:ring-ring/40">
-          <input
-            aria-label="Title"
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value)
-              if (!slugDirty) setSlug(slugify(e.target.value))
-            }}
-            placeholder="Post title"
-            className="w-full border-b border-border bg-transparent px-4 py-3.5 text-2xl font-semibold tracking-tight text-foreground outline-none placeholder:text-muted-foreground/40"
-          />
-          <ArticleEditor
-            bare
-            value={body}
-            onChange={setBody}
-            placeholder="Start writing your article…"
-          />
-        </Card>
+        <div className="space-y-6">
+          <Card className="overflow-hidden focus-within:border-ring/40 focus-within:ring-2 focus-within:ring-ring/40">
+            <input
+              aria-label="Title"
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value)
+                if (!slugDirty) setSlug(slugify(e.target.value))
+              }}
+              placeholder="Post title"
+              className="w-full border-b border-border bg-transparent px-4 py-3.5 text-2xl font-semibold tracking-tight text-foreground outline-none placeholder:text-muted-foreground/40"
+            />
+            <ArticleEditor
+              bare
+              value={body}
+              onChange={setBody}
+              placeholder="Start writing your article…"
+            />
+          </Card>
+
+          {customFields.length > 0 ? (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">{contentType?.label ?? 'Details'}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {customFields.map((field) => (
+                  <FieldRenderer
+                    key={field.id}
+                    field={field}
+                    value={data[field.key]}
+                    onChange={(v) => setData((prev) => ({ ...prev, [field.key]: v }))}
+                    disabled={saving}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
 
         <aside className="space-y-4">
           <Card>
@@ -256,25 +277,6 @@ export function ContentEditorForm({
               )}
             </CardContent>
           </Card>
-
-          {customFields.length > 0 ? (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">{contentType?.label ?? 'Details'}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {customFields.map((field) => (
-                  <FieldRenderer
-                    key={field.id}
-                    field={field}
-                    value={data[field.key]}
-                    onChange={(v) => setData((prev) => ({ ...prev, [field.key]: v }))}
-                    disabled={saving}
-                  />
-                ))}
-              </CardContent>
-            </Card>
-          ) : null}
         </aside>
       </div>
 
