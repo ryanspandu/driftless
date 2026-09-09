@@ -1,4 +1,4 @@
-import '../styles.css'
+import '../style/style.css'
 import type { ReactNode } from 'react'
 import Header from '../templates/header'
 import Footer from '../templates/footer'
@@ -31,6 +31,8 @@ export function Shell({
       <link
         rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+        media="print"
+        data-font-async=""
       />
       {header === 'pnav' ? (
         <Pnav backHref={backHref} backLabel={backLabel} />

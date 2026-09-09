@@ -62,6 +62,11 @@ export default function AftrnHome() {
                   alt="Local service business owner on the job"
                   width={1200}
                   height={940}
+                  // LCP element — tell the browser to fetch it at high priority
+                  // even though it's discovered in the body, and never lazy it.
+                  fetchPriority="high"
+                  loading="eager"
+                  decoding="async"
                 />
               </div>
 
