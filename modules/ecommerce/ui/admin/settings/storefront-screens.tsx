@@ -26,6 +26,8 @@ interface Slot {
     | 'accountPageId'
     | 'loginPageId'
     | 'registerPageId'
+    | 'categoryPageId'
+    | 'tagPageId'
   label: string
   url: string
   block: string
@@ -43,6 +45,13 @@ const SLOTS: Slot[] = [
     url: '/shop/account/register',
     block: 'Sign up',
   },
+  {
+    key: 'categoryPageId',
+    label: 'Category archive',
+    url: '/shop/category/:slug',
+    block: 'Product List',
+  },
+  { key: 'tagPageId', label: 'Tag archive', url: '/shop/tag/:slug', block: 'Product List' },
 ]
 
 export default function StorefrontScreensPanel() {
@@ -57,6 +66,8 @@ export default function StorefrontScreensPanel() {
     accountPageId: '',
     loginPageId: '',
     registerPageId: '',
+    categoryPageId: '',
+    tagPageId: '',
   })
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -90,6 +101,8 @@ export default function StorefrontScreensPanel() {
         accountPageId: values.accountPageId || null,
         loginPageId: values.loginPageId || null,
         registerPageId: values.registerPageId || null,
+        categoryPageId: values.categoryPageId || null,
+        tagPageId: values.tagPageId || null,
       })
       setSaved(true)
       window.setTimeout(() => setSaved(false), 2_000)

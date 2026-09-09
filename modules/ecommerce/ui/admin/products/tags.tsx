@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { FolderTree, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Pencil, Plus, Tag as TagIcon, Trash2 } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import {
   Dialog,
@@ -19,28 +19,26 @@ import {
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { Textarea } from '~/components/ui/textarea'
-import { AppSelect } from '~/components/ui/app-select'
 import { PageHeader } from '~/components/admin/page-header'
 import { BackButton } from '~/components/admin/back-button'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { Can } from '~/components/providers/ability-provider'
 import { apiErrorMessage } from '~/lib/api-client'
-import { useCategories, useDeleteCategory, useSaveCategory, type CategoryDto } from '../_api'
+import { useDeleteTag, useSaveTag, useTags, type TagDto } from '../_api'
 
 function emptyForm() {
-  return { id: null as string | null, name: '', slug: '', description: '', parentId: '' }
+  return { id: null as string | null, name: '', slug: '', description: '' }
 }
 
 type FormState = ReturnType<typeof emptyForm>
 
-function toForm(category: CategoryDto): FormState {
+function toForm(tag: TagDto): FormState {
   return {
-    id: category.id,
-    name: category.name,
-    slug: category.slug,
-    description: category.description ?? '',
-    parentId: category.parentId ?? '',
+    id: tag.id,
+    name: tag.name,
+    slug: tag.slug,
+    description: tag.description ?? '',
   }
 }
 
@@ -53,51 +51,29 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-export default function CategoriesPage() {
-  const query = useCategories()
-  const save = useSaveCategory()
-  const remove = useDeleteCategory()
+export default function TagsPage() {
+  const query = useTags()
+  const save = useSaveTag()
+  const remove = useDeleteTag()
   const confirmDelete = useConfirmDelete()
 
   const [search, setSearch] = useState('')
   const [form, setForm] = useState<FormState | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const categories = query.data ?? []
+  const tags = query.data ?? []
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
 
-  const nameById = useMemo(
-    () => new Map(categories.map((category) => [category.id, category.name])),
-    [categories]
-  )
-
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase()
-    if (!needle) return categories
-    return categories.filter(
-      (category) =>
-        category.name.toLowerCase().includes(needle) || category.slug.toLowerCase().includes(needle)
+    if (!needle) return tags
+    return tags.filter(
+      (tag) => tag.name.toLowerCase().includes(needle) || tag.slug.toLowerCase().includes(needle)
     )
-  }, [categories, search])
-
-  /**
-   * Parent options exclude the category being edited.
-   *
-   * Letting something be its own parent produces a cycle the tree walk would
-   * never come back from.
-   */
-  const parentOptions = useMemo(
-    () => [
-      { value: '', label: 'No parent (top level)' },
-      ...categories
-        .filter((category) => category.id !== form?.id)
-        .map((category) => ({ value: category.id, label: category.name })),
-    ],
-    [categories, form?.id]
-  )
+  }, [tags, search])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -111,7 +87,6 @@ export default function CategoriesPage() {
           name: form.name.trim(),
           slug: form.slug.trim() || slugify(form.name),
           description: form.description.trim() || null,
-          parentId: form.parentId || null,
         },
       })
       setForm(null)
@@ -120,36 +95,26 @@ export default function CategoriesPage() {
     }
   }
 
-  const columns = useMemo<ColumnDef<CategoryDto>[]>(
+  const columns = useMemo<ColumnDef<TagDto>[]>(
     () => [
       {
         accessorKey: 'name',
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Category" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Tag" />,
         cell: ({ row }) => (
           <div className="flex min-w-0 flex-col leading-tight">
             <span className="truncate font-medium">{row.original.name}</span>
             {/* A real link to the storefront archive, so the path the operator
                 sees actually opens. */}
             <a
-              href={`/shop/category/${row.original.slug}`}
+              href={`/shop/tag/${row.original.slug}`}
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
               className="truncate text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
-              /shop/category/{row.original.slug}
+              /shop/tag/{row.original.slug}
             </a>
           </div>
-        ),
-      },
-      {
-        accessorKey: 'parentId',
-        enableSorting: false,
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Parent" />,
-        cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
-            {row.original.parentId ? (nameById.get(row.original.parentId) ?? '—') : '—'}
-          </span>
         ),
       },
       {
@@ -170,7 +135,7 @@ export default function CategoriesPage() {
         enableSorting: false,
         header: () => <span className="sr-only">Actions</span>,
         cell: ({ row }) => {
-          const category = row.original
+          const tag = row.original
           return (
             <Can permission="ecommerce:products:manage">
               <DropdownMenu>
@@ -178,13 +143,13 @@ export default function CategoriesPage() {
                   render={<Button variant="ghost" size="icon" className="size-8" />}
                 >
                   <MoreHorizontal className="size-4" aria-hidden />
-                  <span className="sr-only">Actions for {category.name}</span>
+                  <span className="sr-only">Actions for {tag.name}</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     onClick={() => {
                       setError(null)
-                      setForm(toForm(category))
+                      setForm(toForm(tag))
                     }}
                   >
                     <Pencil className="mr-2 size-4" aria-hidden />
@@ -195,13 +160,13 @@ export default function CategoriesPage() {
                     variant="destructive"
                     onClick={async () => {
                       const confirmed = await confirmDelete({
-                        title: `Delete ${category.name}?`,
+                        title: `Delete ${tag.name}?`,
                         description:
-                          category.productCount > 0
-                            ? `${category.productCount} product${category.productCount === 1 ? '' : 's'} will lose this category. The products themselves are untouched.`
+                          tag.productCount > 0
+                            ? `${tag.productCount} product${tag.productCount === 1 ? '' : 's'} will lose this tag. The products themselves are untouched.`
                             : 'The products themselves are untouched.',
                       })
-                      if (confirmed) remove.mutate(category.id)
+                      if (confirmed) remove.mutate(tag.id)
                     }}
                   >
                     <Trash2 className="mr-2 size-4" aria-hidden />
@@ -214,7 +179,7 @@ export default function CategoriesPage() {
         },
       },
     ],
-    [confirmDelete, nameById, remove]
+    [confirmDelete, remove]
   )
 
   return (
@@ -223,9 +188,9 @@ export default function CategoriesPage() {
         <BackButton href="/admin/ecommerce/products" label="Back to products" />
         <PageHeader
           className="flex-1"
-          title="Categories"
-          subtitle="How the storefront groups what you sell."
-          count={categories.length}
+          title="Tags"
+          subtitle="A flat way to label products across categories."
+          count={tags.length}
           actions={
             <Can permission="ecommerce:products:manage">
               <Button
@@ -236,7 +201,7 @@ export default function CategoriesPage() {
                 }}
               >
                 <Plus className="size-4" aria-hidden />
-                New category
+                New tag
               </Button>
             </Can>
           }
@@ -249,17 +214,17 @@ export default function CategoriesPage() {
         getRowId={(row) => row.id}
         hideSyncColumn
         enableBulkSelect={false}
-        searchPlaceholder="Search categories…"
+        searchPlaceholder="Search tags…"
         searchValue={search}
         onSearchChange={setSearch}
         emptyMessage={
           <div className="flex flex-col items-center gap-2 py-8">
             <span className="flex size-10 items-center justify-center rounded-full bg-muted">
-              <FolderTree className="size-5 text-muted-foreground" aria-hidden />
+              <TagIcon className="size-5 text-muted-foreground" aria-hidden />
             </span>
-            <p className="text-sm font-medium">No categories yet</p>
+            <p className="text-sm font-medium">No tags yet</p>
             <p className="text-xs text-muted-foreground">
-              Products work fine without them — add one when you want to group them.
+              Add one when you want to label products across categories.
             </p>
           </div>
         }
@@ -268,7 +233,7 @@ export default function CategoriesPage() {
       <Dialog open={form !== null} onOpenChange={(open) => !open && setForm(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{form?.id ? 'Edit category' : 'New category'}</DialogTitle>
+            <DialogTitle>{form?.id ? 'Edit tag' : 'New tag'}</DialogTitle>
           </DialogHeader>
 
           {form ? (
@@ -305,21 +270,11 @@ export default function CategoriesPage() {
                   value={form.slug}
                   onChange={(e) => set('slug', e.target.value)}
                   className="font-mono"
-                  placeholder={slugify(form.name) || 'category-slug'}
+                  placeholder={slugify(form.name) || 'tag-slug'}
                 />
                 <p className="text-xs text-muted-foreground">
                   Appears in storefront URLs. Changing it on a live shop breaks existing links.
                 </p>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="parent">Parent</Label>
-                <AppSelect
-                  id="parent"
-                  value={form.parentId}
-                  onChange={(value) => set('parentId', value)}
-                  options={parentOptions}
-                />
               </div>
 
               <div className="space-y-1.5">
@@ -339,7 +294,7 @@ export default function CategoriesPage() {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? 'Saving…' : 'Save category'}
+                  {save.isPending ? 'Saving…' : 'Save tag'}
                 </Button>
               </DialogFooter>
             </form>

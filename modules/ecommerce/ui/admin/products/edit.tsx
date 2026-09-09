@@ -19,7 +19,8 @@ import VariantPrices from './variant-prices'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { Switch } from '~/components/ui/switch'
-import { AppSelect } from '~/components/ui/app-select'
+import { AppSelect, AppMultiSelect } from '~/components/ui/app-select'
+import { toast } from 'sonner'
 import { MoneyInput } from '../../components/money-input'
 import { BackButton } from '~/components/admin/back-button'
 import { PageHeader } from '~/components/admin/page-header'
@@ -33,8 +34,10 @@ import {
   useDeleteVariant,
   useProduct,
   useSaveProduct,
+  useSaveTag,
   useSaveVariant,
   useStoreSettings,
+  useTags,
   type ProductStatus,
   type ProductType,
   type VariantDto,
@@ -88,6 +91,69 @@ function emptyDraft(): VariantDraft {
   }
 }
 
+/**
+ * Product tags — a multi-select with inline create, mirroring the Content
+ * editor's Tags card. Tags are flat, so unlike Categories there is no checkbox
+ * tree; the operator picks from a searchable list or types a new tag inline.
+ */
+function TagsField({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
+  const { data } = useTags()
+  const saveTag = useSaveTag()
+  const [newName, setNewName] = useState('')
+  const options = (data ?? []).map((t) => ({ value: t.id, label: t.name }))
+
+  const addNew = async () => {
+    const name = newName.trim()
+    if (!name) return
+    try {
+      const tag = await saveTag.mutateAsync({ id: null, input: { name } })
+      onChange([...value, tag.id])
+      setNewName('')
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not create tag'))
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <AppMultiSelect
+        value={value}
+        onChange={onChange}
+        options={options}
+        placeholder="Select tags…"
+        isSearchable
+      />
+      <div className="flex gap-2">
+        <Input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="New tag…"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              void addNew()
+            }
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void addNew()}
+          disabled={!newName.trim() || saveTag.isPending}
+        >
+          Add
+        </Button>
+      </div>
+      <a
+        href="/admin/ecommerce/products/tags"
+        className="inline-block text-xs font-medium text-ring underline-offset-2 hover:underline"
+      >
+        Manage tags
+      </a>
+    </div>
+  )
+}
+
 export default function ProductEditPage() {
   const { productId } = usePage<{ props: PageProps }>().props as unknown as PageProps
   const isNew = !productId
@@ -113,12 +179,15 @@ export default function ProductEditPage() {
   const [externalUrl, setExternalUrl] = useState('')
   const [externalLabel, setExternalLabel] = useState('')
   const [categoryIds, setCategoryIds] = useState<string[]>([])
+  const [tagIds, setTagIds] = useState<string[]>([])
   const [images, setImages] = useState<{ mediaUrl: string; alt?: string | null }[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
 
   // Drag-to-reorder the image tiles. The array order IS the saved order (first =
   // thumbnail), so reordering state and saving is all that's needed.
-  const imageSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  const imageSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
   const onImagesDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -157,6 +226,7 @@ export default function ProductEditPage() {
     setExternalUrl(data.externalUrl ?? '')
     setExternalLabel(data.externalLabel ?? '')
     setCategoryIds(data.categoryIds)
+    setTagIds(data.tagIds)
     setImages(data.images.map((img) => ({ mediaUrl: img.mediaUrl, alt: img.alt })))
     setDrafts(Object.fromEntries(data.variants.map((v) => [v.id, variantToDraft(v)])))
   }, [data])
@@ -165,6 +235,12 @@ export default function ProductEditPage() {
     () => (categories.data ?? []).map((c) => ({ value: c.id, label: c.name })),
     [categories.data]
   )
+  const [categorySearch, setCategorySearch] = useState('')
+  const filteredCategoryOptions = useMemo(() => {
+    const needle = categorySearch.trim().toLowerCase()
+    if (!needle) return categoryOptions
+    return categoryOptions.filter((o) => o.label.toLowerCase().includes(needle))
+  }, [categoryOptions, categorySearch])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -193,6 +269,7 @@ export default function ProductEditPage() {
           externalUrl: externalUrl.trim() || null,
           externalLabel: externalLabel.trim() || null,
           categoryIds,
+          tagIds,
           images,
         },
       })
@@ -333,9 +410,7 @@ export default function ProductEditPage() {
                         key={img.mediaUrl}
                         img={img}
                         isThumbnail={index === 0}
-                        onRemove={() =>
-                          setImages((prev) => prev.filter((_, i) => i !== index))
-                        }
+                        onRemove={() => setImages((prev) => prev.filter((_, i) => i !== index))}
                       />
                     ))}
                     <button
@@ -519,8 +594,8 @@ export default function ProductEditPage() {
                 />
                 {ctaMode === 'external' ? (
                   <p className="text-xs text-muted-foreground">
-                    You do not sell this — the button links out. It cannot be added to a basket
-                    or ordered here, and its stock is ignored.
+                    You do not sell this — the button links out. It cannot be added to a basket or
+                    ordered here, and its stock is ignored.
                   </p>
                 ) : ctaMode === 'buy_now' ? (
                   <p className="text-xs text-muted-foreground">
@@ -540,8 +615,8 @@ export default function ProductEditPage() {
                       placeholder="https://partner.example/product"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Your affiliate URL. Marked <code>nofollow sponsored</code> automatically —
-                      a paid link has to say so.
+                      Your affiliate URL. Marked <code>nofollow sponsored</code> automatically — a
+                      paid link has to say so.
                     </p>
                   </div>
 
@@ -567,30 +642,56 @@ export default function ProductEditPage() {
               {categoryOptions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No categories yet.</p>
               ) : (
-                categoryOptions.map((option) => {
-                  const checked = categoryIds.includes(option.value)
-                  return (
-                    <label
-                      key={option.value}
-                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent/40"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) =>
-                          setCategoryIds((prev) =>
-                            e.target.checked
-                              ? [...prev, option.value]
-                              : prev.filter((id) => id !== option.value)
-                          )
-                        }
-                        className="size-4 rounded border-border"
-                      />
-                      {option.label}
-                    </label>
-                  )
-                })
+                <>
+                  {categoryOptions.length > 6 ? (
+                    <Input
+                      type="search"
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      placeholder="Search categories…"
+                      className="h-8"
+                    />
+                  ) : null}
+                  <div className="max-h-64 space-y-1 overflow-y-auto pr-1">
+                    {filteredCategoryOptions.length === 0 ? (
+                      <p className="px-2 py-1.5 text-sm text-muted-foreground">No matches.</p>
+                    ) : (
+                      filteredCategoryOptions.map((option) => {
+                        const checked = categoryIds.includes(option.value)
+                        return (
+                          <label
+                            key={option.value}
+                            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent/40"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) =>
+                                setCategoryIds((prev) =>
+                                  e.target.checked
+                                    ? [...prev, option.value]
+                                    : prev.filter((id) => id !== option.value)
+                                )
+                              }
+                              className="size-4 rounded border-border"
+                            />
+                            {option.label}
+                          </label>
+                        )
+                      })
+                    )}
+                  </div>
+                </>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Tags</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TagsField value={tagIds} onChange={setTagIds} />
             </CardContent>
           </Card>
 

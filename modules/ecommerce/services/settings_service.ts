@@ -37,6 +37,9 @@ export interface StoreSettingsDto {
   accountPageId: string | null
   loginPageId: string | null
   registerPageId: string | null
+  /** Optional builder-page overrides for the archive screens. */
+  categoryPageId: string | null
+  tagPageId: string | null
 }
 
 export interface UpdateStoreSettingsDto extends Partial<Omit<StoreSettingsDto, 'taxRatePercent'>> {
@@ -84,6 +87,8 @@ export default class StoreSettingsService {
       accountPageId: null,
       loginPageId: null,
       registerPageId: null,
+      categoryPageId: null,
+      tagPageId: null,
     })
   }
 
@@ -118,6 +123,8 @@ export default class StoreSettingsService {
       accountPageId: row.accountPageId,
       loginPageId: row.loginPageId,
       registerPageId: row.registerPageId,
+      categoryPageId: row.categoryPageId,
+      tagPageId: row.tagPageId,
     }
   }
 
@@ -256,6 +263,12 @@ export default class StoreSettingsService {
     }
     if (dto.registerPageId !== undefined) {
       row.registerPageId = dto.registerPageId || null
+    }
+    if (dto.categoryPageId !== undefined) {
+      row.categoryPageId = dto.categoryPageId || null
+    }
+    if (dto.tagPageId !== undefined) {
+      row.tagPageId = dto.tagPageId || null
     }
     if (dto.orderNumberPrefix !== undefined) {
       row.orderNumberPrefix = (dto.orderNumberPrefix || 'ORD-').slice(0, 16)

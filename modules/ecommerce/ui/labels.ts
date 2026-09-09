@@ -11,6 +11,7 @@ export default {
     '/admin/ecommerce': 'E-commerce',
     '/admin/ecommerce/products': 'Products',
     '/admin/ecommerce/products/categories': 'Categories',
+    '/admin/ecommerce/products/tags': 'Tags',
     '/admin/ecommerce/orders': 'Orders',
     // Listed explicitly so it beats the `/orders/` prefix rule below, which
     // would otherwise label the create screen "Order".

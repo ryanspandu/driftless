@@ -18,6 +18,8 @@ const TABLES = [
   'ecommerce_product_variants',
   'ecommerce_product_images',
   'ecommerce_product_categories',
+  'ecommerce_tags',
+  'ecommerce_product_tags',
   'ecommerce_digital_assets',
   'ecommerce_accounts',
   'ecommerce_account_sessions',

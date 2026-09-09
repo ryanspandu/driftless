@@ -5,6 +5,7 @@ import { booleanColumn, jsonColumn, moneyColumn } from '#models/_columns'
 import ProductVariant from '#modules/ecommerce/models/product_variant'
 import ProductImage from '#modules/ecommerce/models/product_image'
 import Category from '#modules/ecommerce/models/category'
+import Tag from '#modules/ecommerce/models/tag'
 
 export type ProductType = 'physical' | 'digital'
 export type ProductStatus = 'draft' | 'active' | 'archived'
@@ -116,4 +117,13 @@ export default class Product extends BaseModel {
     pivotRelatedForeignKey: 'category_id',
   })
   declare categories: ManyToMany<typeof Category>
+
+  @manyToMany(() => Tag, {
+    pivotTable: 'ecommerce_product_tags',
+    localKey: 'id',
+    pivotForeignKey: 'product_id',
+    relatedKey: 'id',
+    pivotRelatedForeignKey: 'tag_id',
+  })
+  declare tags: ManyToMany<typeof Tag>
 }

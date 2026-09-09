@@ -9,6 +9,7 @@ import {
   Package,
   Pencil,
   Plus,
+  Tag as TagIcon,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -297,6 +298,14 @@ export default function ProductsPage() {
             >
               <FolderTree className="size-4" aria-hidden />
               Categories
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              render={<Link href="/admin/ecommerce/products/tags" />}
+            >
+              <TagIcon className="size-4" aria-hidden />
+              Tags
             </Button>
             <Button className="gap-2" render={<Link href="/admin/ecommerce/products/new" />}>
               <Plus className="size-4" aria-hidden />

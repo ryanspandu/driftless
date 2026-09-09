@@ -219,6 +219,75 @@ export default class StorefrontPagesController {
   }
 
   /**
+   * `/shop/category/:slug` and `/shop/tag/:slug` — product archives.
+   *
+   * A simple Inertia archive by default (like cart/checkout), listing the
+   * taxonomy's active products. An operator can override it with a builder page
+   * (`categoryPageId` / `tagPageId`) — which is also how custom-code blocks and
+   * template kits reach the archive, since those live inside a builder page. The
+   * slug is bound so an archive block on that page can filter to this taxonomy.
+   *
+   * The taxonomy is resolved here regardless: an unknown or deleted slug 404s
+   * rather than rendering an empty archive, and the page title/description come
+   * from the real record.
+   */
+  async category(ctx: HttpContext) {
+    return this.renderArchive(ctx, 'category')
+  }
+
+  async tag(ctx: HttpContext) {
+    return this.renderArchive(ctx, 'tag')
+  }
+
+  private async renderArchive(ctx: HttpContext, kind: 'category' | 'tag') {
+    const slug = String(ctx.params.slug ?? '').trim()
+    if (!slug) {
+      throw new Exception(`${kind} not found`, { status: 404, code: 'E_PAGE_NOT_FOUND' })
+    }
+
+    const taxonomy =
+      kind === 'category' ? await catalog.categoryBySlug(slug) : await catalog.tagBySlug(slug)
+    if (!taxonomy) {
+      throw new Exception(`${kind} not found`, { status: 404, code: 'E_PAGE_NOT_FOUND' })
+    }
+
+    const store = await storeSettings.getOrCreate()
+    const overrideId = kind === 'category' ? store.categoryPageId : store.tagPageId
+    const canonicalPath = `/shop/${kind}/${taxonomy.slug}`
+
+    const override = await this.overridePage(overrideId)
+    if (override) {
+      // The slug is bound so an archive block on the page can filter to this
+      // taxonomy; the page's own SEO wins field by field, with the taxonomy as
+      // the fallback title and this URL as canonical (or every archive built on
+      // the same template would claim the template's path).
+      return renderer.render(override, ctx, {
+        bindings: { params: { slug: taxonomy.slug, kind } },
+        seoOverride: {
+          title: taxonomy.name,
+          description: taxonomy.description,
+          canonicalPath,
+        },
+        // One template, many taxonomies — snapshotting one would serve it for
+        // all, the same trap as the product template.
+        skipSnapshot: true,
+      })
+    }
+
+    const currency = await currencies.forRequest(ctx)
+    const filter =
+      kind === 'category' ? { categorySlug: taxonomy.slug } : { tagSlug: taxonomy.slug }
+    const products = await catalog.list({ ...filter, pageSize: 48 }, currency)
+
+    return this.renderStorefront(ctx, 'modules/ecommerce/storefront/archive', {
+      taxonomy,
+      products: products.items,
+      total: products.total,
+      canonicalPath,
+    })
+  }
+
+  /**
    * `/shop` — the shop front, rendered from a builder page.
    *
    * A page rather than a fixed template because the catalogue is **content**:

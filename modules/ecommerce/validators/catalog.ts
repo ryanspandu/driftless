@@ -52,6 +52,7 @@ export const createProductValidator = vine.compile(
     externalLabel: vine.string().trim().maxLength(80).nullable().optional(),
     position: vine.number().withoutDecimals().optional(),
     categoryIds: vine.array(vine.string().trim()).maxLength(20).optional(),
+    tagIds: vine.array(vine.string().trim()).maxLength(50).optional(),
     images: vine.array(imageSchema).maxLength(20).optional(),
   })
 )
@@ -72,6 +73,7 @@ export const updateProductValidator = vine.compile(
     externalLabel: vine.string().trim().maxLength(80).nullable().optional(),
     position: vine.number().withoutDecimals().optional(),
     categoryIds: vine.array(vine.string().trim()).maxLength(20).optional(),
+    tagIds: vine.array(vine.string().trim()).maxLength(50).optional(),
     images: vine.array(imageSchema).maxLength(20).optional(),
   })
 )
@@ -131,6 +133,24 @@ export const updateCategoryValidator = vine.compile(
     description: vine.string().trim().maxLength(2_000).nullable().optional(),
     imageUrl: vine.string().trim().maxLength(1024).nullable().optional(),
     parentId: vine.string().trim().nullable().optional(),
+    position: vine.number().withoutDecimals().optional(),
+  })
+)
+
+export const createTagValidator = vine.compile(
+  vine.object({
+    name: vine.string().trim().minLength(1).maxLength(160),
+    slug: vine.string().trim().maxLength(160).optional(),
+    description: vine.string().trim().maxLength(2_000).nullable().optional(),
+    position: vine.number().withoutDecimals().optional(),
+  })
+)
+
+export const updateTagValidator = vine.compile(
+  vine.object({
+    name: vine.string().trim().minLength(1).maxLength(160).optional(),
+    slug: vine.string().trim().maxLength(160).optional(),
+    description: vine.string().trim().maxLength(2_000).nullable().optional(),
     position: vine.number().withoutDecimals().optional(),
   })
 )

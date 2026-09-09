@@ -60,6 +60,8 @@ const updateValidator = vine.compile(
     accountPageId: vine.string().trim().nullable().optional(),
     loginPageId: vine.string().trim().nullable().optional(),
     registerPageId: vine.string().trim().nullable().optional(),
+    categoryPageId: vine.string().trim().nullable().optional(),
+    tagPageId: vine.string().trim().nullable().optional(),
   })
 )
 

@@ -113,6 +113,18 @@ export default class EcommerceSetting extends BaseModel {
   @column()
   declare registerPageId: string | null
 
+  /**
+   * Optional builder-page overrides for the category / tag archive screens. Null
+   * (the default) serves the built-in Inertia archive; a published page id
+   * renders that page at `/shop/category/:slug` / `/shop/tag/:slug` instead,
+   * with the slug bound for an archive block to filter on.
+   */
+  @column()
+  declare categoryPageId: string | null
+
+  @column()
+  declare tagPageId: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

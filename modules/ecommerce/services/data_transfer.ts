@@ -12,6 +12,7 @@ import {
 import EcommerceSetting from '#modules/ecommerce/models/setting'
 import StoreCurrency from '#modules/ecommerce/models/store_currency'
 import Category from '#modules/ecommerce/models/category'
+import Tag from '#modules/ecommerce/models/tag'
 import Product from '#modules/ecommerce/models/product'
 import ProductVariant from '#modules/ecommerce/models/product_variant'
 import VariantPrice from '#modules/ecommerce/models/variant_price'
@@ -113,6 +114,7 @@ async function restoreRows(
 }
 
 const PIVOT = 'ecommerce_product_categories'
+const TAG_PIVOT = 'ecommerce_product_tags'
 
 export const ecommerceSection: DataSection = {
   name: 'ecommerce',
@@ -123,11 +125,13 @@ export const ecommerceSection: DataSection = {
     'ecommerce_settings',
     'ecommerce_currencies',
     'ecommerce_categories',
+    'ecommerce_tags',
     'ecommerce_products',
     'ecommerce_product_variants',
     'ecommerce_variant_prices',
     'ecommerce_product_images',
     PIVOT,
+    TAG_PIVOT,
     'ecommerce_shipping_zones',
     'ecommerce_shipping_methods',
     'ecommerce_shipping_rates',
@@ -139,11 +143,13 @@ export const ecommerceSection: DataSection = {
       settings: dumpRows(await EcommerceSetting.query()),
       currencies: dumpRows(await StoreCurrency.query()),
       categories: dumpRows(await Category.query().whereNull('deleted_at')),
+      tags: dumpRows(await Tag.query().whereNull('deleted_at')),
       products: dumpRows(await Product.query().whereNull('deleted_at')),
       variants: dumpRows(await ProductVariant.query().whereNull('deleted_at')),
       variantPrices: dumpRows(await VariantPrice.query()),
       productImages: dumpRows(await ProductImage.query()),
       productCategories: await db.from(PIVOT).select('*'),
+      productTags: await db.from(TAG_PIVOT).select('*'),
       shippingZones: dumpRows(await ShippingZone.query().whereNull('deleted_at')),
       shippingMethods: dumpRows(await ShippingMethod.query().whereNull('deleted_at')),
       shippingRates: dumpRows(await ShippingRate.query()),
@@ -195,6 +201,9 @@ export const ecommerceSection: DataSection = {
       }
     }
 
+    // Tags are flat (no parent), so a single pass is enough.
+    await restoreRows(Tag, p.tags ?? [], report, ctx)
+
     await restoreRows(Product, p.products ?? [], report, ctx)
     await restoreRows(ProductVariant, p.variants ?? [], report, ctx)
     await restoreRows(VariantPrice, p.variantPrices ?? [], report, ctx)
@@ -211,6 +220,21 @@ export const ecommerceSection: DataSection = {
         .first()
       if (!exists) {
         await db.table(PIVOT).insert({ ...pc, product_id: productId, category_id: categoryId })
+        report.created++
+      }
+    }
+
+    for (const pt of p.productTags ?? []) {
+      const productId = mapId(pt.product_id)
+      const tagId = mapId(pt.tag_id)
+      if (!productId || !tagId) continue
+      const exists = await db
+        .from(TAG_PIVOT)
+        .where('product_id', productId as string)
+        .where('tag_id', tagId as string)
+        .first()
+      if (!exists) {
+        await db.table(TAG_PIVOT).insert({ ...pt, product_id: productId, tag_id: tagId })
         report.created++
       }
     }

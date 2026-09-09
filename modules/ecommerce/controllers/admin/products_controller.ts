@@ -30,6 +30,11 @@ export default class ProductsController {
     return renderPage(inertia, 'modules/ecommerce/admin/products/categories', {})
   }
 
+  /** The tag management screen. */
+  async tagsPage({ inertia }: HttpContext) {
+    return renderPage(inertia, 'modules/ecommerce/admin/products/tags', {})
+  }
+
   async page({ inertia }: HttpContext) {
     return renderPage(inertia, 'modules/ecommerce/admin/products/index', {})
   }

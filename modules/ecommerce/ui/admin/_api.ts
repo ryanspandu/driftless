@@ -67,6 +67,7 @@ export interface ProductDto {
   variants: VariantDto[]
   images: ProductImageDto[]
   categoryIds: string[]
+  tagIds: string[]
   totalStock: number | null
   createdAt: string
   updatedAt: string
@@ -79,6 +80,15 @@ export interface CategoryDto {
   description: string | null
   imageUrl: string | null
   parentId: string | null
+  position: number
+  productCount: number
+}
+
+export interface TagDto {
+  id: string
+  slug: string
+  name: string
+  description: string | null
   position: number
   productCount: number
 }
@@ -128,6 +138,13 @@ export interface StoreSettingsDto {
   accountPageId: string | null
   loginPageId: string | null
   registerPageId: string | null
+  /**
+   * Optional builder-page overrides for the category / tag archive screens. Null
+   * serves the built-in Inertia archive; a page id renders that page at
+   * `/shop/category/:slug` / `/shop/tag/:slug` instead.
+   */
+  categoryPageId: string | null
+  tagPageId: string | null
 }
 
 export interface StoreStatsDto {
@@ -294,6 +311,7 @@ export const ecommerceKeys = {
   products: (query: string) => ['ecommerce', 'products', query] as const,
   product: (id: string) => ['ecommerce', 'product', id] as const,
   categories: ['ecommerce', 'categories'] as const,
+  tags: ['ecommerce', 'tags'] as const,
   settings: ['ecommerce', 'settings'] as const,
   stats: ['ecommerce', 'stats'] as const,
   orders: (query: string) => ['ecommerce', 'orders', query] as const,
@@ -350,6 +368,14 @@ export function useCategories() {
   })
 }
 
+export function useTags() {
+  return useQuery({
+    queryKey: ecommerceKeys.tags,
+    queryFn: () => apiFetch<TagDto[]>(`${BASE}/tags`),
+    staleTime: 60_000,
+  })
+}
+
 export function useStoreSettings() {
   return useQuery({
     queryKey: ecommerceKeys.settings,
@@ -401,6 +427,7 @@ export interface ProductInput {
   externalUrl?: string | null
   externalLabel?: string | null
   categoryIds?: string[]
+  tagIds?: string[]
   images?: { mediaUrl: string; alt?: string | null }[]
 }
 
@@ -542,6 +569,34 @@ export function useDeleteCategory() {
     mutationFn: (id: string) => apiFetch<void>(`${BASE}/categories/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ecommerceKeys.categories })
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'products'] })
+    },
+  })
+}
+
+export function useSaveTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string | null; input: Partial<TagDto> }) =>
+      id
+        ? apiFetch<TagDto>(`${BASE}/tags/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(input),
+          })
+        : apiFetch<TagDto>(`${BASE}/tags`, {
+            method: 'POST',
+            body: JSON.stringify(input),
+          }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ecommerceKeys.tags }),
+  })
+}
+
+export function useDeleteTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`${BASE}/tags/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ecommerceKeys.tags })
       void qc.invalidateQueries({ queryKey: ['ecommerce', 'products'] })
     },
   })

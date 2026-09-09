@@ -1,6 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 import Product from '#modules/ecommerce/models/product'
 import Category from '#modules/ecommerce/models/category'
+import Tag from '#modules/ecommerce/models/tag'
 import { Money, type MoneyDto } from '#modules/ecommerce/services/money'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 import { publicError } from '#exceptions/public_error'
@@ -48,6 +49,7 @@ export interface PublicProductDto {
   /** Option axes (e.g. `{ name: 'Color', values: ['Blue','Sand'] }`) — drives the card swatches. */
   options: { name: string; values: string[] }[]
   categorySlugs: string[]
+  tagSlugs: string[]
   featured: boolean
   /**
    * What the buy button should do. `url` is present only for `external`, and
@@ -68,11 +70,24 @@ export interface PublicCategoryDto {
   imageUrl: string | null
 }
 
+/**
+ * A resolved taxonomy header for an archive page — the category or tag whose
+ * products the page lists. `kind` lets one archive component title itself
+ * ("Category" vs "Tag") without a second prop.
+ */
+export interface PublicTaxonomyDto {
+  kind: 'category' | 'tag'
+  slug: string
+  name: string
+  description: string | null
+}
+
 export interface StorefrontQuery {
   page?: number
   pageSize?: number
   search?: string
   categorySlug?: string
+  tagSlug?: string
   featured?: boolean
   sort?: 'newest' | 'price_asc' | 'price_desc' | 'title'
 }
@@ -122,6 +137,16 @@ export default class StorefrontCatalogService {
       })
     }
 
+    if (query.tagSlug) {
+      builder.whereExists((q) => {
+        q.from('ecommerce_product_tags')
+          .join('ecommerce_tags', 'ecommerce_tags.id', 'ecommerce_product_tags.tag_id')
+          .whereRaw('ecommerce_product_tags.product_id = ecommerce_products.id')
+          .where('ecommerce_tags.slug', query.tagSlug!)
+          .whereNull('ecommerce_tags.deleted_at')
+      })
+    }
+
     switch (query.sort) {
       case 'price_asc':
         builder.orderBy('price_from_amount', 'asc')
@@ -140,6 +165,7 @@ export default class StorefrontCatalogService {
       .preload('variants', (q) => q.whereNull('deleted_at').orderBy('position', 'asc'))
       .preload('images', (q) => q.orderBy('position', 'asc'))
       .preload('categories')
+      .preload('tags')
       .paginate(page, pageSize)
 
     return {
@@ -161,6 +187,7 @@ export default class StorefrontCatalogService {
       .preload('variants', (q) => q.whereNull('deleted_at').orderBy('position', 'asc'))
       .preload('images', (q) => q.orderBy('position', 'asc'))
       .preload('categories')
+      .preload('tags')
       .first()
 
     if (!product) throw publicError.notFound('Product not found.', 'product_not_found')
@@ -301,6 +328,7 @@ export default class StorefrontCatalogService {
         values: option.values,
       })),
       categorySlugs: (product.categories ?? []).map((category) => category.slug),
+      tagSlugs: (product.tags ?? []).map((tag) => tag.slug),
       featured: product.featured,
       cta: {
         // Defaulted for the same reason as the admin DTO — see `catalog_service`.
@@ -325,5 +353,22 @@ export default class StorefrontCatalogService {
       description: row.description,
       imageUrl: row.imageUrl,
     }))
+  }
+
+  /**
+   * The category behind an archive URL, or null if the slug is unknown or the
+   * category was deleted. Returned as a taxonomy header so the archive route can
+   * 404 cleanly and title the page from real data rather than the raw slug.
+   */
+  async categoryBySlug(slug: string): Promise<PublicTaxonomyDto | null> {
+    const row = await Category.query().where('slug', slug).whereNull('deleted_at').first()
+    if (!row) return null
+    return { kind: 'category', slug: row.slug, name: row.name, description: row.description }
+  }
+
+  async tagBySlug(slug: string): Promise<PublicTaxonomyDto | null> {
+    const row = await Tag.query().where('slug', slug).whereNull('deleted_at').first()
+    if (!row) return null
+    return { kind: 'tag', slug: row.slug, name: row.name, description: row.description }
   }
 }

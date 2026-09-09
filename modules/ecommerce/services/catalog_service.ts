@@ -9,6 +9,7 @@ import type { ProductOption, ProductStatus, ProductType } from '#modules/ecommer
 import ProductVariant from '#modules/ecommerce/models/product_variant'
 import ProductImage from '#modules/ecommerce/models/product_image'
 import Category from '#modules/ecommerce/models/category'
+import Tag from '#modules/ecommerce/models/tag'
 import { Money, type MoneyDto } from '#modules/ecommerce/services/money'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 
@@ -73,6 +74,7 @@ export interface ProductDto {
   variants: VariantDto[]
   images: ProductImageDto[]
   categoryIds: string[]
+  tagIds: string[]
   /** Total sellable units across variants; null when nothing is tracked. */
   totalStock: number | null
   createdAt: string
@@ -86,6 +88,15 @@ export interface CategoryDto {
   description: string | null
   imageUrl: string | null
   parentId: string | null
+  position: number
+  productCount: number
+}
+
+export interface TagDto {
+  id: string
+  slug: string
+  name: string
+  description: string | null
   position: number
   productCount: number
 }
@@ -129,6 +140,7 @@ export interface ProductInput {
   externalLabel?: string | null
   position?: number
   categoryIds?: string[]
+  tagIds?: string[]
   images?: { mediaUrl: string; alt?: string | null }[]
 }
 
@@ -223,6 +235,7 @@ export default class CatalogService {
       .preload('variants', (q) => q.whereNull('deleted_at').orderBy('position', 'asc'))
       .preload('images', (q) => q.orderBy('position', 'asc'))
       .preload('categories')
+      .preload('tags')
       .orderBy('position', 'asc')
       .orderBy('created_at', 'desc')
       .paginate(page, pageSize)
@@ -243,6 +256,7 @@ export default class CatalogService {
       .preload('variants', (q) => q.whereNull('deleted_at').orderBy('position', 'asc'))
       .preload('images', (q) => q.orderBy('position', 'asc'))
       .preload('categories')
+      .preload('tags')
       .first()
 
     if (!row) throw publicError.notFound('Product not found.', 'product_not_found')
@@ -280,6 +294,7 @@ export default class CatalogService {
 
       await this.syncImages(row.id, input.images ?? [], trx)
       await this.syncCategories(row.id, input.categoryIds ?? [], trx)
+      await this.syncTags(row.id, input.tagIds ?? [], trx)
       return row
     })
 
@@ -330,6 +345,7 @@ export default class CatalogService {
 
       if (input.images !== undefined) await this.syncImages(row.id, input.images, trx)
       if (input.categoryIds !== undefined) await this.syncCategories(row.id, input.categoryIds, trx)
+      if (input.tagIds !== undefined) await this.syncTags(row.id, input.tagIds, trx)
     })
 
     await this.refreshPriceFrom(row.id)
@@ -573,6 +589,84 @@ export default class CatalogService {
     })
   }
 
+  // ── Tags (flat) ────────────────────────────────────────────────────────────
+
+  async listTags(): Promise<TagDto[]> {
+    const rows = await Tag.query()
+      .whereNull('deleted_at')
+      .orderBy('position', 'asc')
+      .orderBy('name', 'asc')
+
+    const counts = await db
+      .from('ecommerce_product_tags')
+      .select('tag_id')
+      .count('* as total')
+      .groupBy('tag_id')
+
+    const byId = new Map(
+      counts.map((c: { tag_id: string; total: string | number }) => [c.tag_id, Number(c.total)])
+    )
+
+    return rows.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      description: row.description,
+      position: row.position,
+      productCount: byId.get(row.id) ?? 0,
+    }))
+  }
+
+  async createTag(input: {
+    name: string
+    slug?: string
+    description?: string | null
+    position?: number
+  }): Promise<TagDto> {
+    const slug = await this.uniqueTagSlug(input.slug?.trim() || slugify(input.name))
+    await Tag.create({
+      id: newUlid(),
+      slug,
+      name: input.name.trim(),
+      description: input.description ?? null,
+      imageUrl: null,
+      position: input.position ?? 0,
+    })
+    const all = await this.listTags()
+    return all.find((t) => t.slug === slug)!
+  }
+
+  async updateTag(
+    id: string,
+    input: Partial<{ name: string; slug: string; description: string | null; position: number }>
+  ): Promise<TagDto> {
+    const row = await Tag.query().where('id', id).whereNull('deleted_at').first()
+    if (!row) throw publicError.notFound('Tag not found.', 'tag_not_found')
+
+    if (input.name !== undefined) row.name = input.name.trim()
+    if (input.slug !== undefined && input.slug.trim() && input.slug.trim() !== row.slug) {
+      row.slug = await this.uniqueTagSlug(input.slug.trim(), id)
+    }
+    if (input.description !== undefined) row.description = input.description
+    if (input.position !== undefined) row.position = input.position
+
+    await row.save()
+    const all = await this.listTags()
+    return all.find((t) => t.id === id)!
+  }
+
+  async removeTag(id: string): Promise<void> {
+    const row = await Tag.query().where('id', id).whereNull('deleted_at').first()
+    if (!row) throw publicError.notFound('Tag not found.', 'tag_not_found')
+
+    await db.transaction(async (trx) => {
+      row.useTransaction(trx)
+      row.deletedAt = DateTime.now()
+      await row.save()
+      await trx.from('ecommerce_product_tags').where('tag_id', id).delete()
+    })
+  }
+
   // ── Internals ────────────────────────────────────────────────────────────
 
   private assertVariantInput(input: {
@@ -641,6 +735,19 @@ export default class CatalogService {
     return `${slugify(base)}-${newUlid().toLowerCase().slice(-6)}`
   }
 
+  private async uniqueTagSlug(base: string, exceptId?: string): Promise<string> {
+    let candidate = slugify(base)
+    let suffix = 1
+    while (suffix < 100) {
+      const query = Tag.query().where('slug', candidate)
+      if (exceptId) query.whereNot('id', exceptId)
+      const taken = await query.first()
+      if (!taken) return candidate
+      candidate = `${slugify(base)}-${++suffix}`
+    }
+    return `${slugify(base)}-${newUlid().toLowerCase().slice(-6)}`
+  }
+
   private async syncImages(
     productId: string,
     images: { mediaUrl: string; alt?: string | null }[],
@@ -673,6 +780,22 @@ export default class CatalogService {
       [...new Set(categoryIds)].map((categoryId) => ({
         product_id: productId,
         category_id: categoryId,
+      }))
+    )
+  }
+
+  private async syncTags(
+    productId: string,
+    tagIds: string[],
+    trx: TransactionClientContract
+  ): Promise<void> {
+    await trx.from('ecommerce_product_tags').where('product_id', productId).delete()
+    if (tagIds.length === 0) return
+
+    await trx.table('ecommerce_product_tags').multiInsert(
+      [...new Set(tagIds)].map((tagId) => ({
+        product_id: productId,
+        tag_id: tagId,
       }))
     )
   }
@@ -749,6 +872,7 @@ export default class CatalogService {
         position: img.position,
       })),
       categoryIds: (row.categories ?? []).map((c) => c.id),
+      tagIds: (row.tags ?? []).map((t) => t.id),
       totalStock: tracked.length
         ? tracked.reduce((sum, v) => sum + Math.max(v.stockOnHand - v.stockReserved, 0), 0)
         : null,

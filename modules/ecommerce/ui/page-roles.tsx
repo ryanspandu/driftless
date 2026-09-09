@@ -13,6 +13,8 @@ type SlotKey =
   | 'accountPageId'
   | 'loginPageId'
   | 'registerPageId'
+  | 'categoryPageId'
+  | 'tagPageId'
 
 const SLOTS: { key: SlotKey; label: string }[] = [
   { key: 'cartPageId', label: 'Basket' },
@@ -21,6 +23,8 @@ const SLOTS: { key: SlotKey; label: string }[] = [
   { key: 'accountPageId', label: 'Account' },
   { key: 'loginPageId', label: 'Sign in' },
   { key: 'registerPageId', label: 'Sign up' },
+  { key: 'categoryPageId', label: 'Category archive' },
+  { key: 'tagPageId', label: 'Tag archive' },
 ]
 
 /**

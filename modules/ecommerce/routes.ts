@@ -22,6 +22,7 @@ import { ecommerceThrottles } from '#modules/ecommerce/throttles'
 const ProductsCtrl = () => import('#modules/ecommerce/controllers/admin/products_controller')
 const WebhooksCtrl = () => import('#modules/ecommerce/controllers/webhooks_controller')
 const CategoriesCtrl = () => import('#modules/ecommerce/controllers/admin/categories_controller')
+const TagsCtrl = () => import('#modules/ecommerce/controllers/admin/tags_controller')
 const SettingsCtrl = () => import('#modules/ecommerce/controllers/admin/settings_controller')
 const DashboardCtrl = () => import('#modules/ecommerce/controllers/admin/dashboard_controller')
 const OrdersCtrl = () => import('#modules/ecommerce/controllers/admin/orders_controller')
@@ -335,6 +336,23 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
     .use(moduleEnabled)
 
   /**
+   * Category and tag archives. Under `/shop/` so they never collide with the
+   * CMS content taxonomy at root (`/category/:slug`, `/tag/:slug`). Plain
+   * Inertia pages like cart/checkout, not builder pages.
+   */
+  router
+    .get('/shop/category/:slug', [ShopPagesCtrl, 'category'])
+    .as('shop.category')
+    .use(throttle.storefront)
+    .use(moduleEnabled)
+
+  router
+    .get('/shop/tag/:slug', [ShopPagesCtrl, 'tag'])
+    .as('shop.tag')
+    .use(throttle.storefront)
+    .use(moduleEnabled)
+
+  /**
    * Digital downloads.
    *
    * Authorised by the order's own access token in the query string, so a buyer
@@ -387,6 +405,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .get('/admin/ecommerce/products/categories', [ProductsCtrl, 'categoriesPage'])
         .as('ecommerce.products.categories')
+      router
+        .get('/admin/ecommerce/products/tags', [ProductsCtrl, 'tagsPage'])
+        .as('ecommerce.products.tags')
       router
         .get('/admin/ecommerce/products/new', [ProductsCtrl, 'newPage'])
         .as('ecommerce.products.new')
@@ -723,6 +744,29 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .delete('/api/admin/ecommerce/categories/:id', [CategoriesCtrl, 'destroy'])
         .as('ecommerce.api.categories.destroy')
+    })
+    .use(middleware.auth())
+    .use(middleware.permission({ permission: 'ecommerce:products:manage' }))
+    .use(moduleEnabled)
+
+  // ── Admin API: tags ───────────────────────────────────────────────────────
+  router
+    .group(() => {
+      router.get('/api/admin/ecommerce/tags', [TagsCtrl, 'index']).as('ecommerce.api.tags.index')
+    })
+    .use(middleware.auth())
+    .use(middleware.permission({ permission: 'ecommerce:products:read' }))
+    .use(moduleEnabled)
+
+  router
+    .group(() => {
+      router.post('/api/admin/ecommerce/tags', [TagsCtrl, 'store']).as('ecommerce.api.tags.store')
+      router
+        .put('/api/admin/ecommerce/tags/:id', [TagsCtrl, 'update'])
+        .as('ecommerce.api.tags.update')
+      router
+        .delete('/api/admin/ecommerce/tags/:id', [TagsCtrl, 'destroy'])
+        .as('ecommerce.api.tags.destroy')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:products:manage' }))
