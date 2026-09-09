@@ -2,7 +2,7 @@ import { BuilderRegion } from '~/custom/builder-region'
 import { SiteChrome } from '~/custom/site-chrome'
 import type { CodePageProps } from '~/custom/types'
 import { Hero } from './components/hero'
-import './styles.css'
+import './style/style.css'
 
 /**
  * Opt into a builder-editable region — read by the admin so it opens the page

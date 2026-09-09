@@ -16,8 +16,8 @@ inertia/custom/kits/<name>/
   collection/*.tsx  collection templates — one CMS record as code; filename = collection key
   emails/*.tsx      code EMAIL templates — a transactional email as code (codetpl:<kit>/email/<name>)
   components/…       optional — sub-components, imported with relative paths
-  styles.css        optional — kit-wide CSS, imported by index.tsx (see Styling)
-  pages/<name>.css  optional — CSS for ONE page, imported by that page
+  style/style.css   optional — kit-wide CSS, imported by index.tsx (see Styling)
+  style/<page>.css  optional — CSS for ONE page, imported by that page
   assets/…           optional — images/fonts, IMPORTED (never referenced by raw path)
 ```
 
@@ -104,15 +104,22 @@ and the full section in [`docs/ai/custom-templates.md`](../../../docs/ai/custom-
 ## Styling — kit-wide and per-page CSS
 
 Tailwind + `~/components` cover most of it. When you need hand-written CSS (a
-gradient, keyframes, a selector Tailwind can't express), a kit can own CSS at two
-levels — just `import` the file and it's bundled:
+gradient, keyframes, a selector Tailwind can't express), keep **all of a kit's
+CSS in a `style/` folder** and just `import` what a file needs:
 
-- **Kit-wide:** `styles.css`, imported once by `index.tsx` (or a shared shell) —
-  applies to every page in the kit.
-- **Per-page:** a `pages/<name>.css` next to `pages/<name>.tsx`, imported by that
-  page only. This is the "page A has its own CSS, just call it" pattern —
-  see the committed reference **`example/pages/page-css.tsx`** (+ `page-css.css`),
-  served at `/kit-example/page-css`.
+```
+style/
+  style.css     the main, kit-wide stylesheet — imported once by index.tsx
+  about.css     extra CSS for ONE page — imported by pages/about.tsx only
+```
+
+- **Kit-wide:** `style/style.css`, imported once by `index.tsx` (or a shared
+  shell) — applies to every page in the kit.
+- **Per-page:** `style/<page>.css`, imported by that page (`import
+  '../style/about.css'`) — ships only where that page is used. This is the
+  "page A has its own extra styles" pattern; the committed reference is
+  **`example/style/about.css`** imported by **`example/pages/about.tsx`**
+  (served at `/kit-example/about`).
 
 Both load **render-critical**: the public renderer resolves every block/kit
 stylesheet from the Vite manifest and links it in the initial `<head>`

@@ -1,0 +1,43 @@
+/*
+ * Page-scoped CSS for ONE page (the About page).
+ *
+ * This is the "a page has its own extra styles" pattern: pages/about.tsx does
+ * `import '../style/about.css'`, so these rules ship only where that page is
+ * used. Keep the classes prefixed for this page (e.g. `about-*`) so they read as
+ * page-owned and can't collide with the kit-wide styles.
+ */
+.about-panel {
+  border-radius: 16px;
+  padding: 26px;
+  color: #fff;
+  background:
+    radial-gradient(120% 120% at 0% 0%, color-mix(in oklch, var(--primary) 85%, white), transparent 60%),
+    linear-gradient(135deg, var(--primary), color-mix(in oklch, var(--primary) 55%, black));
+  box-shadow: 0 20px 45px -25px color-mix(in oklch, var(--primary) 70%, black);
+}
+
+.about-kicker {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.about-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: about-pulse 1.6s ease-in-out infinite;
+}
+
+/* An isolated kit renames this to `kit-<name>-about-pulse` at build time so a
+ * generic name can never clash with another animation. */
+@keyframes about-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
