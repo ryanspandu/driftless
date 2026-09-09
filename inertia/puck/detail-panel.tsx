@@ -1928,9 +1928,14 @@ function FieldControl({
 
   if (field.type === 'radio') {
     const current = value === undefined || value === null ? '' : String(value)
+    const options = field.options ?? []
+    // A single flex row squeezes four options to ~25% each, wrapping the labels
+    // mid-word (e.g. CollectionList's "Item design"). Lay four-or-more out as a
+    // 2-column grid; two or three stay a tidy single row.
+    const grid = options.length >= 4
     return (
-      <div className="flex gap-1">
-        {(field.options ?? []).map((o) => {
+      <div className={cn('gap-1', grid ? 'grid grid-cols-2' : 'flex')}>
+        {options.map((o) => {
           const v = String(o.value)
           const active = current === v
           return (
@@ -1939,7 +1944,8 @@ function FieldControl({
               type="button"
               onClick={() => onChange(o.value)}
               className={cn(
-                'flex-1 rounded-md border px-2 py-1 text-xs transition-colors',
+                'rounded-md border px-2 py-1 text-xs transition-colors',
+                !grid && 'flex-1',
                 active
                   ? 'border-builder-selected bg-builder-selected-bg text-foreground'
                   : 'border-input text-muted-foreground hover:text-foreground'
