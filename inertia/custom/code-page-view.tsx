@@ -61,6 +61,7 @@ export function CodePageView({ page }: { page: CodePageEnvelope }) {
     <PublicPageFrame
       title={page.title}
       seo={page.seo}
+      blockCss={page.blockCss}
       globalMeta={page.globalMeta}
       globalCode={page.globalCode}
       rootProps={rootProps}

@@ -24,6 +24,8 @@ import { PublicPageHead, type MetaTag } from '~/components/public-page-head'
 export interface PublicPageFrameProps {
   title: string
   seo?: Record<string, unknown>
+  /** Render-critical block stylesheet URLs, linked in the <head> (anti-FOUC). */
+  blockCss?: string[]
   globalMeta?: MetaTag[]
   /** Site-wide snippets from Website Settings. */
   globalCode?: CodeSnippet[]
@@ -47,6 +49,7 @@ export interface PublicPageFrameProps {
 export function PublicPageFrame({
   title,
   seo,
+  blockCss,
   globalMeta,
   globalCode,
   rootProps,
@@ -104,7 +107,7 @@ export function PublicPageFrame({
 
   return (
     <>
-      <PublicPageHead title={title} seo={seo} globalMeta={globalMeta} />
+      <PublicPageHead title={title} seo={seo} blockCss={blockCss} globalMeta={globalMeta} />
       {globalCss ? (
         <style
           nonce={cspNonce}

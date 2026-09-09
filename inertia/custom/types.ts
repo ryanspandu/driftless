@@ -57,4 +57,6 @@ export interface CodePageEnvelope extends CodePageProps {
   templates?: Record<string, Record<string, unknown>>
   collections?: Record<string, CmsRecord[]>
   blockData?: Record<string, unknown>
+  /** Render-critical block stylesheet URLs to link in the <head> (anti-FOUC). */
+  blockCss?: string[]
 }

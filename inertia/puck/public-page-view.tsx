@@ -14,6 +14,8 @@ export interface PublicPageData {
   path: string
   content: Record<string, unknown>
   seo?: Record<string, unknown>
+  /** Render-critical block stylesheet URLs to link in the <head> (anti-FOUC). */
+  blockCss?: string[]
   /** Optional LAYOUT template wrapping the page (its content has a PageOutlet). */
   layout?: Record<string, unknown> | null
   header?: Record<string, unknown>
@@ -124,6 +126,7 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
     <PublicPageFrame
       title={page.title}
       seo={page.seo}
+      blockCss={page.blockCss}
       globalMeta={page.globalMeta}
       globalCode={page.globalCode}
       rootProps={rootProps}

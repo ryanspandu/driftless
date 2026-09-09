@@ -8,6 +8,7 @@ import { resolveBlockData, type BlockRenderContext } from '#services/block_data_
 import { renderPage } from '#helpers/inertia_render'
 import { buildJsonLd } from '#services/structured_data_service'
 import { absoluteUrl } from '#helpers/site_url'
+import { publicBlockCss } from '#services/public_block_css'
 
 const pagesService = new PagesService()
 const templatesService = new TemplatesService()
@@ -264,7 +265,15 @@ export default class PageRenderer {
       extra: ov?.jsonLd,
       custom: typeof baseSeo.jsonLdCustom === 'string' ? baseSeo.jsonLdCustom : null,
     })
-    const seo = jsonLd ? { ...baseSeo, jsonLd } : baseSeo
+    /**
+     * Canonical URL as a SYSTEM default, not an operator-only field: an
+     * operator-set `seo.canonical` still wins, otherwise the page's own absolute
+     * URL. Without this a plain builder page shipped no `<link rel="canonical">`
+     * at all. The head component (`public-page-head`) reads `seo.canonical`.
+     */
+    const canonical =
+      (typeof baseSeo.canonical === 'string' && baseSeo.canonical) || absoluteUrl(page.path)
+    const seo = { ...baseSeo, canonical, ...(jsonLd ? { jsonLd } : {}) }
 
     const result = await renderPage(inertia, component, {
       page: {
@@ -274,6 +283,9 @@ export default class PageRenderer {
         component: isCode ? (page.component ?? '') : undefined,
         content: page.content,
         seo,
+        // Render-critical block stylesheets, linked in the initial <head> to
+        // prevent a FOUC (the Vite @vite tag omits dynamic-chunk CSS).
+        blockCss: publicBlockCss(),
         layout: layoutContent,
         header: headerContent ?? undefined,
         footer: footerContent ?? undefined,

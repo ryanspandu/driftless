@@ -12,6 +12,11 @@ import { LayoutShell } from '~/components/layout-shell'
 
 const appName = import.meta.env.VITE_APP_NAME || 'Driftless'
 
+// The per-request CSP nonce, published by the server in <meta name="csp-nonce">.
+// next-themes needs it or its no-FOUC inline <script>/<style> are CSP-blocked.
+const cspNonce =
+  document.querySelector('meta[name="csp-nonce"]')?.getAttribute('content') || undefined
+
 /**
  * A CSS chunk that fails to preload must never blank the page.
  *
@@ -53,10 +58,19 @@ createInertiaApp({
     return pageModule.default
   },
   setup({ el, App, props }) {
-    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-      void import('virtual:serwist').then(({ registerSW }) => {
-        registerSW({ immediate: true })
-      })
+    if (
+      import.meta.env.PROD &&
+      import.meta.env.VITE_DISABLE_OFFLINE !== '1' &&
+      'serviceWorker' in navigator
+    ) {
+      // Guard + catch: when offline is disabled at build time the `virtual:serwist`
+      // module ships no `registerSW`, and calling it threw an uncaught
+      // "r is not a function" on every prod page. Register only when it's real.
+      void import('virtual:serwist')
+        .then((m) => {
+          if (typeof m.registerSW === 'function') m.registerSW({ immediate: true })
+        })
+        .catch(() => {})
     } else if (import.meta.env.DEV && 'serviceWorker' in navigator) {
       // Dev never registers a service worker — but if a production build was
       // once served on this same origin (e.g. `npm start` on :3333), its worker
@@ -72,7 +86,13 @@ createInertiaApp({
     }
 
     createRoot(el).render(
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+        nonce={cspNonce}
+      >
         <QueryProvider>
           <DeleteConfirmProvider>
             <TuyauProvider client={client}>
