@@ -23,7 +23,9 @@ inertia/custom/kits/<name>/
 
 The committed **`example/`** kit is a complete reference: `index.tsx` (a template) **and** a
 `pages/` folder (file-pages at `/kit-example/*`) sharing `components/page-shell.tsx`. Copy it,
-rename it, and edit.
+rename it, and edit. Two pages are worked references for the sections below —
+`pages/about.tsx` (+ `style/about.css`) for **per-page CSS**, and
+`pages/performance.tsx` for the **performance** patterns.
 
 ## File-pages — a folder of routes, no database rows
 
@@ -134,6 +136,55 @@ Two rules:
    `<div class="kit-<name>">`).
 2. **CSP:** a linked stylesheet from your own origin needs no nonce and just
    works. Never inject an inline `<style>`/`<script>` tag; React `style={}` is fine.
+
+## Performance — build a kit that scores well
+
+The reference is **`example/pages/performance.tsx`** (served at
+`/kit-example/performance`) — copy its patterns.
+
+**The app already handles the infrastructure**, so you don't:
+
+- assets are brotli/gzip-compressed and immutably cached (`asset_compression_middleware`);
+- your kit CSS is linked in the initial `<head>`, so pages paint styled on the
+  first frame — no flash (`public_block_css`);
+- SSR pages are **hydrated**, not re-rendered, so the server paint is the first paint;
+- the page builder / editor never ships in the public bundle.
+
+**A kit only has to get the content-level rules right.** In order of impact:
+
+1. **Never hide above-the-fold content until JS runs.** A scroll-reveal that
+   starts the hero at `opacity: 0` and reveals it with JavaScript delays LCP by
+   seconds on a throttled phone — the largest element is invisible until the
+   bundle loads. Keep above-the-fold content **visible on first paint**; animate
+   **below-the-fold** only, or use a CSS entrance animation that plays on load
+   (no JS gate). This is the single biggest mobile-score lever.
+2. **The LCP image is eager + high priority; everything else is lazy.** On the
+   one large hero/above-the-fold image: `fetchPriority="high" loading="eager"
+   decoding="async"` + explicit `width`/`height` (reserve space → no layout
+   shift). Every image below the fold: `loading="lazy" decoding="async"`. And
+   **right-size** photos + prefer **WebP/AVIF** — a 1200px JPEG shrunk into a
+   phone is wasted bytes (Lighthouse flags "Improve image delivery").
+3. **Load web fonts without blocking render.** A plain
+   `<link rel="stylesheet" href="fonts.googleapis.com/...">` blocks the first
+   paint on an external round-trip. Render it non-blocking instead — the shell
+   flips it in once the DOM is ready:
+   ```tsx
+   <link
+     rel="stylesheet"
+     href="https://fonts.googleapis.com/css2?family=…&display=swap"
+     media="print"
+     data-font-async=""
+   />
+   ```
+   `media="print"` makes it fetch without blocking; `data-font-async` tells the
+   shell script to switch it to `all`; `display=swap` covers the brief fallback.
+   Even simpler: lean on the app's **appearance font** or a system stack and load
+   no web font at all.
+4. **Keep the render path light.** Everything a page statically imports ships to
+   the browser. Heavy libraries (chart/animation/3D) belong behind a
+   `lazy()` + `<Suspense>` boundary so they load only when actually shown, not on
+   first paint. Import assets (so they're fingerprinted + compressed); never a
+   raw `<img src="/some/path">`.
 
 ## Start here
 
