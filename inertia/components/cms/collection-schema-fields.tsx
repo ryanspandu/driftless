@@ -30,6 +30,7 @@ import {
   emptyFieldDraft,
   isValidKey,
   keyHint,
+  keyFromLabel,
   FieldConfigPanel,
   type SchemaFieldDraft,
 } from '~/components/cms/schema-builder'
@@ -489,6 +490,8 @@ export function AddFieldDialog({
 }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<SchemaFieldDraft>(emptyFieldDraft())
+  // The key auto-fills from the label until the operator hand-edits it.
+  const [keyDirty, setKeyDirty] = useState(false)
   // No type is highlighted until the user actually picks one (draft.type has a
   // default so the picker can't infer "unselected" on its own).
   const [picked, setPicked] = useState(false)
@@ -526,6 +529,7 @@ export function AddFieldDialog({
   const reset = () => {
     setDraft(emptyFieldDraft())
     setPicked(false)
+    setKeyDirty(false)
     setStep('type')
     setError(null)
     setComponentMode('inline')
@@ -806,7 +810,15 @@ export function AddFieldDialog({
                     <Input
                       id={labelId}
                       value={draft.label}
-                      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
+                      onChange={(e) => {
+                        const label = e.target.value
+                        setDraft((prev) => ({
+                          ...prev,
+                          label,
+                          // Auto-fill the key from the label until it's hand-edited.
+                          key: keyDirty ? prev.key : keyFromLabel(label),
+                        }))
+                      }}
                       placeholder="e.g. Hero image"
                       autoComplete="off"
                       autoFocus
@@ -817,12 +829,10 @@ export function AddFieldDialog({
                     <Input
                       id={keyId}
                       value={draft.key}
-                      onChange={(e) =>
-                        setDraft((prev) => ({
-                          ...prev,
-                          key: e.target.value.toLowerCase(),
-                        }))
-                      }
+                      onChange={(e) => {
+                        setKeyDirty(true)
+                        setDraft((prev) => ({ ...prev, key: e.target.value.toLowerCase() }))
+                      }}
                       placeholder="hero_image"
                       autoComplete="off"
                       spellCheck={false}
@@ -834,6 +844,10 @@ export function AddFieldDialog({
                       {keyMessage ? (
                         <p id={`${keyId}-err`} className="text-xs text-destructive">
                           {keyMessage}
+                        </p>
+                      ) : draft.key ? (
+                        <p className="text-xs text-green-600 dark:text-green-500">
+                          Key “{draft.key}” is available.
                         </p>
                       ) : null}
                     </div>

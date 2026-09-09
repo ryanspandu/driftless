@@ -27,6 +27,7 @@ export type CmsFieldType =
   | 'DATE'
   | 'DATETIME'
   | 'SELECT'
+  | 'MULTISELECT'
   | 'EMAIL'
   | 'PASSWORD'
   | 'RICHTEXT'
@@ -67,6 +68,8 @@ function pgFieldRegistry(): Record<CmsFieldType, FieldDescriptor> {
     DATE: { sqlType: pg ? 'DATE' : 'TEXT', allowsUnique: false, allowsIndex: true },
     DATETIME: { sqlType: pg ? 'TIMESTAMPTZ' : 'TEXT', allowsUnique: false, allowsIndex: true },
     SELECT: { sqlType: 'TEXT', allowsUnique: false, allowsIndex: true },
+    // MULTISELECT stores an array of chosen options as JSON (like REPEATABLE).
+    MULTISELECT: { sqlType: pg ? 'JSONB' : 'TEXT', allowsUnique: false, allowsIndex: false },
     EMAIL: { sqlType: 'TEXT', allowsUnique: true, allowsIndex: true },
     PASSWORD: { sqlType: 'TEXT', allowsUnique: false, allowsIndex: false },
     RICHTEXT: { sqlType: 'TEXT', allowsUnique: false, allowsIndex: false },
@@ -175,7 +178,14 @@ const RESERVED_COLLECTION_KEYS = new Set(['content', 'post', 'posts'])
  * Field keys a Content-type collection may not define — the built-in Content
  * editor owns these natively (its own columns).
  */
-const CONTENT_RESERVED_FIELD_KEYS = new Set(['title', 'slug', 'body', 'status'])
+const CONTENT_RESERVED_FIELD_KEYS = new Set([
+  'title',
+  'slug',
+  'body',
+  'status',
+  'visibility',
+  'password',
+])
 
 export interface CmsCollectionDto {
   id: string
@@ -2215,7 +2225,24 @@ export default class CmsService {
           continue
         }
         const col = this.fieldToColumn(collection, field.key)
-        data[field.key] = rest[col] ?? rest[field.key] ?? null
+        const raw = rest[col] ?? rest[field.key] ?? null
+        // JSON-backed columns come back parsed on Postgres (JSONB) but as a raw
+        // string on SQLite (TEXT) — parse so arrays/objects are consistent.
+        if (
+          typeof raw === 'string' &&
+          (field.type === 'JSON' ||
+            field.type === 'REPEATABLE' ||
+            field.type === 'COMPONENT' ||
+            field.type === 'MULTISELECT')
+        ) {
+          try {
+            data[field.key] = JSON.parse(raw)
+          } catch {
+            data[field.key] = raw
+          }
+        } else {
+          data[field.key] = raw
+        }
       }
     } else {
       for (const [key, value] of Object.entries(rest)) {

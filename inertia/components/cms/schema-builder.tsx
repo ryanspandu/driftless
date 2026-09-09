@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   closestCenter,
   DndContext,
@@ -40,6 +41,7 @@ export const FIELD_TYPE_CHOICES: ReadonlyArray<{
   { type: 'DATE', label: 'Date', hint: 'Calendar date' },
   { type: 'DATETIME', label: 'Date & time', hint: 'Date + time (UTC)' },
   { type: 'SELECT', label: 'Select', hint: 'Pick from a list of options' },
+  { type: 'MULTISELECT', label: 'Multi-select', hint: 'Pick one or more from a list' },
   { type: 'PASSWORD', label: 'Password', hint: 'Hashed secret, never shown after saving' },
   { type: 'MEDIA', label: 'Media', hint: 'Reference a media asset' },
   { type: 'JSON', label: 'JSON', hint: 'Freeform structured data' },
@@ -126,6 +128,67 @@ export function keyHint(value: string): string | null {
     return `"${value}" is a reserved word — pick another key.`
   }
   return null
+}
+
+/**
+ * Derive a snake_case key from a human label — the auto-fill applied while the
+ * operator hasn't hand-edited the key. Matches `KEY_PATTERN` (starts with a
+ * letter; lowercase letters/digits/underscore; ≤32). May return `''` for a
+ * label with no usable letters yet.
+ */
+export function keyFromLabel(label: string): string {
+  const base = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^[^a-z]+/, '')
+    .replace(/^_+|_+$/g, '')
+  return base.slice(0, 32).replace(/_+$/, '')
+}
+
+/** A SELECT / MULTISELECT choice: `value` is stored, `label` is shown. */
+export interface SelectOption {
+  label: string
+  value: string
+}
+
+/**
+ * Read `config.options` into `{label,value}[]`, tolerating the legacy
+ * `string[]` shape (each string is both label and value).
+ */
+export function normalizeSelectOptions(raw: unknown): SelectOption[] {
+  if (!Array.isArray(raw)) return []
+  return raw.flatMap((o) => {
+    if (typeof o === 'string') return o ? [{ label: o, value: o }] : []
+    if (o && typeof o === 'object') {
+      const rec = o as { label?: unknown; value?: unknown }
+      const value = String(rec.value ?? rec.label ?? '')
+      const label = String(rec.label ?? rec.value ?? '')
+      return value ? [{ label: label || value, value }] : []
+    }
+    return []
+  })
+}
+
+/** Parse the textarea (one `Label : value` per line) into options. */
+export function parseOptionLines(text: string): SelectOption[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const idx = line.indexOf(':')
+      if (idx === -1) return { label: line, value: line }
+      const label = line.slice(0, idx).trim()
+      const value = line.slice(idx + 1).trim()
+      return { label: label || value, value: value || label }
+    })
+    .filter((o) => o.value)
+}
+
+/** Render options back into the textarea, one `Label : value` per line. */
+export function formatOptionLines(options: SelectOption[]): string {
+  return options.map((o) => (o.label === o.value ? o.value : `${o.label} : ${o.value}`)).join('\n')
 }
 
 interface SchemaBuilderProps {
@@ -347,6 +410,43 @@ function SortableSchemaFieldRow({
  * Exported and typed loosely so the shared Add-field dialog can reuse it with
  * either staged drafts or a persisted collection's fields.
  */
+/**
+ * Options editor for SELECT / MULTISELECT. Keeps its OWN raw-text state so the
+ * textarea shows exactly what the operator types (spaces, uppercase, the ":"
+ * separator) — the parsed `{label,value}[]` is written to config on each change,
+ * but the visible text is never round-tripped back through the parser (which
+ * would trim/reformat mid-typing).
+ */
+function SelectOptionsEditor({
+  config,
+  onConfigChange,
+}: {
+  config: Record<string, unknown>
+  onConfigChange: (config: Record<string, unknown>) => void
+}) {
+  const [text, setText] = useState(() => formatOptionLines(normalizeSelectOptions(config.options)))
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">Options — one per line, “Label : value”</Label>
+      <textarea
+        className="flex min-h-24 w-full rounded-lg border bg-background px-3 py-2 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value)
+          onConfigChange({ ...config, options: parseOptionLines(e.target.value) })
+        }}
+        placeholder={'Option A : option_a\nOption B : option_b'}
+        rows={4}
+        spellCheck={false}
+      />
+      <p className="text-xs text-muted-foreground">
+        One option per line. The part after “:” is the stored value; the part before is shown. Omit
+        “: value” to use the text as both.
+      </p>
+    </div>
+  )
+}
+
 export function FieldConfigPanel({
   field,
   siblings,
@@ -356,26 +456,8 @@ export function FieldConfigPanel({
   siblings: { type: CmsFieldType; key: string; label: string }[]
   onConfigChange: (config: Record<string, unknown>) => void
 }) {
-  if (field.type === 'SELECT') {
-    const options = Array.isArray(field.config.options) ? (field.config.options as string[]) : []
-    return (
-      <div className="space-y-1">
-        <Label className="text-xs">Options (comma separated)</Label>
-        <Input
-          value={options.join(', ')}
-          onChange={(e) =>
-            onConfigChange({
-              ...field.config,
-              options: e.target.value
-                .split(',')
-                .map((s) => s.trim())
-                .filter(Boolean),
-            })
-          }
-          placeholder="DRAFT, PUBLISHED, ARCHIVED"
-        />
-      </div>
-    )
+  if (field.type === 'SELECT' || field.type === 'MULTISELECT') {
+    return <SelectOptionsEditor config={field.config} onConfigChange={onConfigChange} />
   }
   if (field.type === 'SLUG') {
     const source = typeof field.config.source === 'string' ? (field.config.source as string) : ''

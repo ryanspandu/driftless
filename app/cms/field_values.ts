@@ -68,6 +68,11 @@ export function coerceFieldValue(field: { type: string; label: string }, val: un
     }
     case 'RICHTEXT':
       return sanitizeRichText(val)
+    case 'MULTISELECT': {
+      // Always an array of non-empty strings (mirrors the manyToMany filter).
+      const arr = Array.isArray(val) ? val : [val]
+      return arr.filter((x): x is string => typeof x === 'string' && x.length > 0)
+    }
     default:
       return val
   }
@@ -81,7 +86,13 @@ export function coerceFieldValue(field: { type: string; label: string }, val: un
  */
 export function serializeFieldValue(type: string, val: unknown): unknown {
   if (val === undefined || val === null) return null
-  if (type === 'JSON' || type === 'RICHTEXT' || type === 'REPEATABLE' || type === 'COMPONENT') {
+  if (
+    type === 'JSON' ||
+    type === 'RICHTEXT' ||
+    type === 'REPEATABLE' ||
+    type === 'COMPONENT' ||
+    type === 'MULTISELECT'
+  ) {
     return typeof val === 'string' ? val : JSON.stringify(val)
   }
   if (type === 'BOOL') {

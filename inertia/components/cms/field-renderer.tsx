@@ -1,25 +1,25 @@
-
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
-import type { CmsFieldDto, CmsRecordDto } from "~/types/api";
-import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { AppSelect } from "~/components/ui/app-select";
-import { useCmsRecordsList } from "~/hooks/api/use-cms-records";
-import { useCmsComponentsList } from "~/hooks/api/use-cms-components";
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react'
+import type { CmsFieldDto, CmsRecordDto } from '~/types/api'
+import { Button } from '~/components/ui/button'
+import { Checkbox } from '~/components/ui/checkbox'
+import { Input } from '~/components/ui/input'
+import { Label } from '~/components/ui/label'
+import { AppSelect, AppMultiSelect } from '~/components/ui/app-select'
+import { normalizeSelectOptions } from '~/components/cms/schema-builder'
+import { useCmsRecordsList } from '~/hooks/api/use-cms-records'
+import { useCmsComponentsList } from '~/hooks/api/use-cms-components'
 import {
   readComponentFields,
   type ComponentSubField,
-} from "~/components/cms/component-schema-editor";
-import { RichTextEditor } from "./rich-text-editor";
+} from '~/components/cms/component-schema-editor'
+import { RichTextEditor } from './rich-text-editor'
 
 interface FieldRendererProps {
-  field: CmsFieldDto;
-  value: unknown;
-  onChange: (value: unknown) => void;
-  disabled?: boolean;
+  field: CmsFieldDto
+  value: unknown
+  onChange: (value: unknown) => void
+  disabled?: boolean
 }
 
 /**
@@ -27,58 +27,47 @@ interface FieldRendererProps {
  * an appropriate input control. Keeps all field-specific UI centralized so
  * the record form and inline editors share the same behaviour.
  */
-export function FieldRenderer({
-  field,
-  value,
-  onChange,
-  disabled,
-}: FieldRendererProps) {
+export function FieldRenderer({ field, value, onChange, disabled }: FieldRendererProps) {
   const label = (
     <div className="flex items-center gap-2">
       <Label>{field.label}</Label>
-      {field.required ? (
-        <span className="text-xs text-destructive">*</span>
-      ) : null}
+      {field.required ? <span className="text-xs text-destructive">*</span> : null}
     </div>
-  );
+  )
 
   switch (field.type) {
-    case "TEXT":
-    case "SLUG":
+    case 'TEXT':
+    case 'SLUG':
       return (
         <div className="space-y-1">
           {label}
           <Input
-            value={stringOr(value, "")}
+            value={stringOr(value, '')}
             onChange={(e) => onChange(e.target.value)}
             disabled={disabled}
-            placeholder={
-              field.type === "SLUG"
-                ? "auto-generated if blank"
-                : undefined
-            }
+            placeholder={field.type === 'SLUG' ? 'auto-generated if blank' : undefined}
           />
-          {field.type === "SLUG" ? (
+          {field.type === 'SLUG' ? (
             <p className="text-xs text-muted-foreground">
-              Lowercase, hyphen-separated. Auto-generated from{" "}
-              <code>{String(field.config.source ?? "source")}</code> when empty.
+              Lowercase, hyphen-separated. Auto-generated from{' '}
+              <code>{String(field.config.source ?? 'source')}</code> when empty.
             </p>
           ) : null}
         </div>
-      );
-    case "TEXTAREA":
+      )
+    case 'TEXTAREA':
       return (
         <div className="space-y-1">
           {label}
           <textarea
             className="flex min-h-24 w-full rounded-lg border bg-background px-3 py-2 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-            value={stringOr(value, "")}
+            value={stringOr(value, '')}
             onChange={(e) => onChange(e.target.value)}
             disabled={disabled}
           />
         </div>
-      );
-    case "RICHTEXT":
+      )
+    case 'RICHTEXT':
       return (
         <div className="space-y-1">
           {label}
@@ -89,20 +78,15 @@ export function FieldRenderer({
             placeholder="Write the article body here…"
           />
         </div>
-      );
-    case "JSON":
+      )
+    case 'JSON':
       return (
         <div className="space-y-1">
           {label}
-          <JsonEditor
-            value={value}
-            onChange={onChange}
-            disabled={disabled}
-            placeholder="{}"
-          />
+          <JsonEditor value={value} onChange={onChange} disabled={disabled} placeholder="{}" />
         </div>
-      );
-    case "REPEATABLE":
+      )
+    case 'REPEATABLE':
       return (
         <div className="space-y-1">
           {label}
@@ -116,22 +100,20 @@ export function FieldRenderer({
             Array of items. Full visual builder arrives post-MVP.
           </p>
         </div>
-      );
-    case "NUMBER":
+      )
+    case 'NUMBER':
       return (
         <div className="space-y-1">
           {label}
           <Input
             type="number"
             value={numberOrEmpty(value)}
-            onChange={(e) =>
-              onChange(e.target.value === "" ? null : Number(e.target.value))
-            }
+            onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
             disabled={disabled}
           />
         </div>
-      );
-    case "INTEGER":
+      )
+    case 'INTEGER':
       return (
         <div className="space-y-1">
           {label}
@@ -140,17 +122,13 @@ export function FieldRenderer({
             step="1"
             value={numberOrEmpty(value)}
             onChange={(e) =>
-              onChange(
-                e.target.value === ""
-                  ? null
-                  : Math.trunc(Number(e.target.value)),
-              )
+              onChange(e.target.value === '' ? null : Math.trunc(Number(e.target.value)))
             }
             disabled={disabled}
           />
         </div>
-      );
-    case "DECIMAL":
+      )
+    case 'DECIMAL':
       return (
         <div className="space-y-1">
           {label}
@@ -158,50 +136,43 @@ export function FieldRenderer({
             type="number"
             step="any"
             value={numberOrEmpty(value)}
-            onChange={(e) =>
-              onChange(e.target.value === "" ? null : Number(e.target.value))
-            }
+            onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
             disabled={disabled}
           />
         </div>
-      );
-    case "EMAIL":
+      )
+    case 'EMAIL':
       return (
         <div className="space-y-1">
           {label}
           <Input
             type="email"
-            value={stringOr(value, "")}
-            onChange={(e) =>
-              onChange(e.target.value === "" ? null : e.target.value)
-            }
+            value={stringOr(value, '')}
+            onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}
             disabled={disabled}
             placeholder="name@example.com"
             autoComplete="off"
           />
         </div>
-      );
-    case "PASSWORD":
+      )
+    case 'PASSWORD':
       return (
         <div className="space-y-1">
           {label}
           <Input
             type="password"
-            value={stringOr(value, "")}
-            onChange={(e) =>
-              onChange(e.target.value === "" ? null : e.target.value)
-            }
+            value={stringOr(value, '')}
+            onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}
             disabled={disabled}
             placeholder="•••••••• (leave blank to keep current)"
             autoComplete="new-password"
           />
           <p className="text-xs text-muted-foreground">
-            Stored hashed; never shown after saving. Leave blank to keep the
-            current value.
+            Stored hashed; never shown after saving. Leave blank to keep the current value.
           </p>
         </div>
-      );
-    case "BOOL":
+      )
+    case 'BOOL':
       return (
         <label className="flex items-center gap-2 text-sm">
           <Checkbox
@@ -211,59 +182,70 @@ export function FieldRenderer({
           />
           {field.label}
         </label>
-      );
-    case "DATE":
-    case "DATETIME":
+      )
+    case 'DATE':
+    case 'DATETIME':
       return (
         <div className="space-y-1">
           {label}
           <Input
-            type={field.type === "DATE" ? "date" : "datetime-local"}
+            type={field.type === 'DATE' ? 'date' : 'datetime-local'}
             value={dateInputValue(value, field.type)}
             onChange={(e) => {
               // DATE stays a tz-agnostic calendar string; DATETIME is stored as
               // a UTC ISO instant so it round-trips without drifting.
-              if (field.type === "DATE") {
-                onChange(e.target.value === "" ? null : e.target.value);
+              if (field.type === 'DATE') {
+                onChange(e.target.value === '' ? null : e.target.value)
               } else {
-                onChange(dateTimeInputToIso(e.target.value));
+                onChange(dateTimeInputToIso(e.target.value))
               }
             }}
             disabled={disabled}
           />
         </div>
-      );
-    case "SELECT": {
-      const options = Array.isArray(field.config.options)
-        ? (field.config.options as string[])
-        : [];
-      const selectOptions = options.map((opt) => ({
-        value: opt,
-        label: opt,
-      }));
+      )
+    case 'SELECT': {
+      const opts = normalizeSelectOptions(field.config.options)
       return (
         <div className="space-y-1">
           {label}
           <AppSelect
-            value={typeof value === "string" ? value : ""}
+            value={typeof value === 'string' ? value : ''}
             disabled={disabled}
             onChange={(v) => onChange(v)}
-            options={selectOptions}
+            options={opts}
             placeholder="Select…"
-            isSearchable={options.length > 8}
+            isSearchable={opts.length > 8}
           />
         </div>
-      );
+      )
     }
-    case "MEDIA":
+    case 'MULTISELECT': {
+      const opts = normalizeSelectOptions(field.config.options)
+      const selected = Array.isArray(value)
+        ? (value.filter((v) => typeof v === 'string') as string[])
+        : []
+      return (
+        <div className="space-y-1">
+          {label}
+          <AppMultiSelect
+            value={selected}
+            disabled={disabled}
+            onChange={(v) => onChange(v)}
+            options={opts}
+            placeholder="Select one or more…"
+            isSearchable={opts.length > 8}
+          />
+        </div>
+      )
+    }
+    case 'MEDIA':
       return (
         <div className="space-y-1">
           {label}
           <Input
-            value={stringOr(value, "")}
-            onChange={(e) =>
-              onChange(e.target.value.trim() === "" ? null : e.target.value)
-            }
+            value={stringOr(value, '')}
+            onChange={(e) => onChange(e.target.value.trim() === '' ? null : e.target.value)}
             disabled={disabled}
             placeholder="media-id"
           />
@@ -271,56 +253,46 @@ export function FieldRenderer({
             Paste a Media id. A picker component arrives with the Media UI.
           </p>
         </div>
-      );
-    case "RELATION":
+      )
+    case 'RELATION':
       return (
         <div className="space-y-1">
           {label}
-          <RelationField
-            field={field}
-            value={value}
-            onChange={onChange}
-            disabled={disabled}
-          />
+          <RelationField field={field} value={value} onChange={onChange} disabled={disabled} />
         </div>
-      );
-    case "COMPONENT":
+      )
+    case 'COMPONENT':
       return (
         <div className="space-y-1">
           {label}
-          <ComponentField
-            field={field}
-            value={value}
-            onChange={onChange}
-            disabled={disabled}
-          />
+          <ComponentField field={field} value={value} onChange={onChange} disabled={disabled} />
         </div>
-      );
+      )
     default:
       return (
         <div className="space-y-1">
           {label}
           <Input
-            value={stringOr(value, "")}
+            value={stringOr(value, '')}
             onChange={(e) => onChange(e.target.value)}
             disabled={disabled}
           />
         </div>
-      );
+      )
   }
 }
 
 /** A short human label for a related record (first text-ish field, else id). */
 function recordLabel(r: CmsRecordDto): string {
-  const data = (r.data ?? {}) as Record<string, unknown>;
-  for (const k of ["title", "name", "label", "slug"]) {
-    const v = data[k];
-    if (typeof v === "string" && v.trim()) return v;
+  const data = (r.data ?? {}) as Record<string, unknown>
+  for (const k of ['title', 'name', 'label', 'slug']) {
+    const v = data[k]
+    if (typeof v === 'string' && v.trim()) return v
   }
   for (const v of Object.values(data)) {
-    if (typeof v === "string" && v.trim()) return v;
+    if (typeof v === 'string' && v.trim()) return v
   }
-  return r.id;
+  return r.id
 }
 
 /**
@@ -334,40 +306,31 @@ function RelationField({
   onChange,
   disabled,
 }: {
-  field: CmsFieldDto;
-  value: unknown;
-  onChange: (value: unknown) => void;
-  disabled?: boolean;
+  field: CmsFieldDto
+  value: unknown
+  onChange: (value: unknown) => void
+  disabled?: boolean
 }) {
-  const targetKey =
-    typeof field.config.targetKey === "string" ? field.config.targetKey : "";
+  const targetKey = typeof field.config.targetKey === 'string' ? field.config.targetKey : ''
   const relationType =
-    typeof field.config.relationType === "string"
-      ? field.config.relationType
-      : "manyToOne";
-  const multi = relationType === "manyToMany" || relationType === "oneToMany";
+    typeof field.config.relationType === 'string' ? field.config.relationType : 'manyToOne'
+  const multi = relationType === 'manyToMany' || relationType === 'oneToMany'
 
-  const { data, isLoading } = useCmsRecordsList(targetKey, { pageSize: 100 });
-  const records = data?.items ?? [];
+  const { data, isLoading } = useCmsRecordsList(targetKey, { pageSize: 100 })
+  const records = data?.items ?? []
 
   if (!targetKey) {
     return (
-      <p className="text-xs text-destructive">
-        This relation has no target collection configured.
-      </p>
-    );
+      <p className="text-xs text-destructive">This relation has no target collection configured.</p>
+    )
   }
 
   if (multi) {
     const selected = Array.isArray(value)
-      ? (value.filter((v) => typeof v === "string") as string[])
-      : [];
+      ? (value.filter((v) => typeof v === 'string') as string[])
+      : []
     const toggle = (id: string) =>
-      onChange(
-        selected.includes(id)
-          ? selected.filter((x) => x !== id)
-          : [...selected, id],
-      );
+      onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id])
     return (
       <RelationMultiField
         records={records}
@@ -377,28 +340,28 @@ function RelationField({
         isLoading={isLoading}
         disabled={disabled}
       />
-    );
+    )
   }
 
   const options = [
-    { value: "", label: "— None —" },
+    { value: '', label: '— None —' },
     ...records.map((r) => ({ value: r.id, label: recordLabel(r) })),
-  ];
+  ]
   return (
     <div className="space-y-1">
       <AppSelect
-        value={typeof value === "string" ? value : ""}
+        value={typeof value === 'string' ? value : ''}
         disabled={disabled || isLoading}
         onChange={(v) => onChange(v ? v : null)}
         options={options}
-        placeholder={isLoading ? "Loading entries…" : "Select an entry…"}
+        placeholder={isLoading ? 'Loading entries…' : 'Select an entry…'}
         isSearchable={records.length > 8}
       />
       <p className="text-xs text-muted-foreground">
         Linked to <code>{targetKey}</code>.
       </p>
     </div>
-  );
+  )
 }
 
 /** Searchable checkbox list for many-to-many / one-to-many relations. */
@@ -410,18 +373,16 @@ function RelationMultiField({
   isLoading,
   disabled,
 }: {
-  records: CmsRecordDto[];
-  selected: string[];
-  onToggle: (id: string) => void;
-  targetKey: string;
-  isLoading: boolean;
-  disabled?: boolean;
+  records: CmsRecordDto[]
+  selected: string[]
+  onToggle: (id: string) => void
+  targetKey: string
+  isLoading: boolean
+  disabled?: boolean
 }) {
-  const [search, setSearch] = useState("");
-  const q = search.trim().toLowerCase();
-  const filtered = q
-    ? records.filter((r) => recordLabel(r).toLowerCase().includes(q))
-    : records;
+  const [search, setSearch] = useState('')
+  const q = search.trim().toLowerCase()
+  const filtered = q ? records.filter((r) => recordLabel(r).toLowerCase().includes(q)) : records
 
   return (
     <div className="space-y-2">
@@ -429,14 +390,14 @@ function RelationMultiField({
         type="search"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder={isLoading ? "Loading entries…" : "Search entries…"}
+        placeholder={isLoading ? 'Loading entries…' : 'Search entries…'}
         disabled={disabled || isLoading}
         autoComplete="off"
       />
       <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border bg-muted/20 p-2">
         {filtered.length === 0 ? (
           <p className="px-1 py-6 text-center text-xs text-muted-foreground">
-            {isLoading ? "Loading…" : "No entries."}
+            {isLoading ? 'Loading…' : 'No entries.'}
           </p>
         ) : (
           filtered.map((r) => (
@@ -458,7 +419,7 @@ function RelationMultiField({
         {selected.length} selected · linked to <code>{targetKey}</code>.
       </p>
     </div>
-  );
+  )
 }
 
 /** Build a minimal field DTO so a component sub-field reuses {@link FieldRenderer}. */
@@ -472,7 +433,7 @@ function toSubFieldDto(sub: ComponentSubField, idx: number): CmsFieldDto {
     unique: false,
     order: idx,
     config: {},
-  };
+  }
 }
 
 /**
@@ -487,44 +448,41 @@ function ComponentField({
   onChange,
   disabled,
 }: {
-  field: CmsFieldDto;
-  value: unknown;
-  onChange: (value: unknown) => void;
-  disabled?: boolean;
+  field: CmsFieldDto
+  value: unknown
+  onChange: (value: unknown) => void
+  disabled?: boolean
 }) {
   const componentKey =
-    typeof field.config.componentKey === "string"
-      ? field.config.componentKey
-      : "";
-  const { data: components, isLoading: componentsLoading } = useCmsComponentsList();
-  const repeatable = field.config.repeatable === true;
+    typeof field.config.componentKey === 'string' ? field.config.componentKey : ''
+  const { data: components, isLoading: componentsLoading } = useCmsComponentsList()
+  const repeatable = field.config.repeatable === true
 
   // Resolve the schema: a saved component from the registry, or inline fields.
   const subFields: ComponentSubField[] = componentKey
-    ? ((components?.find((c) => c.key === componentKey)
-        ?.fields as ComponentSubField[]) ?? [])
-    : readComponentFields(field.config);
+    ? ((components?.find((c) => c.key === componentKey)?.fields as ComponentSubField[]) ?? [])
+    : readComponentFields(field.config)
 
   if (subFields.length === 0) {
     // Don't cry "missing" while the components list is still loading — that
     // resolves to an empty schema momentarily on every open.
     if (componentKey && componentsLoading) {
-      return <p className="text-xs text-muted-foreground">Loading component…</p>;
+      return <p className="text-xs text-muted-foreground">Loading component…</p>
     }
     return (
       <p className="text-xs text-destructive">
         {componentKey
           ? `Component "${componentKey}" is missing or empty.`
-          : "This component has no fields configured."}
+          : 'This component has no fields configured.'}
       </p>
-    );
+    )
   }
 
   if (!repeatable) {
     const obj =
-      value && typeof value === "object" && !Array.isArray(value)
+      value && typeof value === 'object' && !Array.isArray(value)
         ? (value as Record<string, unknown>)
-        : {};
+        : {}
     return (
       <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
         {subFields.map((sub, i) => (
@@ -537,18 +495,18 @@ function ComponentField({
           />
         ))}
       </div>
-    );
+    )
   }
 
-  const items = Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
-  const setItems = (next: Record<string, unknown>[]) => onChange(next);
+  const items = Array.isArray(value) ? (value as Record<string, unknown>[]) : []
+  const setItems = (next: Record<string, unknown>[]) => onChange(next)
   const move = (idx: number, dir: -1 | 1) => {
-    const j = idx + dir;
-    if (j < 0 || j >= items.length) return;
-    const next = items.slice();
-    [next[idx], next[j]] = [next[j]!, next[idx]!];
-    setItems(next);
-  };
+    const j = idx + dir
+    if (j < 0 || j >= items.length) return
+    const next = items.slice()
+    ;[next[idx], next[j]] = [next[j]!, next[idx]!]
+    setItems(next)
+  }
 
   return (
     <div className="space-y-3">
@@ -561,9 +519,7 @@ function ComponentField({
           // eslint-disable-next-line react/no-array-index-key -- positional items
           <div key={idx} className="space-y-4 rounded-lg border bg-muted/20 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">
-                Item {idx + 1}
-              </span>
+              <span className="text-xs font-medium text-muted-foreground">Item {idx + 1}</span>
               <div className="flex items-center gap-1">
                 <Button
                   type="button"
@@ -606,11 +562,7 @@ function ComponentField({
                 field={toSubFieldDto(sub, i)}
                 value={item[sub.key]}
                 onChange={(v) =>
-                  setItems(
-                    items.map((it, k) =>
-                      k === idx ? { ...it, [sub.key]: v } : it,
-                    ),
-                  )
+                  setItems(items.map((it, k) => (k === idx ? { ...it, [sub.key]: v } : it)))
                 }
                 disabled={disabled}
               />
@@ -630,54 +582,50 @@ function ComponentField({
         Add item
       </Button>
     </div>
-  );
+  )
 }
 
 function stringOr(value: unknown, fallback: string): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "bigint") {
-    return value.toString();
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    return value.toString()
   }
-  return fallback;
+  return fallback
 }
 
 function numberOrEmpty(value: unknown): string {
-  if (typeof value === "number" && !Number.isNaN(value)) return value.toString();
+  if (typeof value === 'number' && !Number.isNaN(value)) return value.toString()
   // PostgreSQL BIGINT (INTEGER fields) comes back from the pg driver as a
   // string — render it rather than treating it as empty.
-  if (typeof value === "bigint") return value.toString();
-  if (
-    typeof value === "string" &&
-    value.trim() !== "" &&
-    !Number.isNaN(Number(value))
-  ) {
-    return value;
+  if (typeof value === 'bigint') return value.toString()
+  if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) {
+    return value
   }
-  return "";
+  return ''
 }
 
-function dateInputValue(value: unknown, type: "DATE" | "DATETIME"): string {
-  if (typeof value !== "string" || !value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
+function dateInputValue(value: unknown, type: 'DATE' | 'DATETIME'): string {
+  if (typeof value !== 'string' || !value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
   // DATE is timezone-agnostic — the stored calendar date is what to show.
-  if (type === "DATE") return d.toISOString().slice(0, 10);
+  if (type === 'DATE') return d.toISOString().slice(0, 10)
   // A `datetime-local` input works in LOCAL wall-clock, so render the stored
   // instant in local components. Slicing `toISOString()` (UTC) instead shifted
   // the shown time by the viewer's offset on every load/save (the tz drift).
-  const pad = (n: number) => String(n).padStart(2, "0");
+  const pad = (n: number) => String(n).padStart(2, '0')
   return (
     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
     `T${pad(d.getHours())}:${pad(d.getMinutes())}`
-  );
+  )
 }
 
 /** Convert a `datetime-local` input's local wall-clock string back to a UTC ISO
  *  instant for storage. Returns null for an empty input. */
 function dateTimeInputToIso(local: string): string | null {
-  if (!local) return null;
-  const d = new Date(local); // a tz-less string is parsed as local time
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  if (!local) return null
+  const d = new Date(local) // a tz-less string is parsed as local time
+  return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
 function JsonEditor({
@@ -686,33 +634,33 @@ function JsonEditor({
   disabled,
   placeholder,
 }: {
-  value: unknown;
-  onChange: (value: unknown) => void;
-  disabled?: boolean;
-  placeholder?: string;
+  value: unknown
+  onChange: (value: unknown) => void
+  disabled?: boolean
+  placeholder?: string
 }) {
   const initial = useMemo(() => {
-    if (value === null || value === undefined) return "";
+    if (value === null || value === undefined) return ''
     try {
-      return JSON.stringify(value, null, 2);
+      return JSON.stringify(value, null, 2)
     } catch {
-      return "";
+      return ''
     }
-  }, [value]);
+  }, [value])
 
-  const [text, setText] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
-  const lastEmitted = useRef<string>(initial);
+  const [text, setText] = useState(initial)
+  const [error, setError] = useState<string | null>(null)
+  const lastEmitted = useRef<string>(initial)
 
   useEffect(() => {
     if (initial !== lastEmitted.current) {
       queueMicrotask(() => {
-        setText(initial);
-        lastEmitted.current = initial;
-        setError(null);
-      });
+        setText(initial)
+        lastEmitted.current = initial
+        setError(null)
+      })
     }
-  }, [initial]);
+  }, [initial])
 
   return (
     <div className="space-y-1">
@@ -722,27 +670,25 @@ function JsonEditor({
         placeholder={placeholder}
         disabled={disabled}
         onChange={(e) => {
-          const raw = e.target.value;
-          setText(raw);
+          const raw = e.target.value
+          setText(raw)
           if (!raw.trim()) {
-            setError(null);
-            lastEmitted.current = raw;
-            onChange(null);
-            return;
+            setError(null)
+            lastEmitted.current = raw
+            onChange(null)
+            return
           }
           try {
-            const parsed = JSON.parse(raw) as unknown;
-            setError(null);
-            lastEmitted.current = raw;
-            onChange(parsed);
+            const parsed = JSON.parse(raw) as unknown
+            setError(null)
+            lastEmitted.current = raw
+            onChange(parsed)
           } catch (e) {
-            setError((e as Error).message);
+            setError((e as Error).message)
           }
         }}
       />
-      {error ? (
-        <p className="text-xs text-destructive">Invalid JSON · {error}</p>
-      ) : null}
+      {error ? <p className="text-xs text-destructive">Invalid JSON · {error}</p> : null}
     </div>
-  );
+  )
 }

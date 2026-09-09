@@ -1,6 +1,7 @@
 import { useId, useMemo, type ReactNode } from 'react'
 import ReactSelect, {
   type GroupBase,
+  type MultiValue,
   type Props as ReactSelectProps,
   type SingleValue,
 } from 'react-select'
@@ -131,6 +132,68 @@ export function AppSelect({
   return (
     <RsCacheProvider>
       <ReactSelect<AppSelectOption, false> {...common} />
+    </RsCacheProvider>
+  )
+}
+
+export interface AppMultiSelectProps {
+  'id'?: string
+  /** Current values (each must match an option `value`; unknown values render as raw chips). */
+  'value': string[]
+  'onChange': (value: string[]) => void
+  'options': AppSelectOptions
+  'placeholder'?: string
+  'disabled'?: boolean
+  'isSearchable'?: boolean
+  'size'?: 'sm' | 'default'
+  'className'?: string
+  'controlClassName'?: string
+  'aria-invalid'?: boolean
+}
+
+/**
+ * Multi-value variant of {@link AppSelect} — chips + a searchable menu, value is
+ * a `string[]`. Same control look via {@link selectPresentation}.
+ */
+export function AppMultiSelect({
+  'id': idProp,
+  value,
+  onChange,
+  options,
+  placeholder = 'Select…',
+  disabled,
+  isSearchable = true,
+  size = 'default',
+  className,
+  controlClassName,
+  'aria-invalid': invalid,
+}: AppMultiSelectProps) {
+  const rid = useId()
+  const inputId = idProp ?? `app-multiselect-${rid}`
+  const instanceId = useMemo(() => inputId.replace(/[^a-zA-Z0-9_-]/g, ''), [inputId])
+
+  const selected = useMemo(() => {
+    const flat = flattenOptions(options)
+    return value.map((v) => flat.find((o) => o.value === v) ?? { value: v, label: v })
+  }, [options, value])
+
+  const common: ReactSelectProps<AppSelectOption, true, GroupBase<AppSelectOption>> = {
+    inputId,
+    instanceId,
+    value: selected,
+    isMulti: true,
+    onChange: (opts: MultiValue<AppSelectOption>) => onChange(opts.map((o) => o.value)),
+    options,
+    placeholder,
+    isDisabled: disabled,
+    isSearchable,
+    isOptionDisabled: (o) => !!o.isDisabled,
+    ...selectPresentation<true>({ size, invalid, className, controlClassName }),
+  }
+
+  return (
+    <RsCacheProvider>
+      <ReactSelect<AppSelectOption, true> {...common} />
     </RsCacheProvider>
   )
 }
