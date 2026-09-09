@@ -107,8 +107,8 @@ test.group('MCP in-app RPC | handshake + discovery', (group) => {
     // …the catalog/CRUD noise is gone…
     assert.notInclude(names, 'create_product')
     assert.notInclude(names, 'list_categories')
-    // …and the set is meaningfully smaller than the full ~57.
-    assert.isBelow(names.length, 30)
+    // …and the set is meaningfully smaller than the full ~80+ tool surface.
+    assert.isBelow(names.length, 40)
   })
 
   test('?tools=a,b restricts to exactly those tools', async ({ client, assert }) => {
