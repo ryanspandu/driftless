@@ -77,7 +77,15 @@ const ECOMMERCE_EXTRAS = [
   'list_product_tags', 'create_product_tag', 'update_product_tag', 'delete_product_tag',
   'set_storefront_page',
 ]
+// Bare page-building set — deliberately UNDER ~10 tools so a consumer client
+// (Claude Desktop) that defers to tool-search past ~10 tools still loads them all
+// and create_page stays callable. Pair with the connector's "Always available" mode.
+const ESSENTIALS_PROFILE = [
+  'get_block_catalog', 'list_pages', 'get_page', 'create_page', 'set_page_content',
+  'patch_page_content', 'render_page', 'publish_page', 'set_appearance', 'upload_media',
+]
 const PROFILES: Record<string, string[]> = {
+  essentials: ESSENTIALS_PROFILE,
   pages: PAGES_PROFILE,
   build: [...PAGES_PROFILE, ...BUILD_EXTRAS],
   // Everyday full-site set: content + pages + templates + collections + ecommerce

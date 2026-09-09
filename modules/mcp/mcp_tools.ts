@@ -165,7 +165,30 @@ const ECOMMERCE_EXTRAS = [
   'set_storefront_page',
 ]
 
+/**
+ * The bare page-building set — deliberately UNDER ~10 tools. A consumer client
+ * (Claude Desktop / claude.ai) defers a connector to on-demand tool-SEARCH once
+ * it exposes ~10+ tools (or its tool defs pass ~10k tokens), which is why even
+ * `pages` (30) can leave create_page unsurfaced. Keep this list tiny so the
+ * client loads every tool eagerly and create_page is always callable.
+ */
+const ESSENTIALS_PROFILE = [
+  'get_block_catalog',
+  'list_pages',
+  'get_page',
+  'create_page',
+  'set_page_content',
+  'patch_page_content',
+  'render_page',
+  'publish_page',
+  'set_appearance',
+  'upload_media',
+]
+
 export const MCP_TOOL_PROFILES: Record<string, string[]> = {
+  // Tiny (~10) — survives the client's tool-search deferral; use with the Claude
+  // Desktop connector set to "Always available".
+  essentials: ESSENTIALS_PROFILE,
   pages: PAGES_PROFILE,
   build: [...PAGES_PROFILE, ...BUILD_EXTRAS],
   // The everyday full-site set: content + pages + templates + collections +
