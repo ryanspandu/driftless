@@ -91,8 +91,41 @@ export function sanitizePuckDocument<T extends Record<string, unknown>>(document
   return visit(document) as T
 }
 
-/** True if a Puck document carries custom CSS/JS snippets. */
+/** A snippet-like value with actual (non-blank) code. */
+function hasNonEmptyCode(value: unknown): boolean {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as { code?: unknown }).code === 'string' &&
+    (value as { code: string }).code.trim() !== ''
+  )
+}
+
+/**
+ * True if a Puck document carries custom CSS/JS — privileged content that runs
+ * with full app trust, so writing it needs `settings:manage`, not merely
+ * `builder:pages`.
+ *
+ * Two homes to cover:
+ *  - PER-PAGE code on the document ROOT (`root.props.codeSnippets`, or the legacy
+ *    `customCss`/`customJs` strings) — the Settings-dialog custom code. Missing
+ *    this let an AI (or an under-privileged admin) publish a page with arbitrary
+ *    JS while holding only the page-write ability.
+ *  - A legacy CodeBlock's own `props.snippets` array anywhere in the tree.
+ */
 export function hasPrivilegedPageContent(document: unknown): boolean {
+  if (document && typeof document === 'object') {
+    const root = (document as { root?: unknown }).root
+    const rootProps =
+      root && typeof root === 'object' ? (root as { props?: unknown }).props : undefined
+    if (rootProps && typeof rootProps === 'object') {
+      const p = rootProps as Record<string, unknown>
+      if (Array.isArray(p.codeSnippets) && p.codeSnippets.some(hasNonEmptyCode)) return true
+      if (typeof p.customCss === 'string' && p.customCss.trim() !== '') return true
+      if (typeof p.customJs === 'string' && p.customJs.trim() !== '') return true
+    }
+  }
+
   const visit = (value: unknown): boolean => {
     if (Array.isArray(value)) return value.some(visit)
     if (!value || typeof value !== 'object') return false

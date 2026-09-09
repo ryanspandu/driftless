@@ -1,9 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { WebSettingsService } from '#services/settings_service'
 import { PAGE_ROLE_SLOTS_BY_SLOT, type OverrideSlot } from '#services/page_role_slots'
+import PagesService from '#services/pages_service'
 import Page from '#models/page'
 
 const settings = new WebSettingsService()
+const pages = new PagesService()
 
 const ROLE_SLOTS = Object.keys(PAGE_ROLE_SLOTS_BY_SLOT) as OverrideSlot[]
 
@@ -47,6 +49,9 @@ export default class BuilderSettingsController {
           .status(422)
           .json({ message: 'Invalid appearance value', issues: result.issues })
       }
+      // The theme (font/colours) is baked into SSG snapshots via shared props, so
+      // cached HTML must be re-rendered — same as the admin settings controller.
+      await pages.invalidateAllSnapshots()
       return response.json(result.theme)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
@@ -55,7 +60,10 @@ export default class BuilderSettingsController {
 
   async setBreakpoints({ request, response }: HttpContext) {
     try {
-      return response.json(await settings.setBreakpoints(request.input('breakpoints')))
+      const saved = await settings.setBreakpoints(request.input('breakpoints'))
+      // The tier list changes the `@media` CSS baked into every SSG page.
+      await pages.invalidateAllSnapshots()
+      return response.json(saved)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
@@ -63,7 +71,10 @@ export default class BuilderSettingsController {
 
   async setGlobalCode({ request, response }: HttpContext) {
     try {
-      return response.json(await settings.setGlobalCode(request.input('snippets')))
+      const saved = await settings.setGlobalCode(request.input('snippets'))
+      // Site-wide code runs on every public page → bust SSG snapshots.
+      await pages.invalidateAllSnapshots()
+      return response.json(saved)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
