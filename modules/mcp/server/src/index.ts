@@ -61,11 +61,28 @@ const BUILD_EXTRAS = [
   'list_collections', 'get_collection', 'create_collection', 'update_collection', 'delete_collection',
   'add_field', 'update_field', 'delete_field', 'reorder_fields',
   'list_records', 'create_record', 'update_record', 'delete_record',
-  'list_templates', 'get_template', 'create_template', 'set_default_template',
+  'list_templates', 'get_template', 'create_template', 'update_template', 'delete_template', 'set_default_template',
+]
+// Posts/content + their taxonomies — the CMS content surface.
+const CONTENT_EXTRAS = [
+  'list_content', 'get_content', 'create_content', 'update_content', 'delete_content',
+  'list_content_categories', 'create_content_category', 'update_content_category', 'delete_content_category',
+  'list_content_tags', 'create_content_tag', 'update_content_tag', 'delete_content_tag',
+]
+// Ecommerce: products, variants, categories, product tags + storefront assign.
+const ECOMMERCE_EXTRAS = [
+  'list_products', 'get_product', 'create_product', 'update_product', 'delete_product',
+  'add_variant', 'update_variant', 'delete_variant',
+  'list_categories', 'create_category', 'update_category', 'delete_category',
+  'list_product_tags', 'create_product_tag', 'update_product_tag', 'delete_product_tag',
+  'set_storefront_page',
 ]
 const PROFILES: Record<string, string[]> = {
   pages: PAGES_PROFILE,
   build: [...PAGES_PROFILE, ...BUILD_EXTRAS],
+  // Everyday full-site set: content + pages + templates + collections + ecommerce
+  // (+ the shared catalog/appearance/media/menu/form essentials).
+  site: [...PAGES_PROFILE, ...BUILD_EXTRAS, ...CONTENT_EXTRAS, ...ECOMMERCE_EXTRAS],
 }
 ;(() => {
   const t = process.env.DRIFTLESS_MCP_TOOLS
