@@ -29,22 +29,43 @@ const COLUMNS: Record<string, string> = {
 
 function toRecord(row: Content): CmsRecordDto {
   const slug = row.slug
+  /**
+   * Withhold protected content from this listing surface.
+   *
+   * A PROTECTED / MEMBER post's body and custom fields are gated behind an
+   * unlock on the canonical route (`content_service.findPublishedBySlug` blanks
+   * `body` and nulls `data` until the viewer unlocks). This adapter feeds the
+   * public records API, the SSR collection preload and the builder's per-record
+   * binding — all anonymous, with no per-viewer unlock — so a non-public post
+   * must expose only its public shell here (title / slug / url / author /
+   * featured image), never its body, excerpt or custom-field `data`. Without
+   * this, a Collection List bound to `posts` (e.g. a Rich Text bound to `body`,
+   * or even the built-in card's excerpt) would leak gated content to everyone.
+   */
+  const isPublic = (row.visibility ?? 'PUBLIC') === 'PUBLIC'
+  const body = isPublic ? row.body : ''
   return {
     id: row.id,
     status: 'PUBLISHED',
     authorId: row.authorId === null || row.authorId === undefined ? null : String(row.authorId),
     data: {
       // Custom fields (Content-type collection) first, so the built-in keys
-      // below always win on any name clash.
-      ...(row.data ?? {}),
+      // below always win on any name clash. Withheld entirely for a non-public
+      // post (mirrors `content_service` nulling `data` behind the gate).
+      ...(isPublic ? (row.data ?? {}) : {}),
       title: row.title,
       slug,
-      excerpt: excerptOf(row.body),
-      body: row.body,
+      // Derived from the (possibly withheld) body, so a gated post yields an
+      // empty excerpt rather than a plaintext preview of its protected content.
+      excerpt: excerptOf(body),
+      body,
       featuredImage: row.featuredImage ?? null,
       url: `${POST_PATH_PREFIX}/${encodeURIComponent(slug)}`,
       author: row.author?.fullName ?? null,
       publishedAt: row.createdAt.toISO(),
+      // Exposed so a card/template can show a lock badge, matching the built-in
+      // archive DTO.
+      visibility: row.visibility ?? 'PUBLIC',
     },
     createdAt: row.createdAt.toISO()!,
     updatedAt: row.updatedAt.toISO()!,

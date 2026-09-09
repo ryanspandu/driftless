@@ -39,6 +39,37 @@ export function useCollectionScope(): string | null {
 
 const TOKEN = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g
 
+/**
+ * Whether a record field carries no meaningful value.
+ *
+ * A MULTISELECT field's value is a `string[]` (see `app/cms/field_values.ts`);
+ * an empty selection is `[]`, which is neither `null` nor `''` — so treat an
+ * empty array as unset too, or a bound element would print an empty string
+ * (live) / miss its `[field]` placeholder (editor).
+ */
+export function isEmptyFieldValue(v: unknown): boolean {
+  return v == null || v === '' || (Array.isArray(v) && v.length === 0)
+}
+
+/**
+ * Render a record field value as a string for text/attribute binding.
+ *
+ * Scalars stringify as before. A MULTISELECT (or any array) value joins its
+ * non-empty members with ", " so it reads as a list ("news, guides") rather than
+ * the raw `String(array)` comma-run ("news,guides") — and never crashes a block
+ * that assumed a scalar. Mirrors how the admin field-renderer surfaces the same
+ * multi-value field.
+ */
+export function fieldValueToString(v: unknown): string {
+  if (Array.isArray(v)) {
+    return v
+      .filter((x) => x != null && x !== '')
+      .map((x) => String(x))
+      .join(', ')
+  }
+  return String(v)
+}
+
 /** Replace `{{key}}` tokens in a string with the record's field values. */
 export function applyRecordTokens(
   input: string,
@@ -47,8 +78,8 @@ export function applyRecordTokens(
 ): string {
   return input.replace(TOKEN, (whole, key: string) => {
     const v = fields[key]
-    if (v == null || v === '') return editing ? whole : ''
-    return String(v)
+    if (isEmptyFieldValue(v)) return editing ? whole : ''
+    return fieldValueToString(v)
   })
 }
 
@@ -100,8 +131,8 @@ export function useBoundField(fieldKey: string | undefined): string | null | und
   if (!fieldKey) return undefined
   if (!ctx) return null
   const v = ctx.fields[fieldKey]
-  if (v == null || v === '') return ctx.editing ? `[${fieldKey}]` : ''
-  return String(v)
+  if (isEmptyFieldValue(v)) return ctx.editing ? `[${fieldKey}]` : ''
+  return fieldValueToString(v)
 }
 
 /**
@@ -148,7 +179,9 @@ export function useConditionallyHidden(conditions: VisibilityCondition[]): boole
   return conditions.some((c) => {
     if (!c.field) return false // an unconfigured rule never hides
     const raw = ctx.fields[c.field]
-    const isSet = raw != null && String(raw).trim() !== ''
+    // An empty MULTISELECT is `[]` — treat it as unset (isEmptyFieldValue),
+    // otherwise `String([])` already coerces to '' so scalars are unaffected.
+    const isSet = !isEmptyFieldValue(raw) && fieldValueToString(raw).trim() !== ''
     return c.op === 'set' ? !isSet : isSet
   })
 }

@@ -73,6 +73,7 @@ export default {
           label: 'Products',
           objectFields: {
             categorySlug: { type: 'text', label: 'Category slug (blank = all)' },
+            tagSlug: { type: 'text', label: 'Tag slug (blank = all)' },
             featured: {
               type: 'radio',
               label: 'Featured only',

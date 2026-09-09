@@ -52,6 +52,7 @@ export default class StorefrontCatalogController {
         pageSize: Number(request.input('pageSize', 12)) || 12,
         search: request.input('search') || undefined,
         categorySlug: request.input('category') || undefined,
+        tagSlug: request.input('tag') || undefined,
         featured: request.input('featured') === '1' || undefined,
         sort: request.input('sort') || undefined,
       },

@@ -55,6 +55,8 @@ export interface ShopProduct {
   /** Option axes (e.g. `{ name: 'Color', values: [...] }`) — drives the card swatches. */
   options: { name: string; values: string[] }[]
   categorySlugs: string[]
+  /** Tag slugs the product carries (added with storefront tag archives). */
+  tagSlugs: string[]
   featured: boolean
   /**
    * What the buy button does. `external` means the shop does not sell this and
@@ -72,11 +74,12 @@ export interface ShopProduct {
 export const shopKeys = {
   productList: (opts: {
     categorySlug: string | null
+    tagSlug: string | null
     limit: number
     featured: boolean
     sort: string | null
   }) =>
-    `products:${opts.categorySlug ?? '*'}:${opts.limit}:${opts.featured ? 'featured' : 'all'}:${opts.sort ?? 'default'}`,
+    `products:${opts.categorySlug ?? '*'}:${opts.tagSlug ?? '*'}:${opts.limit}:${opts.featured ? 'featured' : 'all'}:${opts.sort ?? 'default'}`,
   productDetail: (slug: string) => `product:${slug}`,
 }
 

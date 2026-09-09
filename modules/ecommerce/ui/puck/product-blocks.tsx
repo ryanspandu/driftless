@@ -20,8 +20,37 @@ import {
 
 export interface ProductSource {
   categorySlug?: string
+  /** Filter to a tag slug (added with storefront tag archives). */
+  tagSlug?: string
   featured?: boolean
   sort?: 'newest' | 'price_asc' | 'price_desc' | 'title'
+}
+
+/**
+ * Resolve the taxonomy a Product List is bound to.
+ *
+ * The block's own `source` wins; when it pins neither a category nor a tag, the
+ * list inherits the archive route's `{ slug, kind }` binding — so a single
+ * builder page set as the `/shop/category/:slug` (or `/shop/tag/:slug`) override
+ * lists that taxonomy's products, exactly as Product Detail inherits `:slug`.
+ *
+ * MIRRORED, by copy, in the server resolver `block_resolvers.ts` (different
+ * module trees) — the two must agree or an SSR page resolves one list and the
+ * client fetches another. Change both together.
+ */
+export function resolveProductTaxonomy(
+  source: ProductSource | undefined,
+  route: { slug?: string; kind?: string }
+): { categorySlug: string | null; tagSlug: string | null } {
+  const ownCategory = source?.categorySlug?.trim() || ''
+  const ownTag = source?.tagSlug?.trim() || ''
+  if (ownCategory || ownTag) {
+    return { categorySlug: ownCategory || null, tagSlug: ownTag || null }
+  }
+  const boundSlug = (route.slug ?? '').trim()
+  if (boundSlug && route.kind === 'category') return { categorySlug: boundSlug, tagSlug: null }
+  if (boundSlug && route.kind === 'tag') return { categorySlug: null, tagSlug: boundSlug }
+  return { categorySlug: null, tagSlug: null }
 }
 
 /**
@@ -258,21 +287,28 @@ export function ProductList({
   ctaLabel?: string
   ctaHref?: string
 }) {
-  const resolved = useMemo(
-    () => ({
-      categorySlug: source?.categorySlug || null,
+  // The archive route's binding, inherited when the block pins no taxonomy of
+  // its own. Empty on an ordinary page (no `{ slug, kind }` in the URL).
+  const boundSlug = useBinding('slug')
+  const boundKind = useBinding('kind')
+
+  const resolved = useMemo(() => {
+    const taxonomy = resolveProductTaxonomy(source, { slug: boundSlug, kind: boundKind })
+    return {
+      categorySlug: taxonomy.categorySlug,
+      tagSlug: taxonomy.tagSlug,
       limit: Math.min(Math.max(Number(limit) || 8, 1), 24),
       featured: Boolean(source?.featured),
       sort: source?.sort || null,
-    }),
-    [source?.categorySlug, source?.featured, source?.sort, limit]
-  )
+    }
+  }, [source, boundSlug, boundKind, limit])
 
   const key = shopKeys.productList(resolved)
 
   const { data, loading } = useBlockData<ShopProduct[]>(key, async () => {
     const params = new URLSearchParams({ pageSize: String(resolved.limit) })
     if (resolved.categorySlug) params.set('category', resolved.categorySlug)
+    if (resolved.tagSlug) params.set('tag', resolved.tagSlug)
     if (resolved.featured) params.set('featured', '1')
     if (resolved.sort) params.set('sort', resolved.sort)
 

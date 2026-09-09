@@ -21,6 +21,7 @@ const catalog = new StorefrontCatalogService()
 
 interface ProductListRef extends BlockDataRef {
   categorySlug: string | null
+  tagSlug: string | null
   limit: number
   featured: boolean
   sort: string | null
@@ -35,11 +36,37 @@ interface ProductDetailRef extends BlockDataRef {
 /** Key format is shared with the client component — change both together. */
 function productListKey(ref: {
   categorySlug: string | null
+  tagSlug: string | null
   limit: number
   featured: boolean
   sort: string | null
 }): string {
-  return `products:${ref.categorySlug ?? '*'}:${ref.limit}:${ref.featured ? 'featured' : 'all'}:${ref.sort ?? 'default'}`
+  return `products:${ref.categorySlug ?? '*'}:${ref.tagSlug ?? '*'}:${ref.limit}:${ref.featured ? 'featured' : 'all'}:${ref.sort ?? 'default'}`
+}
+
+/**
+ * Resolve the taxonomy a Product List block is bound to.
+ *
+ * MIRRORS `resolveProductTaxonomy` in the client block (product-blocks.tsx): the
+ * block's own `source` wins, and when it pins neither a category nor a tag the
+ * list inherits the archive route's `{ slug, kind }` binding — so an override
+ * page at `/shop/category/:slug` or `/shop/tag/:slug` lists that taxonomy. Keep
+ * the two in lockstep or SSR and the client would key/fetch different lists.
+ */
+function resolveProductTaxonomy(
+  source: { categorySlug?: string; tagSlug?: string },
+  params: Record<string, string> | undefined
+): { categorySlug: string | null; tagSlug: string | null } {
+  const ownCategory = source.categorySlug?.trim() || ''
+  const ownTag = source.tagSlug?.trim() || ''
+  if (ownCategory || ownTag) {
+    return { categorySlug: ownCategory || null, tagSlug: ownTag || null }
+  }
+  const boundSlug = (params?.slug ?? '').trim()
+  const kind = params?.kind
+  if (boundSlug && kind === 'category') return { categorySlug: boundSlug, tagSlug: null }
+  if (boundSlug && kind === 'tag') return { categorySlug: null, tagSlug: boundSlug }
+  return { categorySlug: null, tagSlug: null }
 }
 
 function productDetailKey(slug: string): string {
@@ -71,12 +98,15 @@ export function registerEcommerceBlockResolvers(): void {
     collect(props, context) {
       const source = (props.source ?? {}) as {
         categorySlug?: string
+        tagSlug?: string
         featured?: boolean
         sort?: string
       }
 
+      const taxonomy = resolveProductTaxonomy(source, context.params)
       const ref = {
-        categorySlug: source.categorySlug || null,
+        categorySlug: taxonomy.categorySlug,
+        tagSlug: taxonomy.tagSlug,
         // Bounded: a block's props are authored in the builder, but a hand-edited
         // page document should not be able to ask for the whole catalogue.
         limit: Math.min(Math.max(Number(props.limit) || 8, 1), 24),
@@ -95,6 +125,7 @@ export function registerEcommerceBlockResolvers(): void {
           {
             pageSize: ref.limit,
             categorySlug: ref.categorySlug ?? undefined,
+            tagSlug: ref.tagSlug ?? undefined,
             featured: ref.featured || undefined,
             sort: (ref.sort as 'newest' | 'price_asc' | 'price_desc' | 'title') ?? undefined,
           },

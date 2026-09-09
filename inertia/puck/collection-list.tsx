@@ -370,6 +370,29 @@ function recordString(record: CmsRecord, key: string | undefined): string | unde
   return typeof raw === 'string' ? raw : undefined
 }
 
+/**
+ * A record field as display TEXT (built-in card title/excerpt).
+ *
+ * Unlike `recordString` (kept scalar-only, so a URL slot never gets a joined
+ * value), this joins a MULTISELECT/array field with ", " and stringifies a
+ * number — so a card whose title/excerpt is mapped to a multi-value field shows
+ * the list ("news, guides") instead of rendering blank.
+ */
+function recordText(record: CmsRecord, key: string | undefined): string | undefined {
+  if (!key) return undefined
+  const raw = record.data[key]
+  if (typeof raw === 'string') return raw || undefined
+  if (Array.isArray(raw)) {
+    const joined = raw
+      .filter((x) => x != null && x !== '')
+      .map((x) => String(x))
+      .join(', ')
+    return joined || undefined
+  }
+  if (raw == null || typeof raw === 'object') return undefined
+  return String(raw)
+}
+
 const notice = 'rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground'
 
 /** Puck stores radio booleans as the strings 'true'/'false'. */
@@ -683,8 +706,8 @@ export function CollectionList({
           // Fall back to conventional field names when the source didn't map them
           // (e.g. a `source` given as just a collection key) — otherwise the
           // default card renders blank even though records loaded.
-          const title = recordString(rec, src.titleField ?? 'title')
-          const excerpt = recordString(rec, src.excerptField ?? 'excerpt')
+          const title = recordText(rec, src.titleField ?? 'title')
+          const excerpt = recordText(rec, src.excerptField ?? 'excerpt')
           const image = withImage ? recordString(rec, src.imageField ?? 'image') : undefined
           const linkValue = recordString(rec, src.linkField)
           const href = linkValue ? `${src.linkBase ?? ''}${linkValue}` : undefined
