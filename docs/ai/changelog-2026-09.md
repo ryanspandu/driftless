@@ -2,7 +2,7 @@
 
 A summary of the features shipped this session, with pointers to the full docs.
 Commits: `2d478a7`, `dab07d3`, `9359ced`, `5bb7d8c`, `c4954e4`, `0922d13`,
-`5e0bd7b`, `509ad24`.
+`5e0bd7b`, `509ad24`, `82d5a5a`.
 
 ## 1. CMS `MULTISELECT` field + field-key auto-fill — `2d478a7`
 
@@ -99,3 +99,14 @@ Commits: `2d478a7`, `dab07d3`, `9359ced`, `5bb7d8c`, `c4954e4`, `0922d13`,
   **PUBLISHED + BUILDER** target, clear the slot on an empty `pageId`, and are
   mirrored into both the in-app and stdio tool manifests.
 - Docs: [modules/mcp/README.md](../../modules/mcp/README.md#builder-api-reference).
+
+## 11. Pin a Content posts list to a fixed category/tag — `82d5a5a`
+
+- A `posts` **CollectionList** gains a **Post taxonomy** field
+  (`taxonomy` prop `{ categorySlug?, tagSlug? }`, two dropdowns of the existing
+  terms) that pins the list to a fixed category and/or tag on **any** page — not
+  just an archive override. Both slugs **AND** together.
+- An explicit pin **wins** over the archive route binding: `withArchiveTaxonomy`
+  and the SSR resolver loop are now **fill-only**. Client + SSR cache keys carry
+  the pin identically (no refetch). MCP block catalog re-emitted.
+- Docs: [content-taxonomy-and-visibility.md](./content-taxonomy-and-visibility.md#3-category--tag-archive-overrides-use-as-page).

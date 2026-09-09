@@ -201,9 +201,14 @@ mirrors how the e-commerce `ProductList` inherits `/shop/category/:slug`.)
   list with its body/excerpt/data blanked — the `toRecord` adapter withholds for
   any non-`PUBLIC` post, so the list can't leak a locked body.
 
-Scope note: only **auto-inheritance** on an archive-override page is wired.
-Pinning a *fixed* taxonomy on a `CollectionList` sitting on a normal page is not
-exposed as a block field (deferred).
+**Pinning a fixed taxonomy (any page).** A `posts` CollectionList also has a
+**Post taxonomy** field (`taxonomy` prop `{ categorySlug?, tagSlug? }`) — two
+dropdowns of the existing categories/tags — so an author can pin the list to a
+fixed category and/or tag on a normal page (both slugs **AND** together). An
+explicit pin **wins** over the archive route binding: `withArchiveTaxonomy` (and
+the SSR loop in `page_data_resolver`) fill only the slot the author left empty,
+so a pinned block on an archive page shows its own taxonomy. Non-`posts`
+collections ignore the field.
 
 ### Assigning archives via MCP
 
