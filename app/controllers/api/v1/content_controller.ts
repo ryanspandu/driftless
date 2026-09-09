@@ -11,9 +11,14 @@ const createContentValidator = vine.compile(
     slug: vine.string().trim().minLength(1),
     body: vine.string(),
     status: vine.enum(['DRAFT', 'PUBLISHED'] as const).optional(),
+    visibility: vine.enum(['PUBLIC', 'PROTECTED', 'MEMBER'] as const).optional(),
+    // Plaintext; encrypted server-side. Required when visibility is PROTECTED.
+    password: vine.string().nullable().optional(),
     featuredImage: vine.string().nullable().optional(),
     // Custom fields defined by the Content-type collection; coerced + filtered server-side.
     data: vine.object({}).allowUnknownProperties().nullable().optional(),
+    categoryIds: vine.array(vine.string()).optional(),
+    tagIds: vine.array(vine.string()).optional(),
   })
 )
 
@@ -23,8 +28,12 @@ const updateContentValidator = vine.compile(
     slug: vine.string().trim().minLength(1).optional(),
     body: vine.string().optional(),
     status: vine.enum(['DRAFT', 'PUBLISHED'] as const).optional(),
+    visibility: vine.enum(['PUBLIC', 'PROTECTED', 'MEMBER'] as const).optional(),
+    password: vine.string().nullable().optional(),
     featuredImage: vine.string().nullable().optional(),
     data: vine.object({}).allowUnknownProperties().nullable().optional(),
+    categoryIds: vine.array(vine.string()).optional(),
+    tagIds: vine.array(vine.string()).optional(),
   })
 )
 
@@ -75,8 +84,12 @@ export default class ContentController {
         slug: payload.slug,
         body: payload.body,
         status: payload.status ?? 'DRAFT',
+        visibility: payload.visibility,
+        password: payload.password ?? null,
         featuredImage: payload.featuredImage ?? null,
         data: payload.data ?? null,
+        categoryIds: payload.categoryIds,
+        tagIds: payload.tagIds,
       })
       return response.status(201).json(item)
     } catch (e) {

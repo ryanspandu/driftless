@@ -21,10 +21,20 @@ test.group('Page role slots — server/client mirror', () => {
     }
   })
 
-  test('slot list holds exactly the seven expected roles, home first', ({ assert }) => {
+  test('slot list holds exactly the expected roles, home first', ({ assert }) => {
     assert.deepEqual(
       PAGE_ROLE_SLOTS.map((s) => s.slot),
-      ['home', 'login', 'register', 'forgotPassword', 'resetPassword', 'notFound', 'serverError']
+      [
+        'home',
+        'login',
+        'register',
+        'forgotPassword',
+        'resetPassword',
+        'notFound',
+        'serverError',
+        'categoryArchive',
+        'tagArchive',
+      ]
     )
   })
 })

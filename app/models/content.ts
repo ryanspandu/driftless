@@ -1,7 +1,9 @@
 import { DateTime } from 'luxon'
-import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
-import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import { BaseModel, belongsTo, column, manyToMany } from '@adonisjs/lucid/orm'
+import type { BelongsTo, ManyToMany } from '@adonisjs/lucid/types/relations'
 import User from '#models/user'
+import ContentCategory from '#models/content_category'
+import ContentTag from '#models/content_tag'
 
 export default class Content extends BaseModel {
   static table = 'contents'
@@ -21,6 +23,17 @@ export default class Content extends BaseModel {
 
   @column()
   declare status: 'DRAFT' | 'PUBLISHED'
+
+  // Who may read the post. A native column, gated server-side (the body is
+  // withheld from the payload for PROTECTED/MEMBER until access is granted).
+  @column()
+  declare visibility: 'PUBLIC' | 'PROTECTED' | 'MEMBER'
+
+  // The Protected password as an AES-256-GCM envelope. `serializeAs: null` so the
+  // ciphertext never leaks through Lucid's default `.serialize()` — the service
+  // builds DTOs by hand and never maps it out.
+  @column({ serializeAs: null })
+  declare passwordEnc: string | null
 
   // Native featured image / thumbnail: a media URL (`/uploads/…`).
   @column()
@@ -50,4 +63,22 @@ export default class Content extends BaseModel {
   // the column is `author_id`. Preloading threw until this was set.
   @belongsTo(() => User, { foreignKey: 'authorId' })
   declare author: BelongsTo<typeof User>
+
+  @manyToMany(() => ContentCategory, {
+    pivotTable: 'content_post_category',
+    localKey: 'id',
+    pivotForeignKey: 'content_id',
+    relatedKey: 'id',
+    pivotRelatedForeignKey: 'category_id',
+  })
+  declare categories: ManyToMany<typeof ContentCategory>
+
+  @manyToMany(() => ContentTag, {
+    pivotTable: 'content_post_tag',
+    localKey: 'id',
+    pivotForeignKey: 'content_id',
+    relatedKey: 'id',
+    pivotRelatedForeignKey: 'tag_id',
+  })
+  declare tags: ManyToMany<typeof ContentTag>
 }

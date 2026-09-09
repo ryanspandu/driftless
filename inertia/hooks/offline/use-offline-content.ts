@@ -182,8 +182,15 @@ export function useOfflineContent(): UseOfflineContentResult {
         slug: input.slug,
         body: input.body,
         status: input.status as ContentStatus,
+        visibility: input.visibility ?? "PUBLIC",
+        // A set password never round-trips through the local store; only the
+        // server holds it. `hasPassword` reflects what was just submitted.
+        hasPassword: Boolean(input.password),
         featuredImage: input.featuredImage ?? null,
         data: input.data ?? null,
+        // Category/tag names resolve on the next sync; ids travel in the outbox payload.
+        categories: [],
+        tags: [],
         authorId: null,
         createdAt: now,
         updatedAt: now,
@@ -327,8 +334,13 @@ export function useOfflineContent(): UseOfflineContentResult {
         slug: d.slug,
         body: d.body,
         status: d.status,
+        visibility: d.visibility,
+        // The password is never held locally, so a conflict-recreated PROTECTED
+        // post carries none — the operator re-sets it on the next edit.
         featuredImage: d.featuredImage ?? null,
         data: d.data ?? null,
+        categoryIds: d.categories?.map((c) => c.id),
+        tagIds: d.tags?.map((t) => t.id),
       };
       await store.enqueueJob(
         buildJob({

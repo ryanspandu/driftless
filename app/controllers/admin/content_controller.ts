@@ -25,15 +25,20 @@ export default class ContentController {
   }
 
   async store({ request, auth, response }: HttpContext) {
-    const { title, slug, body, status, featuredImage, data } = request.all()
+    const { title, slug, body, status, visibility, password, featuredImage, data, categoryIds, tagIds } =
+      request.all()
     try {
       const item = await contentService.create(auth.user!.id, {
         title,
         slug,
         body,
         status,
+        visibility,
+        password,
         featuredImage,
         data,
+        categoryIds,
+        tagIds,
       })
       return response.status(201).json(item)
     } catch (e) {
@@ -42,20 +47,31 @@ export default class ContentController {
   }
 
   async update({ params, request, response }: HttpContext) {
-    const { title, slug, body, status, featuredImage, data } = request.all()
+    const { title, slug, body, status, visibility, password, featuredImage, data, categoryIds, tagIds } =
+      request.all()
     try {
       const item = await contentService.update(params.id, {
         title,
         slug,
         body,
         status,
+        visibility,
+        password,
         featuredImage,
         data,
+        categoryIds,
+        tagIds,
       })
       return response.json(item)
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
+  }
+
+  /** Admin-only: reveal the decrypted Protected password for the editor. */
+  async revealPassword({ params, response }: HttpContext) {
+    const password = await contentService.revealPassword(params.id)
+    return response.json({ password })
   }
 
   async destroy({ params, response }: HttpContext) {

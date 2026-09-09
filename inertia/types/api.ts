@@ -3,6 +3,8 @@
  */
 
 export type ContentStatus = 'DRAFT' | 'PUBLISHED'
+/** Who may read a post: anyone, password-gated, or any logged-in member. */
+export type ContentVisibility = 'PUBLIC' | 'PROTECTED' | 'MEMBER'
 export type UserStatus = 'ACTIVE' | 'INACTIVE'
 export type RoleName = string
 
@@ -223,6 +225,7 @@ export interface UpdateIntegrationSettingsRequest {
 export const WEBSITE_SETTING_SECTIONS = {
   ADMIN_BRANDING: 'admin_branding',
   AUTH_PAGES: 'auth_pages',
+  CONTENT_PAGES: 'content_pages',
   ERROR_PAGES: 'error_pages',
   FORMS: 'forms',
   HOME_PAGE: 'home_page',
@@ -288,6 +291,18 @@ export const PAGE_ROLE_SLOTS: readonly PageRoleSlot[] = [
     label: 'Server error (500)',
     hint: 'Falls back to the built-in page if this one cannot render',
   },
+  {
+    section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
+    key: 'category_archive_page_id',
+    label: 'Category archive',
+    hint: 'Replaces the built-in /category/:slug archive',
+  },
+  {
+    section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
+    key: 'tag_archive_page_id',
+    label: 'Tag archive',
+    hint: 'Replaces the built-in /tag/:slug archive',
+  },
 ] as const
 
 export interface WebsiteSettingsDto {
@@ -305,16 +320,67 @@ export interface UpdateWebsiteSettingsRequest {
   patches: WebSettingPatch[]
 }
 
+/** A content category assigned to a post (compact ref). */
+export interface ContentCategoryRef {
+  id: string
+  name: string
+  slug: string
+}
+
+/** Full content category record (manager page). */
+export interface ContentCategoryDto {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  parentId: string | null
+  position: number
+  postCount: number
+}
+
+/** A content tag assigned to a post (compact ref). */
+export interface ContentTagRef {
+  id: string
+  name: string
+  slug: string
+}
+
+/** Full content tag record (manager page). */
+export interface ContentTagDto {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  position: number
+  postCount: number
+}
+
+export interface CreateContentTagRequest {
+  name: string
+  slug?: string
+  description?: string | null
+}
+
+export type UpdateContentTagRequest = Partial<CreateContentTagRequest>
+
 export interface ContentDto {
   id: string
   title: string
   slug: string
   body: string
   status: ContentStatus
+  /** Who may read the post publicly. */
+  visibility: ContentVisibility
+  /** Whether a Protected password is set (never the password itself). */
+  hasPassword: boolean
   /** Native featured image / thumbnail — a media URL (`/uploads/…`). */
   featuredImage: string | null
   /** Custom fields from the Content-type collection (raw values, for editing). */
   data: Record<string, unknown> | null
+  /** Assigned content categories. */
+  categories: ContentCategoryRef[]
+  /** Assigned content tags. */
+  tags: ContentTagRef[]
   // Mirrors the server DTO (`app/services/content_service.ts`); null until an
   // author is assigned (e.g. records created offline before sync).
   authorId: number | null
@@ -327,9 +393,12 @@ export interface PublicContentDto {
   title: string
   slug: string
   body: string
+  visibility: ContentVisibility
   featuredImage: string | null
   /** Custom fields with relation ids resolved to labels and media ids to URLs. */
   data: Record<string, unknown> | null
+  categories: ContentCategoryRef[]
+  tags: ContentTagRef[]
   createdAt: string
   updatedAt: string
 }
@@ -339,8 +408,13 @@ export interface CreateContentRequest {
   slug: string
   body: string
   status: ContentStatus
+  visibility?: ContentVisibility
+  /** Plaintext; encrypted server-side. Required when visibility is PROTECTED. */
+  password?: string | null
   featuredImage?: string | null
   data?: Record<string, unknown> | null
+  categoryIds?: string[]
+  tagIds?: string[]
 }
 
 export interface UpdateContentRequest {
@@ -348,9 +422,22 @@ export interface UpdateContentRequest {
   slug?: string
   body?: string
   status?: ContentStatus
+  visibility?: ContentVisibility
+  password?: string | null
   featuredImage?: string | null
   data?: Record<string, unknown> | null
+  categoryIds?: string[]
+  tagIds?: string[]
 }
+
+export interface CreateContentCategoryRequest {
+  name: string
+  slug?: string
+  description?: string | null
+  parentId?: string | null
+}
+
+export type UpdateContentCategoryRequest = Partial<CreateContentCategoryRequest>
 
 export type PageRenderMode = 'SSR' | 'SSG' | 'CSR'
 
@@ -602,6 +689,7 @@ export type CmsFieldType =
   | 'DATE'
   | 'DATETIME'
   | 'SELECT'
+  | 'MULTISELECT'
   | 'EMAIL'
   | 'PASSWORD'
   | 'RICHTEXT'

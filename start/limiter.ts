@@ -59,6 +59,16 @@ export const analyticsCollectThrottle = limiter.define('analytics_collect', ((ct
     .every('1 minute')
     .usingKey(`analytics_${ctx.request.ip()}`)) as LimiterBuilder)
 
+/**
+ * Protected-post password attempts. Keyed per IP + post slug so brute-forcing
+ * one post's password is capped without locking a visitor out of other posts.
+ */
+export const postUnlockThrottle = limiter.define('post_unlock', ((ctx) =>
+  limiter
+    .allowRequests(10)
+    .every('10 minutes')
+    .usingKey(`post_unlock_${ctx.request.ip()}_${ctx.request.param('slug')}`)) as LimiterBuilder)
+
 /** Public builder-form submissions — low frequency, capped per IP against spam. */
 export const formsSubmitThrottle = limiter.define('forms_submit', ((ctx) =>
   limiter

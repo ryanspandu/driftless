@@ -42,6 +42,15 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
     server_error_page_id: '',
   },
   /**
+   * Builder pages that replace the built-in Content category/tag archives
+   * (`/category/:slug`, `/tag/:slug`), by page id. Empty means "use the built-in
+   * Inertia archive". Same empty-deletes-the-row reset convention.
+   */
+  content_pages: {
+    category_archive_page_id: '',
+    tag_archive_page_id: '',
+  },
+  /**
    * The builder page that renders at `/` (the front page), by page id. Empty
    * means "use the built-in static landing (`inertia/pages/home.tsx`)". Same
    * empty-deletes-the-row reset convention as the auth/error slots. The
