@@ -40,7 +40,7 @@ export interface McpAuditRow {
 
 export interface McpAuditPage {
   data: McpAuditRow[]
-  meta: { total: number; page: number; pageSize: number }
+  meta: { total: number; page: number; pageSize: number; totalPages: number }
 }
 
 /** The abilities this page offers, with human labels. Mirrors `MCP_ABILITIES`. */
@@ -103,10 +103,12 @@ export function useRevokeMcpToken() {
   })
 }
 
-export function useMcpAudit() {
+export function useMcpAudit(params: { page: number; pageSize: number }) {
+  const { page, pageSize } = params
   return useQuery({
-    queryKey: auditKey,
-    queryFn: () => apiFetch<McpAuditPage>('/api/admin/mcp/audit?pageSize=100'),
+    queryKey: [...auditKey, page, pageSize] as const,
+    queryFn: () => apiFetch<McpAuditPage>(`/api/admin/mcp/audit?page=${page}&pageSize=${pageSize}`),
     refetchInterval: 15_000,
+    placeholderData: (prev) => prev,
   })
 }

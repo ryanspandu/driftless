@@ -100,10 +100,10 @@ export interface McpAuditDto {
   createdAt: string
 }
 
-export async function listAudit(params: {
-  page?: number
-  pageSize?: number
-}): Promise<{ data: McpAuditDto[]; meta: { total: number; page: number; pageSize: number } }> {
+export async function listAudit(params: { page?: number; pageSize?: number }): Promise<{
+  data: McpAuditDto[]
+  meta: { total: number; page: number; pageSize: number; totalPages: number }
+}> {
   const page = Math.max(1, params.page ?? 1)
   const pageSize = Math.min(200, Math.max(1, params.pageSize ?? 50))
 
@@ -122,6 +122,6 @@ export async function listAudit(params: {
       ip: row.ip,
       createdAt: row.createdAt.toISO() ?? '',
     })),
-    meta: { total: result.total, page, pageSize },
+    meta: { total: result.total, page, pageSize, totalPages: result.lastPage },
   }
 }

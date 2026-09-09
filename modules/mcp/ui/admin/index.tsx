@@ -1,4 +1,13 @@
-import { type FormEvent, useState } from 'react'
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { AlertTriangle, Check, Copy, Plus, Plug, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
@@ -23,8 +32,11 @@ import {
   TableHeader,
   TableRow,
 } from '~/components/ui/table'
+import { DataTable } from '~/components/data-table'
 import { PageHeader } from '~/components/admin/page-header'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
+import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
+import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
 import { cn, formatAdminTableDateTime } from '~/lib/utils'
 import {
   MCP_ABILITY_OPTIONS,
@@ -32,6 +44,7 @@ import {
   useMcpAudit,
   useMcpTokens,
   useRevokeMcpToken,
+  type McpAuditRow,
   type McpTokenCreatedDto,
 } from './_api'
 import { ConnectDialog } from './connect-dialog'
@@ -65,15 +78,109 @@ function statusVariant(status: number): 'success' | 'warning' | 'destructive' | 
   return 'secondary'
 }
 
+const AUDIT_PAGE_SIZE_DEFAULT = 50
+const AUDIT_PAGE_SIZE_OPTIONS = [20, 50, 100, 200]
+
+/** Read the Activity table's page/pageSize off the URL (same `?page=&pageSize=` convention as the other admin tables). */
+function parseAuditUrl(sp: ReturnType<typeof useSearchParams>) {
+  const pageRaw = Number.parseInt(sp.get('page') ?? '1', 10)
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? pageRaw : 1
+  const rawSize = Number.parseInt(sp.get('pageSize') ?? String(AUDIT_PAGE_SIZE_DEFAULT), 10)
+  const pageSize = AUDIT_PAGE_SIZE_OPTIONS.includes(rawSize) ? rawSize : AUDIT_PAGE_SIZE_DEFAULT
+  return { page, pageSize }
+}
+
+const AUDIT_COLUMNS: ColumnDef<McpAuditRow>[] = [
+  {
+    accessorKey: 'createdAt',
+    header: 'When',
+    cell: ({ row }) => (
+      <span className="text-xs text-muted-foreground tabular-nums">
+        {formatAdminTableDateTime(row.original.createdAt)}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'action',
+    header: 'Action',
+    cell: ({ row }) => <span className="font-mono text-xs">{row.original.action}</span>,
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => (
+      <Badge variant={statusVariant(row.original.status)}>{row.original.status}</Badge>
+    ),
+  },
+  {
+    accessorKey: 'tokenName',
+    header: 'Token',
+    cell: ({ row }) => (
+      <span className="text-xs text-muted-foreground">{row.original.tokenName ?? '—'}</span>
+    ),
+  },
+  {
+    accessorKey: 'durationMs',
+    header: () => <span className="block text-right">Time</span>,
+    cell: ({ row }) => (
+      <span className="block text-right text-xs text-muted-foreground tabular-nums">
+        {row.original.durationMs}ms
+      </span>
+    ),
+  },
+]
+
 export default function MCPAdminPage() {
   const confirmDelete = useConfirmDelete()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  // Activity table pagination, mirrored to the URL (?page=&pageSize=) like the
+  // other admin list tables.
+  const [auditPage, setAuditPage] = useState(1)
+  const [auditPageSize, setAuditPageSize] = useState(AUDIT_PAGE_SIZE_DEFAULT)
+
+  const parsedAudit = useMemo(() => parseAuditUrl(searchParams), [searchParams])
+  const auditSnapKey = `${parsedAudit.page}|${parsedAudit.pageSize}`
+  const prevAuditSnapKey = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    if (prevAuditSnapKey.current === auditSnapKey) return
+    prevAuditSnapKey.current = auditSnapKey
+    setAuditPage(parsedAudit.page)
+    setAuditPageSize(parsedAudit.pageSize)
+  }, [parsedAudit, auditSnapKey])
+
+  const writeAuditUrl = useCallback(
+    (page: number, pageSize: number) => {
+      const patch: Record<string, string | undefined> = {
+        page: page > 1 ? String(page) : undefined,
+        pageSize: pageSize !== AUDIT_PAGE_SIZE_DEFAULT ? String(pageSize) : undefined,
+      }
+      const merged = mergeSearchParamsLive(searchParams, patch)
+      replaceUrlIfChanged(pathname, router, merged, { scroll: false })
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mergeSearchParamsLive reads window.location on the client
+    [pathname, router]
+  )
+
+  const skipInitialAuditUrl = useRef(true)
+  useEffect(() => {
+    if (skipInitialAuditUrl.current) {
+      skipInitialAuditUrl.current = false
+      return
+    }
+    writeAuditUrl(auditPage, auditPageSize)
+  }, [auditPage, auditPageSize, writeAuditUrl])
+
   const tokensQuery = useMcpTokens()
-  const auditQuery = useMcpAudit()
+  const auditQuery = useMcpAudit({ page: auditPage, pageSize: auditPageSize })
   const createMut = useCreateMcpToken()
   const revokeMut = useRevokeMcpToken()
 
   const tokens = tokensQuery.data ?? []
   const audit = auditQuery.data?.data ?? []
+  const auditMeta = auditQuery.data?.meta
 
   const [connectOpen, setConnectOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
@@ -253,55 +360,28 @@ export default function MCPAdminPage() {
           title="Activity"
           subtitle="Every builder-API call, newest first — including denied attempts."
         />
-        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>When</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Token</TableHead>
-                <TableHead className="text-right">Time</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {auditQuery.isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                    Loading…
-                  </TableCell>
-                </TableRow>
-              ) : audit.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="py-10 text-center text-sm text-muted-foreground"
-                  >
-                    No activity yet.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                audit.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="text-xs text-muted-foreground tabular-nums">
-                      {formatAdminTableDateTime(row.createdAt)}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{row.action}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {row.tokenName ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
-                      {row.durationMs}ms
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          columns={AUDIT_COLUMNS}
+          data={audit}
+          getRowId={(row) => row.id}
+          enableBulkSelect={false}
+          hideSearch
+          hideSyncColumn
+          emptyMessage={auditQuery.isLoading ? 'Loading…' : 'No activity yet.'}
+          serverPagination={{
+            pageIndex: auditPage - 1,
+            pageSize: auditPageSize,
+            totalRows: auditMeta?.total ?? 0,
+            pageCount: Math.max(auditMeta?.totalPages ?? 1, 1),
+            pageSizeOptions: AUDIT_PAGE_SIZE_OPTIONS,
+            disabled: auditQuery.isFetching,
+            onPageIndexChange: (idx) => setAuditPage(idx + 1),
+            onPageSizeChange: (size) => {
+              setAuditPageSize(size)
+              setAuditPage(1)
+            },
+          }}
+        />
       </div>
 
       {/* Create dialog */}
