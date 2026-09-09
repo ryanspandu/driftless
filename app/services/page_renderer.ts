@@ -192,7 +192,9 @@ export default class PageRenderer {
     const collections =
       !resolveBlocks || page.renderMode === 'CSR'
         ? undefined
-        : await resolvePageCollections(composedDocs)
+        : // Pass the route bindings so a `posts` CollectionList on a category/tag
+          // archive-override page inherits {slug,kind} as its taxonomy filter.
+          await resolvePageCollections(composedDocs, options.bindings)
 
     /**
      * SSG skips **volatile** resolvers: price and stock must not be baked into

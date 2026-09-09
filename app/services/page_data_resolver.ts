@@ -9,6 +9,13 @@ interface CollectionQuery {
   sortDir: 'asc' | 'desc'
   filterField: string
   filterValue: string
+  /**
+   * Archive-override taxonomy inherited from the route binding — only a `posts`
+   * list on a `/category|tag/:slug` override page carries it. Part of the cache
+   * key, so it MUST be mirrored in the client's `collectionCacheKey`.
+   */
+  categorySlug?: string
+  tagSlug?: string
 }
 
 /**
@@ -44,7 +51,7 @@ function collectionQuery(
 }
 
 function cacheKey(q: CollectionQuery, page: number): string {
-  return `${q.key}|${page}|${q.pageSize}|${q.sortField}|${q.sortDir}|${q.filterField}|${q.filterValue}`
+  return `${q.key}|${page}|${q.pageSize}|${q.sortField}|${q.sortDir}|${q.filterField}|${q.filterValue}|${q.categorySlug ?? ''}|${q.tagSlug ?? ''}`
 }
 
 /** Recursively find CollectionList blocks in a Puck node tree. */
@@ -89,13 +96,27 @@ function collectRefs(node: unknown, acc: CollectionQuery[]): void {
  * client lookup in `collection-list.tsx`.
  */
 export async function resolvePageCollections(
-  docs: Array<Record<string, unknown> | undefined | null>
+  docs: Array<Record<string, unknown> | undefined | null>,
+  context?: { params?: Record<string, string> }
 ): Promise<Record<string, unknown[]>> {
   const refs: CollectionQuery[] = []
   for (const doc of docs) {
     if (!doc) continue
     collectRefs((doc as { content?: unknown }).content, refs)
     collectRefs((doc as { zones?: unknown }).zones, refs)
+  }
+
+  // A `posts` list on an archive-override page inherits the route's {slug,kind}
+  // binding as a taxonomy filter — the SSR mirror of the client's `useBinding`
+  // in collection-list.tsx. Only `posts` honours it; other collections ignore it.
+  const boundSlug = context?.params?.slug
+  const boundKind = context?.params?.kind
+  if (boundSlug && (boundKind === 'category' || boundKind === 'tag')) {
+    for (const q of refs) {
+      if (q.key !== 'posts') continue
+      if (boundKind === 'category') q.categorySlug = boundSlug
+      else q.tagSlug = boundSlug
+    }
   }
 
   // Only page 1 is preloaded for SSR/SSG first paint; later pages fetch on the
@@ -115,6 +136,8 @@ export async function resolvePageCollections(
           sortDir: q.sortDir,
           filterField: q.filterField || undefined,
           filterValue: q.filterValue || undefined,
+          categorySlug: q.categorySlug,
+          tagSlug: q.tagSlug,
         },
         // SSR/SSG preload mirrors the public endpoint: relation labels, not ids,
         // and MEDIA fields resolved to their public URL so image bindings render.

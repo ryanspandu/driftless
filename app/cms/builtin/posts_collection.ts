@@ -76,6 +76,39 @@ function base() {
   return Content.query().where('status', 'PUBLISHED').whereNull('deleted_at').preload('author')
 }
 
+/**
+ * Restrict a posts query to a category / tag by slug via the pivot tables — the
+ * archive-override filter. A `whereExists` join (same shape as the storefront
+ * tag filter), applied to BOTH the list and the count query so `total` matches.
+ */
+function applyTaxonomy(
+  q: ReturnType<typeof base>,
+  categorySlug?: string,
+  tagSlug?: string
+): ReturnType<typeof base> {
+  if (categorySlug) {
+    q.whereExists((sub) => {
+      sub
+        .from('content_post_category')
+        .join('content_categories', 'content_categories.id', 'content_post_category.category_id')
+        .whereRaw('content_post_category.content_id = contents.id')
+        .where('content_categories.slug', categorySlug)
+        .whereNull('content_categories.deleted_at')
+    })
+  }
+  if (tagSlug) {
+    q.whereExists((sub) => {
+      sub
+        .from('content_post_tag')
+        .join('content_tags', 'content_tags.id', 'content_post_tag.tag_id')
+        .whereRaw('content_post_tag.content_id = contents.id')
+        .where('content_tags.slug', tagSlug)
+        .whereNull('content_tags.deleted_at')
+    })
+  }
+  return q
+}
+
 export const postsCollection: BuiltinCollection = {
   key: POSTS_COLLECTION_KEY,
   label: 'Posts',
@@ -98,10 +131,12 @@ export const postsCollection: BuiltinCollection = {
       searchColumns: ['title', 'body'],
       defaultSort: { column: 'created_at', dir: 'desc' },
     })
-    const countRow = await Content.query()
-      .where('status', 'PUBLISHED')
-      .whereNull('deleted_at')
-      .count('* as total')
+    // Archive-override taxonomy filter (category/tag by slug). Applied to the
+    // list query and, identically, to the count so pagination stays correct.
+    applyTaxonomy(q, query.categorySlug, query.tagSlug)
+    const countQuery = Content.query().where('status', 'PUBLISHED').whereNull('deleted_at')
+    applyTaxonomy(countQuery, query.categorySlug, query.tagSlug)
+    const countRow = await countQuery.count('* as total')
     const total = Number((countRow[0] as any)?.$extras?.total ?? 0)
     const rows = await q.limit(pageSize).offset(offset)
     return pageOf(rows.map(toRecord), total, page, pageSize)

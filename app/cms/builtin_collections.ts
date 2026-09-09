@@ -34,6 +34,13 @@ export interface BuiltinRecordQuery {
   filterValue?: string
   sortField?: string
   sortDir?: 'asc' | 'desc'
+  /**
+   * Taxonomy filters an adapter may honour (only `posts` does today). A pivot
+   * `whereExists`, not a column LIKE, so `shapeBuiltinQuery` can't express it —
+   * the adapter applies it directly.
+   */
+  categorySlug?: string
+  tagSlug?: string
 }
 
 export interface BuiltinRecordPage {

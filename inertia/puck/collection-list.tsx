@@ -10,6 +10,7 @@ import {
 import { Render } from '@measured/puck'
 import { getCollectionTemplate } from '~/custom/registry'
 import { RecordContext } from '~/puck/record-binding'
+import { useBinding } from '~/puck/block-data'
 import { TemplateContext, hasBlocks, toData, usePuckConfig } from '~/puck/template-ref'
 import { PanelSelect } from '~/puck/panel-select'
 import type { AppSelectGroup, AppSelectOption } from '~/components/ui/app-select'
@@ -74,6 +75,13 @@ export interface CollectionQuery {
   sortDir: 'asc' | 'desc'
   filterField: string
   filterValue: string
+  /**
+   * Archive-override taxonomy inherited from the route's {slug,kind} binding —
+   * only a `posts` list on a `/category|tag/:slug` override page sets it. Part
+   * of the cache key; MUST mirror the server `cacheKey` in `page_data_resolver`.
+   */
+  categorySlug?: string
+  tagSlug?: string
 }
 
 export function collectionQuery(
@@ -107,7 +115,7 @@ export function collectionQuery(
 }
 
 export function collectionCacheKey(q: CollectionQuery, page: number): string {
-  return `${q.key}|${page}|${q.pageSize}|${q.sortField}|${q.sortDir}|${q.filterField}|${q.filterValue}`
+  return `${q.key}|${page}|${q.pageSize}|${q.sortField}|${q.sortDir}|${q.filterField}|${q.filterValue}|${q.categorySlug ?? ''}|${q.tagSlug ?? ''}`
 }
 
 function collectionQueryString(q: CollectionQuery, page: number): string {
@@ -121,7 +129,25 @@ function collectionQueryString(q: CollectionQuery, page: number): string {
     p.set('filterField', q.filterField)
     p.set('filterValue', q.filterValue)
   }
+  if (q.categorySlug) p.set('category', q.categorySlug)
+  if (q.tagSlug) p.set('tag', q.tagSlug)
   return p.toString()
+}
+
+/**
+ * Fold the archive route's {slug,kind} binding into a `posts` query as a
+ * category/tag filter — the client mirror of the SSR logic in
+ * `page_data_resolver.resolvePageCollections`. No-op for any other collection
+ * or when the page carries no taxonomy binding (i.e. a normal page).
+ */
+export function withArchiveTaxonomy(
+  q: CollectionQuery,
+  binding: { slug?: string; kind?: string }
+): CollectionQuery {
+  if (q.key !== 'posts' || !binding.slug) return q
+  if (binding.kind === 'category') return { ...q, categorySlug: binding.slug }
+  if (binding.kind === 'tag') return { ...q, tagSlug: binding.slug }
+  return q
 }
 
 export function useCollections(): CollectionMeta[] {
@@ -477,8 +503,15 @@ export function CollectionList({
   const src: CollectionSource =
     typeof source === 'string' ? { collectionKey: source } : (source ?? {})
   // The server does all filtering/sorting/paging; the browser only ever holds
-  // one page of records (this is the scalability fix).
-  const q = collectionQuery(src, { limit, pageSize, sort, filterField, filterValue })
+  // one page of records (this is the scalability fix). A `posts` list on a
+  // category/tag archive-override page inherits the route's {slug,kind} binding
+  // as a taxonomy filter (no-op on a normal page — the binding is empty).
+  const boundSlug = useBinding('slug')
+  const boundKind = useBinding('kind')
+  const q = withArchiveTaxonomy(
+    collectionQuery(src, { limit, pageSize, sort, filterField, filterValue }),
+    { slug: boundSlug, kind: boundKind }
+  )
   const [page, setPage] = useState(1)
   const { records, state } = useRecords(q, page)
   // Editor-only: pin the canvas preview to one record while designing the item.

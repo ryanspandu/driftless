@@ -1466,6 +1466,12 @@ export default class CmsService {
       /** Substring filter on one field (whitelisted against the collection's fields). */
       filterField?: string
       filterValue?: string
+      /**
+       * Taxonomy filters honoured only by the built-in `posts` adapter (category
+       * or tag by slug) — used by the archive-override render path.
+       */
+      categorySlug?: string
+      tagSlug?: string
       /** Sort by a field key, or `created_at`/`updated_at`; defaults to the table's own. */
       sortField?: string
       sortDir?: 'asc' | 'desc'
@@ -1506,6 +1512,8 @@ export default class CmsService {
         search: query.search,
         filterField: query.filterField,
         filterValue: query.filterValue,
+        categorySlug: query.categorySlug,
+        tagSlug: query.tagSlug,
         sortField: query.sortField,
         sortDir: query.sortDir,
       })

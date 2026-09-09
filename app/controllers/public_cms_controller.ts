@@ -24,6 +24,10 @@ export default class PublicCmsController {
           // Server-side shaping for CollectionList (all optional).
           filterField: typeof qs.filterField === 'string' ? qs.filterField : undefined,
           filterValue: typeof qs.filterValue === 'string' ? qs.filterValue : undefined,
+          // Taxonomy filter (honoured by the built-in `posts` adapter) — the
+          // archive-override CollectionList sends the bound category/tag slug.
+          categorySlug: typeof qs.category === 'string' ? qs.category : undefined,
+          tagSlug: typeof qs.tag === 'string' ? qs.tag : undefined,
           sortField: typeof qs.sortField === 'string' ? qs.sortField : undefined,
           sortDir: qs.sortDir === 'asc' ? 'asc' : qs.sortDir === 'desc' ? 'desc' : undefined,
           search: typeof qs.search === 'string' ? qs.search : undefined,
