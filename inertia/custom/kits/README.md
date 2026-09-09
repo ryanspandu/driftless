@@ -16,7 +16,8 @@ inertia/custom/kits/<name>/
   collection/*.tsx  collection templates — one CMS record as code; filename = collection key
   emails/*.tsx      code EMAIL templates — a transactional email as code (codetpl:<kit>/email/<name>)
   components/…       optional — sub-components, imported with relative paths
-  styles.css        optional — co-located CSS, imported by index.tsx
+  styles.css        optional — kit-wide CSS, imported by index.tsx (see Styling)
+  pages/<name>.css  optional — CSS for ONE page, imported by that page
   assets/…           optional — images/fonts, IMPORTED (never referenced by raw path)
 ```
 
@@ -99,6 +100,33 @@ and the full section in [`docs/ai/custom-templates.md`](../../../docs/ai/custom-
 - **CSP:** React inline `style={}` is fine; do not inject inline `<script>` /
   `<style>` tags. Compiled TSX + co-located CSS is served from your own origin,
   so it just works.
+
+## Styling — kit-wide and per-page CSS
+
+Tailwind + `~/components` cover most of it. When you need hand-written CSS (a
+gradient, keyframes, a selector Tailwind can't express), a kit can own CSS at two
+levels — just `import` the file and it's bundled:
+
+- **Kit-wide:** `styles.css`, imported once by `index.tsx` (or a shared shell) —
+  applies to every page in the kit.
+- **Per-page:** a `pages/<name>.css` next to `pages/<name>.tsx`, imported by that
+  page only. This is the "page A has its own CSS, just call it" pattern —
+  see the committed reference **`example/pages/page-css.tsx`** (+ `page-css.css`),
+  served at `/kit-example/page-css`.
+
+Both load **render-critical**: the public renderer resolves every block/kit
+stylesheet from the Vite manifest and links it in the initial `<head>`
+(`app/services/public_block_css.ts`), so a page paints styled on the first frame
+— no flash of unstyled content.
+
+Two rules:
+1. **Prefix your class names** (`.mykit-card`) — a non-isolated kit's CSS is
+   global and a bare `.card` can collide. Or set **`"isolate": true`** in
+   `kit.json`: the build then scopes every rule to `.kit-<name>` and renames
+   `@keyframes`, so bare names are safe (the kit body is auto-wrapped in
+   `<div class="kit-<name>">`).
+2. **CSP:** a linked stylesheet from your own origin needs no nonce and just
+   works. Never inject an inline `<style>`/`<script>` tag; React `style={}` is fine.
 
 ## Start here
 
