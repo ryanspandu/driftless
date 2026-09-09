@@ -7,8 +7,10 @@ import { DateTime } from 'luxon'
 import { sanitizePuckDocument } from '#services/html_sanitizer_service'
 import { CODE_TEMPLATES, COLLECTION_TEMPLATES } from '#services/custom_templates.generated'
 import { listCodeEmailTemplates } from '#services/code_email_templates'
+import TemplateKitsService from '#services/template_kits_service'
 
 const pagesService = new PagesService()
+const templateKits = new TemplateKitsService()
 
 const EMPTY_DOC: Record<string, unknown> = { content: [], root: {} }
 
@@ -25,8 +27,10 @@ const DEFAULTABLE_TYPES: TemplateType[] = ['HEADER', 'FOOTER', 'LAYOUT', 'EMAIL'
  * the pointer — unique, and the value a page/event stores to use it. Editing is
  * in the `.tsx` file, so these rows carry no builder/default/delete actions.
  */
-function codeTemplateSummaries(type?: TemplateType): TemplateSummaryDto[] {
+function codeTemplateSummaries(activeKits: Set<string>, type?: TemplateType): TemplateSummaryDto[] {
   const wants = (t: TemplateType) => !type || type === t
+  // Only an active kit contributes its code templates to the list.
+  const on = (kit: string) => activeKits.has(kit)
   const row = (
     id: string,
     name: string,
@@ -45,11 +49,12 @@ function codeTemplateSummaries(type?: TemplateType): TemplateSummaryDto[] {
 
   const out: TemplateSummaryDto[] = []
   for (const c of CODE_TEMPLATES) {
-    if (wants(c.type))
+    if (wants(c.type) && on(c.kit))
       out.push(row(`codetpl:${c.kit}/${c.type.toLowerCase()}`, c.kit, c.type, null))
   }
   if (wants('COLLECTION')) {
     for (const c of COLLECTION_TEMPLATES) {
+      if (!on(c.kit)) continue
       out.push(
         row(`codetpl:${c.kit}/collection/${c.collectionKey}`, c.kit, 'COLLECTION', c.collectionKey)
       )
@@ -57,6 +62,7 @@ function codeTemplateSummaries(type?: TemplateType): TemplateSummaryDto[] {
   }
   if (wants('EMAIL')) {
     for (const e of listCodeEmailTemplates()) {
+      if (!on(e.kit)) continue
       out.push(row(`codetpl:${e.kit}/email/${e.name}`, `${e.kit} · ${e.name}`, 'EMAIL', null))
     }
   }
@@ -151,9 +157,11 @@ export default class TemplatesService {
     const rows = await query
     const db = rows.map((r) => this.toSummary(r))
     // Kit code templates (no DB row) as read-only entries — the Templates
-    // analogue of file-pages in the Pages list. Only when asked: the template
-    // pickers reuse this method and add their own code options separately.
-    return includeCode ? [...db, ...codeTemplateSummaries(type)] : db
+    // analogue of file-pages in the Pages list, and only from ACTIVE kits. Only
+    // when asked: the template pickers add their own code options separately.
+    if (!includeCode) return db
+    const activeKits = await templateKits.activeSet()
+    return [...db, ...codeTemplateSummaries(activeKits, type)]
   }
 
   async find(id: string): Promise<TemplateDto> {
@@ -218,6 +226,32 @@ export default class TemplatesService {
     // An EMAIL template isn't part of any page's SSG snapshot, so removing one
     // never invalidates page HTML.
     if (row.type !== 'EMAIL') await pagesService.invalidateAllSnapshots()
+  }
+
+  /** Soft-deleted templates, for the Trash view. Code templates never appear (no DB row). */
+  async findTrashed(): Promise<TemplateSummaryDto[]> {
+    const rows = await Template.query().whereNotNull('deleted_at').orderBy('updated_at', 'desc')
+    return rows.map((r) => this.toSummary(r))
+  }
+
+  /**
+   * Bring a trashed template back. `deletedAt` is cleared; `isDefault` is NOT
+   * re-enabled (it was intentionally dropped on delete). No usages guard — a
+   * trashed template is reference-free by construction (remove only allowed it
+   * when nothing pointed at it).
+   */
+  async restore(id: string): Promise<TemplateDto> {
+    const row = await Template.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    row.deletedAt = null
+    await row.save()
+    if (row.type !== 'EMAIL') await pagesService.invalidateAllSnapshots()
+    return this.toDto(row)
+  }
+
+  /** Permanently delete a trashed template. Guarded to trashed rows only. */
+  async forceDelete(id: string): Promise<void> {
+    const row = await Template.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    await row.delete()
   }
 
   /** Count pages + other templates + wired mail events that reference this id. */

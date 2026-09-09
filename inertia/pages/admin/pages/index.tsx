@@ -203,8 +203,8 @@ export default function PagesPage() {
         cell: ({ row }) => {
           const code = codePageInfo(row.original)
           return (
-            <div className="flex flex-col leading-tight">
-              <span className="flex items-center gap-1.5 font-medium">
+            <div className="flex w-[360px] max-w-[360px] flex-col leading-tight">
+              <span className="flex min-w-0 items-center gap-1.5 font-medium">
                 <span className="truncate">{row.original.title}</span>
                 {code ? (
                   <Badge
@@ -212,7 +212,7 @@ export default function PagesPage() {
                     // status as a code template, so it shares that light-blue badge
                     // (blue, not green, so it doesn't blend with "Published").
                     variant={row.original.source === 'file' ? 'info' : 'outline'}
-                    className="gap-1 whitespace-nowrap text-[10px] font-normal"
+                    className="shrink-0 gap-1 whitespace-nowrap text-[10px] font-normal"
                     title={code.hint}
                   >
                     <Code2 className="size-3" />
@@ -220,7 +220,7 @@ export default function PagesPage() {
                   </Badge>
                 ) : null}
               </span>
-              <span className="text-xs text-muted-foreground">/{row.original.path}</span>
+              <span className="truncate text-xs text-muted-foreground">/{row.original.path}</span>
             </div>
           )
         },
@@ -526,6 +526,7 @@ export default function PagesPage() {
         toolbarActions={trashButton}
         rowSelection={selection}
         onRowSelectionChange={setSelection}
+        urlSync={{}}
         emptyMessage={listQuery.isLoading ? 'Loading…' : 'No pages yet — create your first page.'}
       />
 

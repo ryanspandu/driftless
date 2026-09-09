@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, extname, join } from 'node:path'
 import app from '@adonisjs/core/services/app'
+import TemplateKitState from '#models/template_kit_state'
 import { packArchive, readArchive, type ArchiveFile } from '#services/data_transfer/bundle'
 
 /**
@@ -62,8 +63,20 @@ export interface TemplateKitDto {
   description: string
   isolate: boolean
   protected: boolean
+  /** Whether the kit's templates + file-pages are surfaced (fail-closed default). */
+  active: boolean
   counts: Record<(typeof COUNT_DIRS)[number], number>
 }
+
+/**
+ * Which kits are active, cached process-wide with a short TTL — the templates /
+ * pages lists read this on every request, so it must be cheap, and the TTL lets
+ * a toggle on one worker reach the others without cross-process messaging (same
+ * reasoning as `modules_service`'s enabled cache).
+ */
+const ACTIVE_CACHE_TTL_MS = 10_000
+let activeCache: Set<string> | null = null
+let activeCacheLoadedAt = 0
 
 export default class TemplateKitsService {
   private kitsDir(): string {
@@ -94,10 +107,36 @@ export default class TemplateKitsService {
     }
   }
 
-  /** Every installed kit (a folder containing `kit.json`). */
-  list(): TemplateKitDto[] {
+  /** The set of active kit slugs, cached with a short TTL. Fail-closed. */
+  async activeSet(): Promise<Set<string>> {
+    if (activeCache && activeCacheLoadedAt > 0 && Date.now() - activeCacheLoadedAt < ACTIVE_CACHE_TTL_MS) {
+      return activeCache
+    }
+    const rows = await TemplateKitState.query().where('active', true)
+    activeCache = new Set(rows.map((r) => r.slug))
+    activeCacheLoadedAt = Date.now()
+    return activeCache
+  }
+
+  bustActiveCache(): void {
+    activeCache = null
+    activeCacheLoadedAt = 0
+  }
+
+  /** Activate / deactivate a kit. Only a kit that exists on disk can be toggled. */
+  async setActive(id: string, active: boolean): Promise<void> {
+    if (!existsSync(join(this.kitsDir(), id, 'kit.json'))) {
+      throw new Error(`Unknown template kit "${id}"`)
+    }
+    await TemplateKitState.updateOrCreate({ slug: id }, { slug: id, active })
+    this.bustActiveCache()
+  }
+
+  /** Every installed kit (a folder containing `kit.json`), with its active state. */
+  async list(): Promise<TemplateKitDto[]> {
     const base = this.kitsDir()
     if (!existsSync(base)) return []
+    const active = await this.activeSet()
     const ids = readdirSync(base, { withFileTypes: true })
       .filter((e) => e.isDirectory() && existsSync(join(base, e.name, 'kit.json')))
       .map((e) => e.name)
@@ -107,7 +146,7 @@ export default class TemplateKitsService {
         const counts = Object.fromEntries(
           COUNT_DIRS.map((d) => [d, this.countIn(id, d)])
         ) as TemplateKitDto['counts']
-        return { id, ...meta, protected: PROTECTED_IDS.has(id), counts }
+        return { id, ...meta, protected: PROTECTED_IDS.has(id), active: active.has(id), counts }
       })
       .sort((a, b) => a.name.localeCompare(b.name))
   }

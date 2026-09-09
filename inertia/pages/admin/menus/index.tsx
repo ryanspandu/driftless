@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { router } from '@inertiajs/react'
 import { toast } from 'sonner'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { ListTree, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { MenuSummaryDto } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
@@ -23,10 +23,19 @@ import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
+import { TrashModal } from '~/components/trash-modal'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { formatAdminTableDateTime } from '~/lib/utils'
 import { apiErrorMessage } from '~/lib/api'
-import { useMenusList, useCreateMenu, useUpdateMenu, useDeleteMenu } from '~/hooks/api/use-menus'
+import {
+  useMenusList,
+  useCreateMenu,
+  useUpdateMenu,
+  useDeleteMenu,
+  useTrashedMenus,
+  useRestoreMenu,
+  useForceDeleteMenu,
+} from '~/hooks/api/use-menus'
 
 type DialogState =
   | { mode: 'create'; name: string; handle: string }
@@ -41,6 +50,91 @@ export default function MenusPage() {
 
   const [dialog, setDialog] = useState<DialogState | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Trash (soft-delete + restore), mirroring Content.
+  const trashedQuery = useTrashedMenus()
+  const restoreMut = useRestoreMenu()
+  const forceDeleteMut = useForceDeleteMenu()
+  const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data])
+  const [trashOpen, setTrashOpen] = useState(false)
+
+  // Bulk selection — menus have no publish state, so "move to trash" is the only
+  // bulk action.
+  const [selection, setSelection] = useState<RowSelectionState>({})
+  const selectedIds = useMemo(
+    () => Object.keys(selection).filter((k) => selection[k]),
+    [selection]
+  )
+  const [bulkBusy, setBulkBusy] = useState(false)
+
+  const onBulkDelete = async () => {
+    const confirmed = await confirmDelete({
+      title: `Move ${selectedIds.length} menu${selectedIds.length === 1 ? '' : 's'} to trash?`,
+      description: 'You can restore them from the trash later.',
+      confirmLabel: 'Move to trash',
+    })
+    if (!confirmed) return
+    setBulkBusy(true)
+    try {
+      for (const id of selectedIds) await deleteMut.mutateAsync(id)
+      setSelection({})
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Failed to delete'))
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const trashButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-1.5"
+      onClick={() => {
+        setTrashOpen(true)
+        void trashedQuery.refetch()
+      }}
+    >
+      <Trash2 className="size-4" />
+      Trash{trashedItems.length ? ` (${trashedItems.length})` : ''}
+    </Button>
+  )
+
+  const trashColumns = useMemo<ColumnDef<MenuSummaryDto, unknown>[]>(
+    () => [
+      {
+        id: 'name',
+        accessorFn: (r) => r.name,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+        cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      },
+      {
+        id: 'handle',
+        accessorFn: (r) => r.handle,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Handle" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-muted-foreground">{row.original.handle}</span>
+        ),
+      },
+      {
+        id: 'items',
+        accessorFn: (r) => r.itemCount,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Items" />,
+        cell: ({ row }) => <Badge variant="secondary">{row.original.itemCount}</Badge>,
+      },
+      {
+        id: 'updated',
+        accessorFn: (r) => r.updatedAt,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {formatAdminTableDateTime(row.original.updatedAt)}
+          </span>
+        ),
+      },
+    ],
+    []
+  )
 
   const rows = listQuery.data ?? []
 
@@ -185,13 +279,46 @@ export default function MenusPage() {
         }
       />
 
+      {selectedIds.length > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
+          <span className="font-medium">{selectedIds.length} selected</span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive"
+            disabled={bulkBusy}
+            onClick={() => void onBulkDelete()}
+          >
+            Move to trash
+          </Button>
+        </div>
+      ) : null}
+
       <DataTable
         columns={columns}
         data={rows}
         getRowId={(r) => r.id}
         hideSyncColumn
         searchPlaceholder="Search by name…"
+        toolbarActions={trashButton}
+        rowSelection={selection}
+        onRowSelectionChange={setSelection}
+        urlSync={{}}
         emptyMessage={listQuery.isLoading ? 'Loading…' : 'No menus yet — create your first menu.'}
+      />
+
+      <TrashModal
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        title="Trash — Menus"
+        itemNoun="menu"
+        rows={trashedItems}
+        columns={trashColumns}
+        isLoading={trashedQuery.isLoading}
+        getRowId={(r) => r.id}
+        onRestore={(id) => restoreMut.mutateAsync(id).then(() => undefined)}
+        onForceDelete={(id) => forceDeleteMut.mutateAsync(id)}
+        emptyMessage="No deleted menus."
       />
 
       <Dialog open={dialog !== null} onOpenChange={(open) => !open && setDialog(null)}>

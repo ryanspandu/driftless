@@ -89,6 +89,36 @@ export function useDeleteTemplate() {
   })
 }
 
+export function useTrashedTemplates(enabled = true) {
+  return useQuery({
+    queryKey: ['templates', 'trash'] as const,
+    queryFn: () => apiFetch<TemplateSummaryDto[]>('/api/admin/templates/trash'),
+    enabled,
+    staleTime: 10_000,
+  })
+}
+
+export function useRestoreTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<TemplateDto>(`/api/admin/templates/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['templates', 'trash'] })
+      void qc.invalidateQueries({ queryKey: ['templates', 'list'] })
+    },
+  })
+}
+
+export function useForceDeleteTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/api/admin/templates/${id}/force`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates', 'trash'] }),
+  })
+}
+
 export function useDuplicateTemplate() {
   const qc = useQueryClient()
   return useMutation({

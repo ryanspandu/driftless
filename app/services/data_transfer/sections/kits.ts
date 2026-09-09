@@ -21,7 +21,7 @@ export const kitsSection: DataSection = {
   async export() {
     const svc = new TemplateKitsService()
     const kits: Array<{ id: string; archive: string }> = []
-    for (const kit of svc.list()) {
+    for (const kit of await svc.list()) {
       try {
         const buf = await svc.exportKit(kit.id)
         kits.push({ id: kit.id, archive: buf.toString('base64') })

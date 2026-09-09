@@ -72,3 +72,32 @@ export function useDeleteMenu() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['menus', 'list'] }),
   })
 }
+
+export function useTrashedMenus(enabled = true) {
+  return useQuery({
+    queryKey: ['menus', 'trash'] as const,
+    queryFn: () => apiFetch<MenuSummaryDto[]>('/api/admin/menus/trash'),
+    enabled,
+    staleTime: 10_000,
+  })
+}
+
+export function useRestoreMenu() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<MenuDto>(`/api/admin/menus/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['menus', 'trash'] })
+      void qc.invalidateQueries({ queryKey: ['menus', 'list'] })
+    },
+  })
+}
+
+export function useForceDeleteMenu() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/api/admin/menus/${id}/force`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['menus', 'trash'] }),
+  })
+}

@@ -167,6 +167,7 @@ export default function FormsListPage() {
         getRowId={(r) => r.id}
         hideSyncColumn
         searchPlaceholder="Search forms…"
+        urlSync={{}}
         emptyMessage={listQuery.isLoading ? 'Loading…' : 'No forms yet — create your first form.'}
       />
 

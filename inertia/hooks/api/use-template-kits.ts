@@ -8,6 +8,8 @@ export interface TemplateKitDto {
   description: string
   isolate: boolean
   protected: boolean
+  /** Whether the kit's templates + file-pages are surfaced (fail-closed default). */
+  active: boolean
   counts: { pages: number; templates: number; collection: number; emails: number; components: number }
 }
 
@@ -23,6 +25,23 @@ export function useTemplateKits() {
     queryFn: () =>
       apiFetch<{ items: TemplateKitDto[] }>('/api/admin/template-kits').then((r) => r.items),
     staleTime: 30_000,
+  })
+}
+
+export function useSetKitActive() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      apiFetch<{ success: boolean }>(`/api/admin/template-kits/${id}/active`, {
+        method: 'PUT',
+        body: JSON.stringify({ active }),
+      }),
+    onSuccess: () => {
+      // The kit cards + both lists it feeds go stale at once.
+      void qc.invalidateQueries({ queryKey: ['template-kits'] })
+      void qc.invalidateQueries({ queryKey: ['templates', 'list'] })
+      void qc.invalidateQueries({ queryKey: ['pages'] })
+    },
   })
 }
 

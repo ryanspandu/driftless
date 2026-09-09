@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { Download, Info, Package, Upload } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { Switch } from '~/components/ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,7 @@ import { DragDropImageUpload } from '~/components/drag-drop-image-upload'
 import { PageHeader } from '~/components/admin/page-header'
 import {
   useImportTemplateKit,
+  useSetKitActive,
   useTemplateKits,
   type TemplateKitDto,
 } from '~/hooks/api/use-template-kits'
@@ -34,6 +36,7 @@ function countLine(counts: TemplateKitDto['counts']): string {
 }
 
 function KitCard({ kit }: { kit: TemplateKitDto }) {
+  const setActive = useSetKitActive()
   return (
     <div className="flex flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-start gap-3">
@@ -43,6 +46,11 @@ function KitCard({ kit }: { kit: TemplateKitDto }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate text-sm font-semibold text-foreground">{kit.name}</span>
+            {kit.active ? (
+              <Badge variant="success">Active</Badge>
+            ) : (
+              <Badge variant="secondary">Inactive</Badge>
+            )}
             {kit.isolate ? <Badge variant="secondary">Isolated</Badge> : null}
             {kit.protected ? <Badge variant="outline">Reference</Badge> : null}
           </div>
@@ -53,7 +61,25 @@ function KitCard({ kit }: { kit: TemplateKitDto }) {
         <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{kit.description}</p>
       ) : null}
       <p className="mt-3 text-xs text-muted-foreground">{countLine(kit.counts)}</p>
-      <div className="mt-4">
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <Switch
+            checked={kit.active}
+            disabled={setActive.isPending}
+            onCheckedChange={(active) => {
+              setActive.mutate(
+                { id: kit.id, active },
+                {
+                  onSuccess: () =>
+                    toast.success(active ? `"${kit.name}" activated` : `"${kit.name}" deactivated`),
+                  onError: (e) =>
+                    toast.error(e instanceof Error ? e.message : 'Could not update kit'),
+                }
+              )
+            }}
+          />
+          {kit.active ? 'Active' : 'Inactive'}
+        </label>
         <Button
           variant="outline"
           size="sm"

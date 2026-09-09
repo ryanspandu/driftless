@@ -14,7 +14,17 @@ export default class TemplateKitsController {
   }
 
   async list({ response }: HttpContext) {
-    return response.json({ items: service.list() })
+    return response.json({ items: await service.list() })
+  }
+
+  /** Activate / deactivate a kit — instantly shows/hides its templates + pages. */
+  async setActive({ params, request, response }: HttpContext) {
+    try {
+      await service.setActive(params.id, request.input('active') === true)
+      return response.json({ success: true })
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
   }
 
   async exportOne({ params, response }: HttpContext) {

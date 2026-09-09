@@ -8,12 +8,28 @@ import {
   COLLECTION_TEMPLATES,
 } from '#services/custom_templates.generated'
 import { fileSummaries } from '#services/file_pages'
+import TemplateKitsService from '#services/template_kits_service'
 import type User from '#models/user'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
 import { hasPrivilegedPageContent } from '#services/html_sanitizer_service'
 
 const pagesService = new PagesService()
 const cmsService = new CmsService()
+const templateKits = new TemplateKitsService()
+
+/**
+ * The kit a page's component belongs to, or null. Covers a single-template kit
+ * page (`kit:<id>`) and a file-page pointer (`kitpage:<kit>/<file>`); anything
+ * else (a plain builder/code page) belongs to no kit.
+ */
+function kitOfComponent(component: string | null): string | null {
+  if (!component) return null
+  const single = component.match(/^kit:([a-z0-9][a-z0-9-]*)$/)
+  if (single) return single[1]
+  const filePage = component.match(/^kitpage:([^/]+)\//)
+  if (filePage) return filePage[1]
+  return null
+}
 
 export default class PagesController {
   private async canManageExecutableContent(
@@ -29,9 +45,15 @@ export default class PagesController {
   async index({ response }: HttpContext) {
     // DB pages, plus file-pages (routes that live in a kit folder as code) as
     // read-only rows — skipping any path a DB page already owns (DB wins).
-    const dbPages = await pagesService.findAll()
+    const activeKits = await templateKits.activeSet()
+    // A DB page whose component is a kit single-template (`kit:<id>`) belongs to
+    // that kit, so it hides with the kit — same as the kit's file-pages/templates.
+    const dbPages = (await pagesService.findAll()).filter((p) => {
+      const kit = kitOfComponent(p.component)
+      return !kit || activeKits.has(kit)
+    })
     const dbPaths = new Set(dbPages.map((p) => p.path))
-    return response.json([...dbPages, ...fileSummaries(dbPaths)])
+    return response.json([...dbPages, ...fileSummaries(dbPaths, activeKits)])
   }
 
   async show({ params, response }: HttpContext) {
@@ -297,15 +319,18 @@ export default class PagesController {
    * save would reject.
    */
   async customTemplates({ response }: HttpContext) {
-    return response.json(CUSTOM_TEMPLATES)
+    const active = await templateKits.activeSet()
+    return response.json(CUSTOM_TEMPLATES.filter((t) => active.has(t.id)))
   }
 
   /**
    * Code-chrome templates (kit `templates/{header,footer,layout}.tsx`) for the
    * page form's Header / Footer / Layout pickers, keyed `codetpl:<kit>/<type>`.
+   * Only active kits are offered — you can't build a new page on an inactive kit.
    */
   async codeTemplates({ response }: HttpContext) {
-    return response.json(CODE_TEMPLATES)
+    const active = await templateKits.activeSet()
+    return response.json(CODE_TEMPLATES.filter((t) => active.has(t.kit)))
   }
 
   /**
@@ -313,6 +338,7 @@ export default class PagesController {
    * Collection List block's item picker, keyed `codetpl:<kit>/collection/<key>`.
    */
   async collectionTemplates({ response }: HttpContext) {
-    return response.json(COLLECTION_TEMPLATES)
+    const active = await templateKits.activeSet()
+    return response.json(COLLECTION_TEMPLATES.filter((t) => active.has(t.kit)))
   }
 }

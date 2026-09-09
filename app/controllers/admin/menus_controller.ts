@@ -64,4 +64,25 @@ export default class MenusController {
       return response.status(422).json({ message: (e as Error).message })
     }
   }
+
+  async trash({ response }: HttpContext) {
+    return response.json(await menusService.findTrashed())
+  }
+
+  async restore({ params, response }: HttpContext) {
+    try {
+      return response.json(await menusService.restore(params.id))
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  async forceDestroy({ params, response }: HttpContext) {
+    try {
+      await menusService.forceDelete(params.id)
+      return response.json({ success: true })
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
 }

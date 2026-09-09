@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { router } from '@inertiajs/react'
 import { toast } from 'sonner'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import {
   Code2,
   Copy,
@@ -25,6 +25,7 @@ import {
 } from '~/components/ui/dropdown_menu'
 import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
+import { TrashModal } from '~/components/trash-modal'
 import { TemplateFormDialog } from '~/components/admin/template-form-dialog'
 import { ImportJsonDialog } from '~/components/admin/import-json-dialog'
 import {
@@ -34,6 +35,9 @@ import {
   useDeleteTemplate,
   useDuplicateTemplate,
   useSetDefaultTemplate,
+  useTrashedTemplates,
+  useRestoreTemplate,
+  useForceDeleteTemplate,
 } from '~/hooks/api/use-templates'
 import { downloadJson, fileStem } from '~/lib/export-download'
 import { formatAdminTableDateTime } from '~/lib/utils'
@@ -142,6 +146,87 @@ export default function TemplatesPage() {
   const duplicateMut = useDuplicateTemplate()
   const setDefaultMut = useSetDefaultTemplate()
   const [importOpen, setImportOpen] = useState(false)
+
+  // Trash (soft-delete + restore), mirroring Content.
+  const trashedQuery = useTrashedTemplates()
+  const restoreMut = useRestoreTemplate()
+  const forceDeleteMut = useForceDeleteTemplate()
+  const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data])
+  const [trashOpen, setTrashOpen] = useState(false)
+
+  // Bulk selection — templates have no publish state, so "move to trash" is the
+  // only bulk action. Code templates (`source === 'code'`) can't be selected.
+  const [selection, setSelection] = useState<RowSelectionState>({})
+  const selectedIds = useMemo(
+    () => Object.keys(selection).filter((k) => selection[k]),
+    [selection]
+  )
+  const [bulkBusy, setBulkBusy] = useState(false)
+
+  const onBulkDelete = async () => {
+    const confirmed = await confirmDelete({
+      title: `Move ${selectedIds.length} template${selectedIds.length === 1 ? '' : 's'} to trash?`,
+      description: 'You can restore them from the trash later.',
+      confirmLabel: 'Move to trash',
+    })
+    if (!confirmed) return
+    setBulkBusy(true)
+    try {
+      for (const id of selectedIds) await deleteMut.mutateAsync(id)
+      setSelection({})
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Failed to delete'))
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const trashButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-1.5"
+      onClick={() => {
+        setTrashOpen(true)
+        void trashedQuery.refetch()
+      }}
+    >
+      <Trash2 className="size-4" />
+      Trash{trashedItems.length ? ` (${trashedItems.length})` : ''}
+    </Button>
+  )
+
+  const trashColumns = useMemo<ColumnDef<TemplateSummaryDto, unknown>[]>(
+    () => [
+      {
+        id: 'name',
+        accessorFn: (r) => r.name,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+        cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      },
+      {
+        id: 'type',
+        accessorFn: (r) => r.type,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {TYPE_LABEL[row.original.type] ?? row.original.type}
+          </span>
+        ),
+      },
+      {
+        id: 'updated',
+        accessorFn: (r) => r.updatedAt,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {row.original.updatedAt ? formatAdminTableDateTime(row.original.updatedAt) : '—'}
+          </span>
+        ),
+      },
+    ],
+    []
+  )
   // Deep link from the page builder (`?new=COLLECTION&collection=posts`): the
   // page mounts with the dialog already open and pre-filled. Read once, at
   // mount — the link always opens in a fresh tab.
@@ -167,13 +252,13 @@ export default function TemplatesPage() {
         // Primary cell: template name with its type label as muted secondary text,
         // plus a "Code" badge marking a kit code template (managed in a .tsx file).
         cell: ({ row }) => (
-          <div className="flex flex-col leading-tight">
-            <span className="flex items-center gap-1.5 font-medium">
+          <div className="flex w-[360px] max-w-[360px] flex-col leading-tight">
+            <span className="flex min-w-0 items-center gap-1.5 font-medium">
               <span className="truncate">{row.original.name}</span>
               {row.original.source === 'code' ? (
                 <Badge
                   variant="info"
-                  className="gap-1 whitespace-nowrap text-[10px] font-normal"
+                  className="shrink-0 gap-1 whitespace-nowrap text-[10px] font-normal"
                   title={`Edit in code: ${codeTemplatePath(row.original.id)}`}
                 >
                   <Code2 className="size-3" />
@@ -181,7 +266,7 @@ export default function TemplatesPage() {
                 </Badge>
               ) : null}
             </span>
-            <span className="text-xs text-muted-foreground">
+            <span className="truncate text-xs text-muted-foreground">
               {TYPE_LABEL[row.original.type] ?? row.original.type}
               {row.original.collectionKey ? ` · ${row.original.collectionKey}` : null}
             </span>
@@ -397,17 +482,51 @@ export default function TemplatesPage() {
         }
       />
 
+      {selectedIds.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
+          <span className="font-medium">{selectedIds.length} selected</span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive"
+            disabled={bulkBusy}
+            onClick={() => void onBulkDelete()}
+          >
+            Move to trash
+          </Button>
+        </div>
+      ) : null}
+
       <DataTable
         key={tab}
         columns={columns}
         data={rows}
         getRowId={(r) => r.id}
+        getRowCanSelect={(r) => r.source !== 'code'}
         hideSyncColumn
         searchPlaceholder="Search by name…"
         filters={typeFilter}
+        toolbarActions={trashButton}
+        rowSelection={selection}
+        onRowSelectionChange={setSelection}
+        urlSync={{}}
         emptyMessage={
           listQuery.isLoading ? 'Loading…' : 'No templates yet — create your first template.'
         }
+      />
+
+      <TrashModal
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        title="Trash — Templates"
+        itemNoun="template"
+        rows={trashedItems}
+        columns={trashColumns}
+        isLoading={trashedQuery.isLoading}
+        getRowId={(r) => r.id}
+        onRestore={(id) => restoreMut.mutateAsync(id).then(() => undefined)}
+        onForceDelete={(id) => forceDeleteMut.mutateAsync(id)}
+        emptyMessage="No deleted templates."
       />
 
       <TemplateFormDialog

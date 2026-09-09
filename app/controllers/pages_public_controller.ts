@@ -8,10 +8,12 @@ import { mediaUrlSegment } from '#services/media_url'
 import RedirectsService from '#services/redirects_service'
 import PagesService from '#services/pages_service'
 import { findFilePageByPath, virtualPageForFilePage } from '#services/file_pages'
+import TemplateKitsService from '#services/template_kits_service'
 
 const renderer = new PageRenderer()
 const redirects = new RedirectsService()
 const pagesService = new PagesService()
+const templateKits = new TemplateKitsService()
 
 /**
  * Route prefixes that must never be treated as a builder page path.
@@ -87,7 +89,7 @@ export default class PagesPublicController {
       // No DB page (which always wins). Next, a file-page — a route that lives in
       // a kit as code with no database row. Rendered through the same code-page
       // pipeline via a transient, unsaved Page.
-      const filePage = findFilePageByPath(path)
+      const filePage = findFilePageByPath(path, await templateKits.activeSet())
       if (filePage) {
         return this.composeAndRender(virtualPageForFilePage(filePage), ctx, false)
       }
@@ -102,6 +104,13 @@ export default class PagesPublicController {
           .status(hit.status === 302 ? 302 : 301)
           .toPath(hit.toPath)
       }
+      pageNotFound()
+    }
+
+    // A DB page built on a kit single-template (`kit:<id>`) hides with its kit:
+    // an inactive kit's pages 404 publicly, matching the admin Pages list.
+    const pageKit = page.component?.startsWith('kit:') ? page.component.slice(4) : null
+    if (pageKit && !(await templateKits.activeSet()).has(pageKit)) {
       pageNotFound()
     }
 

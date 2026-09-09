@@ -136,6 +136,59 @@ export default class MenusService {
     })
   }
 
+  /** Soft-deleted menus, for the Trash view (item counts over the trashed items). */
+  async findTrashed(): Promise<MenuSummaryDto[]> {
+    const rows = await Menu.query().whereNotNull('deleted_at').orderBy('updated_at', 'desc')
+    if (!rows.length) return []
+    const counts = new Map<string, number>()
+    const countRows = await db
+      .from('menu_items')
+      .whereIn(
+        'menu_id',
+        rows.map((r) => r.id)
+      )
+      .whereNotNull('deleted_at')
+      .groupBy('menu_id')
+      .count('* as count')
+      .select('menu_id')
+    for (const row of countRows as Array<{ menu_id: string; count: number | string }>) {
+      counts.set(row.menu_id, Number(row.count))
+    }
+    return rows.map((r) => this.toSummary(r, counts.get(r.id) ?? 0))
+  }
+
+  /**
+   * Bring a trashed menu back, with its items. Only the items deleted *together
+   * with* the menu are revived (matched on the shared `deleted_at`), so items
+   * dropped earlier via `saveTree` stay gone. The handle is re-uniqued in case a
+   * live menu claimed it while this one sat in the trash.
+   */
+  async restore(id: string): Promise<MenuDto> {
+    const menu = await Menu.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    const deletedAt = menu.deletedAt
+    await db.transaction(async (trx) => {
+      menu.useTransaction(trx)
+      menu.handle = await this.uniqueHandle(menu.handle, menu.id)
+      menu.deletedAt = null
+      await menu.save()
+      const q = MenuItem.query({ client: trx }).where('menu_id', menu.id).whereNotNull('deleted_at')
+      if (deletedAt) q.where('deleted_at', deletedAt.toSQL()!)
+      await q.update({ deleted_at: null })
+    })
+    const items = await this.loadItems(menu.id)
+    return { ...this.toSummary(menu, items.length), items: this.buildDtoTree(items, null) }
+  }
+
+  /** Permanently delete a trashed menu and its items. Guarded to trashed rows. */
+  async forceDelete(id: string): Promise<void> {
+    const menu = await Menu.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    await db.transaction(async (trx) => {
+      await MenuItem.query({ client: trx }).where('menu_id', menu.id).delete()
+      menu.useTransaction(trx)
+      await menu.delete()
+    })
+  }
+
   /**
    * Replace a menu's whole item tree in one atomic write.
    *

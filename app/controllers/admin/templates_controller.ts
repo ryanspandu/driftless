@@ -73,6 +73,27 @@ export default class TemplatesController {
     }
   }
 
+  async trash({ response }: HttpContext) {
+    return response.json(await templatesService.findTrashed())
+  }
+
+  async restore({ params, response }: HttpContext) {
+    try {
+      return response.json(await templatesService.restore(params.id))
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  async forceDestroy({ params, response }: HttpContext) {
+    try {
+      await templatesService.forceDelete(params.id)
+      return response.json({ success: true })
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
   async duplicate({ params, response }: HttpContext) {
     try {
       return response.json(await templatesService.duplicate(params.id))

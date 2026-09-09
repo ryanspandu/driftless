@@ -11,6 +11,7 @@ import {
   forgotPasswordIpThrottle,
   loginAccountThrottle,
   moduleInstallThrottle,
+  postUnlockThrottle,
   registerThrottle,
 } from '#start/limiter'
 import { registerAllModuleRoutes } from '#modules/registry'
@@ -32,6 +33,12 @@ async function loadAutoSwagger(): Promise<any> {
 
 router.get('/', [() => import('#controllers/public_controller'), 'home']).as('home')
 router.get('/posts/:slug', [() => import('#controllers/public_controller'), 'post'])
+router
+  .post('/posts/:slug/unlock', [() => import('#controllers/public_controller'), 'unlock'])
+  .as('posts.unlock')
+  .use(postUnlockThrottle)
+router.get('/category/:slug', [() => import('#controllers/public_controller'), 'category'])
+router.get('/tag/:slug', [() => import('#controllers/public_controller'), 'tag'])
 router.get('/offline', [() => import('#controllers/public_controller'), 'offline'])
 
 // First-party analytics beacon. Public + unauthenticated (real visitors have no
@@ -429,6 +436,12 @@ router
         'exportOne',
       ])
       .use(middleware.permission({ permission: 'settings:manage' }))
+    router
+      .put('/api/admin/template-kits/:id/active', [
+        () => import('#controllers/admin/template_kits_controller'),
+        'setActive',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
 
     router.get('/admin/profile', [
       () => import('#controllers/admin/dashboard_controller'),
@@ -591,12 +604,52 @@ router
       () => import('#controllers/admin/content_controller'),
       'newPage',
     ])
+    router.get('/admin/content/categories', [
+      () => import('#controllers/admin/content_category_controller'),
+      'page',
+    ])
+    router.get('/admin/content/tags', [
+      () => import('#controllers/admin/content_tag_controller'),
+      'page',
+    ])
     router.get('/admin/content/:id/edit', [
       () => import('#controllers/admin/content_controller'),
       'editPage',
     ])
     router
       .group(() => {
+        router.get('/api/admin/content-categories', [
+          () => import('#controllers/admin/content_category_controller'),
+          'index',
+        ])
+        router.post('/api/admin/content-categories', [
+          () => import('#controllers/admin/content_category_controller'),
+          'store',
+        ])
+        router.put('/api/admin/content-categories/:id', [
+          () => import('#controllers/admin/content_category_controller'),
+          'update',
+        ])
+        router.delete('/api/admin/content-categories/:id', [
+          () => import('#controllers/admin/content_category_controller'),
+          'destroy',
+        ])
+        router.get('/api/admin/content-tags', [
+          () => import('#controllers/admin/content_tag_controller'),
+          'index',
+        ])
+        router.post('/api/admin/content-tags', [
+          () => import('#controllers/admin/content_tag_controller'),
+          'store',
+        ])
+        router.put('/api/admin/content-tags/:id', [
+          () => import('#controllers/admin/content_tag_controller'),
+          'update',
+        ])
+        router.delete('/api/admin/content-tags/:id', [
+          () => import('#controllers/admin/content_tag_controller'),
+          'destroy',
+        ])
         router.get('/api/admin/content', [
           () => import('#controllers/admin/content_controller'),
           'index',
@@ -608,6 +661,12 @@ router
         router.get('/api/admin/content/check-slug', [
           () => import('#controllers/admin/content_controller'),
           'checkSlug',
+        ])
+        // Reveal the decrypted Protected-password for the editor. Behind the same
+        // `content` permission as every other admin content route (see group).
+        router.get('/api/admin/content/:id/password', [
+          () => import('#controllers/admin/content_controller'),
+          'revealPassword',
         ])
         router.post('/api/admin/content', [
           () => import('#controllers/admin/content_controller'),
@@ -770,6 +829,20 @@ router
           () => import('#controllers/admin/templates_controller'),
           'importOne',
         ])
+        // Trash: literal `/trash` before `/:id` GET; restore/force before the bare
+        // `:id` PUT/DELETE so the suffixed patterns win.
+        router.get('/api/admin/templates/trash', [
+          () => import('#controllers/admin/templates_controller'),
+          'trash',
+        ])
+        router.post('/api/admin/templates/:id/restore', [
+          () => import('#controllers/admin/templates_controller'),
+          'restore',
+        ])
+        router.delete('/api/admin/templates/:id/force', [
+          () => import('#controllers/admin/templates_controller'),
+          'forceDestroy',
+        ])
         router.get('/api/admin/templates/:id/export', [
           () => import('#controllers/admin/templates_controller'),
           'exportOne',
@@ -812,6 +885,19 @@ router
         router.post('/api/admin/menus', [
           () => import('#controllers/admin/menus_controller'),
           'store',
+        ])
+        // Trash: literal `/trash` before `/:id`; restore/force before bare `:id`.
+        router.get('/api/admin/menus/trash', [
+          () => import('#controllers/admin/menus_controller'),
+          'trash',
+        ])
+        router.post('/api/admin/menus/:id/restore', [
+          () => import('#controllers/admin/menus_controller'),
+          'restore',
+        ])
+        router.delete('/api/admin/menus/:id/force', [
+          () => import('#controllers/admin/menus_controller'),
+          'forceDestroy',
         ])
         router.get('/api/admin/menus/:id', [
           () => import('#controllers/admin/menus_controller'),
