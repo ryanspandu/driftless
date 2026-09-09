@@ -615,12 +615,15 @@ html {
 
 /* Puck radio fields with many options (e.g. CollectionList's 4-way "Item
    design") cram into one flex row — each option ~25% wide, so the labels wrap
-   mid-word. Lay a group of FOUR-OR-MORE out as a 2-column grid instead; the
-   `:has()` guard leaves the common 2-option toggles (Show image/title/excerpt)
-   as their tidy single-row segmented control. Hash-agnostic substring match. */
-[class*='_Input-radioGroupItems_']:has(> label:nth-child(4)) {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+   mid-word. Widen each option to ~half so a group of FOUR-OR-MORE wraps into two
+   per row (the container is already `flex-wrap: wrap`). The quantity-query guard
+   — first child that is also ≥4th-from-last — leaves the common 2-option toggles
+   (Show image/title/excerpt) and the 3-way align control as tidy single rows. No
+   `:has()`: Tailwind v4's Lightning CSS can drop it under older targets, whereas
+   `:nth-last-child` is long-supported. Hash-agnostic substring match. */
+[class*='_Input-radioGroupItems_'] > label:nth-child(1):nth-last-child(n + 4),
+[class*='_Input-radioGroupItems_'] > label:nth-child(1):nth-last-child(n + 4) ~ label {
+  flex: 1 0 40% !important;
 }
 
 /* Dark mode for the Puck editor chrome: Puck defines its palette on :root (light
