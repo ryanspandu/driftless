@@ -13,10 +13,10 @@ import { fileURLToPath } from 'node:url'
  *
  * Without this list the only validation possible is client-side, and a page row
  * naming a component that does not exist could still be written through the
- * API. That failure is already live elsewhere in this repo (two announcements
- * controllers render `plugins/announcements/*`, which no longer resolves), and
- * it surfaces as a blank screen rather than an error. Generating the list makes
- * a bad `component` value **unsaveable** instead.
+ * API. That kind of failure — a controller rendering a name that no longer
+ * resolves (e.g. a stale `plugins/<name>/*` path from the plugins→modules
+ * migration) — surfaces as a blank screen rather than an error. Generating the
+ * list makes a bad `component` value **unsaveable** instead.
  *
  * Committed, sorted, and written only on change — same contract as
  * `generate-module-sources.mjs`, which this mirrors, including the `.generated.`

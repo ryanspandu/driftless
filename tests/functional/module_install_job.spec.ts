@@ -17,7 +17,7 @@ import { newUlid } from '#services/ulid_service'
 function job(over: Partial<ModuleInstallJob> = {}) {
   return ModuleInstallJob.create({
     id: newUlid(),
-    moduleName: 'announcements',
+    moduleName: 'tasks',
     state: 'running',
     activeLock: ACTIVE_LOCK,
     requiresBuild: false,
@@ -125,18 +125,18 @@ test.group('Module install jobs | resume on boot', (group) => {
 
   test('awaiting_restart succeeds only when the module actually loads', async ({ assert }) => {
     /**
-     * `announcements` is a real module this process imported, and reconcile has
+     * `tasks` is a real module this process imported, and reconcile has
      * written its row. That is the whole bar: the module resolves *and* is
      * enabled. Anything less is not a successful install.
      */
     await Module.updateOrCreate(
-      { name: 'announcements' },
+      { name: 'tasks' },
       {
         id: newUlid(),
-        name: 'announcements',
+        name: 'tasks',
         enabled: true,
         version: '1.0.0',
-        kind: 'plugin',
+        kind: 'app',
         source: 'bundled',
       }
     )
@@ -205,6 +205,6 @@ test.group('Module install jobs | name resolution', () => {
      * reaches `spawn`, never the request string. That is what makes traversal
      * structurally impossible rather than merely filtered.
      */
-    assert.equal(service.resolveName('announcements'), 'announcements')
+    assert.equal(service.resolveName('tasks'), 'tasks')
   })
 })

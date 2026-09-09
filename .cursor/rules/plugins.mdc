@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Plugins
 
-Full reference: [docs/ai/plugins.md](../../docs/ai/plugins.md). Example: `plugins/announcements/`.
+Full reference: [docs/ai/modules.md](../../docs/ai/modules.md). Example: `modules/tasks/`.
 
 - A plugin = one folder `plugins/<name>/` with BE (`routes.ts`, `controllers/`, `services/`, `models/`, `migrations/`) and FE (`ui/admin/index.tsx`, `ui/public/index.tsx`).
 - **Two FEs:** render `plugins/<name>/admin/index` (AdminLayout) and `plugins/<name>/public/index` (PublicLayout) via `renderPage(...)`. Resolved in `inertia/app.tsx`; layout chosen in `layout-shell.tsx`.

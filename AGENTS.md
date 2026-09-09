@@ -98,7 +98,7 @@ runtime. There is no separate plugin system — set `kind: 'plugin'` on the mani
 smaller third-party contract. Full reference: [docs/ai/modules.md](docs/ai/modules.md).
 
 1. **Scaffold** — `node ace make:module <name>`, or copy the shape of
-   [`modules/announcements/`](modules/announcements): `module.ts` (manifest), `routes.ts`,
+   [`modules/tasks/`](modules/tasks): `module.ts` (manifest), `routes.ts`,
    `models/`, `migrations/`, `services/`, `controllers/`, `ui/`.
 2. **Nothing to register** — the folder is found because it holds a `module.ts` whose `name`
    matches it. Core never names a module.

@@ -16,9 +16,8 @@ import type { CodePageEnvelope, CodePageProps } from '~/custom/types'
  * 1. **Nothing validates a component name.** `renderPage()` casts it to `never`,
  *    and Inertia's resolver is an exact key lookup that throws inside an async
  *    `resolve` — surfacing as an unhandled rejection and a blank screen, not a
- *    404. That failure is live in this repo today: two announcements
- *    controllers still render `plugins/announcements/*`, which has not existed
- *    since the plugins→modules migration.
+ *    404. A controller that renders a stale name — e.g. a `plugins/<name>/*`
+ *    path left over from the plugins→modules migration — fails exactly this way.
  * 2. **A database value would be able to address any page in the app**,
  *    including admin screens. Scoping the glob to one folder makes that
  *    impossible rather than merely discouraged.

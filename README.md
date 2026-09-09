@@ -75,7 +75,7 @@ A **module** is a first-party feature area — back-end *and* front-end — in a
 - **Apps and plugins are one system.** `kind` on the manifest is the only difference: an *app* is a first-party part of your product, a *plugin* is a narrower third-party add-on. There is no separate `plugins/` directory.
 - **Manage them** at **Settings → Modules** (`/admin/settings/application`): install, enable/disable (DB-backed, no restart) and remove each one, with **Apps** and **Plugins** on separate tabs. Folders dropped into `modules/` that the running server has not loaded yet appear above the tabs with an Install button.
 - **Settings → General** (`/admin/settings/general`) turns the public site on/off (dashboard-only SAAS mode), controls public sign-up, and hides core sidebar menus (hidden menus' pages return a clean in-dashboard 404).
-- **Examples:** **Tasks** ([`modules/tasks/`](modules/tasks)) at `/admin/tasks`, and **Announcements** ([`modules/announcements/`](modules/announcements)) at `/admin/announcements`.
+- **Examples:** **Tasks** ([`modules/tasks/`](modules/tasks)) at `/admin/tasks` (a small self-contained module), and **E-commerce** ([`modules/ecommerce/`](modules/ecommerce)) (a large one).
 - **Add one:** `node ace make:module <name>`, run migrations, and `npm run build` once. **Nothing to register** — a folder is found because it holds a `module.ts` whose `name` matches it, which is what lets an installer add one by copying a directory. Full guide: [docs/ai/modules.md](docs/ai/modules.md).
 
 ## License

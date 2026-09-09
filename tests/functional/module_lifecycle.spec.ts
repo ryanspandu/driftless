@@ -110,13 +110,13 @@ test.group('Module lifecycle | orphan pruning', (group) => {
 
   test('a row whose folder is still there survives', async ({ assert }) => {
     /**
-     * `announcements` is a real folder that discovery loaded, so its row must
+     * `tasks` is a real folder that discovery loaded, so its row must
      * come through reconcile untouched. This is the guard against a pruning
      * rule that is too eager.
      */
     await new ModulesService().reconcile()
 
-    assert.isNotNull(await Module.findBy('name', 'announcements'))
+    assert.isNotNull(await Module.findBy('name', 'tasks'))
   })
 })
 

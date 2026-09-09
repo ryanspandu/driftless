@@ -124,9 +124,9 @@ in production it is a deploy.
 The obvious design — store `public/about` on the row and hand it to `inertia.render()` — was
 rejected. `renderPage()` casts the name to `never` and Inertia's resolver is an exact key
 lookup that throws inside an async `resolve`, so a wrong name is an unhandled rejection and a
-blank screen, not a 404. (That failure is live in this repo: two `modules/announcements`
-controllers still render `plugins/announcements/*`, which stopped existing at the
-plugins→modules migration.)
+blank screen, not a 404. (A controller that renders a name Inertia can't resolve — e.g. a
+stale `plugins/<name>/*` path left behind by the plugins→modules migration — fails exactly
+this way.)
 
 Instead one wrapper page resolves the component from a glob scoped to
 `inertia/custom/pages/`. A row therefore cannot address `admin/users`; a missing slug renders

@@ -53,7 +53,6 @@ yarn-error.log
 
 # modules/*
 # !modules/tasks/
-# !modules/announcements/
 # !modules/ecommerce/
 # !modules/paths.ts
 # !modules/registry.ts

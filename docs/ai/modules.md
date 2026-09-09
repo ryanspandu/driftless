@@ -4,8 +4,8 @@
 self-contained folder co-locating back-end (routes, controllers, services, models,
 migrations) and front-end (`ui/`).
 
-> Status: **implemented.** Reference examples: `modules/tasks/` (app),
-> `modules/announcements/` (plugin), `modules/ecommerce/` (a large app),
+> Status: **implemented.** Reference examples: `modules/tasks/` (a small app),
+> `modules/ecommerce/` (a large app),
 > `modules/mcp/` (an app that adds a token-authed **builder-API** at
 > `/api/mcp/v1/*` plus a bundled MCP server so an AI can build the whole site —
 > see [modules/mcp/README.md](../../modules/mcp/README.md)).
