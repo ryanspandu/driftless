@@ -8,6 +8,15 @@
         cuts the render-blocking font cost. Harmless when a page uses no web font. --}}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    {{-- Web-font stylesheets are rendered `media="print"` (fetched but NOT
+        render-blocking); once the DOM is ready, flip them to `all` so the font
+        applies without ever having delayed first paint. Nonce'd, so it passes
+        the strict prod CSP. `font-display:swap` covers the brief fallback. --}}
+    <script nonce="{{ cspNonce ?? '' }}">
+      addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('link[data-font-async]').forEach(function (l) { l.media = 'all' })
+      })
+    </script>
     {{-- Exposes the per-request CSP nonce to client JS (react-select's emotion
         cache reads it so its injected <style> elements are not blocked). --}}
     <meta name="csp-nonce" content="{{ cspNonce ?? '' }}" />

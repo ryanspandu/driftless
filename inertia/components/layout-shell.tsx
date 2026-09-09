@@ -65,7 +65,11 @@ function SiteThemeStyle() {
   if (!css && !theme.fontCssUrl) return null
   return (
     <>
-      {theme.fontCssUrl && !customActive ? <link rel="stylesheet" href={theme.fontCssUrl} /> : null}
+      {theme.fontCssUrl && !customActive ? (
+        // Non-render-blocking: `media="print"` until the DOMContentLoaded script
+        // in the shell flips it to `all` (see inertia_layout.edge).
+        <link rel="stylesheet" href={theme.fontCssUrl} media="print" data-font-async="" />
+      ) : null}
       {css ? <style nonce={props.cspNonce} dangerouslySetInnerHTML={{ __html: css }} /> : null}
     </>
   )
