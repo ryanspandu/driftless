@@ -67,13 +67,64 @@ rebuild. See `example/emails/password_reset.tsx`.
 - Add `export const editableRegion = true` and render `<BuilderRegion />` to
   expose a slice of the page to the visual builder.
 
-## Reading collection data
+## Fetching CMS data (SSR first — a kit is a public, SEO-facing page)
 
-Kit markup can fetch collection records itself with `useCollectionRecords(key, options)` from
-`~/hooks/cms/use-collection-records` (and `useCollectionRecord(key, id)` for one). It reads the
-public API — any collection, published only — and hydrates on the client (empty first paint; use the
-builder's Collection List for SEO-critical lists). See `example/pages/collection-demo.tsx`; full
-reference in [`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md).
+A template kit is served to the public, so its dynamic data has to be **in the
+server-rendered HTML** — a crawler (and an AI answer engine) reads the initial
+response, and the largest text/image often IS a data row, so it also drives LCP.
+**Default to SSR.** Fetch on the client only for things that genuinely don't
+belong in the HTML.
+
+### ✅ Recommended: SSR the data with a Collection List block
+
+The **Collection List** block is preloaded on the server (`page_data_resolver`),
+so its records are baked into the first response — indexable, no loading flash,
+LCP-friendly. Two ways to reach it from a kit, both fully SSR:
+
+1. **A builder page** — build the dynamic/SEO page in the page builder with a
+   Collection List block. The operator points it at any collection (`posts`,
+   `products`, or a CMS collection) and picks the design. Nothing to code.
+2. **A code kit that owns the design** — add `export const editableRegion = true`
+   and render `<BuilderRegion />`; the operator drops a Collection List block into
+   that region. To render each record **in the kit's own markup** (not the
+   generic card), ship a **collection template** `collection/<key>.tsx` — the
+   operator sets the block's *Item design → Code template* and picks it. The
+   filename is the collection key (`collection/posts.tsx` only offers itself on a
+   `posts` list). This is the full pattern: **SSR data + your design + SEO**.
+   Reference: `example/collection/posts.tsx`.
+
+So a kit that wants an SSR blog/product grid = a `<BuilderRegion>` + a
+`collection/<key>.tsx` template, or simply a builder page.
+
+### ⚠️ Client-side: `useCollectionRecords` — NOT for SEO content
+
+`useCollectionRecords(key, options)` / `useCollectionRecord(key, id)` from
+`~/hooks/cms/use-collection-records` fetch published records at runtime over the
+public API. They run **after hydration**, so the data is **absent from the SSR
+HTML** — a crawler sees a blank/loading state, and the paint flashes empty.
+
+```tsx
+const { data, isLoading } = useCollectionRecords('posts', { limit: 6, sortDir: 'desc' })
+// options: limit, page, sortField/sortDir, filterField+filterValue, search
+```
+
+Use it only for data that should NOT be indexed anyway: interactive filters,
+"load more", search-as-you-type, personalised or account-specific content. For
+anything a search engine should see, use the block path above. Reference:
+`example/pages/collection-demo.tsx`.
+
+### Which to use
+
+| Need | Use | SSR / SEO |
+|---|---|---|
+| Blog index, product grid, any list a crawler should read | Collection List block (builder page, or region + `collection/<key>.tsx`) | ✅ server-rendered |
+| Interactive filter / search / "load more" / personalised | `useCollectionRecords` (client) | ❌ after hydration |
+| One record, code-owned card, SEO | `collection/<key>.tsx` template on a block | ✅ server-rendered |
+
+The endpoints behind both (`GET /api/public/cms/:key/records[/:id]`, published-only)
+are auto-documented at **`/api/docs`** (dev only). Full reference:
+[`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md) ·
+[`docs/ai/cms.md`](../../../docs/ai/cms.md).
 
 ## Using the e-commerce module
 
