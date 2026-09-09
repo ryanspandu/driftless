@@ -49,7 +49,12 @@ export const MCP_ABILITY_OPTIONS: { id: string; label: string; hint: string }[] 
   { id: 'builder:collections', label: 'Collections', hint: 'create/update collections + fields' },
   { id: 'builder:pages', label: 'Pages', hint: 'create/update/publish pages' },
   { id: 'builder:templates', label: 'Templates', hint: 'create/update templates' },
-  { id: 'builder:settings', label: 'Settings', hint: 'appearance, breakpoints, global code' },
+  { id: 'builder:menus', label: 'Menus', hint: 'create menus + set menu items' },
+  {
+    id: 'builder:settings',
+    label: 'Settings',
+    hint: 'appearance, breakpoints, global code, page roles',
+  },
   { id: 'builder:media', label: 'Media', hint: 'upload media' },
   {
     id: 'builder:products',

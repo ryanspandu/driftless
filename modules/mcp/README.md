@@ -53,9 +53,11 @@ Settings → API tokens — with the abilities the work needs:
 | `builder:collections`    | create/update/delete collections + fields                    | `cms:manage`                 |
 | `builder:pages`          | create/update/publish pages                                  | `page:*`                     |
 | `builder:templates`      | create/update templates                                      | `template:*`                 |
+| `builder:menus`          | create menus + set menu items                                | `menu:*`                     |
 | `builder:settings`       | write appearance, breakpoints, global code, page roles        | `settings:manage`            |
 | `builder:media`          | upload / crop / edit media                                   | `media:manage`               |
 | `builder:products`       | create/update/delete products, variants, categories          | `ecommerce:products:manage`  |
+| `builder:content`        | create/update posts + their categories & tags                | `content:*`                  |
 | `cms:read` / `cms:write` | list/create/update/delete **records** (reuses `/api/v1/cms`) | `cms:<collection>:*`         |
 
 `builder:products` needs the **`ecommerce` module** enabled; with it off those

@@ -51,7 +51,8 @@ function abilityVariant(id: string): 'default' | 'success' | 'warning' {
     id === 'builder:collections' ||
     id === 'builder:pages' ||
     id === 'builder:products' ||
-    id === 'builder:content'
+    id === 'builder:content' ||
+    id === 'builder:menus'
   )
     return 'default'
   return 'success'
