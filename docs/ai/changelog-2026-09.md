@@ -1,7 +1,8 @@
 # Changelog — 2026-09 batch (`develop`)
 
 A summary of the features shipped this session, with pointers to the full docs.
-Commits: `2d478a7`, `dab07d3`, `9359ced`, `5bb7d8c`, `c4954e4`, `0922d13`.
+Commits: `2d478a7`, `dab07d3`, `9359ced`, `5bb7d8c`, `c4954e4`, `0922d13`,
+`5e0bd7b`, `509ad24`.
 
 ## 1. CMS `MULTISELECT` field + field-key auto-fill — `2d478a7`
 
@@ -71,3 +72,30 @@ Commits: `2d478a7`, `dab07d3`, `9359ced`, `5bb7d8c`, `c4954e4`, `0922d13`.
 - Prefixed exceptions (multiple tables per route): **dashboard**, **apps/plugins
   settings**.
 - Docs: [frontend.md](./frontend.md#list-url-param-convention).
+
+## 9. Content posts by taxonomy on an archive override — `5e0bd7b`
+
+- A **`CollectionList` bound to `posts`** on a category/tag archive-override page
+  now **auto-lists that taxonomy's posts** — it inherits the archive route's
+  `{ slug, kind }` binding and filters to the category/tag; a normal page is
+  unaffected. Mirrors how the e-commerce `ProductList` inherits its archive.
+- Query layer: `BuiltinRecordQuery.categorySlug`/`.tagSlug` → `whereExists` pivot
+  join applied to **both** the list and the count query; records API
+  `GET /api/public/cms/posts/records?category=&tag=`. Client and SSR cache keys
+  embed the taxonomy identically so SSR-preloaded rows are reused (no refetch).
+  Gated-post body withholding is preserved in the list.
+- Docs: [content-taxonomy-and-visibility.md](./content-taxonomy-and-visibility.md#listing-the-taxonomys-posts-on-the-override-page).
+
+## 10. MCP: assign builder pages as archives — `509ad24`
+
+- **`use_page_as_role`** (`PUT /api/mcp/v1/page-roles`) writes a core page-role
+  slot — home, the auth/error screens, and the content **category/tag archives** —
+  via `WebSettingsService.applyPatches`.
+- **`set_storefront_page`** (`PUT /api/mcp/v1/storefront-pages`) sets an
+  e-commerce storefront screen (shop, product, cart/checkout/account, category/tag)
+  through the guarded dynamic-import boundary; needs the `ecommerce` module +
+  `ecommerce:settings:manage`.
+- Both are gated by the **`builder:settings`** ability, validate a
+  **PUBLISHED + BUILDER** target, clear the slot on an empty `pageId`, and are
+  mirrored into both the in-app and stdio tool manifests.
+- Docs: [modules/mcp/README.md](../../modules/mcp/README.md#builder-api-reference).

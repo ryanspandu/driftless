@@ -53,7 +53,7 @@ Settings → API tokens — with the abilities the work needs:
 | `builder:collections`    | create/update/delete collections + fields                    | `cms:manage`                 |
 | `builder:pages`          | create/update/publish pages                                  | `page:*`                     |
 | `builder:templates`      | create/update templates                                      | `template:*`                 |
-| `builder:settings`       | write appearance, breakpoints, global code                   | `settings:manage`            |
+| `builder:settings`       | write appearance, breakpoints, global code, page roles        | `settings:manage`            |
 | `builder:media`          | upload / crop / edit media                                   | `media:manage`               |
 | `builder:products`       | create/update/delete products, variants, categories          | `ecommerce:products:manage`  |
 | `cms:read` / `cms:write` | list/create/update/delete **records** (reuses `/api/v1/cms`) | `cms:<collection>:*`         |
@@ -89,6 +89,8 @@ issues }`.
 | `POST /templates` · `PUT /templates/:id` · `DELETE /templates/:id` · `POST /templates/:id/default` | `builder:templates`              |                                           |
 | `GET /appearance`                                                                                  | `builder:read`                   | theme + EFFECTIVE colours                 |
 | `PUT /appearance` · `PUT /breakpoints` · `PUT /global-code`                                        | `builder:settings`               | appearance validated on write (422 + `issues`) |
+| `PUT /page-roles`                                                                                  | `builder:settings`               | assign a builder page to a role (home, auth/error, category/tag archives); `pageId:""` clears |
+| `PUT /storefront-pages`                                                                            | `builder:settings`               | assign a builder page to a storefront screen (shop, product, cart/checkout/account, category/tag); needs the `ecommerce` module + `ecommerce:settings:manage` |
 | `GET /media` · `POST /media` (multipart `file`)                                                    | `builder:read` / `builder:media` | upload records provenance (origin/sourceUrl) |
 | `POST /media/:id/crop` · `PATCH /media/:id`                                                        | `builder:media`                  | crop a region into a new asset; edit meta |
 | `GET /products` · `GET /products/:id` · `GET /categories`                                          | `builder:read`                   | needs the `ecommerce` module              |

@@ -172,6 +172,54 @@ archive, so the archive gets the full page builder (custom blocks, kits, layout)
   archive block on that page can filter to this taxonomy and SEO stays per-slug.
   Otherwise the built-in `posts/category` / `posts/tag` Inertia archive renders.
 
+### Listing the taxonomy's posts on the override page
+
+Drop a **`CollectionList` bound to `posts`** on the override page and it
+**auto-lists that archive's posts** — no extra config. It reads the route
+binding above and filters to the category/tag; on any other page the binding is
+absent, so the same block behaves as a normal unfiltered posts list. (This
+mirrors how the e-commerce `ProductList` inherits `/shop/category/:slug`.)
+
+- **Query layer.** `BuiltinRecordQuery` gains `categorySlug?` / `tagSlug?`
+  (`app/cms/builtin_collections.ts`); `posts_collection.ts` `list()` applies a
+  `whereExists` pivot join (`content_post_category` → `content_categories` by
+  slug, likewise tags) to **both** the list **and** the count query, so `total`
+  and pagination stay correct. Reuses the pivot pattern from
+  `content_category_service.publishedPostsInCategory`.
+- **Records API.** `GET /api/public/cms/posts/records?category=<slug>` /
+  `?tag=<slug>` (the runtime client-side fetch) — mirrors the e-commerce
+  `/api/shop/products?category=&tag=` convention.
+- **Binding inheritance (client + SSR in lockstep).**
+  `inertia/puck/collection-list.tsx` reads `useBinding('slug')` /
+  `useBinding('kind')` and threads the taxonomy through the query, fetch URL,
+  and **cache key**; `app/services/page_data_resolver.ts` does the same on the
+  SSR side (`resolvePageCollections(docs, { params })`), fed by
+  `page_renderer.ts`. The server and client cache keys embed the taxonomy
+  **identically** (`…|<categorySlug>|<tagSlug>`) so the SSR-preloaded rows are
+  found and the client never silently re-fetches.
+- **Withholding preserved.** A gated (Protected/Member) post still appears in the
+  list with its body/excerpt/data blanked — the `toRecord` adapter withholds for
+  any non-`PUBLIC` post, so the list can't leak a locked body.
+
+Scope note: only **auto-inheritance** on an archive-override page is wired.
+Pinning a *fixed* taxonomy on a `CollectionList` sitting on a normal page is not
+exposed as a block field (deferred).
+
+### Assigning archives via MCP
+
+Both archive slots are reachable by an AI agent through the builder-API
+(ability `builder:settings`):
+
+- Core content archives — `PUT /api/mcp/v1/page-roles` with
+  `role: "categoryArchive" | "tagArchive"` (tool `use_page_as_role`, which also
+  covers home + the auth/error roles).
+- E-commerce archives — `PUT /api/mcp/v1/storefront-pages` with
+  `slot: "category" | "tag"` (tool `set_storefront_page`; needs the `ecommerce`
+  module + `ecommerce:settings:manage`).
+
+Both reject a non-PUBLISHED / non-BUILDER page and clear the slot on an empty
+`pageId`. See [modules/mcp/README.md](../../modules/mcp/README.md#builder-api-reference).
+
 See [settings-ia.md](./settings-ia.md) for the `web_settings` key map and
 [page-settings.md](./page-settings.md) for the "Use as page" overrides in general.
 
