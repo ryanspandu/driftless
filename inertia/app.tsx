@@ -1,7 +1,7 @@
 import './css/app.css'
 import type { ComponentType } from 'react'
 import { client } from './client'
-import { createRoot } from 'react-dom/client'
+import { createRoot, hydrateRoot } from 'react-dom/client'
 import { createInertiaApp } from '@inertiajs/react'
 import { TuyauProvider } from '@adonisjs/inertia/react'
 import { resolvePageComponent } from '@adonisjs/inertia/helpers'
@@ -85,7 +85,7 @@ createInertiaApp({
       }
     }
 
-    createRoot(el).render(
+    const tree = (
       <ThemeProvider
         attribute="class"
         defaultTheme="system"
@@ -107,6 +107,18 @@ createInertiaApp({
         </QueryProvider>
       </ThemeProvider>
     )
+
+    // An SSR/SSG page arrives with its server HTML already inside `el`, so
+    // HYDRATE it — attach to the existing markup instead of throwing it away and
+    // re-rendering from scratch. `createRoot().render()` on server HTML discards
+    // the paint the browser already showed and rebuilds the whole tree on the
+    // client, which under a throttled mobile CPU pushed LCP out by many seconds.
+    // CSR pages (admin) ship an empty `#app`, so they still client-render.
+    if (el.hasChildNodes()) {
+      hydrateRoot(el, tree)
+    } else {
+      createRoot(el).render(tree)
+    }
   },
   progress: {
     color: '#4B5563',
