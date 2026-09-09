@@ -91,7 +91,12 @@ async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
 const PuckDoc = z
   .record(z.any())
   .describe(
-    'A Puck document: { root: { props: {} }, content: [ blocks ] }. Call get_block_catalog first.'
+    'A Puck document: { root: { props: {} }, content: [ blocks ] }. Call get_block_catalog first. ' +
+      'PER-PAGE custom code lives on the ROOT: set root.props.codeSnippets to an array of ' +
+      '{ id, name, lang:"css"|"js", code, enabled } — CSS is concatenated into one <style>, each ' +
+      'enabled JS snippet becomes its own <script>, and BOTH run only on THIS page (unlike ' +
+      'set_global_code, which is site-wide). Keep any JS tiny for performance; a page carrying JS ' +
+      'needs the settings:manage ability to save.'
   )
 
 // The structured design brief (stored on the page, checked by coverage).

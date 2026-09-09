@@ -47,6 +47,10 @@ const CONTENT_SHAPE =
   '"styleSchemas": "backgrounds" (a layer stack), "responsive" ({ breakpointId: { …styleProps } }), ' +
   'and "states" ({ hover|focus|active: { …styleProps } }) — these ARE honoured, not dropped. ' +
   'A style value that is neither a string nor one of those structured shapes is dropped on render. ' +
+  'BEYOND styling, every block also honours a few structured BEHAVIOUR props documented under ' +
+  '"behaviorSchemas" — "scrollAnimation" (animate-on-scroll reveal, SSR-safe), "bgLazy" (lazy background), ' +
+  '"htmlId" (anchor-target id), "attributes" (extra DOM attributes), and — inside a CollectionList ' +
+  'custom template only — "binding" and "conditions" (per-record field binding + conditional visibility). ' +
   'A field with type "object" documents its shape under "objectFields"; a field with type ' +
   '"array" documents each item\'s shape under "arrayFields" (+ "defaultItemProps" as an example). ' +
   'Each block\'s "defaultProps" is a ready-to-use worked example of valid props. ' +
@@ -476,6 +480,7 @@ function buildCatalog(
     guidance,
     blocks,
     styleSchemas: STYLE_SCHEMAS,
+    behaviorSchemas: BEHAVIOR_SCHEMAS,
   }
 }
 
@@ -512,6 +517,35 @@ const STYLE_SCHEMAS = {
   states:
     'Interaction states: states: { "hover"|"focus"|"active": { <any styleProp>: value, … } }. Rendered as CSS pseudo-class rules. ' +
     'e.g. states: { "hover": { "bg":"var(--primary)", "transform":"translateY(-2px)", "boxShadow":"lg" } }.',
+} as const
+
+/**
+ * Structured NON-style props every block honours — effects, DOM hooks, and the
+ * CollectionList-repeater binding. These sit alongside styleProps in a block's
+ * `props` (NOT under a style key) and are documented here so an AI can discover
+ * them and the validator does not false-warn "unknown prop". Mirrors the honored
+ * set in `inertia/puck/{scroll-animation,style-fields,record-binding}` — keep in
+ * sync with `STRUCTURAL_PROP_KEYS` in the puck content validator.
+ */
+const BEHAVIOR_SCHEMAS = {
+  scrollAnimation:
+    'Animate-on-scroll reveal on ANY block: scrollAnimation: { type, duration?, delay?, easing?, distance?, threshold?, once?, trigger?, position? }. ' +
+    'type is one of "fade","fade-up","fade-down","fade-left","fade-right","zoom-in","zoom-out","flip" (omit or "" = no animation). ' +
+    'duration/delay are CSS times ("600ms","0.2s"); easing a CSS timing-function; distance a length ("24px") for the travel; ' +
+    'threshold is how much must be visible (0..1 or 0..100); once:true plays a single time (the default), once:false replays on re-entry; ' +
+    'trigger:"scroll" reveals as it enters the viewport (default), trigger:"load" as the page loads; ' +
+    'position:"top"|"center"|"bottom" (default "bottom") is the viewport line a scroll reveal must reach. ' +
+    'SSR-SAFE: the published markup renders in the final VISIBLE state (the hidden start is CSS-gated and only armed after hydration), so it never hurts SEO or no-JS — use it freely for entrance polish.',
+  bgLazy:
+    'Boolean. true = a block/Section background IMAGE is lazy-loaded (fetched only as it nears the viewport) — use for below-the-fold background images to save bandwidth. Leave it off (eager) for the hero / above-the-fold LCP image so it is not delayed.',
+  htmlId:
+    'String — sets the element\'s DOM id (e.g. "pricing") so an in-page anchor link can target it with href:"#pricing". Keep it unique on the page; use letters/digits/-/_ (the free-form `attributes` cannot set an id).',
+  attributes:
+    'Extra DOM attributes as an array [{ name, value }] — e.g. [{ "name":"data-track", "value":"cta-hero" }] or aria-* hooks. For safety these are dropped: class/className, id (use htmlId), style, on* event handlers, and javascript: values.',
+  binding:
+    'CollectionList custom-template repeater ONLY. binding: { <slot>: <recordFieldKey> } feeds a leaf block\'s slot (e.g. "text","href","src") from the CURRENT record\'s field, overriding its static value — e.g. binding: { "text":"title", "href":"slug" } on a block inside a CollectionList whose template:"template". Outside a repeater it does nothing. (Inline {{fieldKey}} tokens in a string are the escape-hatch alternative.)',
+  conditions:
+    'CollectionList custom-template repeater ONLY. conditions: [{ field, op:"set"|"notset" }] hides this element for records where a rule fails (all rules AND) — e.g. show a "Sold out" badge only when a field is set. Outside a repeater nothing is hidden.',
 } as const
 
 /**

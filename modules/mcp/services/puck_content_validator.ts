@@ -48,8 +48,25 @@ export interface ValidationResult {
   normalized: PuckDocument
 }
 
-/** Prop keys every block accepts that are neither fields, slots nor styleProps. */
-const STRUCTURAL_PROP_KEYS = new Set(['id', 'binding', 'conditions', 'responsive', 'states'])
+/**
+ * Prop keys every block accepts that are neither fields, slots nor styleProps —
+ * the structural (`id`, slot-cascade) and structured-behaviour props honoured by
+ * the renderer. Documented for the AI under the catalog's `behaviorSchemas`
+ * (`scrollAnimation`/`bgLazy`/`htmlId`/`attributes`) and `styleSchemas`
+ * (`responsive`/`states`); `binding`/`conditions` are the CollectionList-repeater
+ * props. Keep in sync with `BEHAVIOR_SCHEMAS` in `commands/mcp_catalog.ts`.
+ */
+const STRUCTURAL_PROP_KEYS = new Set([
+  'id',
+  'binding',
+  'conditions',
+  'responsive',
+  'states',
+  'scrollAnimation',
+  'bgLazy',
+  'htmlId',
+  'attributes',
+])
 
 export interface PuckDocument {
   root?: { props?: Record<string, unknown> } & Record<string, unknown>
