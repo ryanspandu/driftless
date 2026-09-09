@@ -37,6 +37,9 @@ export const collectionsSection: DataSection = {
         label: c.label,
         icon: c.icon,
         group: c.group,
+        // COLLECTION (own records + table) vs CONTENT (fields for the built-in
+        // Content, no table) — must round-trip or a Content type imports wrong.
+        type: c.type,
         kind: c.kind,
         revisionsOn: c.revisionsOn,
         draftsOn: c.draftsOn,
@@ -61,6 +64,7 @@ export const collectionsSection: DataSection = {
         label: string
         icon?: string | null
         group?: string | null
+        type?: 'COLLECTION' | 'CONTENT'
         kind?: 'collection' | 'single'
         revisionsOn?: boolean
         draftsOn?: boolean
@@ -94,17 +98,25 @@ export const collectionsSection: DataSection = {
           unique: f.unique,
           config: f.config,
         }))
-      await cms.createCollection({
-        key: c.key,
-        label: c.label,
-        icon: c.icon ?? undefined,
-        group: c.group ?? undefined,
-        kind: c.kind ?? 'collection',
-        revisionsOn: c.revisionsOn,
-        draftsOn: c.draftsOn,
-        fields: scalarFields,
-      })
-      report.created++
+      try {
+        await cms.createCollection({
+          key: c.key,
+          label: c.label,
+          icon: c.icon ?? undefined,
+          group: c.group ?? undefined,
+          // A Content-type is a singleton with no physical table; createCollection
+          // enforces that and skips the DDL. Default keeps old exports importing.
+          type: c.type ?? 'COLLECTION',
+          kind: c.kind ?? 'collection',
+          revisionsOn: c.revisionsOn,
+          draftsOn: c.draftsOn,
+          fields: scalarFields,
+        })
+        report.created++
+      } catch (e) {
+        // e.g. a second Content-type collection (singleton) or a reserved key.
+        report.warnings.push(`collection "${c.key}": ${(e as Error).message}`)
+      }
     }
 
     // Pass 2: wire RELATION fields now that every target collection exists.

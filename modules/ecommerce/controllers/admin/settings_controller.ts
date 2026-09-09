@@ -97,9 +97,109 @@ const zoneCountriesValidator = vine.compile(
 const settings = new StoreSettingsService()
 const audit = new AuditLogService()
 
+/** The two data-transfer sections this module owns; import/export is locked to them. */
+const ECOMMERCE_SECTIONS = ['ecommerce', 'ecommerce_orders'] as const
+
+/** Keep only recognised ecommerce section names; default to both. */
+function clampToEcommerce(input: unknown): string[] {
+  const wanted = Array.isArray(input)
+    ? input.map(String)
+    : typeof input === 'string' && input
+      ? input.split(',').filter(Boolean)
+      : [...ECOMMERCE_SECTIONS]
+  const set = new Set(wanted)
+  const only = ECOMMERCE_SECTIONS.filter((s) => set.has(s))
+  return only.length ? only : [...ECOMMERCE_SECTIONS]
+}
+
 export default class EcommerceSettingsController {
   async page({ inertia }: HttpContext) {
     return renderPage(inertia, 'modules/ecommerce/admin/settings/index', {})
+  }
+
+  /**
+   * Export the store's data as a `.driftless` archive, scoped to the two
+   * ecommerce sections. Reuses the whole-site engine; secrets (gateway keys,
+   * sessions, webhook/replay tables) are already stripped by those sections.
+   */
+  async exportData(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const only = clampToEcommerce(request.input('sections'))
+      const mode: 'preserve' | 'regenerate' =
+        request.input('mode') === 'regenerate' ? 'regenerate' : 'preserve'
+      const { default: SiteExportService } =
+        await import('#services/data_transfer/site_export_service')
+      const buffer = await new SiteExportService().export({ only, mode })
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'ecommerce.data_exported',
+        subjectType: 'export',
+        subjectId: 'ecommerce',
+        changes: { sections: only, mode, bytes: buffer.length },
+        ctx,
+      })
+
+      const stamp = new Date().toISOString().slice(0, 10)
+      return response
+        .header('Content-Type', 'application/octet-stream')
+        .header('Content-Disposition', `attachment; filename="ecommerce-${stamp}.driftless"`)
+        .header('Cache-Control', 'private, no-store')
+        .header('X-Content-Type-Options', 'nosniff')
+        .send(buffer)
+    } catch (error) {
+      return apiFail(response, error, 'ecommerce/data-export')
+    }
+  }
+
+  /**
+   * Import a `.driftless` archive into the store. `only` is always clamped to
+   * the ecommerce sections server-side, so a whole-site archive imported here
+   * only touches store data. Dry-run previews without writing.
+   */
+  async importData(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    const file = request.file('archive', { size: '200mb' })
+    if (!file || !file.tmpPath) {
+      return apiFail(response, new Error('An `archive` file is required'), 'ecommerce/data-import')
+    }
+    try {
+      const { readFile } = await import('node:fs/promises')
+      const buffer = await readFile(file.tmpPath)
+
+      const mode: 'preserve' | 'regenerate' =
+        request.input('mode') === 'regenerate' ? 'regenerate' : 'preserve'
+      const conflictIn = String(request.input('conflict') ?? '')
+      const conflict: 'overwrite' | 'skip' | 'replace' =
+        conflictIn === 'skip' ? 'skip' : conflictIn === 'replace' ? 'replace' : 'overwrite'
+      const dryRun = request.input('dryRun') === 'true' || request.input('dryRun') === true
+
+      const { default: SiteImportService } =
+        await import('#services/data_transfer/site_import_service')
+      const result = await new SiteImportService().import(buffer, {
+        only: [...ECOMMERCE_SECTIONS],
+        mode,
+        conflict,
+        dryRun,
+        authorId: auth.user?.id ?? null,
+      })
+
+      if (!dryRun) {
+        await audit.record({
+          actor: { type: 'user', user: auth.user as User },
+          action: 'ecommerce.data_imported',
+          subjectType: 'import',
+          subjectId: 'ecommerce',
+          changes: { mode, conflict, sections: result.sections.map((s) => s.name) },
+          ctx,
+        })
+      }
+
+      return response.json(result)
+    } catch (error) {
+      return apiFail(response, error, 'ecommerce/data-import')
+    }
   }
 
   async show({ response }: HttpContext) {

@@ -19,6 +19,7 @@ import CurrenciesPanel from './currencies'
 import ProductPagePanel from './product-page'
 import StorefrontScreensPanel from './storefront-screens'
 import ShippingPanel from './shipping'
+import DataTransferPanel from './data-transfer'
 
 /** The number of fraction digits the store currency uses (e.g. 2 for USD, 0 for JPY). */
 function currencyExponent(currency: string, locale: string): number {
@@ -318,7 +319,7 @@ function StoreDetailsPanel() {
   )
 }
 
-const TABS = ['store', 'shipping', 'currencies', 'payments'] as const
+const TABS = ['store', 'shipping', 'currencies', 'payments', 'data'] as const
 
 /**
  * Settings is split in two because the audiences differ: anyone with
@@ -355,6 +356,7 @@ export default function StoreSettingsPage() {
           <TabsTrigger value="shipping">Shipping</TabsTrigger>
           <TabsTrigger value="currencies">Currencies</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="data">Data</TabsTrigger>
         </TabsList>
 
         <TabsContent value="store" className="pt-4 space-y-6">
@@ -382,6 +384,10 @@ export default function StoreSettingsPage() {
           >
             <GatewaysPage />
           </Can>
+        </TabsContent>
+
+        <TabsContent value="data" className="pt-4">
+          <DataTransferPanel />
         </TabsContent>
       </Tabs>
     </div>

@@ -737,6 +737,13 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .put('/api/admin/ecommerce/settings', [SettingsCtrl, 'update'])
         .as('ecommerce.api.settings.update')
+      // Store data backup / migration — scoped to the ecommerce data sections.
+      router
+        .post('/api/admin/ecommerce/data/export', [SettingsCtrl, 'exportData'])
+        .as('ecommerce.api.data.export')
+      router
+        .post('/api/admin/ecommerce/data/import', [SettingsCtrl, 'importData'])
+        .as('ecommerce.api.data.import')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:settings:manage' }))
