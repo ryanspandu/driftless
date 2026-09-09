@@ -686,6 +686,25 @@ export function registerTools(
     { breakpoints: z.array(z.record(z.any())) },
     ({ breakpoints }) => run(() => call('PUT', '/api/mcp/v1/breakpoints', { breakpoints }))
   )
+  server.tool(
+    'use_page_as_role',
+    'Assign a PUBLISHED builder page to a site page-role slot ("use as page"): the home front page, the sign-in/sign-up/forgot/reset auth screens, the 404/500 error screens, and the content category/tag archives. pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED and a builder page, else it is rejected (a draft/code page would silently fall back). For a `categoryArchive`/`tagArchive` page, put a Collection List bound to the `posts` collection on it — it auto-lists that category/tag.',
+    {
+      role: z.enum([
+        'home',
+        'login',
+        'register',
+        'forgotPassword',
+        'resetPassword',
+        'notFound',
+        'serverError',
+        'categoryArchive',
+        'tagArchive',
+      ]),
+      pageId: z.string().describe('The builder page id to assign, or "" to reset to the built-in screen.'),
+    },
+    (args) => run(() => call('PUT', '/api/mcp/v1/page-roles', args))
+  )
 
   // ── Media ────────────────────────────────────────────────────────────────────
   server.tool(
@@ -951,6 +970,26 @@ export function registerTools(
     'Delete a store product tag. Products are detached from it (not deleted).',
     { id: z.string() },
     ({ id }) => run(() => call('DELETE', `/api/mcp/v1/product-tags/${id}`))
+  )
+  server.tool(
+    'set_storefront_page',
+    'Assign a PUBLISHED builder page to an e-commerce storefront screen: the shop front (`shop`), the product-detail template (`product`), cart/checkout/order status, account/login/register, and the category/tag archives (`/shop/category|tag/:slug`). pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED + a builder page. Requires the ecommerce module enabled. For a `category`/`tag` archive, drop a ProductList block on the page — it auto-lists that taxonomy.',
+    {
+      slot: z.enum([
+        'shop',
+        'product',
+        'cart',
+        'checkout',
+        'order',
+        'account',
+        'login',
+        'register',
+        'category',
+        'tag',
+      ]),
+      pageId: z.string().describe('The builder page id, or "" to reset to the built-in screen.'),
+    },
+    (args) => run(() => call('PUT', '/api/mcp/v1/storefront-pages', args))
   )
 
   // ── Content (blog/news posts + their categories & tags) ─────────────────────

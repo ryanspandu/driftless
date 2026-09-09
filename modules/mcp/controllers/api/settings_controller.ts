@@ -1,7 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { WebSettingsService } from '#services/settings_service'
+import { PAGE_ROLE_SLOTS_BY_SLOT, type OverrideSlot } from '#services/page_role_slots'
+import Page from '#models/page'
 
 const settings = new WebSettingsService()
+
+const ROLE_SLOTS = Object.keys(PAGE_ROLE_SLOTS_BY_SLOT) as OverrideSlot[]
 
 /**
  * Builder-API surface for site-wide appearance + config. Thin over
@@ -39,7 +43,9 @@ export default class BuilderSettingsController {
     try {
       const result = await settings.setAppearanceValidated(body)
       if (!result.ok) {
-        return response.status(422).json({ message: 'Invalid appearance value', issues: result.issues })
+        return response
+          .status(422)
+          .json({ message: 'Invalid appearance value', issues: result.issues })
       }
       return response.json(result.theme)
     } catch (e) {
@@ -61,5 +67,36 @@ export default class BuilderSettingsController {
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
+  }
+
+  /**
+   * Assign a builder page to a page-role slot ("use as page") — home, the auth /
+   * error screens, and the content category/tag archives. `pageId: ""` clears
+   * the slot back to the built-in screen. The resolver only ever surfaces a
+   * PUBLISHED + BUILDER page, so we reject anything else here rather than let it
+   * silently fall back. Same primitive the admin UI uses (`applyPatches`).
+   */
+  async usePageAsRole({ request, response }: HttpContext) {
+    const role = String(request.input('role', '')) as OverrideSlot
+    // Bodyparser converts an empty string to null (`convertEmptyStringsToNull`),
+    // so coalesce null/undefined → '' to mean "clear the slot".
+    const pageId = String(request.input('pageId') ?? '').trim()
+    const slot = PAGE_ROLE_SLOTS_BY_SLOT[role]
+    if (!slot) {
+      return response.status(422).json({
+        message: `Unknown role "${role}". Valid roles: ${ROLE_SLOTS.join(', ')}.`,
+      })
+    }
+    if (pageId) {
+      const page = await Page.query().where('id', pageId).whereNull('deleted_at').first()
+      if (!page) return response.status(404).json({ message: `Page "${pageId}" not found.` })
+      if (page.status !== 'PUBLISHED' || page.kind !== 'BUILDER') {
+        return response.status(422).json({
+          message: 'A page role needs a PUBLISHED builder page (drafts/code pages are ignored).',
+        })
+      }
+    }
+    await settings.applyPatches([{ section: slot.section, key: slot.key, value: pageId }])
+    return response.json({ role, section: slot.section, key: slot.key, pageId: pageId || null })
   }
 }

@@ -12,6 +12,8 @@ const MenusCtrl = () => import('#modules/mcp/controllers/api/menus_controller')
 const SettingsCtrl = () => import('#modules/mcp/controllers/api/settings_controller')
 const MediaCtrl = () => import('#modules/mcp/controllers/api/media_controller')
 const ProductsCtrl = () => import('#modules/mcp/controllers/api/products_controller')
+const EcommerceSettingsCtrl = () =>
+  import('#modules/mcp/controllers/api/ecommerce_settings_controller')
 const ContentCtrl = () => import('#modules/mcp/controllers/api/content_controller')
 const RpcCtrl = () => import('#modules/mcp/controllers/mcp_rpc_controller')
 
@@ -349,6 +351,12 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .put('/api/mcp/v1/global-code', [SettingsCtrl, 'setGlobalCode'])
             .as('mcp.globalcode')
             .use(read('builder:settings'))
+          // Assign a builder page to a page-role slot (home / auth / error /
+          // content category+tag archives).
+          router
+            .put('/api/mcp/v1/page-roles', [SettingsCtrl, 'usePageAsRole'])
+            .as('mcp.pageroles')
+            .use(read('builder:settings'))
         })
         .use(middleware.permission({ permission: 'settings:manage' }))
 
@@ -460,6 +468,18 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
                 .use(read('builder:products'))
             })
             .use(middleware.permission({ permission: 'ecommerce:products:manage' }))
+
+          // Storefront page-role assignments — RBAC `ecommerce:settings:manage`
+          // (distinct from products). Assign a builder page to a storefront
+          // screen incl. the category/tag archives.
+          router
+            .group(() => {
+              router
+                .put('/api/mcp/v1/storefront-pages', [EcommerceSettingsCtrl, 'setStorefrontPage'])
+                .as('mcp.ecommerce.storefront.pages')
+                .use(read('builder:settings'))
+            })
+            .use(middleware.permission({ permission: 'ecommerce:settings:manage' }))
         })
         .use(middleware.moduleEnabled({ name: 'ecommerce' }))
     })
