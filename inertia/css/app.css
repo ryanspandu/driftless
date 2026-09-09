@@ -613,6 +613,16 @@ html {
   width: 100% !important;
 }
 
+/* Puck radio fields with many options (e.g. CollectionList's 4-way "Item
+   design") cram into one flex row — each option ~25% wide, so the labels wrap
+   mid-word. Lay a group of FOUR-OR-MORE out as a 2-column grid instead; the
+   `:has()` guard leaves the common 2-option toggles (Show image/title/excerpt)
+   as their tidy single-row segmented control. Hash-agnostic substring match. */
+[class*='_Input-radioGroupItems_']:has(> label:nth-child(4)) {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
 /* Dark mode for the Puck editor chrome: Puck defines its palette on :root (light
    only), so invert its grey ramp + swap white/black under html.dark (higher
    specificity than :root, wins regardless of stylesheet order). This themes the
