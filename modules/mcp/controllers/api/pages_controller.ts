@@ -13,8 +13,37 @@ import { appUrl } from '#config/app'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
 import { hasPrivilegedPageContent } from '#services/html_sanitizer_service'
 import { CUSTOM_TEMPLATES } from '#services/custom_templates.generated'
+import TemplateKitsService from '#services/template_kits_service'
 
 const pages = new PagesService()
+const templateKits = new TemplateKitsService()
+
+/**
+ * If `component` points at a single-template kit (`kit:<id>`), return that kit id
+ * — otherwise null. Mirrors the admin page controller's `kitOfComponent`, but
+ * only for the `kit:<id>` form MCP advertises (bare code-page slugs belong to no
+ * kit and are validated by `PagesService.assertComponent`).
+ */
+function kitOfComponent(component: unknown): string | null {
+  if (typeof component !== 'string') return null
+  const m = component.match(/^kit:([a-z0-9][a-z0-9-]*)$/)
+  return m ? m[1] : null
+}
+
+/**
+ * Reject a page pointed at an INACTIVE custom-template kit, matching the admin
+ * picker (which only offers active kits). `PagesService.assertComponent` accepts
+ * any installed kit regardless of active state, and MCP has no human picker in
+ * the loop, so this is the only place that stops an AI from building a page on a
+ * kit the operator has hidden. Returns an error message, or null when allowed.
+ */
+async function inactiveKitError(component: unknown): Promise<string | null> {
+  const kit = kitOfComponent(component)
+  if (!kit) return null
+  const active = await templateKits.activeSet()
+  if (active.has(kit)) return null
+  return `Custom template kit "${kit}" is not active — activate it in the admin before building a page on it, or call list_custom_templates for the kits you may use.`
+}
 
 /**
  * Gate executable page content on the MCP surface, exactly as the admin
@@ -113,7 +142,10 @@ export default class BuilderPagesController {
    * valid `kit:<id>` values before creating a CODE page that points at one.
    */
   async customTemplates({ response }: HttpContext) {
-    return response.json(CUSTOM_TEMPLATES)
+    // Only offer ACTIVE kits — same as the admin picker — so the AI can't build a
+    // page on a kit the operator has deactivated/hidden.
+    const active = await templateKits.activeSet()
+    return response.json(CUSTOM_TEMPLATES.filter((t) => active.has(t.id)))
   }
 
   async store({ request, auth, response }: HttpContext) {
@@ -137,6 +169,9 @@ export default class BuilderPagesController {
     if (!(await mayManageExecutable(user, dto))) {
       return response.status(403).json({ message: EXECUTABLE_DENIED })
     }
+
+    const kitErr = await inactiveKitError(dto.component)
+    if (kitErr) return response.status(422).json({ message: kitErr })
 
     let check: ValidationResult | undefined
     let resp: { responsiveAdded: number } | undefined
@@ -185,6 +220,13 @@ export default class BuilderPagesController {
     }
     if (!(await mayManageExecutable(user, dto, currentKind))) {
       return response.status(403).json({ message: EXECUTABLE_DENIED })
+    }
+
+    // Only guard when the caller is (re)pointing the page at a kit — leaving
+    // `component` unset keeps whatever the page already has.
+    if (dto.component !== undefined) {
+      const kitErr = await inactiveKitError(dto.component)
+      if (kitErr) return response.status(422).json({ message: kitErr })
     }
 
     let check: ValidationResult | undefined

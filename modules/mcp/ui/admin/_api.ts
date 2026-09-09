@@ -54,7 +54,12 @@ export const MCP_ABILITY_OPTIONS: { id: string; label: string; hint: string }[] 
   {
     id: 'builder:products',
     label: 'Products',
-    hint: 'create/update products, variants, categories (needs ecommerce)',
+    hint: 'create/update products, variants, categories, tags (needs ecommerce)',
+  },
+  {
+    id: 'builder:content',
+    label: 'Content',
+    hint: 'create/update posts + their categories & tags',
   },
   { id: 'cms:read', label: 'Records (read)', hint: 'list/read collection records' },
   { id: 'cms:write', label: 'Records (write)', hint: 'create/update/delete records' },

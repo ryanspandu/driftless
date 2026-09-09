@@ -12,6 +12,7 @@ const MenusCtrl = () => import('#modules/mcp/controllers/api/menus_controller')
 const SettingsCtrl = () => import('#modules/mcp/controllers/api/settings_controller')
 const MediaCtrl = () => import('#modules/mcp/controllers/api/media_controller')
 const ProductsCtrl = () => import('#modules/mcp/controllers/api/products_controller')
+const ContentCtrl = () => import('#modules/mcp/controllers/api/content_controller')
 const RpcCtrl = () => import('#modules/mcp/controllers/mcp_rpc_controller')
 
 /**
@@ -214,6 +215,69 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
         })
         .use(middleware.permission({ resource: 'page' }))
 
+      // Content (blog/news posts + their categories & tags) — RBAC resource
+      // `content`. A first-class core entity, so it gets its own controller;
+      // reads take `builder:read`, writes `builder:content`.
+      router
+        .group(() => {
+          // Static taxonomy paths first (distinct prefixes, but keep them above
+          // the `content/:id` param route for clarity).
+          router
+            .get('/api/mcp/v1/content-categories', [ContentCtrl, 'indexCategories'])
+            .as('mcp.content.categories.index')
+            .use(read('builder:read'))
+          router
+            .post('/api/mcp/v1/content-categories', [ContentCtrl, 'storeCategory'])
+            .as('mcp.content.categories.store')
+            .use(read('builder:content'))
+          router
+            .put('/api/mcp/v1/content-categories/:id', [ContentCtrl, 'updateCategory'])
+            .as('mcp.content.categories.update')
+            .use(read('builder:content'))
+          router
+            .delete('/api/mcp/v1/content-categories/:id', [ContentCtrl, 'destroyCategory'])
+            .as('mcp.content.categories.destroy')
+            .use(read('builder:content'))
+          router
+            .get('/api/mcp/v1/content-tags', [ContentCtrl, 'indexTags'])
+            .as('mcp.content.tags.index')
+            .use(read('builder:read'))
+          router
+            .post('/api/mcp/v1/content-tags', [ContentCtrl, 'storeTag'])
+            .as('mcp.content.tags.store')
+            .use(read('builder:content'))
+          router
+            .put('/api/mcp/v1/content-tags/:id', [ContentCtrl, 'updateTag'])
+            .as('mcp.content.tags.update')
+            .use(read('builder:content'))
+          router
+            .delete('/api/mcp/v1/content-tags/:id', [ContentCtrl, 'destroyTag'])
+            .as('mcp.content.tags.destroy')
+            .use(read('builder:content'))
+          // Posts.
+          router
+            .get('/api/mcp/v1/content', [ContentCtrl, 'index'])
+            .as('mcp.content.index')
+            .use(read('builder:read'))
+          router
+            .get('/api/mcp/v1/content/:id', [ContentCtrl, 'show'])
+            .as('mcp.content.show')
+            .use(read('builder:read'))
+          router
+            .post('/api/mcp/v1/content', [ContentCtrl, 'store'])
+            .as('mcp.content.store')
+            .use(read('builder:content'))
+          router
+            .put('/api/mcp/v1/content/:id', [ContentCtrl, 'update'])
+            .as('mcp.content.update')
+            .use(read('builder:content'))
+          router
+            .delete('/api/mcp/v1/content/:id', [ContentCtrl, 'destroy'])
+            .as('mcp.content.destroy')
+            .use(read('builder:content'))
+        })
+        .use(middleware.permission({ resource: 'content' }))
+
       // Templates — RBAC resource `template`.
       router
         .group(() => {
@@ -329,6 +393,10 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
                 .get('/api/mcp/v1/categories', [ProductsCtrl, 'indexCategories'])
                 .as('mcp.products.categories.index')
                 .use(read('builder:read'))
+              router
+                .get('/api/mcp/v1/product-tags', [ProductsCtrl, 'indexTags'])
+                .as('mcp.products.tags.index')
+                .use(read('builder:read'))
               // `/products/:id` comes AFTER the static `/products` list (above) so
               // the param route can't shadow the list. `/categories` is a separate
               // top-level path — its position is order-independent.
@@ -377,6 +445,18 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
               router
                 .delete('/api/mcp/v1/categories/:id', [ProductsCtrl, 'destroyCategory'])
                 .as('mcp.products.categories.destroy')
+                .use(read('builder:products'))
+              router
+                .post('/api/mcp/v1/product-tags', [ProductsCtrl, 'storeTag'])
+                .as('mcp.products.tags.store')
+                .use(read('builder:products'))
+              router
+                .put('/api/mcp/v1/product-tags/:id', [ProductsCtrl, 'updateTag'])
+                .as('mcp.products.tags.update')
+                .use(read('builder:products'))
+              router
+                .delete('/api/mcp/v1/product-tags/:id', [ProductsCtrl, 'destroyTag'])
+                .as('mcp.products.tags.destroy')
                 .use(read('builder:products'))
             })
             .use(middleware.permission({ permission: 'ecommerce:products:manage' }))

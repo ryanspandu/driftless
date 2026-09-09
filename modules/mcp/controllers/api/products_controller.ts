@@ -245,4 +245,43 @@ export default class BuilderProductsController {
       return this.failed(response, e)
     }
   }
+
+  // ── Tags ─────────────────────────────────────────────────────────────────────
+
+  async indexTags({ response }: HttpContext) {
+    const catalog = await this.catalog()
+    return response.json(await catalog.listTags())
+  }
+
+  async storeTag({ request, response }: HttpContext) {
+    try {
+      const { createTagValidator } = await this.validators()
+      const payload = await request.validateUsing(createTagValidator)
+      const catalog = await this.catalog()
+      return response.status(201).json(await catalog.createTag(payload))
+    } catch (e) {
+      return this.failed(response, e)
+    }
+  }
+
+  async updateTag({ params, request, response }: HttpContext) {
+    try {
+      const { updateTagValidator } = await this.validators()
+      const payload = await request.validateUsing(updateTagValidator)
+      const catalog = await this.catalog()
+      return response.json(await catalog.updateTag(String(params.id), payload))
+    } catch (e) {
+      return this.failed(response, e)
+    }
+  }
+
+  async destroyTag({ params, response }: HttpContext) {
+    try {
+      const catalog = await this.catalog()
+      await catalog.removeTag(String(params.id))
+      return response.json({ success: true })
+    } catch (e) {
+      return this.failed(response, e)
+    }
+  }
 }

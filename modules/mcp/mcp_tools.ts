@@ -257,6 +257,7 @@ export function registerTools(
         'DATE',
         'DATETIME',
         'SELECT',
+        'MULTISELECT',
         'EMAIL',
         'PASSWORD',
         'RICHTEXT',
@@ -268,7 +269,7 @@ export function registerTools(
         'COMPONENT',
       ])
       .describe(
-        'CMS field type. Use BOOL (not BOOLEAN). RELATION requires config.targetKey; SELECT stores plain text unless config.options is passed.'
+        'CMS field type. Use BOOL (not BOOLEAN). RELATION requires config.targetKey; SELECT stores a single chosen value and MULTISELECT stores an array of chosen values — both take their choices from config.options.'
       ),
     required: z
       .boolean()
@@ -286,7 +287,7 @@ export function registerTools(
       .record(z.any())
       .optional()
       .describe(
-        'Type-specific config. RELATION: { targetKey: <existing dynamic collection key>, relationType: "manyToOne"|"oneToOne"|"manyToMany"|"oneToMany" (default manyToOne) }. SELECT: { options: string[] }. SLUG: { source: <field key> }.'
+        'Type-specific config. RELATION: { targetKey: <existing dynamic collection key>, relationType: "manyToOne"|"oneToOne"|"manyToMany"|"oneToMany" (default manyToOne) }. SELECT / MULTISELECT: { options: Array<string | { label, value }> } — a plain string is used as both label and value; a MULTISELECT record value is the array of chosen `value`s. SLUG: { source: <field key> }.'
       ),
   }
   server.tool(
@@ -775,6 +776,10 @@ export function registerTools(
       .optional()
       .describe('Featured products fill a ProductList with { source: { featured: true } }'),
     categoryIds: z.array(z.string()).optional().describe('Category IDs from list_categories'),
+    tagIds: z
+      .array(z.string())
+      .optional()
+      .describe('Product tag IDs from list_product_tags (max 50). Replaces the set on update.'),
     images: z.array(ImageInput).optional(),
     ctaMode: z.enum(['add_to_cart', 'buy_now', 'external']).optional(),
     externalUrl: z.string().nullable().optional(),
@@ -914,5 +919,159 @@ export function registerTools(
     'Delete a category. Products are detached from it (not deleted).',
     { id: z.string() },
     ({ id }) => run(() => call('DELETE', `/api/mcp/v1/categories/${id}`))
+  )
+
+  // ── Product tags ───────────────────────────────────────────────────────────
+  // Store product tags (distinct from CONTENT tags — see create_content_tag).
+  const productTagOptional = {
+    slug: z.string().optional(),
+    description: z.string().nullable().optional(),
+    position: z.number().optional(),
+  }
+  server.tool(
+    'list_product_tags',
+    'List store product tags (needs the ecommerce module). Assign them to products with create_product/update_product `tagIds`.',
+    {},
+    () => run(() => call('GET', '/api/mcp/v1/product-tags'))
+  )
+  server.tool(
+    'create_product_tag',
+    "Create a store product tag. Assign products to it with create_product/update_product `tagIds` (the tag id). The response returns the tag `slug` — use it as a ProductList `source.tagSlug` (or a storefront /tag/<slug> archive) to show only that tag.",
+    { name: z.string(), ...productTagOptional },
+    (args) => run(() => call('POST', '/api/mcp/v1/product-tags', args))
+  )
+  server.tool(
+    'update_product_tag',
+    'Update a store product tag. Only pass fields you want to change.',
+    { id: z.string(), name: z.string().optional(), ...productTagOptional },
+    ({ id, ...body }) => run(() => call('PUT', `/api/mcp/v1/product-tags/${id}`, body))
+  )
+  server.tool(
+    'delete_product_tag',
+    'Delete a store product tag. Products are detached from it (not deleted).',
+    { id: z.string() },
+    ({ id }) => run(() => call('DELETE', `/api/mcp/v1/product-tags/${id}`))
+  )
+
+  // ── Content (blog/news posts + their categories & tags) ─────────────────────
+  // Posts are a first-class core entity (NOT a CMS collection and NOT products).
+  // Reads need builder:read; writes need the builder:content token ability ∩ the
+  // RBAC `content` resource.
+  const contentOptional = {
+    status: z
+      .enum(['DRAFT', 'PUBLISHED'])
+      .optional()
+      .describe("'PUBLISHED' = publicly listed, 'DRAFT' = hidden. Defaults to DRAFT on create."),
+    visibility: z
+      .enum(['PUBLIC', 'PROTECTED', 'MEMBER'])
+      .optional()
+      .describe(
+        'Who may read a PUBLISHED post: PUBLIC (anyone), PROTECTED (needs `password`), MEMBER (signed-in members). Defaults to PUBLIC.'
+      ),
+    password: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Plaintext gate password — REQUIRED when visibility is PROTECTED; stored encrypted.'),
+    featuredImage: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Featured image asset URL (from upload_media / list_media).'),
+    data: z
+      .record(z.any())
+      .nullable()
+      .optional()
+      .describe('Custom fields defined by the Content-type collection; coerced + filtered server-side.'),
+    categoryIds: z
+      .array(z.string())
+      .optional()
+      .describe('Content category IDs from list_content_categories. Replaces the set on update.'),
+    tagIds: z
+      .array(z.string())
+      .optional()
+      .describe('Content tag IDs from list_content_tags. Replaces the set on update.'),
+  }
+  server.tool('list_content', 'List content posts (blog/news).', {}, () =>
+    run(() => call('GET', '/api/mcp/v1/content'))
+  )
+  server.tool('get_content', 'Get one content post by id.', { id: z.string() }, ({ id }) =>
+    run(() => call('GET', `/api/mcp/v1/content/${id}`))
+  )
+  server.tool(
+    'create_content',
+    'Create a content post (blog/news). `body` is HTML (sanitised server-side). Set status:"PUBLISHED" to make it public. For a members-only or password-gated post set `visibility` (and `password` for PROTECTED).',
+    { title: z.string(), slug: z.string(), body: z.string(), ...contentOptional },
+    (args) => run(() => call('POST', '/api/mcp/v1/content', args))
+  )
+  server.tool(
+    'update_content',
+    'Update a content post. Only pass fields you want to change.',
+    {
+      id: z.string(),
+      title: z.string().optional(),
+      slug: z.string().optional(),
+      body: z.string().optional(),
+      ...contentOptional,
+    },
+    ({ id, ...body }) => run(() => call('PUT', `/api/mcp/v1/content/${id}`, body))
+  )
+  server.tool(
+    'delete_content',
+    'Delete (trash) a content post.',
+    { id: z.string() },
+    ({ id }) => run(() => call('DELETE', `/api/mcp/v1/content/${id}`))
+  )
+
+  const contentTaxonomyOptional = {
+    slug: z.string().optional(),
+    description: z.string().nullable().optional(),
+  }
+  server.tool('list_content_categories', 'List content (post) categories.', {}, () =>
+    run(() => call('GET', '/api/mcp/v1/content-categories'))
+  )
+  server.tool(
+    'create_content_category',
+    'Create a content (post) category. Assign posts with create_content/update_content `categoryIds`.',
+    { name: z.string(), parentId: z.string().nullable().optional(), ...contentTaxonomyOptional },
+    (args) => run(() => call('POST', '/api/mcp/v1/content-categories', args))
+  )
+  server.tool(
+    'update_content_category',
+    'Update a content category. Only pass fields you want to change.',
+    {
+      id: z.string(),
+      name: z.string().optional(),
+      parentId: z.string().nullable().optional(),
+      ...contentTaxonomyOptional,
+    },
+    ({ id, ...body }) => run(() => call('PUT', `/api/mcp/v1/content-categories/${id}`, body))
+  )
+  server.tool(
+    'delete_content_category',
+    'Delete a content category. Posts are detached from it (not deleted).',
+    { id: z.string() },
+    ({ id }) => run(() => call('DELETE', `/api/mcp/v1/content-categories/${id}`))
+  )
+  server.tool('list_content_tags', 'List content (post) tags.', {}, () =>
+    run(() => call('GET', '/api/mcp/v1/content-tags'))
+  )
+  server.tool(
+    'create_content_tag',
+    'Create a content (post) tag. Assign posts with create_content/update_content `tagIds`.',
+    { name: z.string(), ...contentTaxonomyOptional },
+    (args) => run(() => call('POST', '/api/mcp/v1/content-tags', args))
+  )
+  server.tool(
+    'update_content_tag',
+    'Update a content tag. Only pass fields you want to change.',
+    { id: z.string(), name: z.string().optional(), ...contentTaxonomyOptional },
+    ({ id, ...body }) => run(() => call('PUT', `/api/mcp/v1/content-tags/${id}`, body))
+  )
+  server.tool(
+    'delete_content_tag',
+    'Delete a content tag. Posts are detached from it (not deleted).',
+    { id: z.string() },
+    ({ id }) => run(() => call('DELETE', `/api/mcp/v1/content-tags/${id}`))
   )
 }

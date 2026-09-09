@@ -20,6 +20,7 @@ export const MCP_ABILITIES = [
   'builder:settings',
   'builder:media',
   'builder:products',
+  'builder:content',
   'cms:read',
   'cms:write',
 ] as const

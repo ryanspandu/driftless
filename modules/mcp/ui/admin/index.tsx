@@ -50,7 +50,8 @@ function abilityVariant(id: string): 'default' | 'success' | 'warning' {
     id.endsWith(':write') ||
     id === 'builder:collections' ||
     id === 'builder:pages' ||
-    id === 'builder:products'
+    id === 'builder:products' ||
+    id === 'builder:content'
   )
     return 'default'
   return 'success'
