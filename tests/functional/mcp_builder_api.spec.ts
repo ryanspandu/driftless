@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import User from '#models/user'
 import ModulesService from '#services/modules_service'
+import TemplateKitsService from '#services/template_kits_service'
 
 async function resetDatabase() {
   const cleanup = await testUtils.db().truncate()
@@ -207,6 +208,10 @@ test.group('MCP builder-API | pages + validator', (group) => {
 
 test.group('MCP builder-API | custom templates (kits)', (group) => {
   group.each.setup(async () => resetDatabase())
+  // The committed `example` reference kit ships fail-closed (inactive by default),
+  // so activate it explicitly here — these tests build on it, and a self-contained
+  // setup must not depend on ambient dev-DB state (tests run on a fresh seed).
+  group.each.setup(() => new TemplateKitsService().setActive('example', true))
 
   test('list_custom_templates returns the committed example kit', async ({ client, assert }) => {
     await enableMcp()
