@@ -1,5 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react'
-import { Render, type Data } from '@measured/puck'
+// Renderer-only entry (keeps the 312KB Puck editor out of the public bundle).
+import { Render } from '@measured/puck/rsc'
+import type { Data } from '@measured/puck'
 import { puckConfig } from '~/puck/config'
 import { getCodeTemplate } from '~/custom/registry'
 

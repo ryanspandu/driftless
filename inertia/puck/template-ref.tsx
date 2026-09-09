@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { Render, type Config, type Data } from '@measured/puck'
+// Renderer-only entry (keeps the 312KB Puck editor out of the public bundle).
+import { Render } from '@measured/puck/rsc'
+import type { Config, Data } from '@measured/puck'
 import { PanelSelect } from '~/puck/panel-select'
 import type { AppSelectOption } from '~/components/ui/app-select'
 

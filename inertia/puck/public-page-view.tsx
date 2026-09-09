@@ -1,6 +1,11 @@
 import { useMemo } from 'react'
 import { usePage } from '@inertiajs/react'
-import { Render, type Data } from '@measured/puck'
+// Render from the `/rsc` entry, not the barrel: the barrel co-locates the 312KB
+// Puck EDITOR in the same chunk, so importing it here dragged the whole editor
+// into the public page. `/rsc` ships only the renderer. Types are erased, so the
+// barrel `import type` costs nothing at runtime.
+import { Render } from '@measured/puck/rsc'
+import type { Data } from '@measured/puck'
 import { puckConfig } from '~/puck/config'
 import { type CmsRecord } from '~/puck/collection-list'
 import { PageOutletContext } from '~/puck/page-outlet'

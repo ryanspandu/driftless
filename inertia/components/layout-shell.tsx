@@ -1,7 +1,12 @@
-import { createElement, type ComponentType } from 'react'
+import { createElement, lazy, Suspense, type ComponentType } from 'react'
 import { usePage } from '@inertiajs/react'
-import AdminLayout from '~/layouts/admin'
-import AuthLayout from '~/layouts/auth'
+// Admin + auth layouts are lazy: they pull the whole dashboard UI (sidebar,
+// charts, admin components) which a PUBLIC page must never download. Every page
+// goes through LayoutShell, so a static import shipped all of that in the entry
+// bundle. Only public pages are server-rendered (config/inertia `ssr.pages`), so
+// these lazy layouts are never invoked during SSR — no Suspense-in-SSR hazard.
+const AdminLayout = lazy(() => import('~/layouts/admin'))
+const AuthLayout = lazy(() => import('~/layouts/auth'))
 import PublicLayout from '~/layouts/public'
 import { AbilityProvider } from '~/components/providers/ability-provider'
 import { OfflineProvider } from '~/components/providers/offline-provider'
@@ -147,13 +152,19 @@ export function LayoutShell({
     return (
       <AbilityProvider>
         <OfflineProvider>
-          <AdminLayout>{page}</AdminLayout>
+          <Suspense fallback={null}>
+            <AdminLayout>{page}</AdminLayout>
+          </Suspense>
         </OfflineProvider>
       </AbilityProvider>
     )
   }
   if (pageName.startsWith('auth/')) {
-    return <AuthLayout>{page}</AuthLayout>
+    return (
+      <Suspense fallback={null}>
+        <AuthLayout>{page}</AuthLayout>
+      </Suspense>
+    )
   }
   return (
     <PublicLayout>

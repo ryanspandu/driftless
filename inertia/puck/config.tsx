@@ -3,14 +3,10 @@ import { usePage } from '@inertiajs/react'
 import type { Config } from '@measured/puck'
 import { cn } from '~/lib/utils'
 import { CollectionSourceField, CollectionList, PostTaxonomyField } from '~/puck/collection-list'
-import { MenuHandleField } from '~/puck/menu-field'
-import { CollectionTemplateField } from '~/puck/collection-template-field'
-import { CodeCollectionField } from '~/puck/code-collection-field'
 import { withModuleBlocks } from '~/puck/module-blocks'
 import { withCustomBlocks } from '~/puck/custom-blocks'
 import { RichTextView } from '~/puck/rich-text-view'
 import { styleFields, Box, mergeLayout } from '~/puck/style-fields'
-import { MediaField } from '~/puck/media-field'
 import { normalizeImageValue, buildSrcset } from '~/puck/image-source'
 import { useBoundString, useBoundField, FieldOrText, type Binding } from '~/puck/record-binding'
 import { LottieAnimationView, SplineSceneView, RiveView } from '~/puck/media-embeds'
@@ -34,7 +30,6 @@ import {
   RegisterFormView,
   ResetPasswordFormView,
 } from '~/puck/blocks-auth'
-import { FormPickerField } from '~/puck/form-picker-field'
 import { TemplateRefField, TemplateRefView } from '~/puck/template-ref'
 import { PageOutletView } from '~/puck/page-outlet'
 import { cssFromSnippets, readSnippets } from '~/puck/custom-code'
@@ -43,6 +38,33 @@ import { cssFromSnippets, readSnippets } from '~/puck/custom-code'
 const RichTextField = lazy(() =>
   import('~/puck/rich-text-field').then((m) => ({ default: m.RichTextField }))
 )
+
+/**
+ * Editor-only custom-field UIs, lazy-loaded so they stay OUT of the public
+ * bundle. `<Render>` never calls a block's `fields`, only its `render`, so on a
+ * public page these never mount. Two of them (CollectionTemplateField,
+ * CodeCollectionField) pull `createUsePuck` from the Puck editor barrel, so
+ * lazy-splitting them is what finally keeps that ~312KB editor off public pages.
+ * Each call site wraps them in <Suspense fallback={<FieldLoading />}>.
+ */
+const CollectionTemplateField = lazy(() =>
+  import('~/puck/collection-template-field').then((m) => ({ default: m.CollectionTemplateField }))
+)
+const CodeCollectionField = lazy(() =>
+  import('~/puck/code-collection-field').then((m) => ({ default: m.CodeCollectionField }))
+)
+const MenuHandleField = lazy(() =>
+  import('~/puck/menu-field').then((m) => ({ default: m.MenuHandleField }))
+)
+const MediaField = lazy(() => import('~/puck/media-field').then((m) => ({ default: m.MediaField })))
+const FormPickerField = lazy(() =>
+  import('~/puck/form-picker-field').then((m) => ({ default: m.FormPickerField }))
+)
+
+/** Panel fallback while an editor field chunk loads (editor-only). */
+function FieldLoading() {
+  return <div className="text-xs text-muted-foreground">Loading…</div>
+}
 
 /** Extract a YouTube video id from a full URL (watch/youtu.be/embed/shorts) or a raw id. */
 function parseYouTubeId(input: string): string | null {
@@ -856,20 +878,22 @@ export const baseConfig: Config = {
           render: ({ value, onChange }) => {
             const cur = normalizeImageValue(value)
             return (
-              <MediaField
-                value={cur.url}
-                // A pasted / cleared URL carries no variants → plain object.
-                onChange={(url) => onChange((url ? { url } : '') as never)}
-                // A library pick captures dimensions + responsive srcset.
-                onPick={(item) =>
-                  onChange({
-                    url: item.url,
-                    width: item.width,
-                    height: item.height,
-                    srcset: buildSrcset(item.variants),
-                  } as never)
-                }
-              />
+              <Suspense fallback={<FieldLoading />}>
+                <MediaField
+                  value={cur.url}
+                  // A pasted / cleared URL carries no variants → plain object.
+                  onChange={(url) => onChange((url ? { url } : '') as never)}
+                  // A library pick captures dimensions + responsive srcset.
+                  onPick={(item) =>
+                    onChange({
+                      url: item.url,
+                      width: item.width,
+                      height: item.height,
+                      srcset: buildSrcset(item.variants),
+                    } as never)
+                  }
+                />
+              </Suspense>
             )
           },
         },
@@ -1036,7 +1060,9 @@ export const baseConfig: Config = {
           type: 'custom',
           label: 'Template',
           render: ({ value, onChange }) => (
-            <CollectionTemplateField value={value} onChange={onChange} />
+            <Suspense fallback={<FieldLoading />}>
+              <CollectionTemplateField value={value} onChange={onChange} />
+            </Suspense>
           ),
         },
         // A kit code component (`codetpl:<kit>/collection/<key>`) repeated per
@@ -1045,7 +1071,9 @@ export const baseConfig: Config = {
           type: 'custom',
           label: 'Code template',
           render: ({ value, onChange }) => (
-            <CodeCollectionField value={value} onChange={onChange} />
+            <Suspense fallback={<FieldLoading />}>
+              <CodeCollectionField value={value} onChange={onChange} />
+            </Suspense>
           ),
         },
         // The designed item, repeated once per record. Only used when Item
@@ -1389,7 +1417,9 @@ export const baseConfig: Config = {
           type: 'custom',
           label: 'Saved form (Collect only — renders its fields)',
           render: ({ onChange, value }) => (
-            <FormPickerField value={value as string} onChange={onChange} />
+            <Suspense fallback={<FieldLoading />}>
+              <FormPickerField value={value as string} onChange={onChange} />
+            </Suspense>
           ),
         },
         formName: {
@@ -1882,7 +1912,9 @@ export const baseConfig: Config = {
           type: 'custom',
           label: 'Menu',
           render: ({ value, onChange }) => (
-            <MenuHandleField value={value as string | undefined} onChange={onChange} />
+            <Suspense fallback={<FieldLoading />}>
+              <MenuHandleField value={value as string | undefined} onChange={onChange} />
+            </Suspense>
           ),
         },
         brand: { type: 'text', label: 'Brand (optional)' },
@@ -2088,11 +2120,13 @@ export const baseConfig: Config = {
           type: 'custom',
           label: 'Custom icon image (overrides name)',
           render: ({ value, onChange }) => (
-            <MediaField
-              value={typeof value === 'string' ? value : ''}
-              onChange={(url) => onChange((url || '') as never)}
-              onPick={(item) => onChange((item.url || '') as never)}
-            />
+            <Suspense fallback={<FieldLoading />}>
+              <MediaField
+                value={typeof value === 'string' ? value : ''}
+                onChange={(url) => onChange((url || '') as never)}
+                onPick={(item) => onChange((item.url || '') as never)}
+              />
+            </Suspense>
           ),
         },
         size: { type: 'text', label: 'Size (px)' },
