@@ -47,16 +47,25 @@ const server = new McpServer(
  * a focused subset instead of all ~80. MIRRORS MCP_TOOL_PROFILES / the in-app
  * `?profile=`/`?tools=` in `modules/mcp/mcp_tools.ts` — keep the 'pages' list in sync.
  */
+const PAGES_PROFILE = [
+  'get_block_catalog', 'list_pages', 'get_page', 'list_custom_templates', 'create_page', 'update_page',
+  'set_page_content', 'validate_page_content', 'render_page', 'patch_page_content',
+  'publish_page', 'discard_draft', 'delete_page', 'get_appearance', 'set_appearance',
+  'set_design_brief', 'check_design_coverage', 'get_preview_url', 'upload_media',
+  'crop_media', 'list_media',
+  'list_menus', 'get_menu', 'create_menu', 'set_menu_items',
+  'list_forms', 'get_form', 'create_form', 'update_form', 'delete_form',
+]
+// Collections/fields/records + full templates — what `build` adds over `pages`.
+const BUILD_EXTRAS = [
+  'list_collections', 'get_collection', 'create_collection', 'update_collection', 'delete_collection',
+  'add_field', 'update_field', 'delete_field', 'reorder_fields',
+  'list_records', 'create_record', 'update_record', 'delete_record',
+  'list_templates', 'get_template', 'create_template', 'set_default_template',
+]
 const PROFILES: Record<string, string[]> = {
-  pages: [
-    'get_block_catalog', 'list_pages', 'get_page', 'list_custom_templates', 'create_page', 'update_page',
-    'set_page_content', 'validate_page_content', 'render_page', 'patch_page_content',
-    'publish_page', 'discard_draft', 'delete_page', 'get_appearance', 'set_appearance',
-    'set_design_brief', 'check_design_coverage', 'get_preview_url', 'upload_media',
-    'crop_media', 'list_media',
-    'list_menus', 'get_menu', 'create_menu', 'set_menu_items',
-    'list_forms', 'get_form', 'create_form', 'update_form', 'delete_form',
-  ],
+  pages: PAGES_PROFILE,
+  build: [...PAGES_PROFILE, ...BUILD_EXTRAS],
 }
 ;(() => {
   const t = process.env.DRIFTLESS_MCP_TOOLS

@@ -65,40 +65,69 @@ type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: bo
  * can ask for a focused set instead of all ~80 — e.g. connect to
  * `/api/mcp/v1/rpc?profile=pages` to expose just the page-building essentials so
  * they all load. `full` (or no profile) exposes everything.
+ *
+ * `pages` = build/edit PAGES only. `build` = the whole CMS-site toolkit (pages +
+ * collections/fields/records + templates), minus the ecommerce/product noise, so
+ * a client that ranks poorly across all 86 tools reliably surfaces create_page,
+ * create_collection, add_field, etc.
  */
+const PAGES_PROFILE = [
+  'get_block_catalog',
+  'list_pages',
+  'get_page',
+  'list_custom_templates',
+  'create_page',
+  'update_page',
+  'set_page_content',
+  'validate_page_content',
+  'render_page',
+  'patch_page_content',
+  'publish_page',
+  'discard_draft',
+  'delete_page',
+  'get_appearance',
+  'set_appearance',
+  'set_design_brief',
+  'check_design_coverage',
+  'get_preview_url',
+  'upload_media',
+  'crop_media',
+  'list_media',
+  'list_menus',
+  'get_menu',
+  'create_menu',
+  'set_menu_items',
+  'list_forms',
+  'get_form',
+  'create_form',
+  'update_form',
+  'delete_form',
+]
+
+/** Collections/fields/records + full templates — what `build` adds over `pages`. */
+const BUILD_EXTRAS = [
+  'list_collections',
+  'get_collection',
+  'create_collection',
+  'update_collection',
+  'delete_collection',
+  'add_field',
+  'update_field',
+  'delete_field',
+  'reorder_fields',
+  'list_records',
+  'create_record',
+  'update_record',
+  'delete_record',
+  'list_templates',
+  'get_template',
+  'create_template',
+  'set_default_template',
+]
+
 export const MCP_TOOL_PROFILES: Record<string, string[]> = {
-  pages: [
-    'get_block_catalog',
-    'list_pages',
-    'get_page',
-    'list_custom_templates',
-    'create_page',
-    'update_page',
-    'set_page_content',
-    'validate_page_content',
-    'render_page',
-    'patch_page_content',
-    'publish_page',
-    'discard_draft',
-    'delete_page',
-    'get_appearance',
-    'set_appearance',
-    'set_design_brief',
-    'check_design_coverage',
-    'get_preview_url',
-    'upload_media',
-    'crop_media',
-    'list_media',
-    'list_menus',
-    'get_menu',
-    'create_menu',
-    'set_menu_items',
-    'list_forms',
-    'get_form',
-    'create_form',
-    'update_form',
-    'delete_form',
-  ],
+  pages: PAGES_PROFILE,
+  build: [...PAGES_PROFILE, ...BUILD_EXTRAS],
 }
 
 /**
