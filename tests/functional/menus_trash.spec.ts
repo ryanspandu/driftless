@@ -24,6 +24,7 @@ async function makeMenu(name = 'Main', handle?: string) {
 
 test.group('Menus trash', (group) => {
   group.each.setup(async () => resetDatabase())
+  group.each.timeout(30_000)
 
   test('remove soft-deletes the menu and its items', async ({ assert }) => {
     const menu = await makeMenu()

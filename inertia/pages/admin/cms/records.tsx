@@ -279,7 +279,7 @@ function CmsRecordsPageInner({ collectionKey: key }: { collectionKey: string }) 
         searchValue={search}
         onSearchChange={setSearch}
         filters={statusFilter}
-        urlSync={{ paramPrefix: 'rec' }}
+        urlSync={{}}
         emptyMessage={offline.isLoading ? 'Loading records…' : 'No records yet.'}
       />
 

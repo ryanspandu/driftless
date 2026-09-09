@@ -158,22 +158,25 @@ export default class MenusService {
   }
 
   /**
-   * Bring a trashed menu back, with its items. Only the items deleted *together
-   * with* the menu are revived (matched on the shared `deleted_at`), so items
-   * dropped earlier via `saveTree` stay gone. The handle is re-uniqued in case a
-   * live menu claimed it while this one sat in the trash.
+   * Bring a trashed menu back, with its items. Every soft-deleted item under the
+   * menu is revived (the faithful, simple mirror of `remove`). The handle is
+   * re-uniqued in case a live menu claimed it while this one sat in the trash.
    */
   async restore(id: string): Promise<MenuDto> {
     const menu = await Menu.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
-    const deletedAt = menu.deletedAt
+    // Resolve the handle BEFORE opening the write transaction: `uniqueHandle`
+    // queries on the default connection, and running it inside the transaction
+    // deadlocks a single-writer driver (SQLite) against the held write lock.
+    const handle = await this.uniqueHandle(menu.handle, menu.id)
     await db.transaction(async (trx) => {
       menu.useTransaction(trx)
-      menu.handle = await this.uniqueHandle(menu.handle, menu.id)
+      menu.handle = handle
       menu.deletedAt = null
       await menu.save()
-      const q = MenuItem.query({ client: trx }).where('menu_id', menu.id).whereNotNull('deleted_at')
-      if (deletedAt) q.where('deleted_at', deletedAt.toSQL()!)
-      await q.update({ deleted_at: null })
+      await MenuItem.query({ client: trx })
+        .where('menu_id', menu.id)
+        .whereNotNull('deleted_at')
+        .update({ deleted_at: null })
     })
     const items = await this.loadItems(menu.id)
     return { ...this.toSummary(menu, items.length), items: this.buildDtoTree(items, null) }

@@ -54,7 +54,7 @@ export default function MediaPage() {
 
   const parsed = useMemo(() => {
     const pageRaw = Number.parseInt(searchParams.get('page') ?? '1', 10)
-    const sizeRaw = Number.parseInt(searchParams.get('size') ?? String(DEFAULT_PAGE_SIZE), 10)
+    const sizeRaw = Number.parseInt(searchParams.get('pageSize') ?? String(DEFAULT_PAGE_SIZE), 10)
     return {
       q: searchParams.get('q') ?? '',
       from: searchParams.get('from') ?? '',
@@ -354,7 +354,7 @@ export default function MediaPage() {
             onPageIndexChange={(idx) => patchUrl({ page: idx <= 0 ? undefined : String(idx + 1) })}
             onPageSizeChange={(size) =>
               patchUrl({
-                size: size === DEFAULT_PAGE_SIZE ? undefined : String(size),
+                pageSize: size === DEFAULT_PAGE_SIZE ? undefined : String(size),
                 page: undefined,
               })
             }

@@ -444,7 +444,7 @@ function ContentPageInner() {
         toolbarActions={trashButton}
         rowSelection={selection}
         onRowSelectionChange={setSelection}
-        urlSync={{ paramPrefix: tab }}
+        urlSync={{}}
         emptyMessage={emptyState}
       />
 

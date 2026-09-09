@@ -32,7 +32,7 @@ export function readTableUrlParams(
   const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
 
   const rawSize = parseInt(
-    searchParams.get(p("size")) ?? String(defaultPageSize),
+    searchParams.get(p("pageSize")) ?? String(defaultPageSize),
     10,
   );
   const pageSize = pageSizeOptions.includes(rawSize) ? rawSize : defaultPageSize;
@@ -125,7 +125,7 @@ export function buildTableUrlPatch(
   const page = read.pageIndex + 1;
   patch[p("page")] = page > 1 ? String(page) : undefined;
 
-  patch[p("size")] =
+  patch[p("pageSize")] =
     read.pageSize !== defaultPageSize ? String(read.pageSize) : undefined;
 
   if (read.sorting.length > 0) {
