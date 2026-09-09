@@ -600,8 +600,21 @@ function DetailPanelImpl({
   // Styled blocks spread `styleFields` (so they have `maxWidth`); Spacer/PageOutlet
   // don't — for those we only show their own Content fields.
   const hasStyle = 'maxWidth' in fields
+  // CollectionList's "Post taxonomy" pin only filters the built-in `posts`
+  // collection; hide it for any other (or unset) collection so the panel doesn't
+  // offer a control that does nothing. `source` is normally `{ collectionKey }`
+  // but a bare key string is tolerated elsewhere, so read both shapes.
+  const rawSource = props.source
+  const collectionKey =
+    typeof rawSource === 'string'
+      ? rawSource
+      : (rawSource as { collectionKey?: string } | undefined)?.collectionKey
+  const hidePostsTaxonomy = type === 'CollectionList' && collectionKey !== 'posts'
   const contentKeys = Object.keys(fields).filter(
-    (k) => (hasStyle ? !STYLE_KEYS.has(k) : true) && fields[k]?.type !== 'slot'
+    (k) =>
+      (hasStyle ? !STYLE_KEYS.has(k) : true) &&
+      fields[k]?.type !== 'slot' &&
+      !(hidePostsTaxonomy && k === 'taxonomy')
   )
   const hasSpacing = hasStyle && SPACING_KEYS.some((k) => k in fields)
 
@@ -1596,9 +1609,9 @@ function parseColor(input: string): [number, number, number] | null {
     const h = hex[1]!
     const full = h.length === 3 ? h.replace(/(.)/g, '$1$1') : h
     return [
-      parseInt(full.slice(0, 2), 16),
-      parseInt(full.slice(2, 4), 16),
-      parseInt(full.slice(4, 6), 16),
+      Number.parseInt(full.slice(0, 2), 16),
+      Number.parseInt(full.slice(2, 4), 16),
+      Number.parseInt(full.slice(4, 6), 16),
     ]
   }
   const rgb = v.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/)

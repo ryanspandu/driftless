@@ -390,8 +390,7 @@ export function PostTaxonomyField({
         />
       </label>
       <p className="text-[11px] leading-snug text-muted-foreground">
-        Applies to a <span className="font-medium">Content posts</span> list only. Leave blank on a
-        category/tag archive page — it inherits that taxonomy automatically.
+        Leave blank on a category/tag archive page — it inherits that taxonomy automatically.
       </p>
     </div>
   )
