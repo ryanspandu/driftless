@@ -612,7 +612,7 @@ export function registerTools(
   )
   server.tool(
     'render_page',
-    "Render the page's DRAFT to HTML so you can SEE what you built (you author blind) and compare it against the reference BEFORE publishing. Reuses the /preview render; script bundles are stripped. Returns { url, html }. Read the HTML to check layout/spacing/text that check_design_coverage cannot judge.",
+    "Render the page's DRAFT to HTML so you can inspect the actual structure, text, resolved image URLs and inline styles you produced (you author blind). This is a DOM/HTML read, NOT a screenshot — reading it reveals empty slots, wrong/placeholder text, missing images and unintended nesting, but it CANNOT show true visual spacing, proportion or overflow. For those, use get_preview_url and have the operator eyeball it. Reuses the /preview render; script bundles are stripped. Returns { url, html }.",
     { id: z.string(), viewport: z.enum(['desktop', 'tablet', 'mobile']).optional() },
     ({ id, viewport }) =>
       run(() =>

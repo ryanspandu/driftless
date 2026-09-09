@@ -89,12 +89,27 @@ const BLOCK_HINTS: Record<string, string> = {
   Slider: 'A full-bleed rotating hero (one slide at a time). Use for a hero banner carousel.',
   Carousel: 'A multi-per-view sliding track. Use for logo strips or a row of scrolling cards.',
   Reviews:
-    'Testimonials as rating cards (author, rating, text, avatar). Use for a "what customers say" section — do NOT hand-build testimonial cards. Set layout:"carousel" for a horizontal slider of cards (vs the default "grid").',
+    'Testimonials as rating cards (author, rating, text, avatar). Use for a "what customers say" section — do NOT hand-build testimonial cards. Set layout:"carousel" for a horizontal slider of cards (vs the default "grid"). An omitted avatar renders a monogram, so it is safe to leave blank. showAggregate:"true" prints an AVERAGE rating computed from the reviews array — turn it OFF if the reviews are placeholder/invented, so you are not showing a fabricated stat.',
   Icon: 'A single icon for trust-bar / feature glyphs. Match the design in FIDELITY ORDER: (1) if the design’s icons are visible in a reference image, crop_media them and set the Icon `src` to the crop url; (2) if you have the icon files, upload_media them and set `src`; (3) otherwise set "name" to the closest curated key (e.g. palette, truck, shield-check, leaf) and colour it with the `textColor` styleProp = the design’s icon/accent colour (for a tinted badge add bg + borderRadius:"999px" + padding). Use an EMOJI only when the design literally shows emoji, and report it as a substitution. `src` overrides `name`.',
   FormBlock:
     'A working form (contact / signup / lead capture) — renders the fields of a SAVED form definition and handles submission. REQUIRED: set formSlug to an existing form\'s slug (from list_forms). Author the form itself with the form tools: create_form then update_form to add its `fields` (the FormBlock only picks a form, it does not define fields). A form CTA renders the SITE THEME colour like any Button. There is no error if formSlug is empty — it just renders nothing, so always bind it.',
   Accordion: 'An expandable question/answer list. Use for any FAQ or "common questions" section.',
   Tabs: 'Tabbed content panels for switching between related bodies of content.',
+  Text: 'A short inline text run (label, eyebrow, caption, stat number). For a real paragraph of body copy use Paragraph; for a section title use Heading.',
+  TextLink: 'A single inline text hyperlink — footer links, inline "read more", legal links. Set text + href; colour it with textColor. For a button-style CTA use Button instead.',
+  LinkBlock: 'Wraps its child blocks in one clickable link (a whole card/tile that navigates). Set href; put the content in its slot.',
+  DivBlock: 'A generic styleable box — use only when no purpose-built layout block fits. Make it a container with the layout styleProps (display:"flex"/"grid", gap, …), or an absolutely-positioned overlay child (position:"absolute" inside a position:"relative" parent).',
+  List: 'A bulleted/numbered list container; put ListItem children in its slot. Use for real lists, not for laying out cards (use Grid/VFlex for those).',
+  ListItem: 'One item inside a List.',
+  Divider: 'A thin horizontal rule to separate content (e.g. above a footer copyright). Style with borderColor/borderWidth/margin.',
+  Spacer: 'Adds vertical blank space. Prefer padding/margin/gap styleProps for rhythm; use Spacer only for a one-off gap.',
+  BlockQuote: 'A styled pull-quote. For customer testimonials use Reviews instead.',
+  Callout: 'A highlighted note/aside box (tip, warning, info). Give it a bg + borderRadius + padding.',
+  RichText: 'A block of pre-formatted HTML (headings, lists, links, emphasis) — html is a sanitized HTML string. Use for long-form body content; for a single heading/paragraph prefer Heading/Paragraph so you can style them individually.',
+  Navbar: 'A bare navigation container you build by hand. For the real site menu prefer the MenuBar block (labelled "Menu") — it renders a reusable Menu-Manager menu with automatic dropdowns/mega panels. Only hand-build in Navbar for a one-off custom bar.',
+  TemplateRef: 'Embeds a reusable COMPONENT/LAYOUT template inline (design once, reuse across pages). Set templateId to an id from list_templates. Use it to keep a shared section (a CTA, a feature block) consistent everywhere.',
+  CodeEmbed: 'Renders a snippet of sanitized presentation HTML (an embed/widget markup). NOT for running JS — put JS in per-page root.props.codeSnippets or set_global_code. To just SHOW source code to readers, use CodeBlock.',
+  CodeBlock: 'Displays escaped source code in a <pre> for readers to look at (a code sample). It does NOT execute anything and does NOT render HTML — for embed markup use CodeEmbed.',
   MenuBar:
     'THE navigation menu block (labelled "Menu"). Renders a REUSABLE menu built in the admin Menu Manager as a nav bar. REQUIRED: set `menuHandle` to an existing menu\'s handle (from list_menus) — without it it renders a placeholder. Popups are AUTOMATIC from the menu\'s structure: a top-level item that has sub-items opens a dropdown, and a full-width MEGA panel when those sub-items themselves have children (columns). Build/nest the tree with the menu tools (create_menu + set_menu_items) or the Menus admin, not here. Drop it in a HEADER/FOOTER template so the nav is shared site-wide.',
   CollectionList:
@@ -103,7 +118,7 @@ const BLOCK_HINTS: Record<string, string> = {
     '(2) template:"template" — repeat a COLLECTION template once per record; ALSO set templateId to the id of a template you made with create_template(type:"COLLECTION", collectionKey:"<same key>") (list it with list_templates). Inside that template, feed each leaf block from the record with `binding` (see behaviorSchemas) or {{fieldKey}} tokens. Without templateId this mode renders nothing. ' +
     '(3) template:"custom" — design the repeated `item` slot inline right here and bind its child blocks to record fields via `binding`/`conditions` (behaviorSchemas). ' +
     '(4) template:"code" — repeat a kit code component; set codeTemplate to "codetpl:<kit>/collection/<collectionKey>". ' +
-    'Optionally design the no-records state in the `empty` slot. Do NOT use this for e-commerce products — use ProductList.',
+    'Optionally design the no-records state in the `empty` slot. For the built-in POSTS collection you can pin the list to one category/tag with taxonomy: { categorySlug?, tagSlug? } (e.g. a "Latest from News" section). Do NOT use this for e-commerce products — use ProductList.',
   // Commerce module blocks:
   ProductList:
     'THE correct block for a product/shop grid — renders real product CARDS (image, title, price, columns, sorting) from the store. CREATE the products it shows with the create_product tool (they must be status:"active" to appear) — an empty store renders an empty grid. Do NOT fake products with a CMS collection + CollectionList.',
@@ -111,6 +126,25 @@ const BLOCK_HINTS: Record<string, string> = {
     'A single product’s full detail (gallery, price, add-to-cart). Use on a product template page.',
   CartBlock: 'The shopping-cart page contents.',
   CheckoutBlock: 'The checkout flow. Use on the checkout page.',
+}
+
+/**
+ * Per-FIELD notes for the fidelity-critical block fields the emitter would
+ * otherwise leave undescribed (Puck fields carry only a `label`). Keyed by
+ * `<BlockType>.<field>`; merged onto that field as `note`. Only the handful of
+ * fields where a blind AI needs guidance beyond the label — not every field.
+ */
+const FIELD_HINTS: Record<string, string> = {
+  'Image.priority':
+    'true = eager-load this image (no lazy-loading), for the ABOVE-THE-FOLD hero / LCP image so it is not delayed. Leave false for everything below the fold. The foreground twin of the background `bgLazy` styleProp.',
+  'Image.sizes':
+    'The responsive `sizes` attribute (e.g. "(max-width: 768px) 100vw, 50vw") so the browser picks the right srcset variant. Set it to the image’s displayed width to avoid downloading an oversized file.',
+  'Image.alt':
+    'Alt text — REQUIRED for accessibility + SEO on every content image. Describe the image; leave empty ONLY for a purely decorative image.',
+  'Icon.size':
+    'Icon size as a CSS length (e.g. "24px", "40px") — match the design’s glyph size. Colour it with the textColor styleProp.',
+  'Icon.name':
+    'A curated icon key (the options list). If the design’s glyph is not in the list, do NOT force a wrong one — crop it from the reference or upload it and set the `src` field instead (src overrides name).',
 }
 
 /** Hard do/don’t rules, served to every target (layout rules apply everywhere). */
@@ -122,6 +156,10 @@ const GUIDANCE_RULES: string[] = [
   'To put items SIDE BY SIDE, wrap them in a layout block — Grid or Columns for EQUAL-width columns, HFlex for a button/inline row OR an asymmetric split (give each child a `width` styleProp; flex honours it, equal grid tracks do not). Sibling blocks with no layout parent stack vertically. Any block can also become a flex container directly with the layout styleProps (display:"flex", gap, justifyContent, alignItems) — see the "layout" styleSchema.',
   'POSITION / OVERLAY. To pin or float an element on top of another (a badge, a "+" hotspot, a caption over a photo, a card overlapping the next section), give the PARENT position:"relative" and the child position:"absolute" with top/right/bottom/left + zIndex. This IS supported (see the "positioning" styleSchema) — never report an overlay as impossible. A card that overlaps the section below instead uses a negative top `margin`.',
   'RESPONSIVE & STATES. Adapt a block per screen size with responsive:{ "mobile":{ …styleProps } } (breakpoint ids from get_breakpoints; default desktop/tablet/mobile) — e.g. stack an HFlex on mobile with responsive:{ "mobile":{ "flexDirection":"column" } }. Add hover/focus/active styling with states:{ "hover":{ …styleProps } }. Both are documented under styleSchemas.',
+  'SPACING & RHYTHM. Use ONE consistent scale so bands line up — spacing steps 8/12/16/24/32/48/64/96px. Section vertical padding is typically "64px 0"–"96px 0" on desktop (tighter on mobile via responsive), the same across the page. Give every Container the SAME maxWidth (~1120px) so section edges align. Gaps: 12–24px between stacked elements, 24–32px between cards. Do not hand each section a different width or padding.',
+  'TYPOGRAPHY SCALE. Set a clear hierarchy with the typography styleProps (see styleSchemas.typography): body 16–18px, H2 ~32px, H1 40–56px, hero display 56–72px; headings weight 600–700, body 400. The theme has ONE font (set_appearance). For a serif-heading + sans-body pairing, load the second family in set_global_code (an @import or @font-face) and apply it per block with the `font` styleProp.',
+  'LEGIBILITY & CONTRAST. Body text ≥16px. Ensure high text/background contrast — dark ink on a light ground or vice-versa, never mid-grey on mid-grey; when you pick savedColors, `ink` must read clearly on `bg`, and every Button must read against its Section `bg`. Text over a photo ALWAYS needs an overlay/scrim `backgrounds` layer. On a band whose bg = var(--primary), a Button variant:"primary" is the SAME colour and vanishes — use variant:"custom" (a contrasting bg + textColor) or "outline" instead.',
+  'PICK THE RIGHT LAYOUT BLOCK. VFlex = a column that is ALWAYS stacked. HFlex = a horizontal row (button groups; or an asymmetric split via child `width`). Grid = 2–4 EQUAL columns that auto-drop to fewer on mobile (feature/logo/card rows) — the default choice for a row of equal cells. Columns = Grid without a rows control (prefer Grid). QuickStack = equal grid cells that do NOT auto-stack on mobile (auto-responsive skips it) — only use it when cells must stay side-by-side on phones; otherwise use Grid or VFlex. Any block can also become a flex/grid container directly with the layout styleProps.',
   'Prefer the purpose-built block over composing from scratch: Reviews for testimonials, Accordion for FAQ, Slider/Carousel for hero or rotating strips, ProductList for products.',
   'For a products / shop section use the commerce ProductList block (real cards with price + image), and CREATE the products it shows with the create_product tool — inline `price` (minor units, e.g. 4900 = $49.00) auto-creates a sellable "Default" variant; set status:"active" so they appear. Do NOT fake products with a CMS collection + CollectionList — that yields plain title/excerpt cards. ProductList and the product tools need the "ecommerce" module: confirm it is listed in this catalog’s "enabledModules" first; if absent, ask the operator to enable it rather than faking it.',
   'ASSETS ARE REAL PHOTOS, NOT GUESSES. NEVER substitute random stock or placeholder imagery (picsum, loremflickr, unsplash-source, placehold.co, dummyimage, …) for a hero, product, lifestyle or brand image — those hosts are REJECTED by upload_media and flagged by the validator. If the design’s actual assets were not supplied: (a) if you were given a design screenshot/mockup, upload it with upload_media(purpose:"reference") and cut the design’s OWN photos out with crop_media(mediaId, x, y, width, height) — coordinates in the reference’s pixels; (b) otherwise STOP and ask the operator for the image files/URLs; (c) only if told to proceed anyway, use upload_media(url, purpose:"placeholder") for a labelled stand-in and report every placeholder slot in your summary. Once you have an asset, use its returned `url` verbatim (Image `src`, a product image’s `mediaUrl`, or a Section `backgrounds` image layer url).',
@@ -191,7 +229,18 @@ const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string 
   {
     section: 'CTA band',
     blocks: ['Section(bg)', 'Container', 'Heading', 'Button'],
-    note: 'A coloured Section band with a heading and one CTA button. Set the Section bg to the design’s band colour — usually var(--primary) or a saved colour — and make sure the Button reads against it (variant:"primary", or variant:"custom" with bg+textColor to match the design exactly).',
+    note: 'A coloured Section band with a heading and one CTA button. Set the Section bg to the design’s band colour — usually var(--primary) or a saved colour. IMPORTANT: if the band IS var(--primary), do NOT use Button variant:"primary" (same colour → invisible) — use variant:"custom" with a contrasting bg+textColor (e.g. white bg + primary text) or variant:"outline" so the CTA reads.',
+  },
+  {
+    section: 'Footer',
+    blocks: [
+      'Section(bg:dark)',
+      'Container',
+      'HFlex( VFlex(brand + Paragraph), VFlex(Heading + TextLink×N), VFlex(Heading + TextLink×N) )',
+      'Divider',
+      'Paragraph(© copyright)',
+    ],
+    note: 'A dark Section → Container → an HFlex of VFlex link columns (each a small Heading + several TextLink items), then a Divider and a copyright Paragraph. Build footer links inline with TextLink here (give link/heading text a muted textColor). Use a MenuBar block ONLY if you want the SAME nav reused site-wide — that needs create_menu + set_menu_items first and belongs in a FOOTER template, not a one-off page footer.',
   },
   {
     section: 'Gallery',
@@ -451,7 +500,10 @@ function buildCatalog(
           }
           continue
         }
-        fields[name] = describeField(field)
+        const described = describeField(field)
+        const hint = FIELD_HINTS[`${type}.${name}`]
+        if (hint) described.note = hint
+        fields[name] = described
       }
       // The block's own defaultProps are the single most useful signal for the
       // AI — a ready-made valid example. Drop the framework-managed id.
@@ -514,9 +566,20 @@ const STYLE_SCHEMAS = {
     'position:"sticky"/"fixed" also work. These ARE rendered — use them instead of reporting an overlay as impossible.',
   sizing:
     'width/height/minWidth/minHeight/maxWidth/maxHeight take any CSS length ("100%", "480px", "60vh"); overflow:"hidden"|"auto"|"scroll" clips or scrolls a fixed-size box.',
+  typography:
+    'Type styling on any text block (Heading/Paragraph/Text/Button): textSize (CSS length), fontWeight ("400"–"800"), ' +
+    'lineHeight (unitless, e.g. "1.5"), letterSpacing ("-0.02em"), textTransform ("uppercase"), textDecoration, ' +
+    'fontStyle, align ("left"|"center"|"right"), and `font` (a font-family string — set this to use a SECOND family, ' +
+    'e.g. a sans body under serif headings; the theme fontFamily from set_appearance is the page default). ' +
+    'Suggested scale — body 16–18px / weight 400 / line-height ~1.5; H3 ~24px; H2 ~32px; H1 40–56px; hero display 56–72px ' +
+    'with a tight lineHeight ~1.1 and letterSpacing "-0.02em"; headings default to weight 600. Scale big headings DOWN per ' +
+    'breakpoint via responsive (e.g. responsive:{ "mobile":{ "textSize":"32px" } }).',
   effects:
     'transform ("translateY(-8px)", "rotate(-3deg)", "scale(1.05)"), opacity ("0.9"), transition ("all 0.2s ease"), ' +
-    'filter ("blur(4px)"), mixBlendMode ("multiply"), cursor ("pointer") are all plain CSS string values.',
+    'filter ("blur(4px)"), mixBlendMode ("multiply"), cursor ("pointer") are plain CSS string values. ' +
+    'boxShadow takes a PRESET token "none"|"sm"|"md"|"lg" OR a raw CSS shadow ("0 10px 30px rgba(0,0,0,0.12)"). ' +
+    'borderRadius ("12px", or "999px" for a pill/circle), borderWidth ("1px"), borderStyle ("solid"), borderColor ' +
+    '(hex or var(--color-<slug>)) build a border — set all of width/style/colour for it to show.',
   responsive:
     'Per-breakpoint overrides: responsive: { "<breakpointId>": { <any styleProp>: value, … } }. Only the props you override change ' +
     'at that width and NARROWER; everything else inherits the base. Default breakpoint ids are "desktop" (base), "tablet" (≤768px), ' +
@@ -550,7 +613,7 @@ const BEHAVIOR_SCHEMAS = {
   attributes:
     'Extra DOM attributes as an array [{ name, value }] — e.g. [{ "name":"data-track", "value":"cta-hero" }] or aria-* hooks. For safety these are dropped: class/className, id (use htmlId), style, on* event handlers, and javascript: values.',
   binding:
-    'CollectionList custom-template repeater ONLY. binding: { <slot>: <recordFieldKey> } feeds a leaf block\'s slot (e.g. "text","href","src") from the CURRENT record\'s field, overriding its static value — e.g. binding: { "text":"title", "href":"slug" } on a block inside a CollectionList whose template:"template". Outside a repeater it does nothing. (Inline {{fieldKey}} tokens in a string are the escape-hatch alternative.)',
+    'CollectionList custom-template repeater ONLY. binding: { <slot>: <recordFieldKey> } feeds a block\'s slot from the CURRENT record\'s field, overriding its static value. Bindable slots by block: "text" (Heading/Paragraph/Text), "label" + "href" (Button/link), "src" (Image, Video), "poster" (Video), "url" (YouTube), "html" (RichText), and — the flagship — "background" on ANY block, which paints the record\'s MEDIA field as a full-bleed COVER background image beneath your overlays (pair it with an overlay `backgrounds` layer + a `minHeight` for a per-record photo card with text on top). e.g. binding: { "text":"title", "href":"slug", "background":"coverImage" }. Outside a repeater it does nothing. (Inline {{fieldKey}} tokens in a string are the escape-hatch alternative for text.)',
   conditions:
     'CollectionList custom-template repeater ONLY. conditions: [{ field, op:"set"|"notset" }] hides this element for records where a rule fails (all rules AND) — e.g. show a "Sold out" badge only when a field is set. Outside a repeater nothing is hidden.',
 } as const
