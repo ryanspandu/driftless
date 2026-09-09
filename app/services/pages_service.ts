@@ -82,6 +82,8 @@ interface CreatePageInput {
   codeLayout?: string | null
   hideHeader?: boolean
   hideFooter?: boolean
+  scheduledPublishAt?: string | null
+  scheduledUnpublishAt?: string | null
   content?: Record<string, unknown>
   seo?: Record<string, unknown>
 }
@@ -157,6 +159,10 @@ export default class PagesService {
       codeLayout: dto.codeLayout ?? null,
       hideHeader: dto.hideHeader ?? false,
       hideFooter: dto.hideFooter ?? false,
+      scheduledPublishAt: dto.scheduledPublishAt ? DateTime.fromISO(dto.scheduledPublishAt) : null,
+      scheduledUnpublishAt: dto.scheduledUnpublishAt
+        ? DateTime.fromISO(dto.scheduledUnpublishAt)
+        : null,
       authorId,
       publishedAt: status === 'PUBLISHED' ? DateTime.now() : null,
     })

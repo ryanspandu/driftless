@@ -30,7 +30,11 @@ const SERVER_INSTRUCTIONS = `Driftless page builder. To reproduce a design refer
 6. Build with create_page / set_page_content. Use the styleProps for layout — flex (display:"flex", gap, justifyContent, alignItems), sizing, and position:"absolute" for overlays — not just spacing/colour. Use Icon with a curated name + textColor (or an uploaded icon src) — not emoji — unless the design uses emoji. Mobile/tablet responsive is added AUTOMATICALLY on save (grids drop columns, split rows stack, big headings shrink, tall heroes trim); it is additive, so only set your own responsive:{ … } overrides for anything you want different, or pass autoResponsive:false to do it all by hand.
 7. validate_page_content (fix issues; heed the warnings AND the changes it reports — a filled id, a slot moved into props, an unknown prop that will be ignored) AND check_design_coverage — fix every missing/reordered section, off-brand CTA/colour, emoji icon and image substitution it lists.
 8. render_page and READ the returned HTML — this is your ONLY look at the actual build; compare it to the reference and fix layout, spacing, sizing and text that coverage cannot see. To fix one block, patch_page_content by its props.id (a small diff) — do NOT re-send the whole page from memory, which is how revisions drift. Re-fetch get_page after a write to confirm your blocks/props survived.
-9. get_preview_url for the operator to look, then publish_page. Report any residual mismatches/substitutions you could not resolve.`
+9. SEO + PERFORMANCE + ACCESSIBILITY — a page-builder page is public and has to win at search and load fast:
+   • SEO: set \`seo\` (a meta description AND an ogImage on every public page; canonical/robots as needed) and keep \`renderMode\` SSR (the default) — SSR puts the content and any Collection List data in the initial HTML, so it is indexable; CSR ships empty HTML and must never be used for a public/SEO page. SSG is fine for pages whose data rarely changes.
+   • Performance: right-size images (crop_media to the display size — a huge photo shrunk into a card is wasted bytes) and keep any global JS (set_global_code) tiny, since it runs on every page.
+   • Accessibility: give every image real alt text and keep one <h1> with a sane heading order.
+10. get_preview_url for the operator to look, then publish_page. Report any residual mismatches/substitutions you could not resolve.`
 
 const server = new McpServer(
   { name: 'driftless', version: '1.0.0' },
@@ -40,7 +44,7 @@ const server = new McpServer(
 /**
  * Optional tool allowlist for tool-budget-limited clients. Set DRIFTLESS_MCP_TOOLS
  * (comma list) or DRIFTLESS_MCP_PROFILE=pages in the MCP client config to expose
- * a focused subset instead of all ~57. MIRRORS MCP_TOOL_PROFILES / the in-app
+ * a focused subset instead of all ~80. MIRRORS MCP_TOOL_PROFILES / the in-app
  * `?profile=`/`?tools=` in `modules/mcp/mcp_tools.ts` — keep the 'pages' list in sync.
  */
 const PROFILES: Record<string, string[]> = {
@@ -50,6 +54,7 @@ const PROFILES: Record<string, string[]> = {
     'publish_page', 'discard_draft', 'delete_page', 'get_appearance', 'set_appearance',
     'set_design_brief', 'check_design_coverage', 'get_preview_url', 'upload_media',
     'crop_media', 'list_media',
+    'list_menus', 'get_menu', 'create_menu', 'set_menu_items',
   ],
 }
 ;(() => {
@@ -244,12 +249,17 @@ server.tool(
     key: keySchema.describe(
       `Unique collection key — ${KEY_RULE} Also cannot be a built-in (posts/products).`
     ),
-    label: z.string(),
-    icon: z.string().optional(),
-    group: z.string().optional(),
-    revisionsOn: z.boolean().optional(),
-    draftsOn: z.boolean().optional(),
-    kind: z.enum(['collection', 'single']).optional(),
+    label: z.string().describe('Human name shown in the admin (e.g. "Blog posts").'),
+    icon: z.string().optional().describe('Optional lucide icon name for the admin nav.'),
+    group: z.string().optional().describe('Optional admin-sidebar group heading to file this collection under.'),
+    revisionsOn: z.boolean().optional().describe('Keep a version history of records.'),
+    draftsOn: z.boolean().optional().describe('Allow Draft vs Published records (public reads return published only).'),
+    kind: z
+      .enum(['collection', 'single'])
+      .optional()
+      .describe(
+        '"collection" (default) = many records (blog posts, products). "single" = exactly one record (a homepage/settings singleton).'
+      ),
     fields: z.array(z.object(FieldInput)).optional(),
   },
   (args) => run(() => api.post('/api/mcp/v1/collections', args))
@@ -379,6 +389,28 @@ const autoResponsiveField = {
       'Default true: the server auto-adds mobile/tablet responsive overrides (grids drop columns, split rows stack, big headings shrink, tall heroes trim). Additive — your own responsive is kept. Pass false to author responsive by hand.'
     ),
 }
+const SeoSchema = z
+  .object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    ogImage: z.string().optional(),
+    canonical: z.string().optional(),
+    noindex: z.boolean().optional(),
+    meta: z
+      .array(
+        z.object({
+          name: z.string().optional(),
+          property: z.string().optional(),
+          content: z.string(),
+        })
+      )
+      .optional(),
+    jsonLdCustom: z.string().optional(),
+  })
+  .describe(
+    'SEO / <head> fields — set these on EVERY public page. `description` is the search-result snippet and `ogImage` the social-share image (both strongly recommended for SEO). `title` overrides the tab/SERP title (falls back to the page title). `canonical` is auto-derived from the path when unset; set `noindex:true` to keep a page out of search. `meta` adds extra <meta> tags ({ name|property, content }); `jsonLdCustom` is raw JSON-LD.'
+  )
+
 const PageMeta = {
   status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
   renderMode: z
@@ -399,12 +431,62 @@ const PageMeta = {
     .describe(
       'Required when kind=CODE: what to render. A custom template is "kit:<id>" (call list_custom_templates for ids); a single-file code page is its bare slug. Leave unset for BUILDER.'
     ),
-  layoutId: z.string().nullable().optional(),
-  headerTemplateId: z.string().nullable().optional(),
-  footerTemplateId: z.string().nullable().optional(),
-  hideHeader: z.boolean().optional(),
-  hideFooter: z.boolean().optional(),
-  seo: z.record(z.any()).optional(),
+  layoutId: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      'LAYOUT template id (from list_templates) that wraps the page and owns its own header/footer; null = the site default.'
+    ),
+  headerTemplateId: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      'HEADER template id (from list_templates) overriding the site header for this page; null = site default. Ignored when a layout is set.'
+    ),
+  footerTemplateId: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('FOOTER template id (from list_templates); null = site default.'),
+  codeLayout: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      'Kit code-chrome LAYOUT pointer ("codetpl:<kit>/layout") — the coded alternative to layoutId. Mutually exclusive with layoutId.'
+    ),
+  codeHeader: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('Kit code-chrome HEADER pointer ("codetpl:<kit>/header"), the coded alternative to headerTemplateId.'),
+  codeFooter: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('Kit code-chrome FOOTER pointer ("codetpl:<kit>/footer").'),
+  hideHeader: z
+    .boolean()
+    .optional()
+    .describe(
+      'Render NO header at all (distinct from null = "use the site default") — for a full-viewport landing page or an auth screen.'
+    ),
+  hideFooter: z.boolean().optional().describe('Render NO footer at all.'),
+  scheduledPublishAt: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      'ISO timestamp to auto-publish this DRAFT page (null = none). Keep status DRAFT; a scheduler flips it live at that time.'
+    ),
+  scheduledUnpublishAt: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('ISO timestamp to auto-unpublish the page (null = none).'),
+  seo: SeoSchema.optional(),
   ...autoResponsiveField,
 }
 
@@ -418,7 +500,16 @@ server.tool(
 server.tool(
   'create_page',
   'Create a page. `content` (optional) is a Puck document validated against the catalog. For a coded page/custom template, pass kind:"CODE" + component (see list_custom_templates) and omit content.',
-  { title: z.string(), path: z.string(), content: PuckDoc.optional(), ...PageMeta },
+  {
+    title: z.string(),
+    path: z
+      .string()
+      .describe(
+        'URL slug for the public page — no leading slash, lowercase, e.g. "about" or "blog/hello". Must be unique. Special routes (home, auth, archives, storefront) are assigned via use_page_as_role / set_storefront_page, not by path.'
+      ),
+    content: PuckDoc.optional(),
+    ...PageMeta,
+  },
   (args) => run(() => api.post('/api/mcp/v1/pages', args))
 )
 
@@ -428,7 +519,10 @@ server.tool(
   {
     id: z.string(),
     title: z.string().optional(),
-    path: z.string().optional(),
+    path: z
+      .string()
+      .optional()
+      .describe('URL slug — no leading slash, lowercase (e.g. "about", "blog/hello"). Must stay unique.'),
     content: PuckDoc.optional(),
     ...PageMeta,
   },
@@ -438,7 +532,7 @@ server.tool(
 server.tool(
   'set_page_content',
   "Stage a Puck document as the page's draft (like the builder's autosave). Mobile/tablet responsive is added automatically (see autoResponsive). Publish to make it live.",
-  { id: z.string(), content: PuckDoc, seo: z.record(z.any()).optional(), ...autoResponsiveField },
+  { id: z.string(), content: PuckDoc, seo: SeoSchema.optional(), ...autoResponsiveField },
   ({ id, content, seo, autoResponsive }) =>
     run(() => api.put(`/api/mcp/v1/pages/${id}/content`, { content, seo, autoResponsive }))
 )
@@ -509,7 +603,7 @@ server.tool(
   {
     id: z.string(),
     content: PuckDoc.optional(),
-    seo: z.record(z.any()).optional(),
+    seo: SeoSchema.optional(),
     ...autoResponsiveField,
   },
   ({ id, ...body }) => run(() => api.post(`/api/mcp/v1/pages/${id}/publish`, body))
@@ -660,15 +754,35 @@ server.tool(
 
 server.tool(
   'set_global_code',
-  'Replace the site-wide custom code snippets (CSS/JS injected on every page).',
-  { snippets: z.array(z.record(z.any())) },
+  'Replace the site-wide custom code snippets injected on EVERY page (CSS into one <style>, each JS snippet a <script>). For code that belongs to ONE page, put it on that page document instead (see the PuckDoc root note), not here.',
+  {
+    snippets: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string().optional(),
+          lang: z.enum(['css', 'js']),
+          code: z.string(),
+          enabled: z.boolean().optional(),
+        })
+      )
+      .describe(
+        'The FULL replacement list (this overwrites the set — include existing snippets you want to keep). Each: { id (any unique string), name?, lang: "css"|"js", code, enabled? }. JS here runs on every page, so keep it tiny — it costs load time on every visit and is a security surface.'
+      ),
+  },
   ({ snippets }) => run(() => api.put('/api/mcp/v1/global-code', { snippets }))
 )
 
 server.tool(
   'set_breakpoints',
-  'Replace the site-wide responsive breakpoint tiers (Webflow-style). Affects the @media CSS baked into every page.',
-  { breakpoints: z.array(z.record(z.any())) },
+  'Replace the site-wide responsive breakpoint tiers (Webflow-style). Affects the @media CSS baked into every page. You rarely need this — auto-responsive already handles phones/tablets.',
+  {
+    breakpoints: z
+      .array(z.object({ id: z.string(), label: z.string(), maxWidth: z.number().nullable() }))
+      .describe(
+        'The FULL replacement tier list. Each: { id, label, maxWidth } — the WIDEST tier has maxWidth:null (the base/desktop layer); narrower tiers set a pixel max (default tablet 768, mobile 390). Changing tiers rebakes the @media CSS on every page.'
+      ),
+  },
   ({ breakpoints }) => run(() => api.put('/api/mcp/v1/breakpoints', { breakpoints }))
 )
 server.tool(
