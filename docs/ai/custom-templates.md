@@ -163,11 +163,32 @@ inertia/custom/kits/<name>/
   handles fetching, paging, sort and filter (server-side) — the component only draws one record.
 - See `inertia/custom/kits/example/collection/posts.tsx` for a runnable post-card reference.
 
-## Reading collection data — fetch CMS records at runtime
+## Reading collection data — SSR first (a kit is a public, SEO-facing page)
 
-A *collection template* (above) renders **one** record inside a builder-driven Collection List.
-When kit-owned markup needs to **fetch records itself** — a "latest posts" strip, a product grid, a
-custom listing — use the `useCollectionRecords` hook from `~/hooks/cms/use-collection-records`.
+A kit is served to the public, so **its dynamic data must be in the server-rendered HTML**: a
+crawler and an AI answer engine read the initial response, and the largest data row is usually the
+LCP element. **Default to SSR.** Reach for a client fetch only for data that should NOT be indexed.
+
+### ✅ Recommended — SSR the data with a Collection List block
+
+The **Collection List** block is preloaded on the server (`page_data_resolver.resolvePageCollections`
+walks the page's documents and fetches page 1 before render), so its records are in the first
+response — indexable, no loading flash, LCP-friendly. Reach it from a kit two ways, both fully SSR:
+
+- **A builder page** — a page built in the visual builder with a Collection List block; the operator
+  points it at any collection and picks the design. No kit code.
+- **A code kit that owns the design** — `export const editableRegion = true` + render
+  `<BuilderRegion />`; the operator drops a Collection List block into that region. To render each
+  record **in the kit's own markup**, ship a **collection template** `collection/<key>.tsx` (see the
+  section above) and have the operator set the block's *Item design → Code template*. Net result:
+  **SSR data + your design + SEO.** This is the pattern to recommend for an SSR blog/product grid.
+
+### ⚠️ Client-side — `useCollectionRecords` — NOT for SEO content
+
+When kit-owned markup must fetch records itself for a **non-indexed, interactive** section (a filter,
+"load more", search-as-you-type, personalised/account content), use `useCollectionRecords` from
+`~/hooks/cms/use-collection-records`. It runs **after hydration**, so the data is **absent from the
+SSR HTML** — do not use it for anything a search engine should read.
 
 ```tsx
 import { useCollectionRecords } from '~/hooks/cms/use-collection-records'
@@ -180,7 +201,7 @@ export default function LatestPosts() {
 }
 ```
 
-- It calls the public read API `GET /api/public/cms/:key/records` — **any** collection (`posts`,
+- Calls the public read API `GET /api/public/cms/:key/records` — **any** collection (`posts`,
   `products`, or your own CMS collections), **published records only**. Relation fields come back as
   display strings and media fields as public URLs.
 - **Options** (bold = the ones you'll reach for): `limit` — page size 1–100 (**note: `limit`, not
@@ -192,12 +213,40 @@ export default function LatestPosts() {
 - Each record is `{ id, status, data, createdAt, updatedAt }` — the collection's fields live under
   `data` (a `Record<string, unknown>`; narrow before use).
 
-> **SSR:** the hook fetches on the client, so the first server paint is empty and the data arrives
-> after hydration. That's fine for dynamic/interactive sections; for **SEO-critical, above-the-fold**
-> lists use the builder's Collection List block instead (it has the SSR preload).
+### Which to use
+
+| Need | Use | SSR / SEO |
+|---|---|---|
+| A list a crawler should read (blog index, product grid) | Collection List block — builder page, or region + `collection/<key>.tsx` | ✅ server-rendered |
+| Interactive filter / search / "load more" / personalised | `useCollectionRecords` (client) | ❌ after hydration |
+| One record, code-owned card, SEO | `collection/<key>.tsx` template on a block | ✅ server-rendered |
 
 > There is **no public endpoint that lists collection keys** — you pass the key you want. See
 > `inertia/custom/kits/example/pages/collection-demo.tsx` for a runnable reference.
+
+## Performance — build a fast, SEO-winning kit
+
+The **app** handles the infrastructure: assets are brotli/gzip-compressed and immutably cached
+(`asset_compression_middleware`), the kit's CSS is linked in the initial `<head>` (`public_block_css`,
+no flash), SSR pages are **hydrated** not re-rendered, and the editor never ships in the public
+bundle. A kit only has to get the **content-level** rules right — in order of Lighthouse impact:
+
+1. **Never hide above-the-fold content until JS runs.** A scroll-reveal that starts the hero at
+   `opacity: 0` and reveals it with JavaScript delays LCP by seconds on a throttled phone (the largest
+   element is invisible until the bundle loads and hydrates). Keep above-the-fold content **visible on
+   first paint**; animate below-the-fold only, or use a CSS entrance animation with no JS gate. Single
+   biggest mobile-score lever.
+2. **LCP image eager + high priority; everything else lazy.** The one large above-the-fold image:
+   `fetchPriority="high" loading="eager" decoding="async"` + explicit `width`/`height` (no CLS).
+   Below-the-fold images: `loading="lazy" decoding="async"`. Right-size photos + prefer WebP/AVIF.
+3. **Load web fonts without blocking render** — render the `<link>` `media="print" data-font-async`
+   (+ `display=swap`); the shell flips it to `all` once the DOM is ready. Or use the appearance font /
+   a system stack and load none.
+4. **Keep the render path light** — heavy libs behind `lazy()` + `<Suspense>` so they load only when
+   shown; `import` assets so they're fingerprinted + compressed.
+
+Reference: `inertia/custom/kits/example/pages/performance.tsx`. Full guide:
+[`inertia/custom/kits/README.md`](../../inertia/custom/kits/README.md#performance--build-a-kit-that-scores-well).
 
 ## Email templates — a transactional email as code
 
