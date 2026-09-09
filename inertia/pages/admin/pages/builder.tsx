@@ -156,6 +156,9 @@ function BuilderInner({
     layoutId: page.layoutId,
     headerTemplateId: page.headerTemplateId,
     footerTemplateId: page.footerTemplateId,
+    codeLayout: page.codeLayout,
+    codeHeader: page.codeHeader,
+    codeFooter: page.codeFooter,
     hideHeader: Boolean(page.hideHeader),
     hideFooter: Boolean(page.hideFooter),
     // Edit the staged draft SEO when one exists, else the live SEO.
@@ -175,6 +178,9 @@ function BuilderInner({
     layoutId: meta.layoutId,
     headerTemplateId: meta.headerTemplateId,
     footerTemplateId: meta.footerTemplateId,
+    codeLayout: meta.codeLayout,
+    codeHeader: meta.codeHeader,
+    codeFooter: meta.codeFooter,
     hideHeader: meta.hideHeader,
     hideFooter: meta.hideFooter,
     seo: meta.seo,
@@ -189,7 +195,9 @@ function BuilderInner({
     // leave nothing for the scheduler to act on, so the schedule never fired.
     const scheduledAt = meta.scheduledPublishAt ? new Date(meta.scheduledPublishAt) : null
     const scheduleForLater =
-      scheduledAt !== null && !Number.isNaN(scheduledAt.valueOf()) && scheduledAt.getTime() > Date.now()
+      scheduledAt !== null &&
+      !Number.isNaN(scheduledAt.valueOf()) &&
+      scheduledAt.getTime() > Date.now()
 
     if (scheduleForLater) {
       try {

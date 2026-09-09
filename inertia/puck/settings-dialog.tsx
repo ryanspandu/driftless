@@ -7,6 +7,7 @@ import { Switch } from '~/components/ui/switch'
 import { Textarea } from '~/components/ui/textarea'
 import { AppSelect } from '~/components/ui/app-select'
 import { useTemplatesList } from '~/hooks/api/use-templates'
+import { useCodeTemplates } from '~/hooks/api/use-pages'
 import { MetaTagsEditor, type MetaTag } from '~/components/admin/meta-tags-editor'
 import type { ContentStatus, PageRenderMode, TemplateSummaryDto } from '~/types/api'
 import { cn } from '~/lib/utils'
@@ -38,6 +39,14 @@ export interface PageMeta {
   layoutId: string | null
   headerTemplateId: string | null
   footerTemplateId: string | null
+  /**
+   * Kit code-chrome pointers (`codetpl:<kit>/<type>`), the coded alternative to
+   * the template ids above. When set, the renderer uses the kit component for
+   * that slot; a `codetpl:` value and a template id are mutually exclusive.
+   */
+  codeLayout: string | null
+  codeHeader: string | null
+  codeFooter: string | null
   /** Render no header / no footer at all — distinct from "use the site default". */
   hideHeader: boolean
   hideFooter: boolean
@@ -49,6 +58,19 @@ export interface PageMeta {
 
 /** Sentinel for "none" in the header/footer selects. Never sent as an id. */
 const NONE = '__none__'
+
+/** Prefix of a kit code-chrome pointer (`codetpl:<kit>/<type>`). */
+const CODETPL_PREFIX = 'codetpl:'
+
+/**
+ * Route a chrome select's value to either the template FK id or the code-chrome
+ * column — a `codetpl:` pointer goes to the code column (id nulled), anything
+ * else is a plain template id. Mirrors `splitChrome` in `page-form-dialog.tsx`.
+ */
+function splitChrome(value: string): { templateId: string | null; code: string | null } {
+  if (value.startsWith(CODETPL_PREFIX)) return { templateId: null, code: value }
+  return { templateId: value || null, code: null }
+}
 
 type SectionKey = 'general' | 'seo' | 'appearance' | 'page-code' | 'global-code'
 
@@ -196,9 +218,20 @@ function GeneralSection({ meta, onChange }: { meta: PageMeta; onChange: (m: Page
   const layouts = useTemplatesList('LAYOUT')
   const headers = useTemplatesList('HEADER')
   const footers = useTemplatesList('FOOTER')
-  const opts = (list?: TemplateSummaryDto[]) => [
+  // Kit code-chrome templates, offered in the same pickers as the DB templates
+  // (their value carries the `codetpl:` pointer). Mirrors page-form-dialog.tsx.
+  const codeTplQuery = useCodeTemplates()
+  const codeTpl = (type: 'HEADER' | 'FOOTER' | 'LAYOUT') =>
+    (codeTplQuery.data ?? [])
+      .filter((t) => t.type === type)
+      .map((t) => ({
+        value: `${CODETPL_PREFIX}${t.kit}/${type.toLowerCase()}`,
+        label: `${t.kit} · code`,
+      }))
+  const opts = (list: TemplateSummaryDto[] | undefined, type: 'LAYOUT') => [
     { value: '', label: '— Default —' },
     ...(list ?? []).map((t) => ({ value: t.id, label: t.name })),
+    ...codeTpl(type),
   ]
   /**
    * Header/footer get a third option. `''` (a null id) has always meant "use
@@ -207,10 +240,15 @@ function GeneralSection({ meta, onChange }: { meta: PageMeta; onChange: (m: Page
    * `hideHeader` / `hideFooter` flags — the id columns carry a foreign key and
    * cannot store it.
    */
-  const slotOpts = (list: TemplateSummaryDto[] | undefined, noneLabel: string) => [
+  const slotOpts = (
+    list: TemplateSummaryDto[] | undefined,
+    type: 'HEADER' | 'FOOTER',
+    noneLabel: string
+  ) => [
     { value: '', label: '— Default —' },
     { value: NONE, label: noneLabel },
     ...(list ?? []).map((t) => ({ value: t.id, label: t.name })),
+    ...codeTpl(type),
   ]
 
   return (
@@ -267,9 +305,13 @@ function GeneralSection({ meta, onChange }: { meta: PageMeta; onChange: (m: Page
       <Row label="Layout" htmlFor="set-layout">
         <AppSelect
           id="set-layout"
-          value={meta.layoutId ?? ''}
-          onChange={(v) => patch({ layoutId: v || null })}
-          options={opts(layouts.data)}
+          // A set code pointer wins the slot, else the template FK id.
+          value={meta.codeLayout ?? meta.layoutId ?? ''}
+          onChange={(v) => {
+            const sel = splitChrome(v)
+            patch({ layoutId: sel.templateId, codeLayout: sel.code })
+          }}
+          options={opts(layouts.data, 'LAYOUT')}
           placeholder="— Default —"
         />
       </Row>
@@ -277,22 +319,32 @@ function GeneralSection({ meta, onChange }: { meta: PageMeta; onChange: (m: Page
         <Row label="Header override" htmlFor="set-header">
           <AppSelect
             id="set-header"
-            value={meta.hideHeader ? NONE : (meta.headerTemplateId ?? '')}
-            onChange={(v) =>
-              patch({ headerTemplateId: v === NONE ? null : v || null, hideHeader: v === NONE })
-            }
-            options={slotOpts(headers.data, '— None (no header) —')}
+            value={meta.codeHeader ?? (meta.hideHeader ? NONE : (meta.headerTemplateId ?? ''))}
+            onChange={(v) => {
+              if (v === NONE) {
+                patch({ headerTemplateId: null, codeHeader: null, hideHeader: true })
+                return
+              }
+              const sel = splitChrome(v)
+              patch({ headerTemplateId: sel.templateId, codeHeader: sel.code, hideHeader: false })
+            }}
+            options={slotOpts(headers.data, 'HEADER', '— None (no header) —')}
             placeholder="— Default —"
           />
         </Row>
         <Row label="Footer override" htmlFor="set-footer">
           <AppSelect
             id="set-footer"
-            value={meta.hideFooter ? NONE : (meta.footerTemplateId ?? '')}
-            onChange={(v) =>
-              patch({ footerTemplateId: v === NONE ? null : v || null, hideFooter: v === NONE })
-            }
-            options={slotOpts(footers.data, '— None (no footer) —')}
+            value={meta.codeFooter ?? (meta.hideFooter ? NONE : (meta.footerTemplateId ?? ''))}
+            onChange={(v) => {
+              if (v === NONE) {
+                patch({ footerTemplateId: null, codeFooter: null, hideFooter: true })
+                return
+              }
+              const sel = splitChrome(v)
+              patch({ footerTemplateId: sel.templateId, codeFooter: sel.code, hideFooter: false })
+            }}
+            options={slotOpts(footers.data, 'FOOTER', '— None (no footer) —')}
             placeholder="— Default —"
           />
         </Row>
