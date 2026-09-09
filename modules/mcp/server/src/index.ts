@@ -55,6 +55,7 @@ const PROFILES: Record<string, string[]> = {
     'set_design_brief', 'check_design_coverage', 'get_preview_url', 'upload_media',
     'crop_media', 'list_media',
     'list_menus', 'get_menu', 'create_menu', 'set_menu_items',
+    'list_forms', 'get_form', 'create_form', 'update_form', 'delete_form',
   ],
 }
 ;(() => {
@@ -713,6 +714,74 @@ server.tool(
   "Replace a menu's WHOLE item tree. Submit items nested (each may carry `children`); array order is display order. Then render the menu by adding a MenuBar block (menuHandle = the menu's handle) to a HEADER/FOOTER template.",
   { id: z.string(), items: z.array(MenuItemNode) },
   ({ id, items }) => run(() => api.put(`/api/mcp/v1/menus/${id}/items`, { items }))
+)
+
+// ── Forms (definitions a FormBlock renders) ─────────────────────────────────────
+
+const FormFieldDef = z.object({
+  key: z
+    .string()
+    .describe('Field key — /^[a-z][a-z0-9_]{0,31}$/ (lowercase, no spaces). This is the submission payload key; never rename it once live.'),
+  label: z.string().describe('Human label shown above the input.'),
+  type: z
+    .enum(['text', 'textarea', 'email', 'tel', 'number', 'date', 'url', 'select', 'radio', 'checkbox', 'checkbox_group', 'file'])
+    .describe('Input type. select/radio/checkbox_group REQUIRE `options`. `checkbox` is a single consent box; `checkbox_group` is multi-select; `email`/`tel`/`url`/`number`/`date` are validated on submit.'),
+  required: z.boolean().optional(),
+  placeholder: z.string().optional(),
+  help: z.string().optional().describe('Small helper text under the field.'),
+  options: z
+    .array(z.string())
+    .optional()
+    .describe('Choices for select/radio/checkbox_group (required for those types; ignored otherwise).'),
+  width: z
+    .enum(['full', 'half', 'third', 'quarter', 'sixth'])
+    .optional()
+    .describe('Width in the form grid (default full) — pair two "half" fields on one row.'),
+  min: z.number().nullable().optional().describe('number only: minimum value.'),
+  max: z.number().nullable().optional().describe('number only: maximum value.'),
+  accept: z.string().optional().describe('file only: an accept hint like ".pdf,image/*" (the server also enforces its own allow-list).'),
+})
+
+server.tool(
+  'list_forms',
+  'List the named form definitions (id, slug, title, status, field/submission counts). A FormBlock renders one of these by its slug.',
+  {},
+  () => run(() => api.get('/api/mcp/v1/forms'))
+)
+
+server.tool(
+  'get_form',
+  'Get one form definition with its full `fields` schema.',
+  { id: z.string() },
+  ({ id }) => run(() => api.get(`/api/mcp/v1/forms/${id}`))
+)
+
+server.tool(
+  'create_form',
+  'Create a named form. Only sets the title (+ optional slug); it starts with NO fields and status:"active". Add its fields with update_form next, then render it by placing a FormBlock whose formSlug = this form\'s slug.',
+  { title: z.string(), slug: z.string().optional().describe('URL-safe key the FormBlock binds to; derived from the title if omitted. Lowercase, no spaces.') },
+  (args) => run(() => api.post('/api/mcp/v1/forms', args))
+)
+
+server.tool(
+  'update_form',
+  "Update a form. `fields` REPLACES the whole field list (submit the complete array). A structurally invalid schema (bad key, unknown type, an option-field with no options) is rejected 422 with the reason.",
+  {
+    id: z.string(),
+    title: z.string().optional(),
+    slug: z.string().optional(),
+    successMessage: z.string().nullable().optional().describe('Message shown after a successful submit (null clears it).'),
+    status: z.enum(['active', 'inactive', 'draft']).optional(),
+    fields: z.array(FormFieldDef).optional().describe('The COMPLETE ordered field list — replaces any existing fields.'),
+  },
+  ({ id, ...body }) => run(() => api.put(`/api/mcp/v1/forms/${id}`, body))
+)
+
+server.tool(
+  'delete_form',
+  'Delete a form definition. Past submissions are kept in the inbox; a FormBlock still bound to its slug will stop resolving.',
+  { id: z.string() },
+  ({ id }) => run(() => api.del(`/api/mcp/v1/forms/${id}`))
 )
 
 // ── Appearance + site config ───────────────────────────────────────────────────

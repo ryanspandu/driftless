@@ -17,6 +17,7 @@ export const MCP_ABILITIES = [
   'builder:pages',
   'builder:templates',
   'builder:menus',
+  'builder:forms',
   'builder:settings',
   'builder:media',
   'builder:products',

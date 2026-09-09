@@ -54,6 +54,7 @@ Settings → API tokens — with the abilities the work needs:
 | `builder:pages`          | create/update/publish pages                                  | `page:*`                     |
 | `builder:templates`      | create/update templates                                      | `template:*`                 |
 | `builder:menus`          | create menus + set menu items                                | `menu:*`                     |
+| `builder:forms`          | create/update/delete form definitions                        | `forms:manage`               |
 | `builder:settings`       | write appearance, breakpoints, global code, page roles        | `settings:manage`            |
 | `builder:media`          | upload / crop / edit media                                   | `media:manage`               |
 | `builder:products`       | create/update/delete products, variants, categories          | `ecommerce:products:manage`  |
@@ -95,6 +96,10 @@ issues }`.
 | `PUT /storefront-pages`                                                                            | `builder:settings`               | assign a builder page to a storefront screen (shop, product, cart/checkout/account, category/tag); needs the `ecommerce` module + `ecommerce:settings:manage` |
 | `GET /media` · `POST /media` (multipart `file`)                                                    | `builder:read` / `builder:media` | upload records provenance (origin/sourceUrl) |
 | `POST /media/:id/crop` · `PATCH /media/:id`                                                        | `builder:media`                  | crop a region into a new asset; edit meta |
+| `GET /menus` · `GET /menus/:id`                                                                    | `builder:read`                   | reusable navigation menus                 |
+| `POST /menus` · `PUT /menus/:id/items`                                                             | `builder:menus`                  | create a menu; replace its whole tree     |
+| `GET /forms` · `GET /forms/:id`                                                                    | `builder:read`                   | named form definitions a FormBlock renders |
+| `POST /forms` · `PUT /forms/:id` · `DELETE /forms/:id`                                             | `builder:forms`                  | `fields` validated (422 + reason on a bad schema) |
 | `GET /products` · `GET /products/:id` · `GET /categories`                                          | `builder:read`                   | needs the `ecommerce` module              |
 | `POST /products` · `PUT\|DELETE /products/:id`                                                     | `builder:products`               | `price` (minor units) auto-adds a variant |
 | `POST /products/:id/variants` · `PUT\|DELETE /variants/:variantId`                                 | `builder:products`               |                                           |

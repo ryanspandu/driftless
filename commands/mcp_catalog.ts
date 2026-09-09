@@ -91,6 +91,8 @@ const BLOCK_HINTS: Record<string, string> = {
   Reviews:
     'Testimonials as rating cards (author, rating, text, avatar). Use for a "what customers say" section — do NOT hand-build testimonial cards. Set layout:"carousel" for a horizontal slider of cards (vs the default "grid").',
   Icon: 'A single icon for trust-bar / feature glyphs. Match the design in FIDELITY ORDER: (1) if the design’s icons are visible in a reference image, crop_media them and set the Icon `src` to the crop url; (2) if you have the icon files, upload_media them and set `src`; (3) otherwise set "name" to the closest curated key (e.g. palette, truck, shield-check, leaf) and colour it with the `textColor` styleProp = the design’s icon/accent colour (for a tinted badge add bg + borderRadius:"999px" + padding). Use an EMOJI only when the design literally shows emoji, and report it as a substitution. `src` overrides `name`.',
+  FormBlock:
+    'A working form (contact / signup / lead capture) — renders the fields of a SAVED form definition and handles submission. REQUIRED: set formSlug to an existing form\'s slug (from list_forms). Author the form itself with the form tools: create_form then update_form to add its `fields` (the FormBlock only picks a form, it does not define fields). A form CTA renders the SITE THEME colour like any Button. There is no error if formSlug is empty — it just renders nothing, so always bind it.',
   Accordion: 'An expandable question/answer list. Use for any FAQ or "common questions" section.',
   Tabs: 'Tabbed content panels for switching between related bodies of content.',
   MenuBar:

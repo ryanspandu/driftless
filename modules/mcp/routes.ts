@@ -9,6 +9,7 @@ const CollectionsCtrl = () => import('#modules/mcp/controllers/api/collections_c
 const PagesCtrl = () => import('#modules/mcp/controllers/api/pages_controller')
 const TemplatesCtrl = () => import('#modules/mcp/controllers/api/templates_controller')
 const MenusCtrl = () => import('#modules/mcp/controllers/api/menus_controller')
+const FormsCtrl = () => import('#modules/mcp/controllers/api/forms_controller')
 const SettingsCtrl = () => import('#modules/mcp/controllers/api/settings_controller')
 const MediaCtrl = () => import('#modules/mcp/controllers/api/media_controller')
 const ProductsCtrl = () => import('#modules/mcp/controllers/api/products_controller')
@@ -331,6 +332,39 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .use(read('builder:menus'))
         })
         .use(middleware.permission({ resource: 'menu' }))
+
+      // Forms — named form definitions a FormBlock renders. Reuses the existing
+      // `forms:read` / `forms:manage` RBAC permissions (no `form` resource verb
+      // exists); token ability splits builder:read vs builder:forms. Submissions
+      // are deliberately NOT exposed — this authors the form, not its inbox.
+      router
+        .group(() => {
+          router
+            .get('/api/mcp/v1/forms', [FormsCtrl, 'index'])
+            .as('mcp.forms.index')
+            .use(read('builder:read'))
+            .use(middleware.permission({ permission: 'forms:read' }))
+          router
+            .get('/api/mcp/v1/forms/:id', [FormsCtrl, 'show'])
+            .as('mcp.forms.show')
+            .use(read('builder:read'))
+            .use(middleware.permission({ permission: 'forms:read' }))
+          router
+            .post('/api/mcp/v1/forms', [FormsCtrl, 'store'])
+            .as('mcp.forms.store')
+            .use(read('builder:forms'))
+            .use(middleware.permission({ permission: 'forms:manage' }))
+          router
+            .put('/api/mcp/v1/forms/:id', [FormsCtrl, 'update'])
+            .as('mcp.forms.update')
+            .use(read('builder:forms'))
+            .use(middleware.permission({ permission: 'forms:manage' }))
+          router
+            .delete('/api/mcp/v1/forms/:id', [FormsCtrl, 'destroy'])
+            .as('mcp.forms.destroy')
+            .use(read('builder:forms'))
+            .use(middleware.permission({ permission: 'forms:manage' }))
+        })
 
       // Appearance + site config — RBAC `settings:manage`.
       router

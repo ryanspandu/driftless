@@ -50,6 +50,7 @@ export const MCP_ABILITY_OPTIONS: { id: string; label: string; hint: string }[] 
   { id: 'builder:pages', label: 'Pages', hint: 'create/update/publish pages' },
   { id: 'builder:templates', label: 'Templates', hint: 'create/update templates' },
   { id: 'builder:menus', label: 'Menus', hint: 'create menus + set menu items' },
+  { id: 'builder:forms', label: 'Forms', hint: 'create/update form definitions' },
   {
     id: 'builder:settings',
     label: 'Settings',
