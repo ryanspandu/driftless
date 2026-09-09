@@ -71,8 +71,15 @@ Changing a collection's group invalidates the collections list query, so the sid
 
 Defined in `cms_service` (`CmsFieldType`). UI renders per type in record forms and
 the schema builder. The full catalog — scalars, `EMAIL`/`INTEGER`/`DECIMAL`/`PASSWORD`,
+`SELECT`/`MULTISELECT` (single vs multi-value, `Label : value` options),
 `RELATION` (4 cardinalities), and `COMPONENT` (inline + registry) — plus per-field
 **width** layout is documented in [cms-content-modeling.md](./cms-content-modeling.md).
+
+**Reserved Content-type field keys.** A collection whose `source` is a Content type
+cannot define fields whose keys the built-in Content editor owns natively:
+`title`, `slug`, `body`, `status`, and now **`visibility`** and **`password`**
+(`CONTENT_RESERVED_FIELD_KEYS` in `cms_service.ts`) — the latter two back the
+post-visibility gate (see [content-taxonomy-and-visibility.md](./content-taxonomy-and-visibility.md)).
 
 ## Permissions
 

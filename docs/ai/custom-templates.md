@@ -370,6 +370,44 @@ prebuild/predev/preserve/pretest: `app/services/custom_templates.generated.ts` (
 `PagesService` validates `kit:<id>` against, and the admin/MCP pickers read) and
 `inertia/css/custom-templates.generated.css` (one Tailwind `@source` line per kit).
 
+## Activation toggle — a kit is fail-closed until switched on
+
+A kit on disk is **inert until an operator activates it.** This exists because
+kits are operator payloads (an imported/marketplace kit must never surface itself)
+— the on-disk folder ships code, but only a DB flag can make it visible.
+
+- **State (`template_kits` table, `TemplateKitState` model).** One row per kit,
+  keyed by the folder **slug**, holding a single `active` boolean
+  (migration `1763100000000_create_template_kits.ts`, **default `false`**).
+  **No row — or `active = false` — means inactive.** Same pattern as `modules`
+  holding `enabled` for a manifest module.
+- **Service (`TemplateKitsService`).** `activeSet()` returns the set of active
+  slugs, **cached process-wide with a 10s TTL** (`ACTIVE_CACHE_TTL_MS`) — the
+  templates/pages lists read it on every request, so it must be cheap, and the
+  TTL lets a toggle on one worker reach the others without cross-process
+  messaging (same reasoning as `modules_service`). `setActive(id, active)` does an
+  `updateOrCreate` and busts the cache; it throws for a slug with no `kit.json` on
+  disk (only a real kit can be toggled). `list()` is now **async** and stamps each
+  `TemplateKitDto` with `active`.
+- **Route.** `PUT /api/admin/template-kits/:id/active` (body `{ active: boolean }`)
+  → `template_kits_controller.setActive`, gated on **`settings:manage`**. The
+  admin **KitCard** renders a `Switch`.
+- **Instant, no rebuild.** Toggling is a DB write; it takes effect within the
+  cache TTL. Contrast with *adding/renaming* a kit, which still needs a rebuild
+  (the `import.meta.glob` discovery is build-time).
+
+**What "inactive" hides** — enforced at every surface, not just the UI:
+
+| Surface | Behavior when the kit is inactive |
+|---|---|
+| Templates list, create-page pickers | the kit's code-templates are not offered |
+| Admin Pages list | its **file-pages** are omitted (`fileSummaries(excludePaths, activeKits)`) |
+| Public file-page routes | `findFilePageByPath(path, activeKits)` returns undefined → **404** |
+| A DB page pointed at `kit:<id>` | `pages_public_controller` **404s publicly** when the kit is inactive |
+
+So an inactive kit's `kit:<id>` pages, `kitpage:` file-pages, code chrome and
+collection/email templates are all invisible until the switch is flipped.
+
 ## Permissions & the future marketplace
 
 Writing a CODE page (kit or single-file) or content with code snippets requires the

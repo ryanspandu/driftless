@@ -605,6 +605,59 @@ only matches `modules/*/admin/*`.
 **A new module folder needs one `npm run build`** before its pages resolve: Vite bundles
 module UI through a build-time `import.meta.glob`.
 
+### Product tags & taxonomy archives
+
+Products have two taxonomies: **Categories** (hierarchical, pre-existing) and
+**Tags** (flat, added 2026-09). Tags mirror the Categories stack end to end.
+
+**Schema.** `ecommerce_tags` (`id` ULID PK, unique `slug`, `name`, `description`,
+`image_url`, `position`, soft-delete) + the `ecommerce_product_tags` pivot
+(`product_id`,`tag_id`, composite PK, both `CASCADE`). Model
+`modules/ecommerce/models/tag.ts`.
+
+**Admin.** Manager page at `/admin/ecommerce/products/tags`
+(`ui/admin/products/tags.tsx`, a DataTable). The product editor gains a
+Content-style multi-select **Tags** card (inline create + a manage link);
+`CatalogService` carries `tagIds` on create/update and `syncTags` writes the
+pivot. Admin API (behind `ecommerce:products:read` for GET,
+`ecommerce:products:manage` for writes):
+
+| Method + path | Action |
+|---|---|
+| `GET /api/admin/ecommerce/tags` | list |
+| `POST /api/admin/ecommerce/tags` | create |
+| `PUT /api/admin/ecommerce/tags/:id` | update |
+| `DELETE /api/admin/ecommerce/tags/:id` | delete |
+
+`CatalogService`: `listTags` / `createTag` / `updateTag` / `removeTag`
+(+ `uniqueTagSlug`, `syncTags`).
+
+**Storefront archives.** `GET /shop/category/:slug` and `GET /shop/tag/:slug`
+(`shop.category` / `shop.tag` → `StorefrontPagesController.category`/`.tag` →
+`renderArchive`). They live **under `/shop/`** so they never collide with the
+CMS/Content taxonomy at the root (`/category/:slug`, `/tag/:slug`).
+
+- Default: a plain Inertia archive (`ui/storefront/archive.tsx`) listing the
+  taxonomy's active products (`pageSize: 48`), inside the site chrome.
+- Override: assign a **published builder page** via Store settings
+  (`setting.categoryPageId` / `setting.tagPageId` — nullable columns added by
+  migration `…260`, exposed on `StoreSettingsDto`, set in **Storefront screens**
+  settings and via the "Use as page" menu). The page renders with the slug
+  **bound** (`bindings.params = { slug, kind }`) so an archive block can filter to
+  the taxonomy, a `seoOverride` (title/description/`canonicalPath`), and
+  **`skipSnapshot: true`** — one template serves many taxonomies, so snapshotting
+  one would serve it for all (the same trap as `/shop/p/:slug`).
+- An unknown/deleted slug **404s** rather than rendering an empty archive.
+
+**Storefront service (`storefront_catalog_service.ts`).** `StorefrontQuery` gains
+`tagSlug` (a `whereExists` join filter mirroring `categorySlug`);
+`PublicProductDto` gains `tagSlugs: string[]`; a new **`PublicTaxonomyDto`**
+(`{ kind, slug, name, description }`) is the archive header; `categoryBySlug(slug)`
+and `tagBySlug(slug)` resolve it (null when unknown/deleted). Both `list` and the
+detail query now `preload('tags')`.
+
+Tags round-trip through import/export (`data_transfer.ts`).
+
 ## Marketing
 
 Discounts and affiliates share one module with the rest of commerce — they read orders and

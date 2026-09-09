@@ -168,6 +168,45 @@ When rendering a public page:
 - Migration is non-destructive: migrate data first, verify, then drop `page_globals`/`page_templates`.
 - Deleting an in-use template must be blocked or warn (usage lookup).
 
+## Trash & restore (Templates and Menus)
+
+**Status:** implemented (2026-09). Both `templates` and `menus` were already
+soft-deleted (`deleted_at`); this surfaces a **Trash** view with restore and
+permanent delete, via the shared `TrashModal`. Bulk delete on both lists is
+relabelled **"Move to trash"**.
+
+### Templates (`TemplatesService`)
+
+| Method | Routes |
+|---|---|
+| `findTrashed()` — `whereNotNull('deleted_at')`, newest first | `GET /api/admin/templates/trash` |
+| `restore(id)` — clears `deletedAt`; **`isDefault` is NOT reinstated** (a default may have been claimed while it sat in the trash) | `POST /api/admin/templates/:id/restore` |
+| `forceDelete(id)` — hard-delete a trashed row | `DELETE /api/admin/templates/:id/force` |
+
+### Menus (`MenusService`)
+
+| Method | Routes |
+|---|---|
+| `findTrashed()` — trashed menus with item counts | `GET /api/admin/menus/trash` |
+| `restore(id)` — revives the menu **and its items** in a transaction | `POST /api/admin/menus/:id/restore` |
+| `forceDelete(id)` | `DELETE /api/admin/menus/:id/force` |
+
+**Menu restore has two invariants worth knowing** (both hardened in the
+follow-up fix `c4954e4`):
+
+1. **Every soft-deleted item under the menu is revived** — a faithful mirror of
+   `remove`. (An earlier version matched items on a shared `deleted_at`
+   timestamp, which revived none; that brittle match was dropped.)
+2. **The handle is re-uniqued** in case a live menu claimed it while this one was
+   trashed — and the uniqueness query runs **before** the write transaction
+   opens, because `uniqueHandle` queries the default connection and running it
+   inside the transaction **deadlocks a single-writer driver (SQLite)** against
+   the held write lock.
+
+> Menus themselves are documented in `modules/`-adjacent code (`menus_service.ts`,
+> the MegaMenu/MenuBar Puck blocks). This section covers only their trash flow,
+> which ships alongside the Templates trash.
+
 ## COLLECTION templates — per-collection item cards
 
 A **`COLLECTION`** template is a reusable builder document that designs **one item card** for a

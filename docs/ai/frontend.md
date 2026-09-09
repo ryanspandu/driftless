@@ -71,7 +71,7 @@ Files:
 | `searchPlaceholder` | Search input placeholder |
 | `searchValue` / `onSearchChange` | Controlled (server-side) search |
 | `filters` | Filter controls — `TableFilterTabs` for a status/segment filter, `AppSelect` for a long list — rendered beside the search box |
-| `urlSync={{ paramPrefix? }}` | Reflect search/sort/page in the URL |
+| `urlSync={{ paramPrefix?, includeQuery? }}` | Reflect search/sort/page in the URL — see [URL-param convention](#list-url-param-convention) |
 | `serverPagination={{…}}` | API-driven pagination |
 | `getSyncStatus` / `lastSyncedAt` / `hideSyncColumn` | Offline sync column + "Last synced" label |
 | `emptyMessage` | Empty-state text |
@@ -89,6 +89,33 @@ Files:
   emptyMessage="No results."
 />
 ```
+
+### List URL param convention
+
+**Every url-synced admin list uses the same query-param names:** `?page=`,
+`?pageSize=`, `?q=` (plus `sort`/`order`). This is the convention — match it on any
+new list. Helpers live in `inertia/lib/table-url-params.ts`
+(`readTableUrlParams`, `tableParamKey`).
+
+- `urlSync={{ }}` (no prefix) → bare `page` / `pageSize` / `q` / `sort` / `order`.
+- **`paramPrefix`** namespaces them (`all_q`, `all_page`, …) — use it **only when
+  one route hosts multiple tables** that would otherwise clash.
+- **`includeQuery: false`** — for a table on a page that owns its **own**
+  server-side `q` (e.g. an API-filtered list). The table then syncs only
+  page/pageSize/sort and **never touches `q`**, so it can't re-filter rows the
+  server already filtered. (`DataTableUrlSynced` maps this to
+  `includeQueryInUrl`.)
+
+**Intentional prefixed exceptions** (they host multiple tables per route, so they
+keep prefixes): the **dashboard** and the **apps/plugins settings** screens.
+Everything else — Pages, Templates, Menus, Forms, Content, Content
+categories/tags, Users, Media, e-commerce products/orders/customers and the
+marketing tables — uses the bare `page`/`pageSize`/`q` format.
+
+> History: the DataTable url-sync param was renamed `size` → **`pageSize`** (so it
+> affects every url-synced table), Content dropped its per-tab prefix, collection
+> records dropped the `rec_` prefix, and Media's `size` → `pageSize` — landing on
+> one format everywhere (commits `c4954e4`, `0922d13`).
 
 ## Filters and tabs
 

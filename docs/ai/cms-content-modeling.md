@@ -35,13 +35,48 @@ PostgreSQL table (`cms_<key>`), one field = one column** — with structured val
 | `DECIMAL` | DOUBLE PRECISION | number | parsed to float |
 | `BOOL` | BOOLEAN | checkbox | |
 | `DATE` / `DATETIME` | DATE / TIMESTAMPTZ | date / datetime | datetime stored UTC |
-| `SELECT` | TEXT | dropdown | values in `config.options` |
+| `SELECT` | TEXT | dropdown | one value; options in `config.options` |
+| `MULTISELECT` | JSONB (`TEXT` on SQLite) | chips + searchable menu | **many** values (`string[]`); options in `config.options` — see [§1a](#1a-select--multiselect-options) |
 | `PASSWORD` | TEXT | password | **write-only**, hashed (see below) |
 | `MEDIA` | TEXT | media picker | stores a media id |
 | `JSON` | JSONB | JSON editor | freeform |
 | `REPEATABLE` | JSONB | raw JSON | **legacy** — superseded by `COMPONENT` |
 | `RELATION` | (varies) | record picker | see [§3](#3-relations) |
 | `COMPONENT` | JSONB | structured editor | see [§4](#4-components) |
+
+### 1a. Select / Multi-select options
+
+`SELECT` (one value) and `MULTISELECT` (many, stored as `string[]`) share one
+options format and one editor.
+
+- **Storage.** `SELECT` is a plain `TEXT` column. `MULTISELECT` stores its array
+  as **JSON** in a `JSONB` column (`TEXT` on SQLite) — the same path as
+  `JSON`/`REPEATABLE`/`COMPONENT`. `serializeFieldValue` JSON-stringifies it on
+  write; `rowToRecordDto` **JSON-parses it back on read** (needed because SQLite
+  returns the raw string, and to keep the two dialects consistent).
+  `coerceFieldValue` normalises any input to an array of non-empty strings.
+- **Options shape.** `field.config.options` is `{ label, value }[]` (the `value`
+  is stored, the `label` is shown). The legacy `string[]` shape is still read —
+  each string is treated as both label and value (`normalizeSelectOptions`).
+- **Editor (`schema-builder.tsx` → `SelectOptionsEditor`).** A **textarea, one
+  `Label : value` per line**. The text after `:` is the stored value; the text
+  before is shown; omit `: value` to use the line as both. Helpers:
+  `parseOptionLines` / `formatOptionLines`. The editor keeps its own raw-text
+  state so typing is never reformatted mid-edit — only the parsed options are
+  written to config.
+- **Record input (`field-renderer.tsx`).** `SELECT` → `AppSelect` (single);
+  `MULTISELECT` → **`AppMultiSelect`** (chips + a searchable menu, value a
+  `string[]`), both in `inertia/components/ui/app-select.tsx`. Search turns on
+  automatically past 8 options. An unknown stored value renders as a raw chip
+  rather than disappearing.
+
+### Field-key auto-fill (Add-field dialog)
+
+While adding a field, the **Key** input auto-fills from the **Label**
+(`keyFromLabel` — snake_case, starts with a letter, ≤32 chars, matches
+`KEY_PATTERN`) until the operator hand-edits the key (`keyDirty`). A live
+"Key '…' is available." hint shows when the derived key is free. This is UI
+convenience only; the server still validates the key on save.
 
 ### Password (write-only)
 
