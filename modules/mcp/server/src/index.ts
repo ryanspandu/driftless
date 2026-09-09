@@ -586,12 +586,12 @@ const PatchOps = z
   .array(
     z.object({
       op: z.enum(['update_props', 'update_style', 'insert', 'move', 'remove']),
-      id: z.string().optional(),
-      props: z.record(z.any()).optional(),
-      block: z.record(z.any()).optional(),
-      parentId: z.string().optional(),
-      slot: z.string().optional(),
-      index: z.number().optional(),
+      id: z.string().optional().describe('Target block props.id (update_props/update_style/move/remove).'),
+      props: z.record(z.any()).optional().describe('Fields/styleProps to MERGE into the target (update_props/update_style).'),
+      block: z.record(z.any()).optional().describe('The block to add (insert).'),
+      parentId: z.string().optional().describe('Parent block id to insert/move INTO; omit for the document root.'),
+      slot: z.string().optional().describe('Slot name on the parent (default "content").'),
+      index: z.number().optional().describe('Position within the target array (default: append).'),
     })
   )
   .describe('Block-addressed edit operations, applied in order (best-effort).')
@@ -605,7 +605,7 @@ server.tool(
 
 server.tool(
   'publish_page',
-  'Publish a page: promotes the staged draft, or the explicit `content` if given (auto-made-responsive, see autoResponsive).',
+  'Publish a page: promotes the staged draft, or the explicit `content` if given (which is auto-made-responsive, see autoResponsive).',
   {
     id: z.string(),
     content: PuckDoc.optional(),
@@ -861,7 +861,7 @@ server.tool(
 )
 server.tool(
   'use_page_as_role',
-  'Assign a PUBLISHED builder page to a site page-role slot ("use as page"): the home front page, the sign-in/sign-up/forgot/reset auth screens, the 404/500 error screens, and the content category/tag archives. pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED and a builder page, else it is rejected. For a `categoryArchive`/`tagArchive` page, put a Collection List bound to the `posts` collection on it — it auto-lists that category/tag.',
+  'Assign a PUBLISHED builder page to a site page-role slot ("use as page"): the home front page, the sign-in/sign-up/forgot/reset auth screens, the 404/500 error screens, and the content category/tag archives. pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED and a builder page, else it is rejected (a draft/code page would silently fall back). For a `categoryArchive`/`tagArchive` page, put a Collection List bound to the `posts` collection on it — it auto-lists that category/tag.',
   {
     role: z.enum([
       'home',
