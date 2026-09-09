@@ -423,7 +423,12 @@ export function registerTools(
   }
   const PageMeta = {
     status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
-    renderMode: z.string().optional(),
+    renderMode: z
+      .enum(['SSR', 'SSG', 'CSR'])
+      .optional()
+      .describe(
+        'How the public page is delivered — leave unset to get SSR, the right choice for almost every page. SSR: server-rendered each request, so the page content AND any Collection List / bound CMS data are in the initial HTML — indexable by search engines and fast to first paint. SSG: a cached server-rendered snapshot (same SEO; best when the data rarely changes). CSR: client-only — the HTML ships EMPTY, so never use it for anything public or SEO-facing (reserve it for private/app-like pages). For a marketing or content page, keep it SSR.'
+      ),
     kind: z
       .enum(['BUILDER', 'CODE'])
       .optional()
