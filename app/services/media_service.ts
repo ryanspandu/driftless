@@ -130,6 +130,34 @@ export default class MediaService {
     return existsSync(full) ? full : null
   }
 
+  /**
+   * Read a raster media (JPEG/PNG/WebP) as a base64 PNG, downscaled to `maxWidth`
+   * — for handing an image to an AI client (e.g. a design reference to place next
+   * to a screenshot in compare_to_reference). Returns null if the media is
+   * missing, soft-deleted, or not a raster we can re-encode.
+   */
+  async readRasterBase64(
+    id: string,
+    opts: { maxWidth?: number } = {}
+  ): Promise<{ base64: string; mimeType: 'image/png'; width: number; height: number } | null> {
+    const media = await Media.query().where('id', id).whereNull('deleted_at').first()
+    if (!media || !RASTER_MIMES.has(media.mimeType)) return null
+    const srcPath = this.resolveFilePath(media.filename)
+    if (!srcPath) return null
+    const maxWidth = opts.maxWidth ?? 1000
+    let pipeline = sharp(srcPath)
+    const meta = await pipeline.metadata()
+    if (meta.width && meta.width > maxWidth) pipeline = pipeline.resize({ width: maxWidth })
+    const out = await pipeline.png({ compressionLevel: 9 }).toBuffer()
+    const outMeta = await sharp(out).metadata()
+    return {
+      base64: out.toString('base64'),
+      mimeType: 'image/png',
+      width: outMeta.width ?? 0,
+      height: outMeta.height ?? 0,
+    }
+  }
+
   async list(params: {
     page?: number
     pageSize?: number

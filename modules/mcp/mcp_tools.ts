@@ -50,7 +50,7 @@ export const SERVER_INSTRUCTIONS = `Driftless page builder. To reproduce a desig
 5. set_design_brief (palette, iconStyle, the design's sections + asset slots) so the build can be checked.
 6. Build with create_page / set_page_content. Use the styleProps for layout — flex (display:"flex", gap, justifyContent, alignItems), sizing, and position:"absolute" for overlays — not just spacing/colour. Use Icon with a curated name + textColor (or an uploaded icon src) — not emoji — unless the design uses emoji. Mobile/tablet responsive is added AUTOMATICALLY on save (grids drop columns, split rows stack, big headings shrink, tall heroes trim); it is additive, so only set your own responsive:{ … } overrides for anything you want different, or pass autoResponsive:false to do it all by hand.
 7. validate_page_content (fix issues; heed the warnings AND the changes it reports — a filled id, a slot moved into props, an unknown prop that will be ignored) AND check_design_coverage — fix every missing/reordered section, off-brand CTA/colour, emoji icon and image substitution it lists.
-8. LOOK AT THE BUILD — screenshot_page gives you the actual RENDERED PIXELS (per viewport: desktop, then tablet/mobile). Compare it side by side with the reference and fix what coverage cannot see: layout, spacing, proportion, overflow, typography, alignment. (render_page returns the HTML text if you also need to inspect exact structure/props/resolved URLs.) To fix one block, patch_page_content by its props.id (a small diff) — do NOT re-send the whole page from memory, which is how revisions drift — then screenshot_page AGAIN and repeat until it matches. Re-fetch get_page after a write to confirm your blocks/props survived.
+8. LOOK AT THE BUILD — you author blind, so SEE the rendered pixels. If you have a reference image, use compare_to_reference (per viewport): it returns your screenshot AND the reference side by side plus a checklist — diff them and fix what coverage cannot see: sections, layout, spacing, proportion, overflow, typography, alignment, colour. With no reference, use screenshot_page. (render_page returns the HTML text if you also need exact structure/props/resolved URLs.) To fix one block, patch_page_content by its props.id (a small diff) — do NOT re-send the whole page from memory, which is how revisions drift — then compare_to_reference/screenshot_page AGAIN and repeat until it matches. Re-fetch get_page after a write to confirm your blocks/props survived.
 9. SEO + PERFORMANCE + ACCESSIBILITY — a page-builder page is public and has to win at search and load fast:
    • SEO: set \`seo\` (a meta description AND an ogImage on every public page; canonical/robots as needed) and keep \`renderMode\` SSR (the default) — SSR puts the content and any Collection List data in the initial HTML, so it is indexable; CSR ships empty HTML and must never be used for a public/SEO page. SSG is fine for pages whose data rarely changes.
    • Performance: right-size images (crop_media to the display size — a huge photo shrunk into a card is wasted bytes) and keep any global JS (set_global_code) tiny, since it runs on every page.
@@ -85,6 +85,7 @@ const PAGES_PROFILE = [
   'validate_page_content',
   'render_page',
   'screenshot_page',
+  'compare_to_reference',
   'patch_page_content',
   'publish_page',
   'discard_draft',
@@ -264,6 +265,33 @@ export function registerTools(
           { type: 'text', text: JSON.stringify(meta, null, 2) },
         ],
       }
+    } catch (e) {
+      return { content: [{ type: 'text', text: `Error: ${(e as Error).message}` }], isError: true }
+    }
+  }
+
+  // For compare_to_reference: the API returns { screenshot:{base64…}, reference:{base64…}|null,
+  // …meta }. Emit the render and the reference as two image blocks the model can diff, then
+  // the remaining meta (url, viewport, note, checklist) as text (base64 stripped out).
+  type ImagePayload = { base64?: unknown; mimeType?: unknown } | null | undefined
+  const imgBlock = (img: ImagePayload): ContentBlock | null =>
+    img && typeof img.base64 === 'string'
+      ? { type: 'image', data: img.base64, mimeType: typeof img.mimeType === 'string' ? img.mimeType : 'image/png' }
+      : null
+  const runCompare = async (fn: () => Promise<unknown>): Promise<ToolResult> => {
+    try {
+      const r = (await fn()) as { screenshot?: ImagePayload; reference?: ImagePayload } & Record<string, unknown>
+      const content: ContentBlock[] = []
+      const shot = imgBlock(r?.screenshot)
+      const ref = imgBlock(r?.reference)
+      if (shot) content.push(shot)
+      if (ref) content.push(ref)
+      const { screenshot: _s, reference: _r, ...meta } = r ?? {}
+      content.push({ type: 'text', text: JSON.stringify(meta, null, 2) })
+      // If neither image came back, fall back to a plain text dump so errors surface.
+      return content.some((c) => c.type === 'image')
+        ? { content }
+        : { content: [{ type: 'text', text: JSON.stringify(r, null, 2) }] }
     } catch (e) {
       return { content: [{ type: 'text', text: `Error: ${(e as Error).message}` }], isError: true }
     }
@@ -747,6 +775,13 @@ export function registerTools(
     { id: z.string(), viewport: z.enum(['desktop', 'tablet', 'mobile']).default('desktop') },
     ({ id, viewport }) =>
       runImage(() => call('GET', `/api/mcp/v1/pages/${id}/screenshot?viewport=${viewport}`))
+  )
+  server.tool(
+    'compare_to_reference',
+    "Compare the built page against its design reference: returns TWO images — a live screenshot of the DRAFT (image 1) and the reference image from the page's design brief (image 2) — plus a critique checklist. LOOK at both, list concrete mismatches (sections, layout, spacing, proportion, typography, colour, imagery), then fix them with patch_page_content ops keyed by props.id and call this again until they match. This grades against the REAL reference, not the brief you wrote. Needs a brief with source.referenceMediaId (set_design_brief after upload_media(purpose:\"reference\")); without one it returns just the screenshot for a self-check.",
+    { id: z.string(), viewport: z.enum(['desktop', 'tablet', 'mobile']).default('desktop') },
+    ({ id, viewport }) =>
+      runCompare(() => call('GET', `/api/mcp/v1/pages/${id}/compare?viewport=${viewport}`))
   )
   const PatchOps = z
     .array(

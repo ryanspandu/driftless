@@ -10,6 +10,7 @@ import { applyPatchOps, type PatchOp } from '#modules/mcp/services/puck_patch'
 import { generateResponsive } from '#modules/mcp/services/auto_responsive'
 import { checkDesignCoverage } from '#modules/mcp/services/design_coverage'
 import { screenshotUrl, normalizeViewport } from '#services/screenshot_service'
+import MediaService from '#services/media_service'
 import { appUrl } from '#config/app'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
 import { hasPrivilegedPageContent } from '#services/html_sanitizer_service'
@@ -18,6 +19,27 @@ import TemplateKitsService from '#services/template_kits_service'
 
 const pages = new PagesService()
 const templateKits = new TemplateKitsService()
+const media = new MediaService()
+
+/**
+ * The critique protocol returned by `compare_to_reference`. The AI client sees
+ * the screenshot and the reference side by side; this steers it to inspect the
+ * dimensions coverage/validation cannot (spacing, proportion, typography) and to
+ * fix them as small block-addressed diffs rather than re-authoring the page.
+ */
+const COMPARE_CHECKLIST =
+  'Compare the SCREENSHOT (image 1, what you built) against the REFERENCE (image 2, the target) and ' +
+  'list concrete mismatches, then fix them with patch_page_content ops keyed by each block props.id ' +
+  '(get ids from get_page). Work top-to-bottom and check: ' +
+  '1) SECTIONS — every reference section present, in the same order, none missing or extra. ' +
+  '2) LAYOUT — columns vs stacked, alignment, element order within a row. ' +
+  '3) SPACING — section padding and gaps match the reference rhythm (use var(--space-*) tokens). ' +
+  '4) PROPORTION — relative sizes of image vs text, hero height, card sizes; nothing overflowing or clipped. ' +
+  '5) TYPOGRAPHY — heading vs body scale, weight, line-height, letter-spacing (use var(--text-*) tokens). ' +
+  '6) COLOUR — backgrounds, text/ink, CTAs match the palette (set_appearance, not per-block hex). ' +
+  '7) IMAGERY & ICONS — real assets in the right slots, correct crop/aspect, icon style matches. ' +
+  'After patching, call compare_to_reference AGAIN and repeat until it matches. ' +
+  'If image 2 is absent, this is a screenshot-only self-check against your intended design.'
 
 /**
  * If `component` points at a single-template kit (`kit:<id>`), return that kit id
@@ -402,6 +424,42 @@ export default class BuilderPagesController {
       return response.json({ url, status: 200, ...shot })
     } catch (e) {
       return response.status(500).json({ message: (e as Error).message })
+    }
+  }
+
+  /**
+   * Compare the built page against its design reference: screenshot the DRAFT and
+   * (if the brief names one) read the reference image, returning BOTH so the AI
+   * client — which has vision — can diff them and fix the gaps with
+   * patch_page_content. This is the "graded against the real reference, not the
+   * brief the model wrote" gate; no server-side vision model is involved.
+   */
+  async compare({ params, request, response }: HttpContext) {
+    try {
+      const viewport = normalizeViewport(request.input('viewport'))
+      const token = await pages.ensurePreviewToken(String(params.id))
+      const base = `${request.protocol()}://${request.host()}`
+      const url = `${base}/preview/${token}`
+      const screenshot = await screenshotUrl(url, viewport)
+
+      // The reference image is whatever the design brief points at.
+      const page = await pages.findOne(String(params.id))
+      const brief = page.designBrief as { source?: { referenceMediaId?: string } } | null
+      const refId = brief?.source?.referenceMediaId
+      const reference = refId ? await media.readRasterBase64(refId, { maxWidth: 1000 }) : null
+
+      return response.json({
+        url,
+        viewport,
+        screenshot,
+        reference: reference ? { ...reference, mediaId: refId } : null,
+        note: reference
+          ? undefined
+          : 'No reference image on this page. Set one with set_design_brief({ source:{ kind:"png", referenceMediaId:"<upload_media id>" } }) after upload_media(purpose:"reference").',
+        checklist: COMPARE_CHECKLIST,
+      })
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
     }
   }
 
