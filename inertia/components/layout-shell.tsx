@@ -22,6 +22,12 @@ interface SiteTheme {
   primaryColor: string
   secondaryColor: string
   savedColors: { slug: string; name: string; value: string }[]
+  designTokens?: {
+    space?: Record<string, string>
+    text?: Record<string, string>
+    shadow?: Record<string, string>
+    container?: Record<string, string>
+  }
 }
 
 /** Guess the CSS `format(...)` for an uploaded font URL (best-effort). */
@@ -49,6 +55,17 @@ function SiteThemeStyle() {
   if (theme.secondaryColor) decls.push(`--secondary:${theme.secondaryColor}`)
   // User-named colour variables, usable in blocks as `var(--color-<slug>)`.
   for (const c of theme.savedColors ?? []) decls.push(`--color-${c.slug}:${c.value}`)
+  // Spacing/type/shadow/container scales, usable in blocks as `var(--space-4)` etc.
+  // Values are sanitised server-side (safeLength/safeShadow), slugs are [a-z0-9-].
+  const tokens = theme.designTokens ?? {}
+  for (const [family, prefix] of [
+    ['space', '--space-'],
+    ['text', '--text-'],
+    ['shadow', '--shadow-'],
+    ['container', '--container-'],
+  ] as const) {
+    for (const [slug, value] of Object.entries(tokens[family] ?? {})) decls.push(`${prefix}${slug}:${value}`)
+  }
   if (theme.fontFamily) decls.push(`font-family:'${theme.fontFamily}',var(--font-sans)`)
 
   // The uploaded custom font is declared via @font-face (keyed by its name);

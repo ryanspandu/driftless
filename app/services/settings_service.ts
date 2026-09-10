@@ -117,6 +117,7 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
     primary_color: '', // e.g. '#5225e6'; '' = app.css default
     secondary_color: '',
     saved_colors: '[]', // user-named colour variables (JSON [{slug,name,value}])
+    design_tokens: '{}', // spacing/type/shadow/container scales (JSON, see DesignTokens); '' = app.css defaults
   },
 
   /**
@@ -331,6 +332,7 @@ export type AppearanceField =
   | 'primaryColor'
   | 'secondaryColor'
   | 'savedColors'
+  | 'designTokens'
 
 export interface PublicTheme {
   fontFamily: string
@@ -343,6 +345,8 @@ export interface PublicTheme {
   secondaryColor: string
   /** User-named colour variables, emitted as `--color-<slug>` on public pages. */
   savedColors: SavedColor[]
+  /** Spacing/type/shadow/container scales, emitted as `--space-*`/`--text-*`/… */
+  designTokens: DesignTokens
 }
 
 /**
@@ -400,6 +404,93 @@ function sanitizeSavedColors(raw: unknown): SavedColor[] {
     seen.add(slug)
     out.push({ slug, name: rawName || slug, value })
     if (out.length >= 48) break
+  }
+  return out
+}
+
+/**
+ * Design-token families we publish as CSS custom properties on public pages:
+ * `space` → `--space-<slug>`, `text` → `--text-<slug>`, `shadow` → `--shadow-<slug>`,
+ * `container` → `--container-<slug>`. Each family is a `{ slug: value }` map. This is
+ * the spacing/type/shadow/container half of the design system; colours stay on
+ * `primaryColor`/`secondaryColor`/`savedColors`. Blocks reference these with a plain
+ * `var(--space-4)` string, which flows through the renderer untouched.
+ */
+export type DesignTokens = {
+  space?: Record<string, string>
+  text?: Record<string, string>
+  shadow?: Record<string, string>
+  container?: Record<string, string>
+}
+
+// A plain CSS <length>: a number + unit. No functions, so trivially injection-safe.
+const LENGTH_UNIT = /^-?\d*\.?\d+(?:px|rem|em|%|vw|vh|vmin|vmax|ch|pt)$/
+// A clamp()/calc()/min()/max() wrapper. The charset permits letters (for units like
+// `rem` and nested `calc`) but a blocklist below rejects url()/var()/expression()/etc.
+const LENGTH_FN = /^(?:clamp|calc|min|max)\([0-9a-z.,%\s+\-*/()]{1,120}\)$/i
+const LENGTH_FN_DENY = /url|expression|var|attr|env|image/i
+/** A CSS length safe to inject into a `--space-md:…` declaration. */
+export function safeLength(value: string | undefined): string {
+  const v = (value ?? '').trim()
+  if (!v || v.length > 128) return ''
+  if (LENGTH_UNIT.test(v)) return v
+  if (LENGTH_FN.test(v) && !LENGTH_FN_DENY.test(v)) return v
+  return ''
+}
+
+// A box-shadow value: lengths + colours + `inset`, comma-separated. The charset
+// excludes `;{}<>"'` so it can never break out of the declaration; the blocklist
+// rejects the CSS functions that could smuggle in a URL/expression.
+const SHADOW_VALUE = /^[0-9a-zA-Z.,%/#()\s+-]{1,200}$/
+const SHADOW_DENY = /url|expression|javascript|import|var\(/i
+/** A box-shadow value safe to inject into a `--shadow-md:…` declaration. */
+export function safeShadow(value: string | undefined): string {
+  const v = (value ?? '').trim()
+  if (!v || !SHADOW_VALUE.test(v) || SHADOW_DENY.test(v)) return ''
+  return v
+}
+
+// slug → sanitiser, per family. `space`/`text`/`container` are lengths; `shadow` is a
+// box-shadow value. Shared by the read-time sanitiser and the write-time validator.
+const DESIGN_TOKEN_FAMILIES: Array<[keyof DesignTokens, (v: string | undefined) => string]> = [
+  ['space', safeLength],
+  ['text', safeLength],
+  ['container', safeLength],
+  ['shadow', safeShadow],
+]
+
+/**
+ * Parse + sanitise stored `theme.design_tokens` JSON into clean, injectable token
+ * maps — each slug a safe identifier (`--<family>-<slug>`), each value passing the
+ * per-family sanitiser. Invalid entries are dropped; capped at 24 per family.
+ */
+function sanitizeDesignTokens(raw: unknown): DesignTokens {
+  let obj: unknown = raw
+  if (typeof raw === 'string') {
+    if (!raw.trim()) return {}
+    try {
+      obj = JSON.parse(raw)
+    } catch {
+      return {}
+    }
+  }
+  if (!obj || typeof obj !== 'object') return {}
+  const src = obj as Record<string, unknown>
+  const out: DesignTokens = {}
+  for (const [family, sanitise] of DESIGN_TOKEN_FAMILIES) {
+    const map = src[family]
+    if (!map || typeof map !== 'object') continue
+    const clean: Record<string, string> = {}
+    let n = 0
+    for (const [slug, value] of Object.entries(map as Record<string, unknown>)) {
+      const s = slug.trim().toLowerCase()
+      if (!/^[a-z0-9-]{1,40}$/.test(s)) continue
+      const val = sanitise(typeof value === 'string' ? value : '')
+      if (!val) continue
+      clean[s] = val
+      if (++n >= 24) break
+    }
+    if (n) out[family] = clean
   }
   return out
 }
@@ -556,6 +647,7 @@ export class WebSettingsService {
       primaryColor: safeColor(t['primary_color']),
       secondaryColor: safeColor(t['secondary_color']),
       savedColors: sanitizeSavedColors(t['saved_colors']),
+      designTokens: sanitizeDesignTokens(t['design_tokens']),
     }
   }
 
@@ -656,6 +748,35 @@ export class WebSettingsService {
       savedColorsRaw = JSON.stringify(input.savedColors ?? [])
     }
 
+    let designTokensRaw: string | undefined
+    if (input.designTokens !== undefined) {
+      const dt = (input.designTokens ?? {}) as Record<string, unknown>
+      for (const [family, sanitise] of DESIGN_TOKEN_FAMILIES) {
+        const map = dt[family]
+        if (map === undefined) continue
+        if (!map || typeof map !== 'object') {
+          issues.push({ field: `designTokens.${family}`, message: 'must be an object of { slug: value }' })
+          continue
+        }
+        for (const [slug, value] of Object.entries(map as Record<string, unknown>)) {
+          if (!/^[a-z0-9-]{1,40}$/.test(String(slug).trim().toLowerCase()))
+            issues.push({
+              field: `designTokens.${family}.${slug}`,
+              message: 'slug must match [a-z0-9-] (1–40 chars)',
+            })
+          if (typeof value !== 'string' || !sanitise(value))
+            issues.push({
+              field: `designTokens.${family}.${slug}`,
+              message:
+                family === 'shadow'
+                  ? 'value must be a valid box-shadow (lengths + colours, no url()/var())'
+                  : 'value must be a CSS length: a number+unit (16px/1.5rem/80%) or clamp()/calc()',
+            })
+        }
+      }
+      designTokensRaw = JSON.stringify(input.designTokens ?? {})
+    }
+
     if (issues.length) return { ok: false, issues }
 
     const map: Array<[AppearanceField, string]> = [
@@ -673,6 +794,8 @@ export class WebSettingsService {
     }
     if (savedColorsRaw !== undefined)
       patches.push({ section: 'theme', key: 'saved_colors', value: savedColorsRaw })
+    if (designTokensRaw !== undefined)
+      patches.push({ section: 'theme', key: 'design_tokens', value: designTokensRaw })
 
     await this.applyPatches(patches)
     return { ok: true, theme: await this.getAppearance() }

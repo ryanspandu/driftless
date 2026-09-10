@@ -43,7 +43,13 @@ const CONTENT_SHAPE =
   'Every block also accepts the shared "styleProps" (see the block\'s "styleProps" list and the ' +
   'catalog\'s "styleSchemas") — most are a plain CSS STRING value (e.g. padding:"16px 24px", ' +
   'display:"flex", gap:"16px", alignItems:"center", position:"absolute", top:"0", zIndex:"2", ' +
-  'width:"60%", bg:"#ffffff", textColor:"#111827"). A FEW are structured and documented under ' +
+  'width:"60%", bg:"#ffffff", textColor:"#111827"). ' +
+  'PREFER DESIGN TOKENS over raw px/hex for spacing, type, radius and shadow — write ' +
+  'padding:"var(--space-lg)", gap:"var(--space-md)", textSize:"var(--text-2xl)", ' +
+  'borderRadius:"var(--radius-lg)", boxShadow:"var(--shadow-md)", maxWidth:"var(--container-xl)" ' +
+  'instead of hardcoded values, so the whole page shares ONE scale and re-themes from ' +
+  'set_appearance (the token scales live on the theme; see set_appearance designTokens). ' +
+  'A FEW are structured and documented under ' +
   '"styleSchemas": "backgrounds" (a layer stack), "responsive" ({ breakpointId: { …styleProps } }), ' +
   'and "states" ({ hover|focus|active: { …styleProps } }) — these ARE honoured, not dropped. ' +
   'A style value that is neither a string nor one of those structured shapes is dropped on render. ' +
@@ -156,8 +162,8 @@ const GUIDANCE_RULES: string[] = [
   'To put items SIDE BY SIDE, wrap them in a layout block — Grid or Columns for EQUAL-width columns, HFlex for a button/inline row OR an asymmetric split (give each child a `width` styleProp; flex honours it, equal grid tracks do not). Sibling blocks with no layout parent stack vertically. Any block can also become a flex container directly with the layout styleProps (display:"flex", gap, justifyContent, alignItems) — see the "layout" styleSchema.',
   'POSITION / OVERLAY. To pin or float an element on top of another (a badge, a "+" hotspot, a caption over a photo, a card overlapping the next section), give the PARENT position:"relative" and the child position:"absolute" with top/right/bottom/left + zIndex. This IS supported (see the "positioning" styleSchema) — never report an overlay as impossible. A card that overlaps the section below instead uses a negative top `margin`.',
   'RESPONSIVE & STATES. Adapt a block per screen size with responsive:{ "mobile":{ …styleProps } } (breakpoint ids from get_breakpoints; default desktop/tablet/mobile) — e.g. stack an HFlex on mobile with responsive:{ "mobile":{ "flexDirection":"column" } }. Add hover/focus/active styling with states:{ "hover":{ …styleProps } }. Both are documented under styleSchemas.',
-  'SPACING & RHYTHM. Use ONE consistent scale so bands line up — spacing steps 8/12/16/24/32/48/64/96px. Section vertical padding is typically "64px 0"–"96px 0" on desktop (tighter on mobile via responsive), the same across the page. Give every Container the SAME maxWidth (~1120px) so section edges align. Gaps: 12–24px between stacked elements, 24–32px between cards. Do not hand each section a different width or padding.',
-  'TYPOGRAPHY SCALE. Set a clear hierarchy with the typography styleProps (see styleSchemas.typography): body 16–18px, H2 ~32px, H1 40–56px, hero display 56–72px; headings weight 600–700, body 400. The theme has ONE font (set_appearance). For a serif-heading + sans-body pairing, load the second family in set_global_code (an @import or @font-face) and apply it per block with the `font` styleProp.',
+  'SPACING & RHYTHM. Use the SPACING TOKENS so bands line up — var(--space-xs)=8 / sm=12 / md=16 / lg=24 / xl=32 / 2xl=48 / 3xl=64 / 4xl=96px. Section vertical padding is typically "var(--space-3xl) 0"–"var(--space-4xl) 0" on desktop (tighter on mobile via responsive), the same across the page. Give every Container the SAME maxWidth — var(--container-xl) (~1120px) — so section edges align. Gaps: var(--space-sm)–var(--space-lg) between stacked elements, var(--space-lg)–var(--space-xl) between cards. Writing var(--space-*) instead of raw px keeps ONE scale and lets set_appearance re-tune spacing site-wide. Do not hand each section a different width or padding.',
+  'TYPOGRAPHY SCALE. Set a clear hierarchy with the TYPE TOKENS (textSize) — var(--text-base)=16 / lg=18 / xl=20 / 2xl=24 / 3xl=32 / 4xl=40 / 5xl=56 / 6xl=72px: body var(--text-base)–var(--text-lg), H2 ~var(--text-3xl), H1 var(--text-4xl)–var(--text-5xl), hero display var(--text-6xl); headings weight 600–700, body 400. Raw px still works, but tokens keep the scale consistent and re-themable. The theme has ONE font (set_appearance). For a serif-heading + sans-body pairing, load the second family in set_global_code (an @import or @font-face) and apply it per block with the `font` styleProp.',
   'LEGIBILITY & CONTRAST. Body text ≥16px. Ensure high text/background contrast — dark ink on a light ground or vice-versa, never mid-grey on mid-grey; when you pick savedColors, `ink` must read clearly on `bg`, and every Button must read against its Section `bg`. Text over a photo ALWAYS needs an overlay/scrim `backgrounds` layer. On a band whose bg = var(--primary), a Button variant:"primary" is the SAME colour and vanishes — use variant:"custom" (a contrasting bg + textColor) or "outline" instead.',
   'PICK THE RIGHT LAYOUT BLOCK. VFlex = a column that is ALWAYS stacked. HFlex = a horizontal row (button groups; or an asymmetric split via child `width`). Grid = 2–4 EQUAL columns that auto-drop to fewer on mobile (feature/logo/card rows) — the default choice for a row of equal cells. Columns = Grid without a rows control (prefer Grid). QuickStack = equal grid cells that do NOT auto-stack on mobile (auto-responsive skips it) — only use it when cells must stay side-by-side on phones; otherwise use Grid or VFlex. Any block can also become a flex/grid container directly with the layout styleProps.',
   'Prefer the purpose-built block over composing from scratch: Reviews for testimonials, Accordion for FAQ, Slider/Carousel for hero or rotating strips, ProductList for products.',
@@ -565,20 +571,22 @@ const STYLE_SCHEMAS = {
     'and the child position:"absolute" with top/right/bottom/left (e.g. top:"16px", left:"16px") and zIndex ("2"). ' +
     'position:"sticky"/"fixed" also work. These ARE rendered — use them instead of reporting an overlay as impossible.',
   sizing:
-    'width/height/minWidth/minHeight/maxWidth/maxHeight take any CSS length ("100%", "480px", "60vh"); overflow:"hidden"|"auto"|"scroll" clips or scrolls a fixed-size box.',
+    'width/height/minWidth/minHeight/maxWidth/maxHeight take any CSS length ("100%", "480px", "60vh"); overflow:"hidden"|"auto"|"scroll" clips or scrolls a fixed-size box. ' +
+    'For a Container maxWidth PREFER the container tokens var(--container-sm|md|lg|xl) (640/768/1024/1120px) so every section aligns to one width.',
   typography:
     'Type styling on any text block (Heading/Paragraph/Text/Button): textSize (CSS length), fontWeight ("400"–"800"), ' +
     'lineHeight (unitless, e.g. "1.5"), letterSpacing ("-0.02em"), textTransform ("uppercase"), textDecoration, ' +
     'fontStyle, align ("left"|"center"|"right"), and `font` (a font-family string — set this to use a SECOND family, ' +
     'e.g. a sans body under serif headings; the theme fontFamily from set_appearance is the page default). ' +
-    'Suggested scale — body 16–18px / weight 400 / line-height ~1.5; H3 ~24px; H2 ~32px; H1 40–56px; hero display 56–72px ' +
-    'with a tight lineHeight ~1.1 and letterSpacing "-0.02em"; headings default to weight 600. Scale big headings DOWN per ' +
-    'breakpoint via responsive (e.g. responsive:{ "mobile":{ "textSize":"32px" } }).',
+    'PREFER TYPE TOKENS for textSize — var(--text-base)=16 / lg=18 / xl=20 / 2xl=24 / 3xl=32 / 4xl=40 / 5xl=56 / 6xl=72px: ' +
+    'body var(--text-base)–var(--text-lg) / weight 400 / line-height ~1.5; H3 var(--text-2xl); H2 var(--text-3xl); ' +
+    'H1 var(--text-4xl)–var(--text-5xl); hero display var(--text-6xl) with a tight lineHeight ~1.1 and letterSpacing "-0.02em"; ' +
+    'headings default to weight 600. Scale big headings DOWN per breakpoint via responsive (e.g. responsive:{ "mobile":{ "textSize":"var(--text-3xl)" } }).',
   effects:
     'transform ("translateY(-8px)", "rotate(-3deg)", "scale(1.05)"), opacity ("0.9"), transition ("all 0.2s ease"), ' +
     'filter ("blur(4px)"), mixBlendMode ("multiply"), cursor ("pointer") are plain CSS string values. ' +
-    'boxShadow takes a PRESET token "none"|"sm"|"md"|"lg" OR a raw CSS shadow ("0 10px 30px rgba(0,0,0,0.12)"). ' +
-    'borderRadius ("12px", or "999px" for a pill/circle), borderWidth ("1px"), borderStyle ("solid"), borderColor ' +
+    'boxShadow PREFERS a shadow token var(--shadow-sm|md|lg); it also takes a preset "none"|"sm"|"md"|"lg" OR a raw CSS shadow ("0 10px 30px rgba(0,0,0,0.12)"). ' +
+    'borderRadius PREFERS a radius token var(--radius-sm|md|lg|xl|2xl) (also "12px", or "999px" for a pill/circle), borderWidth ("1px"), borderStyle ("solid"), borderColor ' +
     '(hex or var(--color-<slug>)) build a border — set all of width/style/colour for it to show.',
   responsive:
     'Per-breakpoint overrides: responsive: { "<breakpointId>": { <any styleProp>: value, … } }. Only the props you override change ' +

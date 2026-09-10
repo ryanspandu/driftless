@@ -943,7 +943,7 @@ export function registerTools(
   )
   server.tool(
     'set_appearance',
-    "Set the public theme: font, primary/secondary colours, and named saved-colour variables. Only the fields you pass are changed. Match a design's brand palette here FIRST — Button variant:\"primary\"/\"secondary\", product CTAs, FormButton and cart/checkout all render the theme colours. Values are validated: an unusable colour/font is rejected with 422 + issues (not silently ignored). Responds with the sanitised theme that will actually render.",
+    "Set the public theme: font, primary/secondary colours, named saved-colour variables, and the design-token SCALES (spacing/type/shadow/container) via designTokens. Only the fields you pass are changed. Match a design's brand palette AND spacing/type scale here FIRST — Button variant:\"primary\"/\"secondary\", product CTAs, FormButton and cart/checkout all render the theme colours, and blocks reference the token scales as var(--space-*)/var(--text-*)/… Values are validated: an unusable colour/font/length is rejected with 422 + issues (not silently ignored). Responds with the sanitised theme that will actually render.",
     {
       fontFamily: z
         .string()
@@ -970,6 +970,19 @@ export function registerTools(
         .array(z.object({ slug: z.string(), name: z.string(), value: z.string() }))
         .optional()
         .describe('Named colour variables (bg, ink, accent, surface, …), published as var(--color-<slug>) — reference them in any block\'s bg/textColor/borderColor.'),
+      designTokens: z
+        .object({
+          space: z.record(z.string()).optional(),
+          text: z.record(z.string()).optional(),
+          shadow: z.record(z.string()).optional(),
+          container: z.record(z.string()).optional(),
+        })
+        .optional()
+        .describe(
+          'Design-token SCALES published as CSS custom properties: space→var(--space-<slug>), text→var(--text-<slug>), shadow→var(--shadow-<slug>), container→var(--container-<slug>). ' +
+            'Each family is a { slug: value } map (slug matches [a-z0-9-]); space/text/container values are CSS lengths (16px/1.5rem/clamp(…)), shadow is a box-shadow. ' +
+            'Sensible defaults already exist (space xs/sm/md/lg/xl/2xl/3xl/4xl, text base…6xl, shadow sm/md/lg, container sm/md/lg/xl) — override only what the design needs, then reference the tokens in blocks (padding:"var(--space-lg)", textSize:"var(--text-3xl)") instead of raw px so the whole page shares one scale.'
+        ),
     },
     (args) => run(() => call('PUT', '/api/mcp/v1/appearance', args))
   )

@@ -40,6 +40,7 @@ export default class BuilderSettingsController {
       'primaryColor',
       'secondaryColor',
       'savedColors',
+      'designTokens',
     ]) as Record<string, unknown>
 
     try {
