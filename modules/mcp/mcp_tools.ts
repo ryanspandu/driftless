@@ -87,6 +87,8 @@ const PAGES_PROFILE = [
   'screenshot_page',
   'compare_to_reference',
   'patch_page_content',
+  'list_section_presets',
+  'insert_section',
   'publish_page',
   'discard_draft',
   'delete_page',
@@ -802,6 +804,25 @@ export function registerTools(
     "Edit the DRAFT by BLOCK — address blocks by their stable props.id and apply a small diff instead of re-sending the whole tree (re-sending from memory is why revisions drift). ops (one or many): { op:'update_props', id, props } / { op:'update_style', id, props } merge props into #id; { op:'insert', block, parentId?, slot?, index? } adds a block into parentId.slot (default the document root's content); { op:'move', id, parentId?, slot?, index? } relocates #id; { op:'remove', id }. Applied in order, best-effort; returns applied[] + opErrors[]. Get block ids from get_page or render_page.",
     { id: z.string(), ops: PatchOps },
     ({ id, ops }) => run(() => call('PUT', `/api/mcp/v1/pages/${id}/content/patch`, { ops }))
+  )
+  server.tool(
+    'list_section_presets',
+    'List the reusable SECTION PRESETS — known-good, token-driven sections (hero, feature grid, CTA, …) you can drop into a page and then fill, instead of composing every block from scratch. Returns { id, name } for each (they are COMPONENT templates). Use get_template to inspect a preset\'s tree, then insert_section to add a COPY to your page.',
+    {},
+    () => run(() => call('GET', '/api/mcp/v1/section-presets'))
+  )
+  server.tool(
+    'insert_section',
+    'Insert a SECTION PRESET (from list_section_presets) into a page: it COPIES the preset\'s block tree into the page draft with fresh ids (unlike a shared TemplateRef), so you then fill it with THIS design\'s content/images. Returns insertedBlockIds — the new top-level block ids — plus advisories; use get_page to see the copied children\'s ids, then patch_page_content to set the real headings/text/images/colours. parentId/slot/index place it (default: appended to the page root).',
+    {
+      id: z.string().describe('The page id to insert into.'),
+      presetId: z.string().describe('The section preset / COMPONENT template id (from list_section_presets).'),
+      parentId: z.string().optional().describe('Parent block id to insert INTO; omit for the page root.'),
+      slot: z.string().optional().describe('Slot on the parent (default "content").'),
+      index: z.number().optional().describe('Position in the target array (default: append).'),
+    },
+    ({ id, presetId, parentId, slot, index }) =>
+      run(() => call('POST', `/api/mcp/v1/pages/${id}/insert-section`, { presetId, parentId, slot, index }))
   )
   server.tool(
     'publish_page',

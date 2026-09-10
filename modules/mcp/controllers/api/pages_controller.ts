@@ -6,7 +6,8 @@ import {
   validatePuckDocument,
   type ValidationResult,
 } from '#modules/mcp/services/puck_content_validator'
-import { applyPatchOps, type PatchOp } from '#modules/mcp/services/puck_patch'
+import { applyPatchOps, cloneWithFreshIds, type PatchOp, type PuckNode } from '#modules/mcp/services/puck_patch'
+import TemplatesService from '#services/templates_service'
 import { generateResponsive } from '#modules/mcp/services/auto_responsive'
 import { checkDesignCoverage } from '#modules/mcp/services/design_coverage'
 import { screenshotUrl, normalizeViewport } from '#services/screenshot_service'
@@ -20,6 +21,7 @@ import TemplateKitsService from '#services/template_kits_service'
 const pages = new PagesService()
 const templateKits = new TemplateKitsService()
 const media = new MediaService()
+const templates = new TemplatesService()
 
 /**
  * The critique protocol returned by `compare_to_reference`. The AI client sees
@@ -497,6 +499,78 @@ export default class BuilderPagesController {
       const saved = await pages.saveDraft(String(params.id), { content: check.normalized })
       return response.json(
         withAdvisories({ ...saved, applied: result.applied, opErrors: result.errors }, check)
+      )
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
+  }
+
+  /**
+   * Insert a section PRESET (a COMPONENT template) into the page draft: deep-copy
+   * its block tree, give every block a fresh id, and splice it into the draft at
+   * parentId.slot (or the root). Unlike TemplateRef (a shared reference), this
+   * COPIES the tree so the AI can fill it with THIS page's content/images via
+   * patch_page_content — the returned insertedBlockIds are the handles to patch.
+   */
+  async insertSection({ params, request, response }: HttpContext) {
+    const presetId = String(request.input('presetId') ?? '').trim()
+    if (!presetId) return response.status(422).json({ message: '`presetId` is required' })
+    const parentId = request.input('parentId') ? String(request.input('parentId')) : undefined
+    const slot = request.input('slot') ? String(request.input('slot')) : 'content'
+    const index = request.input('index') !== undefined ? Number(request.input('index')) : undefined
+
+    let template
+    try {
+      template = await templates.find(presetId)
+    } catch {
+      return response.status(404).json({ message: `No section preset / template with id "${presetId}"` })
+    }
+    if (template.type !== 'COMPONENT') {
+      return response
+        .status(422)
+        .json({ message: 'insert_section only accepts a COMPONENT template (a reusable section)' })
+    }
+    const src = (template.content?.content ?? []) as PuckNode[]
+    if (!Array.isArray(src) || src.length === 0) {
+      return response.status(422).json({ message: 'That preset has no content to insert' })
+    }
+
+    let page
+    try {
+      page = await pages.findOne(String(params.id))
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
+
+    const blocks = cloneWithFreshIds(src)
+    const insertedBlockIds = blocks
+      .map((b) => (b.props as { id?: string } | undefined)?.id)
+      .filter((id): id is string => Boolean(id))
+    const ops: PatchOp[] = blocks.map((block, i) => ({
+      op: 'insert',
+      block,
+      parentId,
+      slot,
+      index: index !== undefined ? index + i : undefined,
+    }))
+
+    const current = (page.draftContent ?? page.content) as unknown
+    const result = applyPatchOps(current, ops)
+    const check = await validatePuckDocument(result.doc, 'page')
+    if (!check.valid) {
+      return response.status(422).json({
+        message: 'Inserted section made the page invalid — no change saved',
+        issues: check.issues,
+        opErrors: result.errors,
+      })
+    }
+    try {
+      const saved = await pages.saveDraft(String(params.id), { content: check.normalized })
+      return response.json(
+        withAdvisories(
+          { ...saved, insertedBlockIds, applied: result.applied, opErrors: result.errors },
+          check
+        )
       )
     } catch (e) {
       return response.status(404).json({ message: (e as Error).message })

@@ -8,6 +8,8 @@
  * the page. The caller re-validates the result and saves it as the draft.
  */
 
+import { newUlid } from '#services/ulid_service'
+
 export interface PuckNode {
   type?: unknown
   props?: Record<string, unknown>
@@ -88,6 +90,31 @@ function insertAt(arr: PuckNode[], node: PuckNode, index: number | undefined): v
  * fails is recorded in `errors` and skipped; the rest still apply, so a batch is
  * best-effort. Ids are matched anywhere in the tree.
  */
+/**
+ * Deep-clone a list of blocks and give EVERY block a fresh props.id, so a reusable
+ * section (a COMPONENT template) can be inlined into a page without id collisions.
+ * Returns the cloned array; its top-level blocks' new ids are the section's handles
+ * (what insert_section reports so the AI can then fill them with patch_page_content).
+ */
+export function cloneWithFreshIds(nodes: PuckNode[]): PuckNode[] {
+  const clone = structuredClone(nodes)
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(walk)
+      return
+    }
+    if (node && typeof node === 'object') {
+      const n = node as PuckNode
+      for (const value of Object.values(n)) walk(value)
+      if (n.props && typeof n.props === 'object') {
+        ;(n.props as Record<string, unknown>).id = newUlid()
+      }
+    }
+  }
+  walk(clone)
+  return clone
+}
+
 export function applyPatchOps(input: unknown, ops: PatchOp[]): PatchResult {
   const doc: PuckDocument =
     input && typeof input === 'object'

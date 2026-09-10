@@ -188,6 +188,10 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .as('mcp.pages.patch')
             .use(read('builder:pages'))
           router
+            .post('/api/mcp/v1/pages/:id/insert-section', [PagesCtrl, 'insertSection'])
+            .as('mcp.pages.insertSection')
+            .use(read('builder:pages'))
+          router
             .get('/api/mcp/v1/pages/:id/render', [PagesCtrl, 'render'])
             .as('mcp.pages.render')
             .use(read('builder:read'))
@@ -295,6 +299,10 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
           router
             .get('/api/mcp/v1/templates', [TemplatesCtrl, 'index'])
             .as('mcp.templates.index')
+            .use(read('builder:read'))
+          router
+            .get('/api/mcp/v1/section-presets', [TemplatesCtrl, 'sectionPresets'])
+            .as('mcp.templates.sectionPresets')
             .use(read('builder:read'))
           router
             .get('/api/mcp/v1/templates/:id', [TemplatesCtrl, 'show'])

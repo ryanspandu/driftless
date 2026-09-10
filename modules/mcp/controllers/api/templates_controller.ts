@@ -34,6 +34,15 @@ export default class BuilderTemplatesController {
     return response.json(await templates.list(type))
   }
 
+  /**
+   * Section presets = the reusable COMPONENT templates, the library insert_section
+   * clones into a page. Seeded starter sections plus any COMPONENT the operator
+   * saved. Returns summaries (id + name); call get_template to inspect the tree.
+   */
+  async sectionPresets({ response }: HttpContext) {
+    return response.json(await templates.list('COMPONENT'))
+  }
+
   async show({ params, response }: HttpContext) {
     try {
       return response.json(await templates.find(params.id))
