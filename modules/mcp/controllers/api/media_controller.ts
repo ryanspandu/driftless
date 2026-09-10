@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type User from '#models/user'
 import MediaService, { type MediaOriginMeta } from '#services/media_service'
+import { extractPalette } from '#services/reference_palette_service'
 
 const media = new MediaService()
 
@@ -74,6 +75,23 @@ export default class BuilderMediaController {
         alt: request.input('alt') ? String(request.input('alt')) : null,
       })
       return response.status(201).json(dto)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
+  /**
+   * Extract a colour palette (brand roles + prominent colours) from a reference
+   * image, so the AI can seed set_appearance from the design's real pixels. Pure
+   * sharp analysis; the model reviews the suggestion and applies it.
+   */
+  async palette({ params, response }: HttpContext) {
+    const path = await media.rasterPath(String(params.id))
+    if (!path) {
+      return response.status(422).json({ message: 'Media not found or not a JPEG/PNG/WebP image' })
+    }
+    try {
+      return response.json({ mediaId: String(params.id), ...(await extractPalette(path)) })
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }

@@ -52,7 +52,7 @@ const PAGES_PROFILE = [
   'set_page_content', 'validate_page_content', 'render_page', 'screenshot_page', 'compare_to_reference', 'patch_page_content',
   'publish_page', 'discard_draft', 'delete_page', 'get_appearance', 'set_appearance',
   'set_design_brief', 'check_design_coverage', 'get_preview_url', 'upload_media',
-  'crop_media', 'list_media',
+  'crop_media', 'analyze_reference', 'list_media',
   'list_menus', 'get_menu', 'create_menu', 'set_menu_items',
   'list_forms', 'get_form', 'create_form', 'update_form', 'delete_form',
 ]
@@ -1047,6 +1047,13 @@ server.tool(
     run(() =>
       api.post(`/api/mcp/v1/media/${mediaId}/crop`, { x, y, width, height, targetWidth, alt, title })
     )
+)
+
+server.tool(
+  'analyze_reference',
+  "Extract a colour palette from a reference image (usually the upload_media(purpose:\"reference\") one) so you can seed the theme from the design's REAL pixels instead of eyeballing hex blind. Returns { primary, secondary, bg, ink, palette[] } (all hex). REVIEW them, then apply with set_appearance (primaryColor/secondaryColor + savedColors:[{slug:'bg'…},{slug:'ink'…}]) — adjust any that look off. Colours only: spacing/type come from the design tokens, not the image.",
+  { mediaId: z.string().describe('The reference image media id (from upload_media).') },
+  ({ mediaId }) => run(() => api.get(`/api/mcp/v1/media/${mediaId}/palette`))
 )
 
 server.tool(

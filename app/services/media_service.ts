@@ -158,6 +158,16 @@ export default class MediaService {
     }
   }
 
+  /**
+   * Resolve a raster media (JPEG/PNG/WebP) to its absolute file path for direct
+   * sharp analysis (e.g. palette extraction). Returns null if missing/not raster.
+   */
+  async rasterPath(id: string): Promise<string | null> {
+    const media = await Media.query().where('id', id).whereNull('deleted_at').first()
+    if (!media || !RASTER_MIMES.has(media.mimeType)) return null
+    return this.resolveFilePath(media.filename)
+  }
+
   async list(params: {
     page?: number
     pageSize?: number

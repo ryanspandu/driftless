@@ -410,6 +410,10 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .as('mcp.media.index')
             .use(read('builder:read'))
           router
+            .get('/api/mcp/v1/media/:id/palette', [MediaCtrl, 'palette'])
+            .as('mcp.media.palette')
+            .use(read('builder:read'))
+          router
             .post('/api/mcp/v1/media', [MediaCtrl, 'store'])
             .as('mcp.media.store')
             .use(read('builder:media'))

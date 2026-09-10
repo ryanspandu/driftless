@@ -97,6 +97,7 @@ const PAGES_PROFILE = [
   'get_preview_url',
   'upload_media',
   'crop_media',
+  'analyze_reference',
   'list_media',
   'list_menus',
   'get_menu',
@@ -1126,6 +1127,12 @@ export function registerTools(
     },
     ({ mediaId, x, y, width, height, targetWidth, alt, title }) =>
       run(() => call('POST', `/api/mcp/v1/media/${mediaId}/crop`, { x, y, width, height, targetWidth, alt, title }))
+  )
+  server.tool(
+    'analyze_reference',
+    "Extract a colour palette from a reference image (usually the upload_media(purpose:\"reference\") one) so you can seed the theme from the design's REAL pixels instead of eyeballing hex blind. Returns { primary, secondary, bg, ink, palette[] } (all hex). REVIEW them, then apply with set_appearance (primaryColor/secondaryColor + savedColors:[{slug:'bg'…},{slug:'ink'…}]) — adjust any that look off. Colours only: spacing/type come from the design tokens, not the image.",
+    { mediaId: z.string().describe('The reference image media id (from upload_media).') },
+    ({ mediaId }) => run(() => call('GET', `/api/mcp/v1/media/${mediaId}/palette`))
   )
   server.tool(
     'update_media',
