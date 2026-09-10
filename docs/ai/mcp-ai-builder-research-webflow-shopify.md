@@ -1,8 +1,10 @@
 # Riset: AI Site Builder Webflow & Shopify → Arahan Perbaikan MCP Driftless
 
-> **Status:** Riset / diagnosis. **Belum ada perubahan kode.**
+> **Status:** Riset + diagnosis. **Roadmap P0–P4 SUDAH diimplementasi** (branch `develop`, lihat catatan status di §7–§8).
 > **Tanggal:** 2026-09-10
 > **Tujuan:** Memahami cara kerja AI site/store builder Webflow & Shopify, lalu memetakan kenapa page yang dibangun lewat **MCP Driftless** sering meleset dari desain referensi — dan apa yang harus ditiru.
+>
+> **Update implementasi:** semua rekomendasi §7 sudah dikerjakan — **P0** screenshot_page (visual loop, lihat [screenshot-page-setup.md](./screenshot-page-setup.md)), **P1** full design-token system (`set_appearance` designTokens), **P2** `analyze_reference` (ekstrak palette via sharp), **P3** `compare_to_reference` (bandingin render vs referensi, tanpa AI provider baru), **P4** section presets clone-and-fill (`list_section_presets`/`insert_section`). Diverifikasi statis (typecheck + unit sanitizer/shaper/clone + ekstraksi palette pada gambar nyata); round-trip lewat dev server hidup masih perlu dijalankan.
 
 ---
 
