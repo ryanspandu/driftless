@@ -51,4 +51,72 @@ test.group('MCP validator | props & changes', () => {
     assert.isFalse(res.valid)
     assert.isTrue(res.issues.some((i) => /did you mean "Heading"/.test(i.message)))
   })
+
+  test('intuitive CSS aliases are renamed to canonical keys (not dropped)', async ({ assert }) => {
+    const res = await validatePuckDocument(
+      page([
+        {
+          type: 'Heading',
+          props: {
+            id: 'h',
+            text: 'Hi',
+            textAlign: 'center',
+            fontSize: '44px',
+            fontFamily: 'Geist',
+            color: '#221D17',
+            backgroundColor: '#fff',
+          },
+        },
+      ]),
+      'page'
+    )
+    assert.isTrue(res.valid)
+    const props = (res.normalized.content![0] as any).props
+    // aliases removed, canonical keys set
+    assert.deepEqual(props.align, 'center')
+    assert.deepEqual(props.textSize, '44px')
+    assert.deepEqual(props.font, 'Geist')
+    assert.deepEqual(props.textColor, '#221D17')
+    assert.deepEqual(props.bg, '#fff')
+    assert.isUndefined(props.textAlign)
+    assert.isUndefined(props.fontSize)
+    // each rename is reported, and none is treated as a dropped/unknown prop
+    assert.isTrue(res.changes.some((c) => /renamed "textAlign" → "align"/.test(c.message)))
+    assert.isEmpty(res.droppedProps)
+  })
+
+  test('an alias yields to an already-set canonical key (dropped with a warning)', async ({ assert }) => {
+    const res = await validatePuckDocument(
+      page([{ type: 'Heading', props: { id: 'h', text: 'Hi', align: 'left', textAlign: 'center' } }]),
+      'page'
+    )
+    const props = (res.normalized.content![0] as any).props
+    assert.deepEqual(props.align, 'left') // explicit canonical kept
+    assert.isUndefined(props.textAlign)
+    assert.isTrue(res.warnings.some((w) => /both "textAlign" and "align"/.test(w.message)))
+  })
+
+  test('per-side margin/padding longhands are accepted (no warning)', async ({ assert }) => {
+    const res = await validatePuckDocument(
+      page([
+        {
+          type: 'Section',
+          props: { id: 's', marginTop: '-81px', paddingLeft: '64px', paddingRight: '64px', content: [] },
+        },
+      ]),
+      'page'
+    )
+    assert.isTrue(res.valid)
+    assert.isFalse(res.warnings.some((w) => /marginTop|paddingLeft|paddingRight/.test(w.message)))
+    assert.isEmpty(res.droppedProps)
+  })
+
+  test('a truly unknown prop is rolled up in droppedProps', async ({ assert }) => {
+    const res = await validatePuckDocument(
+      page([{ type: 'Heading', props: { id: 'h', text: 'Hi', nonsenseProp: 'x' } }]),
+      'page'
+    )
+    assert.isTrue(res.valid)
+    assert.isTrue(res.droppedProps.some((d) => d.key === 'nonsenseProp' && d.type === 'Heading'))
+  })
 })

@@ -136,6 +136,9 @@ function withAdvisories<T extends object>(
   extra?: Record<string, unknown>
 ): T {
   const out: Record<string, unknown> = {}
+  // Surface dropped props FIRST — a compact roll-up of what silently did not
+  // apply, so the caller sees it without scanning the (large) warnings/echo.
+  if (check?.droppedProps.length) out.droppedProps = check.droppedProps
   if (check?.warnings.length) out.warnings = check.warnings
   if (check?.changes.length) out.changes = check.changes
   if (extra) Object.assign(out, extra)

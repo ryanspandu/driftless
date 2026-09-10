@@ -41,11 +41,36 @@ export interface ValidationResult {
   /**
    * What normalization silently changed, so the caller learns what was rewritten
    * rather than only seeing a mysteriously-altered document (a filled-in block id,
-   * a misplaced slot array moved into props).
+   * a misplaced slot array moved into props, a style-prop alias renamed to its
+   * canonical key).
    */
   changes: ValidationIssue[]
+  /**
+   * Compact roll-up of every prop key that was dropped (unknown to its block and
+   * not a recognised alias) — surfaced at the top of a write response so the
+   * caller sees at a glance what silently did NOT apply, instead of hunting for
+   * it in the (huge) echoed document or the long `warnings` list.
+   */
+  droppedProps: { path: string; type: string; key: string }[]
   /** The document with every node's `props.id` filled in. */
   normalized: PuckDocument
+}
+
+/**
+ * Intuitive CSS / other-subsystem names → the renderer's canonical style-prop
+ * key. A design-to-page converter (and most people) reach for `textAlign`,
+ * `fontSize`, `fontFamily`, `color`, `backgroundColor` — but `styleToCss` reads
+ * `align`, `textSize`, `font`, `textColor`, `bg`. Left as-is these were dropped
+ * with only a buried warning, so exact alignment / size / colour silently didn't
+ * take. We rename them to the canonical key on ingest (recording a `change`) so
+ * both spellings just work; the catalog still advertises the canonical names.
+ */
+const STYLE_PROP_ALIASES: Record<string, string> = {
+  textAlign: 'align',
+  fontSize: 'textSize',
+  fontFamily: 'font',
+  color: 'textColor',
+  backgroundColor: 'bg',
 }
 
 /**
@@ -92,13 +117,22 @@ export async function validatePuckDocument(
     // No catalog emitted yet — normalise ids but don't reject anything.
     normalizeIds(doc.content ?? [])
     for (const zone of Object.values(doc.zones ?? {})) normalizeIds(zone)
-    return { valid: true, skipped: true, issues: [], warnings: [], changes: [], normalized: doc }
+    return {
+      valid: true,
+      skipped: true,
+      issues: [],
+      warnings: [],
+      changes: [],
+      droppedProps: [],
+      normalized: doc,
+    }
   }
 
   const byType = new Map<string, CatalogBlock>(catalog.blocks.map((b) => [b.type, b]))
   const issues: ValidationIssue[] = []
   const warnings: ValidationIssue[] = []
   const changes: ValidationIssue[] = []
+  const droppedProps: ValidationResult['droppedProps'] = []
 
   // Which modules are enabled right now — a block from a disabled module would
   // validate structurally but render nothing, so reject it with a clear message.
@@ -113,6 +147,7 @@ export async function validatePuckDocument(
     issues,
     warnings,
     changes,
+    droppedProps,
     mediaPrefix: mediaUrlPrefix(),
   }
 
@@ -134,7 +169,15 @@ export async function validatePuckDocument(
     }
   }
 
-  return { valid: issues.length === 0, skipped: false, issues, warnings, changes, normalized: doc }
+  return {
+    valid: issues.length === 0,
+    skipped: false,
+    issues,
+    warnings,
+    changes,
+    droppedProps,
+    normalized: doc,
+  }
 }
 
 /** Shared state threaded through the recursive walk. */
@@ -144,8 +187,49 @@ interface WalkCtx {
   issues: ValidationIssue[]
   warnings: ValidationIssue[]
   changes: ValidationIssue[]
+  droppedProps: ValidationResult['droppedProps']
   /** URL prefix under which self-hosted media lives (e.g. "/uploads"). */
   mediaPrefix: string
+}
+
+/**
+ * Rename any intuitive style-prop alias (`textAlign`, `fontSize`, …) to the
+ * renderer's canonical key, in the node's own props and inside any nested
+ * `responsive[bp]` / `states[state]` style bags. If the canonical key is already
+ * set the alias is dropped (a warning) rather than clobbering the explicit value;
+ * otherwise it is moved across and recorded as a `change`. Runs before
+ * `checkProps`, so a renamed alias is no longer reported as an unknown prop.
+ */
+function applyStyleAliases(props: Record<string, unknown>, at: string, ctx: WalkCtx): void {
+  const rename = (bag: Record<string, unknown>, where: string) => {
+    for (const [alias, canonical] of Object.entries(STYLE_PROP_ALIASES)) {
+      if (!(alias in bag)) continue
+      if (bag[canonical] === undefined) {
+        bag[canonical] = bag[alias]
+        delete bag[alias]
+        ctx.changes.push({
+          path: `${where}.${alias}`,
+          message: `renamed "${alias}" → "${canonical}" (the renderer's style-prop name)`,
+        })
+      } else {
+        delete bag[alias]
+        ctx.warnings.push({
+          path: `${where}.${alias}`,
+          message: `both "${alias}" and "${canonical}" were set — kept "${canonical}", dropped the alias "${alias}"`,
+        })
+      }
+    }
+  }
+  rename(props, `${at}.props`)
+  for (const nested of ['responsive', 'states'] as const) {
+    const group = props[nested]
+    if (!group || typeof group !== 'object') continue
+    for (const [k, bag] of Object.entries(group as Record<string, unknown>)) {
+      if (bag && typeof bag === 'object') {
+        rename(bag as Record<string, unknown>, `${at}.props.${nested}.${k}`)
+      }
+    }
+  }
 }
 
 function walk(nodes: PuckNode[], path: string, ctx: WalkCtx): void {
@@ -189,6 +273,11 @@ function walk(nodes: PuckNode[], path: string, ctx: WalkCtx): void {
       props.id = `${type}-${randomUUID()}`
       ctx.changes.push({ path: `${at}.props.id`, message: `filled in a generated id for this ${type}` })
     }
+
+    // Style-alias pass: rename intuitive CSS names (textAlign→align, fontSize→
+    // textSize, …) to the renderer's canonical keys BEFORE checkProps, so a
+    // renamed alias applies on render and is not reported as an unknown prop.
+    applyStyleAliases(props, at, ctx)
 
     // Image-URL pass: a placeholder/stock host is a hard error (it will render
     // off-brand); any other external URL that isn't self-hosted is a warning
@@ -373,6 +462,7 @@ function checkProps(
       path: `${at}.props.${key}`,
       message: `"${type}" has no prop "${key}" — it will be ignored on render (check the block's fields/slots/styleProps in the catalog)`,
     })
+    ctx.droppedProps.push({ path: `${at}.props.${key}`, type, key })
   }
 }
 

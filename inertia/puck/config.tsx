@@ -676,13 +676,17 @@ export const baseConfig: Config = {
         gap,
         alignItems,
         justifyContent,
+        flexWrap,
         ...s
       }) => (
         <Box
           s={mergeLayout(s, {
             display: 'flex',
             flexDirection: 'row',
-            flexWrap: 'wrap',
+            // Default to wrapping, but honour an author-set flexWrap ("nowrap" for
+            // a single-row track). Destructured out of `s` so the base default
+            // no longer overrides the author's value (mergeLayout lets base win).
+            flexWrap: typeof flexWrap === 'string' ? flexWrap : 'wrap',
             gap: typeof gap === 'string' ? gap : '12px',
             alignItems: typeof alignItems === 'string' ? alignItems : 'center',
             justifyContent: typeof justifyContent === 'string' ? justifyContent : undefined,

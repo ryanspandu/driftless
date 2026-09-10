@@ -193,6 +193,18 @@ function styleToCss(s: StyleBag): CSSProperties {
   const css: CSSProperties = {
     padding: str(s, 'padding'),
     margin: str(s, 'margin'),
+    // Per-side longhands — a design tool exports spacing per side, and a model
+    // reaches for `marginTop`/`paddingLeft` naturally. Read them alongside the
+    // shorthand so exact per-side spacing survives (they compose in CSS: a
+    // longhand refines the shorthand). Kept in step with RENDERED_STYLE_PROP_NAMES.
+    marginTop: str(s, 'marginTop'),
+    marginRight: str(s, 'marginRight'),
+    marginBottom: str(s, 'marginBottom'),
+    marginLeft: str(s, 'marginLeft'),
+    paddingTop: str(s, 'paddingTop'),
+    paddingRight: str(s, 'paddingRight'),
+    paddingBottom: str(s, 'paddingBottom'),
+    paddingLeft: str(s, 'paddingLeft'),
     maxWidth: str(s, 'maxWidth'),
     color: str(s, 'textColor'),
     fontFamily: str(s, 'font'),
@@ -277,7 +289,7 @@ function styleToCss(s: StyleBag): CSSProperties {
    * An explicit margin now wins outright; `auto` typed into the left/right
    * boxes still centres.
    */
-  if (str(s, 'maxWidth') && !str(s, 'margin')) {
+  if (str(s, 'maxWidth') && !str(s, 'margin') && !str(s, 'marginLeft') && !str(s, 'marginRight')) {
     css.marginLeft = 'auto'
     css.marginRight = 'auto'
   }
@@ -317,7 +329,10 @@ function styleToCss(s: StyleBag): CSSProperties {
  */
 export const RENDERED_STYLE_PROP_NAMES: string[] = [
   // Box model
-  'padding', 'margin', 'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'overflow',
+  'padding', 'margin',
+  'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+  'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+  'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'overflow',
   // Flex / grid layout
   'display', 'flexDirection', 'flexWrap', 'justifyContent', 'alignItems', 'alignSelf', 'gap',
   'flexGrow', 'flexShrink', 'flexBasis', 'order',
