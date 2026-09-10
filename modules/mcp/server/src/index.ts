@@ -29,7 +29,7 @@ const SERVER_INSTRUCTIONS = `Driftless page builder. To reproduce a design refer
 5. set_design_brief (palette, iconStyle, the design's sections + asset slots) so the build can be checked.
 6. Build with create_page / set_page_content. Use the styleProps for layout — flex (display:"flex", gap, justifyContent, alignItems), sizing, and position:"absolute" for overlays — not just spacing/colour. Use Icon with a curated name + textColor (or an uploaded icon src) — not emoji — unless the design uses emoji. Mobile/tablet responsive is added AUTOMATICALLY on save (grids drop columns, split rows stack, big headings shrink, tall heroes trim); it is additive, so only set your own responsive:{ … } overrides for anything you want different, or pass autoResponsive:false to do it all by hand.
 7. validate_page_content (fix issues; heed the warnings AND the changes it reports — a filled id, a slot moved into props, an unknown prop that will be ignored) AND check_design_coverage — fix every missing/reordered section, off-brand CTA/colour, emoji icon and image substitution it lists.
-8. render_page and READ the returned HTML — this is your ONLY look at the actual build; compare it to the reference and fix layout, spacing, sizing and text that coverage cannot see. To fix one block, patch_page_content by its props.id (a small diff) — do NOT re-send the whole page from memory, which is how revisions drift. Re-fetch get_page after a write to confirm your blocks/props survived.
+8. LOOK AT THE BUILD — screenshot_page gives you the actual RENDERED PIXELS (per viewport: desktop, then tablet/mobile). Compare it side by side with the reference and fix what coverage cannot see: layout, spacing, proportion, overflow, typography, alignment. (render_page returns the HTML text if you also need to inspect exact structure/props/resolved URLs.) To fix one block, patch_page_content by its props.id (a small diff) — do NOT re-send the whole page from memory, which is how revisions drift — then screenshot_page AGAIN and repeat until it matches. Re-fetch get_page after a write to confirm your blocks/props survived.
 9. SEO + PERFORMANCE + ACCESSIBILITY — a page-builder page is public and has to win at search and load fast:
    • SEO: set \`seo\` (a meta description AND an ogImage on every public page; canonical/robots as needed) and keep \`renderMode\` SSR (the default) — SSR puts the content and any Collection List data in the initial HTML, so it is indexable; CSR ships empty HTML and must never be used for a public/SEO page. SSG is fine for pages whose data rarely changes.
    • Performance: right-size images (crop_media to the display size — a huge photo shrunk into a card is wasted bytes) and keep any global JS (set_global_code) tiny, since it runs on every page.
@@ -49,7 +49,7 @@ const server = new McpServer(
  */
 const PAGES_PROFILE = [
   'get_block_catalog', 'list_pages', 'get_page', 'list_custom_templates', 'create_page', 'update_page',
-  'set_page_content', 'validate_page_content', 'render_page', 'patch_page_content',
+  'set_page_content', 'validate_page_content', 'render_page', 'screenshot_page', 'patch_page_content',
   'publish_page', 'discard_draft', 'delete_page', 'get_appearance', 'set_appearance',
   'set_design_brief', 'check_design_coverage', 'get_preview_url', 'upload_media',
   'crop_media', 'list_media',
@@ -82,7 +82,8 @@ const ECOMMERCE_EXTRAS = [
 // and create_page stays callable. Pair with the connector's "Always available" mode.
 const ESSENTIALS_PROFILE = [
   'get_block_catalog', 'list_pages', 'get_page', 'create_page', 'set_page_content',
-  'patch_page_content', 'render_page', 'publish_page', 'set_appearance', 'upload_media',
+  // screenshot_page (pixels) over render_page (HTML) — kept tiny so it loads eagerly.
+  'patch_page_content', 'screenshot_page', 'publish_page', 'set_appearance', 'upload_media',
 ]
 const PROFILES: Record<string, string[]> = {
   essentials: ESSENTIALS_PROFILE,
@@ -106,7 +107,19 @@ const PROFILES: Record<string, string[]> = {
     only.has(args[0] as string) ? realTool(...args) : undefined
 })()
 
-type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean }
+type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; data: string; mimeType: string }
+type ToolResult = { content: ContentBlock[]; isError?: boolean }
+
+function errorResult(e: unknown): ToolResult {
+  const err = e as ApiError
+  const detail =
+    err instanceof ApiError
+      ? `HTTP ${err.status}: ${err.message}${err.body ? `\n${JSON.stringify(err.body, null, 2)}` : ''}`
+      : (e as Error).message
+  return { content: [{ type: 'text', text: `Error: ${detail}` }], isError: true }
+}
 
 /** Run an API call and render its result (or error) as MCP tool output. */
 async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
@@ -114,12 +127,27 @@ async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
     const result = await fn()
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] }
   } catch (e) {
-    const err = e as ApiError
-    const detail =
-      err instanceof ApiError
-        ? `HTTP ${err.status}: ${err.message}${err.body ? `\n${JSON.stringify(err.body, null, 2)}` : ''}`
-        : (e as Error).message
-    return { content: [{ type: 'text', text: `Error: ${detail}` }], isError: true }
+    return errorResult(e)
+  }
+}
+
+/** Like `run`, but for a result carrying a base64 image (a screenshot): reshape
+ * it into an MCP image content block, with the remaining metadata as text. */
+async function runImage(fn: () => Promise<unknown>): Promise<ToolResult> {
+  try {
+    const r = (await fn()) as { base64?: unknown; mimeType?: unknown } & Record<string, unknown>
+    if (!r || typeof r.base64 !== 'string') {
+      return { content: [{ type: 'text', text: JSON.stringify(r, null, 2) }] }
+    }
+    const { base64, mimeType, ...meta } = r
+    return {
+      content: [
+        { type: 'image', data: base64, mimeType: typeof mimeType === 'string' ? mimeType : 'image/png' },
+        { type: 'text', text: JSON.stringify(meta, null, 2) },
+      ],
+    }
+  } catch (e) {
+    return errorResult(e)
   }
 }
 
@@ -610,10 +638,18 @@ server.tool(
 
 server.tool(
   'render_page',
-  "Render the page's DRAFT to HTML so you can inspect the actual structure, text, resolved image URLs and inline styles you produced (you author blind). This is a DOM/HTML read, NOT a screenshot — reading it reveals empty slots, wrong/placeholder text, missing images and unintended nesting, but it CANNOT show true visual spacing, proportion or overflow. For those, use get_preview_url and have the operator eyeball it. Reuses the /preview render; script bundles are stripped. Returns { url, html }.",
+  "Render the page's DRAFT to HTML so you can inspect the actual structure, text, resolved image URLs and inline styles you produced (you author blind). This is a DOM/HTML read, NOT a screenshot — reading it reveals empty slots, wrong/placeholder text, missing images and unintended nesting, but it CANNOT show true visual spacing, proportion or overflow. For those use screenshot_page (real pixels). Reuses the /preview render; script bundles are stripped. Returns { url, html }.",
   { id: z.string(), viewport: z.enum(['desktop', 'tablet', 'mobile']).optional() },
   ({ id, viewport }) =>
     run(() => api.get(`/api/mcp/v1/pages/${id}/render${viewport ? `?viewport=${viewport}` : ''}`))
+)
+
+server.tool(
+  'screenshot_page',
+  "Screenshot the page's DRAFT in a REAL browser and return the rendered PIXELS so you can SEE what you built (you author blind) and compare it to the design reference. Unlike render_page (HTML text only), this shows true visual layout, spacing, proportion, overflow and typography — and it executes client JS, so CSR blocks render too. Call it per viewport after set_page_content, then fix mismatches with patch_page_content and screenshot again. Returns a PNG image plus { url, viewport, width, height }.",
+  { id: z.string(), viewport: z.enum(['desktop', 'tablet', 'mobile']).default('desktop') },
+  ({ id, viewport }) =>
+    runImage(() => api.get(`/api/mcp/v1/pages/${id}/screenshot?viewport=${viewport}`))
 )
 
 const PatchOps = z

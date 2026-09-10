@@ -9,6 +9,7 @@ import {
 import { applyPatchOps, type PatchOp } from '#modules/mcp/services/puck_patch'
 import { generateResponsive } from '#modules/mcp/services/auto_responsive'
 import { checkDesignCoverage } from '#modules/mcp/services/design_coverage'
+import { screenshotUrl, normalizeViewport } from '#services/screenshot_service'
 import { appUrl } from '#config/app'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
 import { hasPrivilegedPageContent } from '#services/html_sanitizer_service'
@@ -381,6 +382,26 @@ export default class BuilderPagesController {
       })
     } catch (e) {
       return response.status(404).json({ message: (e as Error).message })
+    }
+  }
+
+  /**
+   * Screenshot the page's DRAFT in a real headless browser so the model can SEE
+   * the rendered pixels (it authors blind), not just the HTML that `render` gives.
+   * Reuses the same no-login /preview URL as `render`; because Chromium executes
+   * client JS, CSR pages — which come back empty from `render` — render here too.
+   * Returns base64 PNG so the existing text/JSON MCP transport carries it intact.
+   */
+  async screenshot({ params, request, response }: HttpContext) {
+    try {
+      const viewport = normalizeViewport(request.input('viewport'))
+      const token = await pages.ensurePreviewToken(String(params.id))
+      const base = `${request.protocol()}://${request.host()}`
+      const url = `${base}/preview/${token}`
+      const shot = await screenshotUrl(url, viewport)
+      return response.json({ url, status: 200, ...shot })
+    } catch (e) {
+      return response.status(500).json({ message: (e as Error).message })
     }
   }
 

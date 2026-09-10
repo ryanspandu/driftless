@@ -50,14 +50,17 @@ export const SERVER_INSTRUCTIONS = `Driftless page builder. To reproduce a desig
 5. set_design_brief (palette, iconStyle, the design's sections + asset slots) so the build can be checked.
 6. Build with create_page / set_page_content. Use the styleProps for layout — flex (display:"flex", gap, justifyContent, alignItems), sizing, and position:"absolute" for overlays — not just spacing/colour. Use Icon with a curated name + textColor (or an uploaded icon src) — not emoji — unless the design uses emoji. Mobile/tablet responsive is added AUTOMATICALLY on save (grids drop columns, split rows stack, big headings shrink, tall heroes trim); it is additive, so only set your own responsive:{ … } overrides for anything you want different, or pass autoResponsive:false to do it all by hand.
 7. validate_page_content (fix issues; heed the warnings AND the changes it reports — a filled id, a slot moved into props, an unknown prop that will be ignored) AND check_design_coverage — fix every missing/reordered section, off-brand CTA/colour, emoji icon and image substitution it lists.
-8. render_page and READ the returned HTML — this is your ONLY look at the actual build; compare it to the reference and fix layout, spacing, sizing and text that coverage cannot see. To fix one block, patch_page_content by its props.id (a small diff) — do NOT re-send the whole page from memory, which is how revisions drift. Re-fetch get_page after a write to confirm your blocks/props survived.
+8. LOOK AT THE BUILD — screenshot_page gives you the actual RENDERED PIXELS (per viewport: desktop, then tablet/mobile). Compare it side by side with the reference and fix what coverage cannot see: layout, spacing, proportion, overflow, typography, alignment. (render_page returns the HTML text if you also need to inspect exact structure/props/resolved URLs.) To fix one block, patch_page_content by its props.id (a small diff) — do NOT re-send the whole page from memory, which is how revisions drift — then screenshot_page AGAIN and repeat until it matches. Re-fetch get_page after a write to confirm your blocks/props survived.
 9. SEO + PERFORMANCE + ACCESSIBILITY — a page-builder page is public and has to win at search and load fast:
    • SEO: set \`seo\` (a meta description AND an ogImage on every public page; canonical/robots as needed) and keep \`renderMode\` SSR (the default) — SSR puts the content and any Collection List data in the initial HTML, so it is indexable; CSR ships empty HTML and must never be used for a public/SEO page. SSG is fine for pages whose data rarely changes.
    • Performance: right-size images (crop_media to the display size — a huge photo shrunk into a card is wasted bytes) and keep any global JS (set_global_code) tiny, since it runs on every page.
    • Accessibility: give every image real alt text and keep one <h1> with a sane heading order.
 10. get_preview_url for the operator to look, then publish_page. Report any residual mismatches/substitutions you could not resolve.`
 
-type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean }
+type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; data: string; mimeType: string }
+type ToolResult = { content: ContentBlock[]; isError?: boolean }
 
 /**
  * Named tool subsets. A client with a small tool budget (e.g. Claude Desktop,
@@ -81,6 +84,7 @@ const PAGES_PROFILE = [
   'set_page_content',
   'validate_page_content',
   'render_page',
+  'screenshot_page',
   'patch_page_content',
   'publish_page',
   'discard_draft',
@@ -179,7 +183,9 @@ const ESSENTIALS_PROFILE = [
   'create_page',
   'set_page_content',
   'patch_page_content',
-  'render_page',
+  // screenshot_page (real pixels) over render_page (HTML text) here — a blind
+  // author needs to SEE the build, and this set is kept tiny so it loads eagerly.
+  'screenshot_page',
   'publish_page',
   'set_appearance',
   'upload_media',
@@ -237,6 +243,27 @@ export function registerTools(
     try {
       const result = await fn()
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] }
+    } catch (e) {
+      return { content: [{ type: 'text', text: `Error: ${(e as Error).message}` }], isError: true }
+    }
+  }
+
+  // Like `run`, but for a tool whose API result carries a base64 image (a
+  // screenshot): reshape it into an MCP image content block the model can SEE,
+  // with the remaining metadata (url, viewport, dimensions) as a small text block.
+  const runImage = async (fn: () => Promise<unknown>): Promise<ToolResult> => {
+    try {
+      const r = (await fn()) as { base64?: unknown; mimeType?: unknown } & Record<string, unknown>
+      if (!r || typeof r.base64 !== 'string') {
+        return { content: [{ type: 'text', text: JSON.stringify(r, null, 2) }] }
+      }
+      const { base64, mimeType, ...meta } = r
+      return {
+        content: [
+          { type: 'image', data: base64, mimeType: typeof mimeType === 'string' ? mimeType : 'image/png' },
+          { type: 'text', text: JSON.stringify(meta, null, 2) },
+        ],
+      }
     } catch (e) {
       return { content: [{ type: 'text', text: `Error: ${(e as Error).message}` }], isError: true }
     }
@@ -707,12 +734,19 @@ export function registerTools(
   )
   server.tool(
     'render_page',
-    "Render the page's DRAFT to HTML so you can inspect the actual structure, text, resolved image URLs and inline styles you produced (you author blind). This is a DOM/HTML read, NOT a screenshot — reading it reveals empty slots, wrong/placeholder text, missing images and unintended nesting, but it CANNOT show true visual spacing, proportion or overflow. For those, use get_preview_url and have the operator eyeball it. Reuses the /preview render; script bundles are stripped. Returns { url, html }.",
+    "Render the page's DRAFT to HTML so you can inspect the actual structure, text, resolved image URLs and inline styles you produced (you author blind). This is a DOM/HTML read, NOT a screenshot — reading it reveals empty slots, wrong/placeholder text, missing images and unintended nesting, but it CANNOT show true visual spacing, proportion or overflow. For those use screenshot_page (real pixels). Reuses the /preview render; script bundles are stripped. Returns { url, html }.",
     { id: z.string(), viewport: z.enum(['desktop', 'tablet', 'mobile']).optional() },
     ({ id, viewport }) =>
       run(() =>
         call('GET', `/api/mcp/v1/pages/${id}/render${viewport ? `?viewport=${viewport}` : ''}`)
       )
+  )
+  server.tool(
+    'screenshot_page',
+    "Screenshot the page's DRAFT in a REAL browser and return the rendered PIXELS so you can SEE what you built (you author blind) and compare it to the design reference. Unlike render_page (HTML text only), this shows true visual layout, spacing, proportion, overflow and typography — and it executes client JS, so CSR blocks render too. Call it per viewport after set_page_content, then fix mismatches with patch_page_content and screenshot again. Returns a PNG image plus { url, viewport, width, height }.",
+    { id: z.string(), viewport: z.enum(['desktop', 'tablet', 'mobile']).default('desktop') },
+    ({ id, viewport }) =>
+      runImage(() => call('GET', `/api/mcp/v1/pages/${id}/screenshot?viewport=${viewport}`))
   )
   const PatchOps = z
     .array(

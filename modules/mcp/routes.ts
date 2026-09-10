@@ -192,6 +192,10 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .as('mcp.pages.render')
             .use(read('builder:read'))
           router
+            .get('/api/mcp/v1/pages/:id/screenshot', [PagesCtrl, 'screenshot'])
+            .as('mcp.pages.screenshot')
+            .use(read('builder:read'))
+          router
             .post('/api/mcp/v1/pages/:id/publish', [PagesCtrl, 'publish'])
             .as('mcp.pages.publish')
             .use(read('builder:pages'))
