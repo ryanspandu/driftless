@@ -102,6 +102,21 @@ function PuckRoot({ children, ...rootProps }: { children?: ReactNode } & Record<
 // Real components (not inline render arrows) so the record-binding hook is valid.
 
 type StyleBag = Record<string, unknown>
+/**
+ * Default type scale per heading level — applied by the Heading block only for
+ * keys the author has not set, so an un-sized/un-weighted Heading looks like a
+ * heading (not 16px body) while any explicit `textSize`/`fontWeight`/
+ * `lineHeight`/`letterSpacing`/`align` still wins.
+ */
+const HEADING_DEFAULTS: Record<string, Record<string, string>> = {
+  '1': { textSize: '48px', fontWeight: '700', lineHeight: '1.1', letterSpacing: '-0.02em' },
+  '2': { textSize: '36px', fontWeight: '700', lineHeight: '1.15', letterSpacing: '-0.01em' },
+  '3': { textSize: '28px', fontWeight: '600', lineHeight: '1.2', letterSpacing: '-0.01em' },
+  '4': { textSize: '22px', fontWeight: '600', lineHeight: '1.25' },
+  '5': { textSize: '18px', fontWeight: '600', lineHeight: '1.3' },
+  '6': { textSize: '16px', fontWeight: '600', lineHeight: '1.4' },
+}
+
 type ButtonViewProps = {
   label?: string
   href?: string
@@ -516,7 +531,11 @@ export const baseConfig: Config = {
       label: 'Container',
       inline: true,
       fields: { content: { type: 'slot' }, ...styleFields },
-      defaultProps: { content: [] },
+      // A new Container caps + centres at the standard content width (the panel
+      // shows it, so it's editable and matches the catalog's description). Only a
+      // default — existing/MCP Containers keep whatever `maxWidth` they carry (or
+      // none, staying full-bleed), so nothing already published shifts.
+      defaultProps: { maxWidth: 'var(--container-xl)', content: [] },
       render: ({ content: Content, ...s }) => (
         <Box s={s}>
           <Content />
@@ -709,11 +728,24 @@ export const baseConfig: Config = {
         ...styleFields,
       },
       defaultProps: { text: 'Heading', level: '2' },
-      render: ({ text, level, binding, ...s }) => (
-        <Box as={`h${level || '2'}` as ElementType} s={s} className="font-semibold tracking-tight">
-          <FieldOrText field={(binding as Binding | undefined)?.text}>{text}</FieldOrText>
-        </Box>
-      ),
+      // A per-level type scale as DEFAULTS the author can override. Headings reset
+      // to body size under Tailwind preflight, so without this an un-sized Heading
+      // rendered at 16px; and the old hard-coded `font-semibold tracking-tight`
+      // forced 600/tight on every design. Defaults fill only keys the author left
+      // unset (so `textSize:"64px"` / `fontWeight:"400"` still win outright).
+      render: ({ text, level, binding, ...s }) => {
+        const lvl = String(level || '2')
+        const defaults = HEADING_DEFAULTS[lvl] ?? HEADING_DEFAULTS['2']!
+        const merged: Record<string, unknown> = { ...s }
+        for (const [k, v] of Object.entries(defaults)) {
+          if (merged[k] == null || merged[k] === '') merged[k] = v
+        }
+        return (
+          <Box as={`h${lvl}` as ElementType} s={merged}>
+            <FieldOrText field={(binding as Binding | undefined)?.text}>{text}</FieldOrText>
+          </Box>
+        )
+      },
     },
 
     // Text Block — generic text element (Webflow "Text Block"). Key stays `Text`
