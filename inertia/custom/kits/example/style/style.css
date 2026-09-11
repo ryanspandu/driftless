@@ -1,0 +1,19 @@
+/*
+ * Kit-wide CSS — the main stylesheet for the whole kit.
+ *
+ * All of a kit's CSS lives in this `style/` folder: `style.css` here applies to
+ * every page (it's imported once by index.tsx), and a `style/<page>.css` next to
+ * it is imported by a single page (see style/about.css + pages/about.tsx).
+ *
+ * Everything Vite `import`s is bundled and the public renderer links it in the
+ * initial <head> (app/services/public_block_css.ts), so it loads render-critical
+ * — no flash of unstyled content. Reach for CSS only for what Tailwind utilities
+ * cannot express, and prefix your classes (a non-isolated kit's CSS is global);
+ * an isolated kit (`"isolate": true` in kit.json) scopes them to `.kit-<name>`.
+ */
+.kit-example-gradient {
+  background: linear-gradient(90deg, var(--primary), var(--muted-foreground));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

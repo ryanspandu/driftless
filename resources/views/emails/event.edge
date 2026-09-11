@@ -1,0 +1,61 @@
+{{--
+  The shape every operator-editable email renders through.
+
+  Five slots — heading, intro, an optional button, an optional extra block, and
+  outro — because that is what an operator can safely be handed. Anything the
+  message *must* carry (a reset link, an order's line items, a tracking number)
+  is composed by the service and passed as `bodyHtml`, so no amount of editing
+  can drop the part that makes the email worth sending.
+
+  `intro` and `outro` are escaped by `{{ }}`. That is deliberate: this copy is
+  operator-authored, and an email is exactly where an injected tag would be
+  most convincing.
+--}}
+@layout('emails/layout')
+
+@section('content')
+  @if(logoUrl)
+    <img src="{{ logoUrl }}" alt="{{ siteName ?? '' }}" height="28"
+         style="display:block; height:28px; width:auto; margin:0 0 20px 0; border:0;" />
+  @end
+
+  @if(heading)
+    <h1 style="margin:0 0 12px 0; font-size:20px; font-weight:600; color:#18181b;">
+      {{ heading }}
+    </h1>
+  @end
+
+  @if(intro)
+    <p style="margin:0 0 16px 0;">{{ intro }}</p>
+  @end
+
+  @if(buttonUrl && buttonLabel)
+    {{--
+      Table-wrapped anchor rather than a styled <button>: Outlook's Word engine
+      renders the button element unpredictably, and this shape survives
+      everywhere.
+    --}}
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px 0;">
+      <tr>
+        <td style="border-radius:8px; background-color:{{ accentColor }};">
+          <a href="{{ buttonUrl }}"
+             style="display:inline-block; padding:12px 24px; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none;">
+            {{ buttonLabel }}
+          </a>
+        </td>
+      </tr>
+    </table>
+  @end
+
+  {{--
+    Service-composed markup: the order table, the plain-text fallback link, the
+    expiry note. Not operator-editable, and the only unescaped slot here.
+  --}}
+  @if(bodyHtml)
+    {{{ bodyHtml }}}
+  @end
+
+  @if(outro)
+    <p style="margin:0; font-size:13px; color:#71717a;">{{ outro }}</p>
+  @end
+@end

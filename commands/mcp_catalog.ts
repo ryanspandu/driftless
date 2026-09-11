@@ -1,0 +1,671 @@
+/**
+ * Emit the machine-readable block catalog the MCP builder-API serves.
+ *
+ * The Adonis runtime cannot import the React Puck config (`inertia/puck/*` pull
+ * in the front-end bundle), so we load it exactly the way Inertia SSR does —
+ * through a throwaway Vite server's `ssrLoadModule` — walk the component
+ * registry, strip the render functions, and write a compact JSON per builder
+ * surface (page / collection / email) to `resources/mcp/`.
+ *
+ * Run it whenever blocks change:  node ace mcp:catalog
+ * It is wired into `predev` / `prebuild` so the catalog stays fresh.
+ */
+import { BaseCommand } from '@adonisjs/core/ace'
+import type { CommandOptions } from '@adonisjs/core/types/ace'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+
+interface RawField {
+  type?: string
+  label?: string
+  options?: Array<{ label?: string; value?: string | number }>
+  objectFields?: Record<string, RawField>
+  arrayFields?: Record<string, RawField>
+  defaultItemProps?: Record<string, unknown>
+}
+interface RawComponent {
+  label?: string
+  fields?: Record<string, RawField>
+  defaultProps?: Record<string, unknown>
+}
+interface RawConfig {
+  categories?: Record<string, { title?: string; components?: string[] }>
+  components?: Record<string, RawComponent>
+}
+
+const CONTENT_SHAPE =
+  'A Puck document is { root: { props: {} }, content: [ Block ] } — only the ROOT uses a ' +
+  'top-level "content" array. ' +
+  'A Block is { type: "<block type>", props: { id: "<unique>", ...fields } }. ' +
+  'Nest children INSIDE props, keyed by the slot name (see each block\'s "slots") — e.g. ' +
+  '{ type: "Section", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a ' +
+  'top-level "content" on the block (a sibling of props) — that renders EMPTY. ' +
+  'Every block also accepts the shared "styleProps" (see the block\'s "styleProps" list and the ' +
+  'catalog\'s "styleSchemas") — most are a plain CSS STRING value (e.g. padding:"16px 24px", ' +
+  'display:"flex", gap:"16px", alignItems:"center", position:"absolute", top:"0", zIndex:"2", ' +
+  'width:"60%", bg:"#ffffff", textColor:"#111827"). ' +
+  'PREFER DESIGN TOKENS over raw px/hex for spacing, type, radius and shadow — write ' +
+  'padding:"var(--space-lg)", gap:"var(--space-md)", textSize:"var(--text-2xl)", ' +
+  'borderRadius:"var(--radius-lg)", boxShadow:"var(--shadow-md)", maxWidth:"var(--container-xl)" ' +
+  'instead of hardcoded values, so the whole page shares ONE scale and re-themes from ' +
+  'set_appearance (the token scales live on the theme; see set_appearance designTokens). ' +
+  'A FEW are structured and documented under ' +
+  '"styleSchemas": "backgrounds" (a layer stack), "responsive" ({ breakpointId: { …styleProps } }), ' +
+  'and "states" ({ hover|focus|active: { …styleProps } }) — these ARE honoured, not dropped. ' +
+  'A style value that is neither a string nor one of those structured shapes is dropped on render. ' +
+  'BEYOND styling, every block also honours a few structured BEHAVIOUR props documented under ' +
+  '"behaviorSchemas" — "scrollAnimation" (animate-on-scroll reveal, SSR-safe), "bgLazy" (lazy background), ' +
+  '"htmlId" (anchor-target id), "attributes" (extra DOM attributes), and — inside a CollectionList ' +
+  'custom template only — "binding" and "conditions" (per-record field binding + conditional visibility). ' +
+  'A field with type "object" documents its shape under "objectFields"; a field with type ' +
+  '"array" documents each item\'s shape under "arrayFields" (+ "defaultItemProps" as an example). ' +
+  'Each block\'s "defaultProps" is a ready-to-use worked example of valid props. ' +
+  'Leave "id" out and the API fills it in. ' +
+  'A block\'s "module" names the module that provides it (null = core); a module block only ' +
+  'renders while that module is enabled — see the catalog\'s "enabledModules" and prefer core ' +
+  'blocks unless the site uses that module.'
+
+/**
+ * A one-line "when to reach for this" hint, keyed by block type. Merged onto the
+ * matching block as `useFor` so the AI picks the purpose-built block for a
+ * design section instead of composing it from scratch (or picking a wrong one).
+ * Only blocks worth steering toward are listed; any type absent here just has no
+ * hint. Types that only exist when a module is enabled (ProductList, …) are
+ * still safe to list — they simply won't match if the block isn't present.
+ */
+const BLOCK_HINTS: Record<string, string> = {
+  Section:
+    'A full-width page band. Wrap EVERY page section in a Section (set its bg/padding here), then a Container inside it.',
+  Container: 'Centres a section’s content at a max width. Put the section’s blocks inside it.',
+  Grid: 'Equal-width columns laid out side by side. Use for feature / stat / logo / card rows — set "columns" (2–4); children become grid items automatically.',
+  Columns:
+    'Equal-width columns (2–4) — like Grid but without a rows control. It does NOT do uneven widths; for an asymmetric split (copy beside an image, 60/40) use an HFlex whose children carry different `width` styleProps.',
+  HFlex:
+    'A horizontal row that wraps. Use for a button group / inline items, OR an asymmetric split — give each child its own `width` styleProp (e.g. "60%" / "40%"); flex children honour width, equal grid tracks do not. Control the row with the `gap` (e.g. "16px"), `alignItems` ("center"/"flex-start"/…) and `justifyContent` ("space-between"/"center"/…) styleProps.',
+  VFlex:
+    'A vertical stack. Use it (not QuickStack) when you want things stacked on every screen. Control it with the `gap` (e.g. "16px") and `alignItems` ("center"/"stretch"/…) styleProps.',
+  QuickStack:
+    'A grid of equal-width cells; set "columns" and the `gap` styleProp. Note: it does NOT auto-stack on mobile — for a plain vertical stack use VFlex, or add responsive:{ "mobile":{ } } overrides.',
+  Heading: 'A section title (h1–h6). One per section.',
+  Paragraph: 'Body copy — sub-headings, descriptions, supporting text.',
+  Button:
+    'A call-to-action link. variant:"primary"/"secondary" follow the SITE THEME colours (default purple until you set_appearance); "outline" is bordered; "custom" drops the theme colours so you set the exact design colour with the bg + textColor (+ borderRadius/padding) styleProps. Group a primary + secondary CTA inside an HFlex to place them side by side. DEFAULT CHROME is a medium rounded button with 8px/16px padding at 14px — to match a design set the styleProps explicitly: borderRadius (e.g. "999px" for a pill), padding (e.g. "15px 28px"), textSize and fontWeight. For an exact colour on a coloured band use variant:"custom" + bg + textColor (a primary button on a same-colour band is invisible).',
+  Image:
+    'A single image. `src` is a url string OR { url, width, height, srcset } (prefer the object form from the upload_media/crop_media response). Use a REAL asset — never a random stock/placeholder URL (they are rejected). To reuse a design’s own photo, upload the reference with purpose:"reference" then crop_media it.',
+  Slider: 'A full-bleed rotating hero (one slide at a time). Use for a hero banner carousel.',
+  Carousel: 'A multi-per-view sliding track. Use for logo strips or a row of scrolling cards.',
+  Reviews:
+    'Testimonials as rating cards (author, rating, text, avatar). Use for a "what customers say" section — do NOT hand-build testimonial cards. Set layout:"carousel" for a horizontal slider of cards (vs the default "grid"). An omitted avatar renders a monogram, so it is safe to leave blank. showAggregate:"true" prints an AVERAGE rating computed from the reviews array — turn it OFF if the reviews are placeholder/invented, so you are not showing a fabricated stat.',
+  Icon: 'A single icon for trust-bar / feature glyphs. Match the design in FIDELITY ORDER: (1) if the design’s icons are visible in a reference image, crop_media them and set the Icon `src` to the crop url; (2) if you have the icon files, upload_media them and set `src`; (3) otherwise set "name" to the closest curated key (e.g. palette, truck, shield-check, leaf) and colour it with the `textColor` styleProp = the design’s icon/accent colour (for a tinted badge add bg + borderRadius:"999px" + padding). Use an EMOJI only when the design literally shows emoji, and report it as a substitution. `src` overrides `name`. Curated glyphs are LINE-style; set filled:"true" for a SOLID glyph (e.g. a rating star or heart).',
+  FormBlock:
+    'A working form (contact / signup / lead capture) — renders the fields of a SAVED form definition and handles submission. REQUIRED: set formSlug to an existing form\'s slug (from list_forms). Author the form itself with the form tools: create_form then update_form to add its `fields` (the FormBlock only picks a form, it does not define fields). A form CTA renders the SITE THEME colour like any Button. There is no error if formSlug is empty — it just renders nothing, so always bind it.',
+  Accordion: 'An expandable question/answer list. Use for any FAQ or "common questions" section.',
+  Tabs: 'Tabbed content panels for switching between related bodies of content.',
+  Text: 'A short inline text run (label, eyebrow, caption, stat number). For a real paragraph of body copy use Paragraph; for a section title use Heading.',
+  TextLink: 'A single inline text hyperlink — footer links, inline "read more", legal links. Set text + href; colour it with textColor. It is UNDERLINED by default — set textDecoration:"none" for nav-menu / footer links that should not be underlined, and set textSize/fontWeight to match the design. For a button-style CTA use Button instead.',
+  LinkBlock: 'Wraps its child blocks in one clickable link (a whole card/tile that navigates). Set href; put the content in its slot.',
+  DivBlock: 'A generic styleable box — use only when no purpose-built layout block fits. Make it a container with the layout styleProps (display:"flex"/"grid", gap, …), or an absolutely-positioned overlay child (position:"absolute" inside a position:"relative" parent).',
+  List: 'A bulleted/numbered list container; put ListItem children in its slot. Use for real lists, not for laying out cards (use Grid/VFlex for those).',
+  ListItem: 'One item inside a List.',
+  Divider: 'A thin horizontal rule to separate content (e.g. above a footer copyright). Style with borderColor/borderWidth/margin.',
+  Spacer: 'Adds vertical blank space. Prefer padding/margin/gap styleProps for rhythm; use Spacer only for a one-off gap.',
+  BlockQuote: 'A styled pull-quote. For customer testimonials use Reviews instead.',
+  Callout: 'A highlighted note/aside box (tip, warning, info). Give it a bg + borderRadius + padding.',
+  RichText: 'A block of pre-formatted HTML (headings, lists, links, emphasis) — html is a sanitized HTML string. Use for long-form body content; for a single heading/paragraph prefer Heading/Paragraph so you can style them individually.',
+  Navbar: 'A bare navigation container you build by hand. For the real site menu prefer the MenuBar block (labelled "Menu") — it renders a reusable Menu-Manager menu with automatic dropdowns/mega panels. Only hand-build in Navbar for a one-off custom bar.',
+  TemplateRef: 'Embeds a reusable COMPONENT/LAYOUT template inline (design once, reuse across pages). Set templateId to an id from list_templates. Use it to keep a shared section (a CTA, a feature block) consistent everywhere.',
+  CodeEmbed: 'Renders a snippet of sanitized presentation HTML (an embed/widget markup). NOT for running JS — put JS in per-page root.props.codeSnippets or set_global_code. To just SHOW source code to readers, use CodeBlock.',
+  CodeBlock: 'Displays escaped source code in a <pre> for readers to look at (a code sample). It does NOT execute anything and does NOT render HTML — for embed markup use CodeEmbed.',
+  MenuBar:
+    'THE navigation menu block (labelled "Menu"). Renders a REUSABLE menu built in the admin Menu Manager as a nav bar. REQUIRED: set `menuHandle` to an existing menu\'s handle (from list_menus) — without it it renders a placeholder. Popups are AUTOMATIC from the menu\'s structure: a top-level item that has sub-items opens a dropdown, and a full-width MEGA panel when those sub-items themselves have children (columns). Build/nest the tree with the menu tools (create_menu + set_menu_items) or the Menus admin, not here. Drop it in a HEADER/FOOTER template so the nav is shared site-wide.',
+  CollectionList:
+    'Lists PUBLISHED records of a CMS collection you created (blogs, articles, generic content). REQUIRED: set source to { collectionKey:"<an existing collection key>" } (from list_collections) — WITHOUT a collectionKey the block renders NOTHING on the published page and reports no error, so it silently vanishes. Pick the item design with the `template` prop: ' +
+    '(1) template:"builtin" (the default) — a ready-made card; style it with cardStyle ("card"|"plain"|"overlay"), columns and imageAspect. The record\'s image field can be a MEDIA field (a media id, resolved to its URL) or a TEXT field holding an image URL. ' +
+    '(2) template:"template" — repeat a COLLECTION template once per record; ALSO set templateId to the id of a template you made with create_template(type:"COLLECTION", collectionKey:"<same key>") (list it with list_templates). Inside that template, feed each leaf block from the record with `binding` (see behaviorSchemas) or {{fieldKey}} tokens. Without templateId this mode renders nothing. ' +
+    '(3) template:"custom" — design the repeated `item` slot inline right here and bind its child blocks to record fields via `binding`/`conditions` (behaviorSchemas). ' +
+    '(4) template:"code" — repeat a kit code component; set codeTemplate to "codetpl:<kit>/collection/<collectionKey>". ' +
+    'Optionally design the no-records state in the `empty` slot. For the built-in POSTS collection you can pin the list to one category/tag with taxonomy: { categorySlug?, tagSlug? } (e.g. a "Latest from News" section). Do NOT use this for e-commerce products — use ProductList.',
+  // Commerce module blocks:
+  ProductList:
+    'THE correct block for a product/shop grid — renders real product CARDS (image, title, price, columns, sorting) from the store. CREATE the products it shows with the create_product tool (they must be status:"active" to appear) — an empty store renders an empty grid. Do NOT fake products with a CMS collection + CollectionList.',
+  ProductDetail:
+    'A single product’s full detail (gallery, price, add-to-cart). Use on a product template page.',
+  CartBlock: 'The shopping-cart page contents.',
+  CheckoutBlock: 'The checkout flow. Use on the checkout page.',
+}
+
+/**
+ * Per-FIELD notes for the fidelity-critical block fields the emitter would
+ * otherwise leave undescribed (Puck fields carry only a `label`). Keyed by
+ * `<BlockType>.<field>`; merged onto that field as `note`. Only the handful of
+ * fields where a blind AI needs guidance beyond the label — not every field.
+ */
+const FIELD_HINTS: Record<string, string> = {
+  'Image.priority':
+    'true = eager-load this image (no lazy-loading), for the ABOVE-THE-FOLD hero / LCP image so it is not delayed. Leave false for everything below the fold. The foreground twin of the background `bgLazy` styleProp.',
+  'Image.sizes':
+    'The responsive `sizes` attribute (e.g. "(max-width: 768px) 100vw, 50vw") so the browser picks the right srcset variant. Set it to the image’s displayed width to avoid downloading an oversized file.',
+  'Image.alt':
+    'Alt text — REQUIRED for accessibility + SEO on every content image. Describe the image; leave empty ONLY for a purely decorative image.',
+  'Icon.size':
+    'Icon size as a CSS length (e.g. "24px", "40px") — match the design’s glyph size. Colour it with the textColor styleProp.',
+  'Icon.name':
+    'A curated icon key (the options list). If the design’s glyph is not in the list, do NOT force a wrong one — crop it from the reference or upload it and set the `src` field instead (src overrides name).',
+}
+
+/** Hard do/don’t rules, served to every target (layout rules apply everywhere). */
+const GUIDANCE_RULES: string[] = [
+  'Read this whole catalog first. Every block’s "defaultProps" is a valid, ready-to-use example — copy one and adapt it rather than guessing prop shapes.',
+  'BRAND PALETTE FIRST. Before composing any content, extract the design palette — the primary/CTA colour, secondary, page background, text/ink, and any accents — and its typeface(s). If you uploaded the reference image (upload_media(purpose:"reference")), call analyze_reference(mediaId) to pull those colours straight from its pixels, then REVIEW and adjust. Then call set_appearance({ primaryColor, secondaryColor, fontFamily, fontCssUrl, savedColors:[{slug:"bg",name,value},{slug:"ink",…},{slug:"accent",…}] }) with those exact hex values BEFORE building. This matters because Button variant:"primary"/"secondary", every ProductList/product-card CTA, FormButton, and the cart/checkout buttons ALL render the SITE THEME colours — the catalog’s `theme.effective.primary` shows what they look like now (the default is purple #5225e6). If you skip this step every CTA on the page ships that default purple no matter what the design shows. After set_appearance, reference the saved colours in any block as var(--color-<slug>) (or var(--primary)/var(--secondary)) so sections stay consistent and re-themable. For a per-button colour that differs from the theme, set the Button to variant:"custom" and give it bg + textColor (+ borderRadius/padding) styleProps — those override the variant.',
+  'TYPOGRAPHY. Match the design’s type. Set the closest Google family with set_appearance({ fontFamily, fontCssUrl:"https://fonts.googleapis.com/css2?family=…" }), or upload the brand font with upload_media and pass fontFaceUrl + fontCustomName (set fontFamily = fontCustomName). Match heading weight/size per block with the fontWeight / textSize / lineHeight styleProps (headings default to 600).',
+  'Structure every section as Section (full-width band; set bg + padding here) → Container (centres content) → the section’s blocks. Do not place bare content blocks at the page root.',
+  'To put items SIDE BY SIDE, wrap them in a layout block — Grid or Columns for EQUAL-width columns, HFlex for a button/inline row OR an asymmetric split (give each child a `width` styleProp; flex honours it, equal grid tracks do not). Sibling blocks with no layout parent stack vertically. Any block can also become a flex container directly with the layout styleProps (display:"flex", gap, justifyContent, alignItems) — see the "layout" styleSchema.',
+  'POSITION / OVERLAY. To pin or float an element on top of another (a badge, a "+" hotspot, a caption over a photo, a card overlapping the next section), give the PARENT position:"relative" and the child position:"absolute" with top/right/bottom/left + zIndex. This IS supported (see the "positioning" styleSchema) — never report an overlay as impossible. A card that overlaps the section below instead uses a negative top `margin`.',
+  'RESPONSIVE & STATES. Adapt a block per screen size with responsive:{ "mobile":{ …styleProps } } (breakpoint ids from get_breakpoints; default desktop/tablet/mobile) — e.g. stack an HFlex on mobile with responsive:{ "mobile":{ "flexDirection":"column" } }. Add hover/focus/active styling with states:{ "hover":{ …styleProps } }. Both are documented under styleSchemas.',
+  'SPACING & RHYTHM. Use the SPACING TOKENS so bands line up — var(--space-xs)=8 / sm=12 / md=16 / lg=24 / xl=32 / 2xl=48 / 3xl=64 / 4xl=96px. Section vertical padding is typically "var(--space-3xl) 0"–"var(--space-4xl) 0" on desktop (tighter on mobile via responsive), the same across the page. Give every Container the SAME maxWidth — var(--container-xl) (~1120px) — so section edges align. Gaps: var(--space-sm)–var(--space-lg) between stacked elements, var(--space-lg)–var(--space-xl) between cards. Writing var(--space-*) instead of raw px keeps ONE scale and lets set_appearance re-tune spacing site-wide. Do not hand each section a different width or padding.',
+  'TYPOGRAPHY SCALE. Set a clear hierarchy with the TYPE TOKENS (textSize) — var(--text-base)=16 / lg=18 / xl=20 / 2xl=24 / 3xl=32 / 4xl=40 / 5xl=56 / 6xl=72px: body var(--text-base)–var(--text-lg), H2 ~var(--text-3xl), H1 var(--text-4xl)–var(--text-5xl), hero display var(--text-6xl); headings weight 600–700, body 400. Raw px still works, but tokens keep the scale consistent and re-themable. The theme has ONE font (set_appearance). For a serif-heading + sans-body pairing, load the second family in set_global_code (an @import or @font-face) and apply it per block with the `font` styleProp.',
+  'LEGIBILITY & CONTRAST. Body text ≥16px. Ensure high text/background contrast — dark ink on a light ground or vice-versa, never mid-grey on mid-grey; when you pick savedColors, `ink` must read clearly on `bg`, and every Button must read against its Section `bg`. Text over a photo ALWAYS needs an overlay/scrim `backgrounds` layer. On a band whose bg = var(--primary), a Button variant:"primary" is the SAME colour and vanishes — use variant:"custom" (a contrasting bg + textColor) or "outline" instead.',
+  'PICK THE RIGHT LAYOUT BLOCK. VFlex = a column that is ALWAYS stacked. HFlex = a horizontal row (button groups; or an asymmetric split via child `width`). Grid = 2–4 EQUAL columns that auto-drop to fewer on mobile (feature/logo/card rows) — the default choice for a row of equal cells. Columns = Grid without a rows control (prefer Grid). QuickStack = equal grid cells that do NOT auto-stack on mobile (auto-responsive skips it) — only use it when cells must stay side-by-side on phones; otherwise use Grid or VFlex. Any block can also become a flex/grid container directly with the layout styleProps.',
+  'Prefer the purpose-built block over composing from scratch: Reviews for testimonials, Accordion for FAQ, Slider/Carousel for hero or rotating strips, ProductList for products.',
+  'START FROM A SECTION PRESET when one fits. Call list_section_presets for the known-good, token-driven sections (hero, feature grid, CTA, …); insert_section({ pageId, presetId }) COPIES one into the page with fresh ids and returns insertedBlockIds. Then get_page to see the copied blocks and patch_page_content to fill in the real headings, text, images and colours — a preset is a lower-variance starting point than composing 72 primitives by hand. Presets already use the theme tokens, so they inherit set_appearance.',
+  'For a products / shop section use the commerce ProductList block (real cards with price + image), and CREATE the products it shows with the create_product tool — inline `price` (minor units, e.g. 4900 = $49.00) auto-creates a sellable "Default" variant; set status:"active" so they appear. Do NOT fake products with a CMS collection + CollectionList — that yields plain title/excerpt cards. ProductList and the product tools need the "ecommerce" module: confirm it is listed in this catalog’s "enabledModules" first; if absent, ask the operator to enable it rather than faking it.',
+  'ASSETS ARE REAL PHOTOS, NOT GUESSES. NEVER substitute random stock or placeholder imagery (picsum, loremflickr, unsplash-source, placehold.co, dummyimage, …) for a hero, product, lifestyle or brand image — those hosts are REJECTED by upload_media and flagged by the validator. If the design’s actual assets were not supplied: (a) if you were given a design screenshot/mockup, upload it with upload_media(purpose:"reference") and cut the design’s OWN photos out with crop_media(mediaId, x, y, width, height) — coordinates in the reference’s pixels; (b) otherwise STOP and ask the operator for the image files/URLs; (c) only if told to proceed anyway, use upload_media(url, purpose:"placeholder") for a labelled stand-in and report every placeholder slot in your summary. Once you have an asset, use its returned `url` verbatim (Image `src`, a product image’s `mediaUrl`, or a Section `backgrounds` image layer url).',
+  'For an IMMERSIVE hero / CTA band — a full-bleed background image with text ON TOP — do NOT split into text-column + image-column. Instead set the Section’s `backgrounds` prop (works on any block): an array of layers painted front-to-back. e.g. `backgrounds: [ { "type":"linear", "angle":"90", "stops":[{"color":"rgba(0,0,0,0.55)","pos":"0%"},{"color":"rgba(0,0,0,0)","pos":"60%"}] }, { "type":"image", "url":"<upload_media url>", "sizeMode":"cover", "posX":"center", "posY":"center", "repeat":"no-repeat" } ]` — the gradient/overlay layer (or `{ "type":"overlay", "color":"rgba(0,0,0,0.4)" }`) is listed BEFORE the image for text legibility. Give the Section a `minHeight`, keep `bg` as the base colour, and put the overlay content in a Container aligned as the design shows (often lower-left). A floating card that overlaps the section below (a trust bar) is done with a negative top `margin` on that card.',
+  'Nest children INSIDE props, keyed by the slot name (see each block’s "slots") — never in a top-level "content" on a child block; only the document root uses a top-level content array.',
+]
+
+/** Per-section compositions — the bridge from "here are blocks" to "here is a page". Page target only. */
+const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string }> = [
+  {
+    section: 'Brand setup (do this FIRST, before any section)',
+    blocks: [
+      'get_appearance',
+      'set_appearance(primaryColor, secondaryColor, fontFamily, savedColors)',
+    ],
+    note: 'Extract the design’s palette + typeface and apply them with set_appearance BEFORE composing. primary/secondary drive every CTA and product button; savedColors (bg, ink, accent, surface) become var(--color-<slug>) for use in any block’s bg/textColor/borderColor. Skipping this ships the default purple CTAs — the #1 reason a build looks off-brand. ALSO seed the design’s SCALES as designTokens so the whole page shares one rhythm instead of scattered magic numbers: set the type scale (text: { base, lg, xl, "2xl", "3xl"… } → var(--text-*)) from the design’s heading/body sizes and the spacing scale (space: { xs, sm, md, lg, xl… } → var(--space-*)) from its section paddings/gaps, then reference those tokens in blocks (textSize:"var(--text-3xl)", padding:"var(--space-2xl)") rather than raw px. Container widths → container tokens (var(--container-*)). Use analyze_reference to seed the palette from a reference image’s pixels.',
+  },
+  {
+    section: 'Asset inventory (do this SECOND)',
+    blocks: ['upload_media(purpose:"reference")', 'crop_media ×N', 'list_media'],
+    note: 'Before composing, map every image the design shows to a real asset. If you have the design as an image, upload_media(purpose:"reference") once, then crop_media each hero/thumbnail/product photo out of it (pixel coords in the reference). For assets the operator supplied, upload_media them. Any slot you cannot fill with a real asset must be reported — do NOT paper over it with a stock photo.',
+  },
+  {
+    section: 'Reproduce a design 1:1 (structure + precision checklist)',
+    blocks: [
+      'per section: Section(bg, padding) → Container(maxWidth, centered) → HFlex/VFlex/Grid',
+      'validate_page_content → screenshot_page → compare_to_reference → patch_page_content',
+    ],
+    note: 'BAKED STRUCTURE: every section is a full-width Section (carries the band bg + vertical padding) → a Container (maxWidth = the design’s content width, e.g. var(--container-xl) or the exact px like "1312px"; a maxWidth with no margin auto-centres) → an HFlex/VFlex/Grid for the layout. PRECISION CHECKLIST — the small misses that make a build read "off" even when the structure is right: (1) set an explicit `textSize` (and `fontWeight`) on EVERY Heading/Text — sizes are not inferred, an un-set Heading falls back to a generic scale; (2) every CTA Button = variant:"custom" + exact `bg`/`textColor` + `borderRadius` (e.g. "999px" pill) + `padding` + `textSize` (the default is a plain rounded button); (3) nav/footer TextLink → `textDecoration:"none"` (they underline by default); (4) rating stars → Icon `filled:"true"` (the curated glyphs are line-style); (5) asymmetric spacing/rounding → per-side `marginTop`/`paddingLeft`… and per-corner `borderTopLeftRadius`… (all honoured), and a one-sided rule via `borderBottom:"1px solid #.."`; (6) use the design’s EXACT hex on each block, or set_appearance so variant:"primary" already matches — never leave the theme default; (7) match the typeface with set_appearance `fontFamily` + `fontCssUrl` (headings are the same sans as the body unless the design clearly uses a serif). Intuitive CSS names are accepted and auto-mapped (textAlign→align, fontSize→textSize, fontFamily→font, color→textColor, backgroundColor→bg) — but a write response’s `droppedProps` lists anything that still did NOT apply, so read it and fix those. After building, screenshot_page per viewport and compare_to_reference, then patch the mismatches.',
+  },
+  {
+    section: 'Header / nav (site chrome)',
+    blocks: [
+      'create_template(type:"HEADER")',
+      'Section → Container → HFlex( Image(logo), HFlex(TextLink×N | MenuBar), Button )',
+      'point the page at it: headerTemplateId',
+    ],
+    note: 'Build the header as its own HEADER template (create_template type:"HEADER") and attach it with the page’s `headerTemplateId`; footer likewise (type:"FOOTER"). Structure: a Section (bg, a `borderBottom` hairline, padding) → Container → an HFlex(justifyContent:"space-between", alignItems:"center") holding the logo Image, a centred HFlex of nav TextLinks (textDecoration:"none"), and the CTA Button. For a real dropdown/mega menu use a MenuBar (needs a menu handle from create_menu/set_menu_items). OVERLAY / TRANSPARENT HEADER: for a bar that sits ON TOP of a full-bleed hero, set the header document’s `root.props.overlay: true` — the renderer paints the header over the first section without pushing it down, so the hero image shows behind the nav and you do NOT add a negative top margin to the hero. Give the hero enough top padding to clear the bar.',
+  },
+  {
+    section: 'Hero',
+    blocks: [
+      'Section',
+      'Container',
+      'HFlex( VFlex(Heading, Paragraph, HFlex(Button,Button)) , Image )',
+    ],
+    note: 'TWO SHAPES — pick the one the design shows. (a) Split: HFlex with child widths — a left VFlex (copy + CTA row) and a right Image. (b) Immersive full-bleed: ONE Section with a background image via its `backgrounds` prop (plus a gradient/overlay layer for legibility) and a `minHeight`, the content (optional thumbnail, Heading, Paragraph, HFlex of buttons) overlaid inside a Container aligned where the design puts it (often lower-left). A trust bar overlapping the hero bottom uses a negative top margin. Match the design; do not default to text-left/image-right.',
+  },
+  {
+    section: 'Trust bar / logos / stats',
+    blocks: [
+      'Section',
+      'Container',
+      'Grid(columns:4)',
+      'per cell: VFlex(Icon + Heading + Paragraph)',
+    ],
+    note: 'A single Grid with 3–4 columns; each cell a VFlex of an Icon, a short Heading and a line of Paragraph. Set each Icon’s "name" to a curated key and give it a textColor matching the design’s icon/accent colour (e.g. var(--color-accent) or the brand primary) — do not default to emoji. Use Icon for the glyphs; do not skip them.',
+  },
+  {
+    section: 'Feature grid / how it works',
+    blocks: ['Section', 'Container', 'Grid(columns:3)', 'per cell: Heading + Paragraph'],
+    note: 'One Grid; each cell is a small stack of a heading and a line of copy (optionally an Image/icon).',
+  },
+  {
+    section: 'Product grid',
+    blocks: [
+      'create_product ×N (status:"active")',
+      'Section',
+      'Container',
+      'ProductList(columns:3)',
+    ],
+    note: 'Create the products FIRST with create_product (status:"active", inline `price`); then ProductList renders the cards itself — an empty store shows an empty grid. Do NOT wrap products in a manual Grid of Images.',
+  },
+  {
+    section: 'Testimonials',
+    blocks: ['Section', 'Container', 'Reviews(columns:3)'],
+    note: 'Reviews renders the rating cards; fill its "reviews" array. If the design shows a slider/carousel of testimonials, set the Reviews block layout:"carousel" (do NOT wrap it in a Carousel).',
+  },
+  {
+    section: 'FAQ',
+    blocks: ['Section', 'Container', 'Accordion'],
+    note: 'Accordion with an "items" array of {question, answer}.',
+  },
+  {
+    section: 'CTA band',
+    blocks: ['Section(bg)', 'Container', 'Heading', 'Button'],
+    note: 'A coloured Section band with a heading and one CTA button. Set the Section bg to the design’s band colour — usually var(--primary) or a saved colour. IMPORTANT: if the band IS var(--primary), do NOT use Button variant:"primary" (same colour → invisible) — use variant:"custom" with a contrasting bg+textColor (e.g. white bg + primary text) or variant:"outline" so the CTA reads.',
+  },
+  {
+    section: 'Footer',
+    blocks: [
+      'Section(bg:dark)',
+      'Container',
+      'HFlex( VFlex(brand + Paragraph), VFlex(Heading + TextLink×N), VFlex(Heading + TextLink×N) )',
+      'Divider',
+      'Paragraph(© copyright)',
+    ],
+    note: 'A dark Section → Container → an HFlex of VFlex link columns (each a small Heading + several TextLink items), then a Divider and a copyright Paragraph. Build footer links inline with TextLink here (give link/heading text a muted textColor). Use a MenuBar block ONLY if you want the SAME nav reused site-wide — that needs create_menu + set_menu_items first and belongs in a FOOTER template, not a one-off page footer.',
+  },
+  {
+    section: 'Gallery',
+    blocks: ['Section', 'Container', 'Grid or Carousel', 'Image ×N'],
+    note: 'Grid for a static gallery, Carousel for a scrolling one.',
+  },
+  {
+    section: 'Media card with a play button ("How it works" / video thumbnail)',
+    blocks: ['VFlex', 'Icon(name:"circle-play") + Paragraph(caption)'],
+    note: 'A VFlex with the design’s image as a `backgrounds` image layer, a `minHeight`, alignItems:"center" and justifyContent:"center"; inside it an Icon name:"circle-play" (or "play", coloured white via textColor, on a translucent circular badge with bg + borderRadius:"999px" + padding) and an optional Paragraph caption. Crop the thumbnail out of the reference with crop_media — do not use a raw stock photo.',
+  },
+  {
+    section: 'Dark image tiles with a caption ("See it styled")',
+    blocks: ['Section(bg:dark)', 'Container', 'Grid(columns:2-3)', 'per cell: VFlex + Paragraph'],
+    note: 'A dark Section; each Grid cell is a VFlex with the design’s photo as a `backgrounds` image layer, a minHeight, and a small Paragraph caption (light textColor) aligned bottom-left. To pin a "+" hotspot marker onto a photo, give the cell position:"relative" and the marker (a Button/DivBlock/Icon) position:"absolute" with top/left + zIndex — see the "positioning" styleSchema.',
+  },
+]
+
+/**
+ * One complete, valid Puck document — the missing "here is a whole page, with
+ * styleProps and slot nesting in place" reference. Shows: a Section with a
+ * `backgrounds` layer stack + minHeight, a Container, an HFlex with an asymmetric
+ * 55/45 split via child `width`, a VFlex stack using gap, and a nested HFlex
+ * button row. Replace the "/uploads/…" urls with real upload_media urls.
+ */
+const GUIDANCE_EXAMPLE = {
+  description:
+    'A complete valid Puck document for a split hero (copy + CTA row on the left, image on the right). Copy the SHAPE — slot children live inside props.<slot>, styleProps sit alongside. Swap the "/uploads/…" urls for real upload_media urls.',
+  document: {
+    root: { props: {} },
+    content: [
+      {
+        type: 'Section',
+        props: {
+          bg: '#0b1220',
+          minHeight: '70vh',
+          padding: '96px 0',
+          backgrounds: [
+            { type: 'overlay', color: 'rgba(11,18,32,0.55)' },
+            {
+              type: 'image',
+              url: '/uploads/hero.jpg',
+              sizeMode: 'cover',
+              posX: 'center',
+              posY: 'center',
+              repeat: 'no-repeat',
+            },
+          ],
+          content: [
+            {
+              type: 'Container',
+              props: {
+                maxWidth: '1120px',
+                content: [
+                  {
+                    type: 'HFlex',
+                    props: {
+                      gap: '48px',
+                      alignItems: 'center',
+                      content: [
+                        {
+                          type: 'VFlex',
+                          props: {
+                            width: '55%',
+                            gap: '20px',
+                            content: [
+                              {
+                                type: 'Heading',
+                                props: {
+                                  text: 'Furniture that fits your life',
+                                  level: '1',
+                                  textSize: '48px',
+                                  fontWeight: '700',
+                                  textColor: '#ffffff',
+                                },
+                              },
+                              {
+                                type: 'Paragraph',
+                                props: {
+                                  text: 'Handcrafted pieces, delivered to your door.',
+                                  textSize: '18px',
+                                  textColor: 'rgba(255,255,255,0.8)',
+                                },
+                              },
+                              {
+                                type: 'HFlex',
+                                props: {
+                                  gap: '12px',
+                                  content: [
+                                    {
+                                      type: 'Button',
+                                      props: {
+                                        label: 'Shop now',
+                                        variant: 'primary',
+                                        href: '/shop',
+                                      },
+                                    },
+                                    {
+                                      type: 'Button',
+                                      props: {
+                                        label: 'Learn more',
+                                        variant: 'outline',
+                                        href: '/about',
+                                      },
+                                    },
+                                  ],
+                                },
+                              },
+                            ],
+                          },
+                        },
+                        {
+                          type: 'Image',
+                          props: {
+                            width: '45%',
+                            borderRadius: '16px',
+                            src: { url: '/uploads/hero-product.jpg' },
+                          },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ],
+  },
+} as const
+
+export default class McpCatalog extends BaseCommand {
+  static commandName = 'mcp:catalog'
+  static description = 'Emit the MCP block catalog (page/collection/email) to resources/mcp/'
+  static options: CommandOptions = { startApp: false, staysAlive: false }
+
+  async run() {
+    const { createServer } = await import('vite')
+    const vite = await createServer({
+      server: { middlewareMode: true },
+      appType: 'custom',
+      logLevel: 'error',
+      optimizeDeps: { noDiscovery: true },
+    })
+
+    try {
+      const styleMod = (await vite.ssrLoadModule('~/puck/style-fields')) as {
+        styleFields: Record<string, unknown>
+        RENDERED_STYLE_PROP_NAMES?: string[]
+      }
+      // Two distinct sets. `styleFieldKeys` are the props spread into EVERY
+      // block via `...styleFields` — deduped out of each block's `fields` so
+      // they show once under styleProps. `advertisedStyleProps` is the FULL set
+      // the renderer honours (RENDERED_STYLE_PROP_NAMES) — what the model is told
+      // it may set. The editor exposes 17; the renderer honours ~54.
+      const styleFieldKeys = Object.keys(styleMod.styleFields ?? {})
+      const advertisedStyleProps = styleMod.RENDERED_STYLE_PROP_NAMES ?? styleFieldKeys
+
+      // `puckConfig` is the full builder set (core blocks + compile-time module
+      // blocks), matching what the Pages builder actually renders. `baseConfig`
+      // is core-only — its names let us exclude core blocks from module
+      // provenance. The collection set is the same minus the two card-incompatible
+      // blocks. Runtime-only custom code-blocks (DB-defined) are not part of a
+      // static catalog and are documented as build-in-the-UI only.
+      const page = (await vite.ssrLoadModule('~/puck/config')) as {
+        puckConfig: RawConfig
+        baseConfig?: RawConfig
+      }
+
+      // Provenance: which module contributed each block (core blocks are absent).
+      const moduleMod = (await vite.ssrLoadModule('~/puck/module-blocks')) as {
+        moduleBlockOwners: (coreComponents?: Iterable<string>) => Record<string, string>
+      }
+      const owners = moduleMod.moduleBlockOwners(Object.keys(page.baseConfig?.components ?? {}))
+      const collection = (await vite.ssrLoadModule('~/puck/collection-config')) as {
+        collectionPuckConfig: RawConfig
+      }
+      const email = (await vite.ssrLoadModule('~/puck/email-config')) as {
+        emailPuckConfig: RawConfig
+      }
+
+      const generatedAt = new Date().toISOString()
+      const targets: Array<[string, RawConfig]> = [
+        ['page', page.puckConfig],
+        ['collection', collection.collectionPuckConfig],
+        ['email', email.emailPuckConfig],
+      ]
+
+      const outDir = this.app.makePath('resources', 'mcp')
+      await mkdir(outDir, { recursive: true })
+
+      for (const [target, config] of targets) {
+        const catalog = buildCatalog(
+          target,
+          config,
+          styleFieldKeys,
+          advertisedStyleProps,
+          owners,
+          generatedAt
+        )
+        const file = join(outDir, `catalog.${target}.json`)
+        await writeFile(file, JSON.stringify(catalog, null, 2) + '\n', 'utf8')
+        this.logger.success(
+          `emit ${file.replace(this.app.appRoot.pathname, '')} (${catalog.blocks.length} blocks)`
+        )
+      }
+    } finally {
+      await vite.close()
+    }
+  }
+}
+
+function buildCatalog(
+  target: string,
+  config: RawConfig,
+  styleFieldKeys: string[],
+  advertisedStyleProps: string[],
+  owners: Record<string, string>,
+  generatedAt: string
+) {
+  // Skip set: only the props `...styleFields` injects into every block's fields,
+  // so we dedupe them once into styleProps. A block's OWN field that happens to
+  // share a name with an advertised style prop (Grid.gap, Map.height) is NOT in
+  // this set, so it survives in `fields` with its specific descriptor.
+  const styleSet = new Set(styleFieldKeys)
+  const categoryOf = new Map<string, string>()
+  for (const [catKey, cat] of Object.entries(config.categories ?? {})) {
+    for (const name of cat.components ?? []) categoryOf.set(name, cat.title || catKey)
+  }
+
+  // Advertise the FULL renderer-honoured vocabulary (RENDERED_STYLE_PROP_NAMES),
+  // with `backgrounds` guaranteed present (its layer shape is in styleSchemas).
+  const stylePropsOut = advertisedStyleProps.includes('backgrounds')
+    ? advertisedStyleProps
+    : [...advertisedStyleProps, 'backgrounds']
+
+  const blocks = Object.entries(config.components ?? {})
+    .map(([type, component]) => {
+      const slots: string[] = []
+      const fields: Record<string, unknown> = {}
+      for (const [name, field] of Object.entries(component.fields ?? {})) {
+        if (styleSet.has(name)) continue // shared style prop — captured in styleProps
+        if (field?.type === 'slot') {
+          slots.push(name)
+          continue
+        }
+        // The Image `src` is a custom MediaField — opaque as `{type:'custom'}`.
+        // Spell out the value shape so the AI builds it from an upload_media
+        // response instead of guessing.
+        if (type === 'Image' && name === 'src') {
+          fields[name] = {
+            type: 'image',
+            label: 'Image',
+            shape: 'string | { url, width, height, srcset }',
+            note: 'Prefer the object form from upload_media/crop_media: { url, width, height, srcset } — srcset = variants.map(v => `${v.url} ${v.width}w`).join(", "). A bare url string also works.',
+          }
+          continue
+        }
+        const described = describeField(field)
+        const hint = FIELD_HINTS[`${type}.${name}`]
+        if (hint) described.note = hint
+        fields[name] = described
+      }
+      // The block's own defaultProps are the single most useful signal for the
+      // AI — a ready-made valid example. Drop the framework-managed id.
+      const defaultProps = { ...(component.defaultProps ?? {}) }
+      delete (defaultProps as Record<string, unknown>).id
+      return {
+        type,
+        label: component.label ?? type,
+        category: categoryOf.get(type) ?? 'Other',
+        // Provenance: the module that contributes this block (null = core). A
+        // module block only renders while its module is enabled.
+        module: owners[type] ?? null,
+        slots,
+        fields,
+        defaultProps,
+        // A "when to use this" hint for the blocks worth steering toward.
+        ...(BLOCK_HINTS[type] ? { useFor: BLOCK_HINTS[type] } : {}),
+        styleProps: stylePropsOut,
+      }
+    })
+    .sort((a, b) => a.type.localeCompare(b.type))
+
+  // Recipes only make sense for a full page; the layout rules apply everywhere.
+  const guidance =
+    target === 'page'
+      ? { rules: GUIDANCE_RULES, recipes: GUIDANCE_RECIPES, examples: [GUIDANCE_EXAMPLE] }
+      : { rules: GUIDANCE_RULES }
+
+  return {
+    target,
+    generatedAt,
+    contentShape: CONTENT_SHAPE,
+    guidance,
+    blocks,
+    styleSchemas: STYLE_SCHEMAS,
+    behaviorSchemas: BEHAVIOR_SCHEMAS,
+  }
+}
+
+/**
+ * Shapes for the shared style props whose value is more than a plain CSS string,
+ * so the AI (and the validator) know their structure. `backgrounds` is the layer
+ * stack that powers an immersive hero.
+ */
+const STYLE_SCHEMAS = {
+  backgrounds:
+    'An array of layers painted FRONT-to-BACK (list an overlay/gradient BEFORE the image for legibility). Layer shapes: ' +
+    '{ type:"image", url:"<upload_media url>", sizeMode:"cover"|"contain"|"custom", width, height, posX:"center", posY:"center", repeat:"no-repeat"|"repeat"|"repeat-x"|"repeat-y", attachment:"scroll"|"fixed" (fixed = parallax) } | ' +
+    '{ type:"linear", angle:"90", stops:[{ color:"rgba(0,0,0,0.55)", pos:"0%" }, { color:"rgba(0,0,0,0)", pos:"60%" }] } | ' +
+    '{ type:"radial", shape:"circle"|"ellipse", extent:"farthest-corner", posX:"50%", posY:"50%", stops:[{ color, pos }] } | ' +
+    '{ type:"overlay", color:"rgba(0,0,0,0.4)" }. Set on a Section (with minHeight + bg) for a full-bleed hero/CTA band.',
+  layout:
+    'Flexbox on any block (Section/Container/DivBlock/…): set display:"flex", flexDirection:"row"|"column", gap:"16px", ' +
+    'justifyContent:"flex-start"|"center"|"space-between"|…, alignItems:"stretch"|"center"|"flex-start"|… . ' +
+    'For CSS grid: display:"grid" (Grid/QuickStack/Columns already do this — prefer them). A flex CHILD honours width ("60%"), ' +
+    'flexGrow/flexShrink/flexBasis, alignSelf and order. VFlex/HFlex are purpose-built flex containers (they read gap/alignItems, HFlex also justifyContent).',
+  positioning:
+    'To overlay or pin an element (a badge, hotspot, caption, floating card) ON another: give the PARENT position:"relative", ' +
+    'and the child position:"absolute" with top/right/bottom/left (e.g. top:"16px", left:"16px") and zIndex ("2"). ' +
+    'position:"sticky"/"fixed" also work. These ARE rendered — use them instead of reporting an overlay as impossible.',
+  sizing:
+    'width/height/minWidth/minHeight/maxWidth/maxHeight take any CSS length ("100%", "480px", "60vh"); overflow:"hidden"|"auto"|"scroll" clips or scrolls a fixed-size box. ' +
+    'For a Container maxWidth PREFER the container tokens var(--container-sm|md|lg|xl) (640/768/1024/1120px) so every section aligns to one width.',
+  typography:
+    'Type styling on any text block (Heading/Paragraph/Text/Button): textSize (CSS length), fontWeight ("400"–"800"), ' +
+    'lineHeight (unitless, e.g. "1.5"), letterSpacing ("-0.02em"), textTransform ("uppercase"), textDecoration, ' +
+    'fontStyle, align ("left"|"center"|"right"), and `font` (a font-family string — set this to use a SECOND family, ' +
+    'e.g. a sans body under serif headings; the theme fontFamily from set_appearance is the page default). ' +
+    'PREFER TYPE TOKENS for textSize — var(--text-base)=16 / lg=18 / xl=20 / 2xl=24 / 3xl=32 / 4xl=40 / 5xl=56 / 6xl=72px: ' +
+    'body var(--text-base)–var(--text-lg) / weight 400 / line-height ~1.5; H3 var(--text-2xl); H2 var(--text-3xl); ' +
+    'H1 var(--text-4xl)–var(--text-5xl); hero display var(--text-6xl) with a tight lineHeight ~1.1 and letterSpacing "-0.02em"; ' +
+    'headings default to weight 600. Scale big headings DOWN per breakpoint via responsive (e.g. responsive:{ "mobile":{ "textSize":"var(--text-3xl)" } }).',
+  effects:
+    'transform ("translateY(-8px)", "rotate(-3deg)", "scale(1.05)"), opacity ("0.9"), transition ("all 0.2s ease"), ' +
+    'filter ("blur(4px)"), mixBlendMode ("multiply"), cursor ("pointer") are plain CSS string values. ' +
+    'boxShadow PREFERS a shadow token var(--shadow-sm|md|lg); it also takes a preset "none"|"sm"|"md"|"lg" OR a raw CSS shadow ("0 10px 30px rgba(0,0,0,0.12)"). ' +
+    'borderRadius PREFERS a radius token var(--radius-sm|md|lg|xl|2xl) (also "12px", or "999px" for a pill/circle), borderWidth ("1px"), borderStyle ("solid"), borderColor ' +
+    '(hex or var(--color-<slug>)) build a border — set all of width/style/colour for it to show.',
+  responsive:
+    'Per-breakpoint overrides: responsive: { "<breakpointId>": { <any styleProp>: value, … } }. Only the props you override change ' +
+    'at that width and NARROWER; everything else inherits the base. Default breakpoint ids are "desktop" (base), "tablet" (≤768px), ' +
+    '"mobile" (≤390px) — call get_breakpoints for the site\'s actual tiers. e.g. responsive: { "mobile": { "flexDirection":"column", "textSize":"24px", "padding":"24px 16px" } }.',
+  states:
+    'Interaction states: states: { "hover"|"focus"|"active": { <any styleProp>: value, … } }. Rendered as CSS pseudo-class rules. ' +
+    'e.g. states: { "hover": { "bg":"var(--primary)", "transform":"translateY(-2px)", "boxShadow":"lg" } }.',
+} as const
+
+/**
+ * Structured NON-style props every block honours — effects, DOM hooks, and the
+ * CollectionList-repeater binding. These sit alongside styleProps in a block's
+ * `props` (NOT under a style key) and are documented here so an AI can discover
+ * them and the validator does not false-warn "unknown prop". Mirrors the honored
+ * set in `inertia/puck/{scroll-animation,style-fields,record-binding}` — keep in
+ * sync with `STRUCTURAL_PROP_KEYS` in the puck content validator.
+ */
+const BEHAVIOR_SCHEMAS = {
+  scrollAnimation:
+    'Animate-on-scroll reveal on ANY block: scrollAnimation: { type, duration?, delay?, easing?, distance?, threshold?, once?, trigger?, position? }. ' +
+    'type is one of "fade","fade-up","fade-down","fade-left","fade-right","zoom-in","zoom-out","flip" (omit or "" = no animation). ' +
+    'duration/delay are CSS times ("600ms","0.2s"); easing a CSS timing-function; distance a length ("24px") for the travel; ' +
+    'threshold is how much must be visible (0..1 or 0..100); once:true plays a single time (the default), once:false replays on re-entry; ' +
+    'trigger:"scroll" reveals as it enters the viewport (default), trigger:"load" as the page loads; ' +
+    'position:"top"|"center"|"bottom" (default "bottom") is the viewport line a scroll reveal must reach. ' +
+    'SSR-SAFE: the published markup renders in the final VISIBLE state (the hidden start is CSS-gated and only armed after hydration), so it never hurts SEO or no-JS — use it freely for entrance polish.',
+  bgLazy:
+    'Boolean. true = a block/Section background IMAGE is lazy-loaded (fetched only as it nears the viewport) — use for below-the-fold background images to save bandwidth. Leave it off (eager) for the hero / above-the-fold LCP image so it is not delayed.',
+  htmlId:
+    'String — sets the element\'s DOM id (e.g. "pricing") so an in-page anchor link can target it with href:"#pricing". Keep it unique on the page; use letters/digits/-/_ (the free-form `attributes` cannot set an id).',
+  attributes:
+    'Extra DOM attributes as an array [{ name, value }] — e.g. [{ "name":"data-track", "value":"cta-hero" }] or aria-* hooks. For safety these are dropped: class/className, id (use htmlId), style, on* event handlers, and javascript: values.',
+  binding:
+    'CollectionList custom-template repeater ONLY. binding: { <slot>: <recordFieldKey> } feeds a block\'s slot from the CURRENT record\'s field, overriding its static value. Bindable slots by block: "text" (Heading/Paragraph/Text), "label" + "href" (Button/link), "src" (Image, Video), "poster" (Video), "url" (YouTube), "html" (RichText), and — the flagship — "background" on ANY block, which paints the record\'s MEDIA field as a full-bleed COVER background image beneath your overlays (pair it with an overlay `backgrounds` layer + a `minHeight` for a per-record photo card with text on top). e.g. binding: { "text":"title", "href":"slug", "background":"coverImage" }. Outside a repeater it does nothing. (Inline {{fieldKey}} tokens in a string are the escape-hatch alternative for text.)',
+  conditions:
+    'CollectionList custom-template repeater ONLY. conditions: [{ field, op:"set"|"notset" }] hides this element for records where a rule fails (all rules AND) — e.g. show a "Sold out" badge only when a field is set. Outside a repeater nothing is hidden.',
+} as const
+
+/**
+ * Describe one Puck field for the catalog, recursively — so object fields expose
+ * their `objectFields` and array fields their `arrayFields` (+ a worked
+ * `defaultItemProps`). Without this, object/array props (Select options,
+ * ProductList source, Tabs, …) were opaque and the AI had to guess their shape.
+ */
+function describeField(field: RawField): Record<string, unknown> {
+  const d: Record<string, unknown> = { type: field?.type ?? 'text' }
+  if (field?.label) d.label = field.label
+  if (Array.isArray(field?.options) && field.options.length) {
+    d.options = field.options.map((o) => ({ label: o.label, value: o.value }))
+  }
+  if (field?.type === 'object' && field.objectFields) {
+    d.objectFields = Object.fromEntries(
+      Object.entries(field.objectFields).map(([k, f]) => [k, describeField(f)])
+    )
+  }
+  if (field?.type === 'array' && field.arrayFields) {
+    d.arrayFields = Object.fromEntries(
+      Object.entries(field.arrayFields).map(([k, f]) => [k, describeField(f)])
+    )
+    if (field.defaultItemProps) d.defaultItemProps = field.defaultItemProps
+  }
+  return d
+}

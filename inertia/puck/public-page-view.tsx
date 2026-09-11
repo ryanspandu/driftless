@@ -1,0 +1,171 @@
+import { useMemo } from 'react'
+import { usePage } from '@inertiajs/react'
+// Render from the `/rsc` entry, not the barrel: the barrel co-locates the 312KB
+// Puck EDITOR in the same chunk, so importing it here dragged the whole editor
+// into the public page. `/rsc` ships only the renderer. Types are erased, so the
+// barrel `import type` costs nothing at runtime.
+import { Render } from '@measured/puck/rsc'
+import type { Data } from '@measured/puck'
+import { puckConfig } from '~/puck/config'
+import { type CmsRecord } from '~/puck/collection-list'
+import { PageOutletContext } from '~/puck/page-outlet'
+import { type CodeSnippet } from '~/puck/custom-code'
+import { BreakpointContext, NonceContext, readBreakpoints } from '~/puck/breakpoints'
+import { PublicPageFrame } from '~/components/public-page-frame'
+import { ChromeSlot, CodeLayout } from '~/puck/chrome_slot'
+
+export interface PublicPageData {
+  title: string
+  path: string
+  content: Record<string, unknown>
+  seo?: Record<string, unknown>
+  /** Render-critical block stylesheet URLs to link in the <head> (anti-FOUC). */
+  blockCss?: string[]
+  /** Optional LAYOUT template wrapping the page (its content has a PageOutlet). */
+  layout?: Record<string, unknown> | null
+  header?: Record<string, unknown>
+  footer?: Record<string, unknown>
+  /** Per-page code chrome pointers (`codetpl:<kit>/<type>`) — win over the docs above. */
+  codeHeader?: string | null
+  codeFooter?: string | null
+  codeLayout?: string | null
+  /** SSR/SSG-resolved collection records keyed by `${collectionKey}:${limit}`. */
+  collections?: Record<string, CmsRecord[]>
+  /** SSR/SSG-resolved TemplateRef content keyed by `templateId`. */
+  templates?: Record<string, Record<string, unknown>>
+  /**
+   * Data resolved for blocks that registered a resolver (e.g. commerce blocks),
+   * keyed exactly as the resolver keyed it. Absent on CSR pages, and on SSG
+   * pages it deliberately excludes volatile data such as price and stock —
+   * those blocks hydrate that client-side.
+   */
+  blockData?: Record<string, unknown>
+  /** Route bindings when this page is acting as a template. */
+  bindings?: Record<string, string>
+  /** Site-wide custom code (from web settings), injected on every public page. */
+  globalCode?: CodeSnippet[]
+  /** Site-wide custom <meta> tags (from web settings), applied on every public page. */
+  globalMeta?: { name?: string; property?: string; content?: string }[]
+  /** Site-wide responsive breakpoints JSON (from web settings) — drives `@media` CSS. */
+  breakpoints?: string
+  /** True when rendered via the admin preview route — shows a subtle banner. */
+  preview?: boolean
+}
+
+/** A doc with no blocks (`undefined`, `{}` or `{ content: [] }`) renders nothing. */
+function hasBlocks(doc: Record<string, unknown> | undefined | null): boolean {
+  if (!doc || !Object.keys(doc).length) return false
+  const content = (doc as { content?: unknown }).content
+  return !Array.isArray(content) || content.length > 0
+}
+
+function toData(doc: Record<string, unknown> | undefined | null): Data {
+  return doc && Object.keys(doc).length
+    ? (doc as unknown as Data)
+    : ({ content: [], root: {} } as unknown as Data)
+}
+
+/**
+ * Shared public renderer for a builder Page — used by both the CSR component
+ * (`public/page`) and the SSR component (`public/page_ssr`). Emits SEO `<head>`
+ * tags (server-rendered when the page's render mode is SSR/SSG) and composes the
+ * output:
+ *
+ * - With a LAYOUT: render the layout's block tree, providing the page's own
+ *   content through `PageOutletContext` so the layout's `PageOutlet` block
+ *   injects it. (Header/footer live inside the layout.)
+ * - Without a layout: render header (if any) → page content → footer (if any).
+ *
+ * Referenced templates (TemplateRef) read their content from `TemplateContext`.
+ */
+export function PublicPageView({ page }: { page: PublicPageData }) {
+  const data = toData(page.content)
+  const rootProps = (page.content?.root as { props?: Record<string, unknown> } | undefined)?.props
+
+  // `activeBp: null` = published mode: every Box emits real `@media` CSS keyed to
+  // the site-wide tier widths (so custom resolutions work), rather than flattening
+  // a single previewed breakpoint the way the editor does.
+  const bpContext = useMemo(
+    () => ({ breakpoints: readBreakpoints(page.breakpoints), activeBp: null }),
+    [page.breakpoints]
+  )
+
+  const pageContent = <Render config={puckConfig} data={data} />
+
+  // Opt-in transparent/overlay header: the header document declares it via
+  // `root.props.overlay: true`. Only for a builder header (a code header keeps the
+  // normal stacked flow); everything without the flag is byte-for-byte unchanged.
+  const overlayHeader =
+    !page.codeHeader &&
+    hasBlocks(page.header) &&
+    (page.header?.root as { props?: { overlay?: unknown } } | undefined)?.props?.overlay === true
+
+  // A layout (code or builder) wraps the page and owns its own header/footer;
+  // otherwise render header → content → footer, each a code component or a
+  // builder document (ChromeSlot resolves which).
+  const inner = page.codeLayout ? (
+    <CodeLayout code={page.codeLayout}>
+      <main id="main-content">{pageContent}</main>
+    </CodeLayout>
+  ) : hasBlocks(page.layout) ? (
+    <PageOutletContext.Provider value={pageContent}>
+      <Render config={puckConfig} data={toData(page.layout)} />
+    </PageOutletContext.Provider>
+  ) : (
+    <>
+      {/* Keyboard/AT users can jump the header straight to the content. Hidden
+          until focused (sr-only → visible on focus). */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[9999] focus:rounded focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:shadow"
+      >
+        Skip to content
+      </a>
+      {/* Overlay header (opt-in via the header doc's `root.props.overlay`): paint a
+          transparent bar OVER the first section instead of stacking above it, so a
+          full-bleed hero shows behind the nav with no negative-margin hack. Additive
+          — only a builder header that sets the flag overlays; everything else stacks
+          exactly as before. Code headers keep the normal stacked flow. */}
+      {overlayHeader ? (
+        <div style={{ position: 'relative' }}>
+          <div style={{ position: 'absolute', insetInlineStart: 0, insetInlineEnd: 0, top: 0, zIndex: 50 }}>
+            <ChromeSlot code={page.codeHeader} doc={page.header} />
+          </div>
+          <main id="main-content">{pageContent}</main>
+        </div>
+      ) : (
+        <>
+          <ChromeSlot code={page.codeHeader} doc={page.header} />
+          <main id="main-content">{pageContent}</main>
+        </>
+      )}
+      <ChromeSlot code={page.codeFooter} doc={page.footer} />
+    </>
+  )
+  // Threaded to every Box so its published `<style>` (responsive/state CSS) carries
+  // the per-request CSP nonce; without it the strict prod `style-src` drops it.
+  const cspNonce = usePage<{ cspNonce?: string }>().props.cspNonce ?? ''
+  const body = (
+    <NonceContext.Provider value={cspNonce}>
+      <BreakpointContext.Provider value={bpContext}>{inner}</BreakpointContext.Provider>
+    </NonceContext.Provider>
+  )
+
+  return (
+    <PublicPageFrame
+      title={page.title}
+      seo={page.seo}
+      blockCss={page.blockCss}
+      globalMeta={page.globalMeta}
+      globalCode={page.globalCode}
+      rootProps={rootProps}
+      templates={page.templates}
+      collections={page.collections}
+      blockData={page.blockData}
+      bindings={page.bindings}
+      preview={page.preview}
+    >
+      {body}
+    </PublicPageFrame>
+  )
+}

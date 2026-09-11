@@ -1,0 +1,1498 @@
+import app from '@adonisjs/core/services/app'
+import { middleware } from '#start/kernel'
+import router from '@adonisjs/core/services/router'
+import {
+  analyticsCollectThrottle,
+  apiV1Throttle,
+  authIpThrottle,
+  formsSubmitThrottle,
+  formsUploadThrottle,
+  forgotPasswordAccountThrottle,
+  forgotPasswordIpThrottle,
+  loginAccountThrottle,
+  moduleInstallThrottle,
+  postUnlockThrottle,
+  registerThrottle,
+} from '#start/limiter'
+import { registerAllModuleRoutes } from '#modules/registry'
+import { mediaUrlPrefix } from '#services/media_url'
+
+/**
+ * Resolve the adonis-autoswagger singleton across CJS/ESM interop variations.
+ * Its published types say the default export is the instance, but under NodeNext
+ * the instance can land at `mod.default` or `mod.default.default` — probe for the
+ * one that actually has `.docs`.
+ */
+async function loadAutoSwagger(): Promise<any> {
+  const mod: any = await import('adonis-autoswagger')
+  const cand = mod.default
+  return cand?.docs ? cand : (cand?.default ?? cand)
+}
+
+// ── Public ────────────────────────────────────────────────────────────────────
+
+router.get('/', [() => import('#controllers/public_controller'), 'home']).as('home')
+router.get('/posts/:slug', [() => import('#controllers/public_controller'), 'post'])
+router
+  .post('/posts/:slug/unlock', [() => import('#controllers/public_controller'), 'unlock'])
+  .as('posts.unlock')
+  .use(postUnlockThrottle)
+router.get('/category/:slug', [() => import('#controllers/public_controller'), 'category'])
+router.get('/tag/:slug', [() => import('#controllers/public_controller'), 'tag'])
+router.get('/offline', [() => import('#controllers/public_controller'), 'offline'])
+
+// First-party analytics beacon. Public + unauthenticated (real visitors have no
+// account), CSRF-exempt (see config/shield.ts), rate-limited per IP.
+router
+  .post('/api/analytics/collect', [
+    () => import('#controllers/admin/analytics_controller'),
+    'collect',
+  ])
+  .as('analytics.collect')
+  .use(analyticsCollectThrottle)
+
+// Public builder-form submissions. CSRF-protected (the form sends the XSRF
+// token), rate-limited, honeypot-guarded in the controller.
+router
+  .post('/api/forms/submit', [() => import('#controllers/admin/forms_controller'), 'submit'])
+  .as('forms.submit')
+  .use(formsSubmitThrottle)
+
+// Public form file upload — validated by magic bytes, stored in isolation,
+// returns an opaque token. Stricter throttle than submit.
+router
+  .post('/api/forms/upload', [() => import('#controllers/admin/forms_controller'), 'upload'])
+  .as('forms.upload')
+  .use(formsUploadThrottle)
+
+// Shareable draft-preview links (no login; token-gated, never indexed).
+router.get('/preview/:token', [
+  () => import('#controllers/pages_public_controller'),
+  'previewByToken',
+])
+
+router.get('/api/public/content', [() => import('#controllers/public_content_controller'), 'index'])
+router.get('/api/public/content/:slug', [
+  () => import('#controllers/public_content_controller'),
+  'show',
+])
+
+// Public, read-only CMS collection records (consumed by builder CollectionList blocks)
+router.get('/api/public/cms/:key/records', [
+  () => import('#controllers/public_cms_controller'),
+  'records',
+])
+router.get('/api/public/cms/:key/records/:id', [
+  () => import('#controllers/public_cms_controller'),
+  'record',
+])
+
+// Public, read-only form definition (consumed by the builder FormBlock auto-render)
+router.get('/api/public/forms/:slug', [
+  () => import('#controllers/public_forms_controller'),
+  'show',
+])
+
+// Public, read-only template content (consumed by client-side TemplateRef blocks)
+router.get('/api/public/templates/:id', [
+  () => import('#controllers/public_templates_controller'),
+  'show',
+])
+
+// Public, read-only resolved menu tree (consumed by client-side MenuBar blocks)
+router.get('/api/public/menus/:handle', [
+  () => import('#controllers/public_menus_controller'),
+  'show',
+])
+
+/**
+ * Media files, from wherever `MEDIA_STORAGE_PATH` puts them.
+ *
+ * Registered at the configured `MEDIA_URL_PREFIX`, plus the legacy `/uploads`
+ * whenever that differs — rows written before the prefix was honoured still
+ * carry `/uploads/…` URLs, and changing a setting must not orphan every image
+ * already placed on a page. Both must sit above the builder's `GET /*`
+ * catch-all, which would otherwise answer with a page 404.
+ */
+router
+  .get(`${mediaUrlPrefix()}/*`, [() => import('#controllers/admin/media_controller'), 'serve'])
+  .as('media.serve')
+
+/**
+ * Both routes are named, and the legacy one is skipped when the prefix is
+ * already `/uploads`. The generated Tuyau client keys routes by
+ * `controller.method` unless they are named, so two patterns on one handler
+ * otherwise emit the same key twice and the registry stops compiling.
+ */
+if (mediaUrlPrefix() !== '/uploads') {
+  router
+    .get('/uploads/*', [() => import('#controllers/admin/media_controller'), 'serve'])
+    .as('media.serveLegacy')
+}
+
+router.get('/robots.txt', [() => import('#controllers/seo_controller'), 'robots'])
+router.get('/sitemap.xml', [() => import('#controllers/seo_controller'), 'sitemap'])
+/**
+ * Public probe: a status code and a version, nothing else. 503 when the
+ * database is unreachable or the built assets do not match their manifest —
+ * the state that used to report healthy while serving blank pages.
+ */
+router.get('/health', [() => import('#controllers/admin/health_controller'), 'public'])
+
+// ── API docs (dev-only): OpenAPI spec + Scalar UI via adonis-autoswagger ────────
+// Not registered in production, so /api/docs and /api/openapi do not exist there.
+// The spec is scoped to the JSON API surface (`/api/*`), excluding the doc routes.
+if (!app.inProduction) {
+  router.get('/api/openapi', async () => {
+    const AutoSwagger = await loadAutoSwagger()
+    const { default: swagger } = await import('#config/swagger')
+    const all: any = router.toJSON()
+    const scoped = {
+      ...all,
+      root: (all.root ?? []).filter(
+        (r: any) =>
+          String(r.pattern).startsWith('/api/') &&
+          r.pattern !== '/api/docs' &&
+          r.pattern !== '/api/openapi'
+      ),
+    }
+    return AutoSwagger.docs(scoped, swagger)
+  })
+
+  router.get('/api/docs', async () => {
+    const AutoSwagger = await loadAutoSwagger()
+    return AutoSwagger.scalar('/api/openapi')
+  })
+}
+
+// ── Auth Config (public) ──────────────────────────────────────────────────────
+
+router.get('/api/auth/config', [
+  () => import('#controllers/admin/settings_controller'),
+  'getAuthConfig',
+])
+
+// ── Google OAuth ──────────────────────────────────────────────────────────────
+
+router.get('/auth/google/status', [() => import('#controllers/google_auth_controller'), 'status'])
+router
+  .get('/auth/google', [() => import('#controllers/google_auth_controller'), 'start'])
+  .use(authIpThrottle)
+router
+  .get('/auth/google/callback', [() => import('#controllers/google_auth_controller'), 'callback'])
+  .use(authIpThrottle)
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+router
+  .group(() => {
+    router
+      .get('/register', [() => import('#controllers/new_account_controller'), 'create'])
+      .as('new_account.create')
+    // Credential endpoints are throttled per-IP and, for login, per-account.
+    // GET routes are left unthrottled: they render a form and cost nothing.
+    router
+      .post('/register', [() => import('#controllers/new_account_controller'), 'store'])
+      .as('new_account.store')
+      .use(authIpThrottle)
+      .use(registerThrottle)
+    router
+      .get('/login', [() => import('#controllers/session_controller'), 'create'])
+      .as('session.create')
+    router
+      .post('/login', [() => import('#controllers/session_controller'), 'store'])
+      .as('session.store')
+      .use(authIpThrottle)
+      .use(loginAccountThrottle)
+
+    // Second factor. Reachable only mid-login (a pending id in the session); the
+    // real session is not opened until the code verifies, so this stays in the
+    // guest group. IP-throttled, with a per-challenge attempt cap in the action.
+    router
+      .get('/login/2fa', [() => import('#controllers/two_factor_controller'), 'challenge'])
+      .as('session.two_factor.challenge')
+    router
+      .post('/login/2fa', [() => import('#controllers/two_factor_controller'), 'verifyChallenge'])
+      .as('session.two_factor.verify')
+      .use(authIpThrottle)
+
+    // Password reset. GET routes render a form and are unthrottled like the
+    // ones above; the POSTs are capped both per-IP and per-target-address
+    // because each one sends mail to an address the requester picked.
+    router
+      .get('/forgot-password', [() => import('#controllers/password_reset_controller'), 'create'])
+      .as('password_reset.create')
+    router
+      .post('/forgot-password', [() => import('#controllers/password_reset_controller'), 'store'])
+      .as('password_reset.store')
+      .use(authIpThrottle)
+      .use(forgotPasswordIpThrottle)
+      .use(forgotPasswordAccountThrottle)
+    router
+      .get('/reset-password/:token', [
+        () => import('#controllers/password_reset_controller'),
+        'edit',
+      ])
+      .as('password_reset.edit')
+    router
+      .post('/reset-password', [() => import('#controllers/password_reset_controller'), 'update'])
+      .as('password_reset.update')
+      .use(authIpThrottle)
+
+    // Legacy aliases (explicit names — same controller action must not reuse new_account.store)
+    router.get('/signup', ({ response }) => response.redirect('/register'))
+    router
+      .post('/signup', [() => import('#controllers/new_account_controller'), 'store'])
+      .as('legacy.signup.store')
+      .use(authIpThrottle)
+      .use(registerThrottle)
+
+    // Inertia page paths use auth/*; keep canonical URLs at /login and /register.
+    router.get('/auth/login', ({ response }) => response.redirect('/login'))
+    router.get('/auth/signup', ({ response }) => response.redirect('/register'))
+    router.get('/auth/register', ({ response }) => response.redirect('/register'))
+  })
+  .use(middleware.guest())
+
+router
+  .group(() => {
+    router
+      .post('/logout', [() => import('#controllers/session_controller'), 'destroy'])
+      .as('session.destroy')
+    router.get('/api/me', [() => import('#controllers/session_controller'), 'me'])
+    router.put('/api/me', [() => import('#controllers/session_controller'), 'updateProfile'])
+
+    // Self-service 2FA management for the signed-in admin.
+    router.post('/api/me/2fa/enroll', [
+      () => import('#controllers/two_factor_controller'),
+      'enroll',
+    ])
+    router.post('/api/me/2fa/confirm', [
+      () => import('#controllers/two_factor_controller'),
+      'confirm',
+    ])
+    router.post('/api/me/2fa/disable', [
+      () => import('#controllers/two_factor_controller'),
+      'disable',
+    ])
+  })
+  .use(middleware.auth())
+
+// ── Admin (pages + API) ───────────────────────────────────────────────────────
+
+router
+  .group(() => {
+    router.get('/admin', ({ response }) => response.redirect('/admin/dashboard'))
+    router.get('/admin/dashboard', [
+      () => import('#controllers/admin/dashboard_controller'),
+      'index',
+    ])
+    router
+      .get('/admin/analytics', [
+        () => import('#controllers/admin/dashboard_controller'),
+        'analyticsPage',
+      ])
+      .use(middleware.pagePermission({ permission: 'analytics:read' }))
+    router
+      .get('/api/admin/analytics/report', [
+        () => import('#controllers/admin/analytics_controller'),
+        'report',
+      ])
+      .use(middleware.permission({ permission: 'analytics:read' }))
+
+    // Forms — page renders: list, global submissions inbox, per-form detail.
+    // `submissions` is registered before `:id` so the literal wins.
+    router
+      .get('/admin/forms', [() => import('#controllers/admin/forms_definitions_controller'), 'page'])
+      .use(middleware.pagePermission({ permission: 'forms:read' }))
+    router
+      .get('/admin/forms/submissions', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'submissionsPage',
+      ])
+      .use(middleware.pagePermission({ permission: 'forms:read' }))
+    router
+      .get('/admin/forms/:id', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'detailPage',
+      ])
+      .use(middleware.pagePermission({ permission: 'forms:read' }))
+
+    // Form definitions API (under `/definitions` so it never collides with the
+    // submission `:id` routes below). Registered first for the same reason.
+    router
+      .get('/api/admin/forms/definitions', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'index',
+      ])
+      .use(middleware.permission({ permission: 'forms:read' }))
+    router
+      .post('/api/admin/forms/definitions', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'store',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+    router
+      .get('/api/admin/forms/definitions/:id', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'show',
+      ])
+      .use(middleware.permission({ permission: 'forms:read' }))
+    router
+      .put('/api/admin/forms/definitions/:id', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'update',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+    router
+      .delete('/api/admin/forms/definitions/:id', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'destroy',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+    router
+      .post('/api/admin/forms/definitions/:id/duplicate', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'duplicate',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+
+    // Admin-only download of an uploaded form file (never publicly reachable).
+    router
+      .get('/api/admin/forms/uploads/:token', [
+        () => import('#controllers/admin/forms_controller'),
+        'serveUpload',
+      ])
+      .use(middleware.permission({ permission: 'forms:read' }))
+
+    // Form submissions inbox API
+    router
+      .get('/api/admin/forms', [() => import('#controllers/admin/forms_controller'), 'list'])
+      .use(middleware.permission({ permission: 'forms:read' }))
+    router
+      .put('/api/admin/forms/:id/status', [
+        () => import('#controllers/admin/forms_controller'),
+        'updateStatus',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+    router
+      .delete('/api/admin/forms/:id', [
+        () => import('#controllers/admin/forms_controller'),
+        'destroy',
+      ])
+      .use(middleware.permission({ permission: 'forms:manage' }))
+
+    // URL redirects (301/302)
+    router
+      .get('/admin/redirects', [() => import('#controllers/admin/redirects_controller'), 'page'])
+      .use(middleware.pagePermission({ permission: 'redirects:manage' }))
+    router
+      .get('/api/admin/redirects', [
+        () => import('#controllers/admin/redirects_controller'),
+        'list',
+      ])
+      .use(middleware.permission({ permission: 'redirects:manage' }))
+    router
+      .post('/api/admin/redirects', [
+        () => import('#controllers/admin/redirects_controller'),
+        'store',
+      ])
+      .use(middleware.permission({ permission: 'redirects:manage' }))
+    router
+      .put('/api/admin/redirects/:id', [
+        () => import('#controllers/admin/redirects_controller'),
+        'update',
+      ])
+      .use(middleware.permission({ permission: 'redirects:manage' }))
+    router
+      .delete('/api/admin/redirects/:id', [
+        () => import('#controllers/admin/redirects_controller'),
+        'destroy',
+      ])
+      .use(middleware.permission({ permission: 'redirects:manage' }))
+
+    // Custom-code template kits (import installs executable code → settings:manage)
+    router
+      .get('/admin/ui/template-kits', [
+        () => import('#controllers/admin/template_kits_controller'),
+        'page',
+      ])
+      .use(middleware.pagePermission({ permission: 'settings:manage' }))
+    router
+      .get('/api/admin/template-kits', [
+        () => import('#controllers/admin/template_kits_controller'),
+        'list',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+    router
+      .post('/api/admin/template-kits/import', [
+        () => import('#controllers/admin/template_kits_controller'),
+        'importOne',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+    router
+      .get('/api/admin/template-kits/:id/export', [
+        () => import('#controllers/admin/template_kits_controller'),
+        'exportOne',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+    router
+      .put('/api/admin/template-kits/:id/active', [
+        () => import('#controllers/admin/template_kits_controller'),
+        'setActive',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+
+    router.get('/admin/profile', [
+      () => import('#controllers/admin/dashboard_controller'),
+      'profilePage',
+    ])
+
+    // Users
+    // Privileged admin *pages* carry `pagePermission` as well as their APIs.
+    // Without it any signed-in account can load the React shell for these
+    // screens; the APIs behind them still 403, so it is a structural leak
+    // rather than data access, but these are the screens where that matters.
+    router
+      .get('/admin/users', [() => import('#controllers/admin/users_controller'), 'page'])
+      .use(middleware.pagePermission({ permission: 'user:read' }))
+    router
+      .get('/api/admin/users/generate-password', [
+        () => import('#controllers/admin/users_controller'),
+        'generatePassword',
+      ])
+      .use(middleware.permission({ permission: 'user:manage' }))
+    router
+      .group(() => {
+        router.get('/api/admin/users', [
+          () => import('#controllers/admin/users_controller'),
+          'index',
+        ])
+        router.get('/api/admin/users/trash', [
+          () => import('#controllers/admin/users_controller'),
+          'trash',
+        ])
+        router.post('/api/admin/users', [
+          () => import('#controllers/admin/users_controller'),
+          'store',
+        ])
+        router.post('/api/admin/users/:id/restore', [
+          () => import('#controllers/admin/users_controller'),
+          'restore',
+        ])
+        router.delete('/api/admin/users/:id/force', [
+          () => import('#controllers/admin/users_controller'),
+          'forceDestroy',
+        ])
+        router.put('/api/admin/users/:id', [
+          () => import('#controllers/admin/users_controller'),
+          'update',
+        ])
+        router.delete('/api/admin/users/:id', [
+          () => import('#controllers/admin/users_controller'),
+          'destroy',
+        ])
+      })
+      .use(middleware.permission({ resource: 'user' }))
+
+    // Roles
+    router
+      .get('/admin/roles', [() => import('#controllers/admin/roles_controller'), 'page'])
+      .use(middleware.pagePermission({ permission: 'role:manage' }))
+    router
+      .get('/admin/roles/new', [() => import('#controllers/admin/roles_controller'), 'newPage'])
+      .use(middleware.pagePermission({ permission: 'role:manage' }))
+    router
+      .get('/admin/roles/:id', [() => import('#controllers/admin/roles_controller'), 'detailPage'])
+      .use(middleware.pagePermission({ permission: 'role:manage' }))
+    router
+      .group(() => {
+        router.get('/api/admin/roles', [
+          () => import('#controllers/admin/roles_controller'),
+          'index',
+        ])
+        router.get('/api/admin/roles/trash', [
+          () => import('#controllers/admin/roles_controller'),
+          'trash',
+        ])
+        router.get('/api/admin/roles/:id', [
+          () => import('#controllers/admin/roles_controller'),
+          'show',
+        ])
+        router.post('/api/admin/roles', [
+          () => import('#controllers/admin/roles_controller'),
+          'store',
+        ])
+        router.post('/api/admin/roles/:id/restore', [
+          () => import('#controllers/admin/roles_controller'),
+          'restore',
+        ])
+        router.delete('/api/admin/roles/:id/force', [
+          () => import('#controllers/admin/roles_controller'),
+          'forceDestroy',
+        ])
+        router.put('/api/admin/roles/:id', [
+          () => import('#controllers/admin/roles_controller'),
+          'update',
+        ])
+        router.delete('/api/admin/roles/:id', [
+          () => import('#controllers/admin/roles_controller'),
+          'destroy',
+        ])
+      })
+      .use(middleware.permission({ permission: 'role:manage' }))
+
+    // Permissions
+    router
+      .get('/admin/permissions', [
+        () => import('#controllers/admin/permissions_controller'),
+        'page',
+      ])
+      .use(middleware.pagePermission({ permission: 'permission:manage' }))
+    router
+      .get('/admin/permissions/new', [
+        () => import('#controllers/admin/permissions_controller'),
+        'newPage',
+      ])
+      .use(middleware.pagePermission({ permission: 'permission:manage' }))
+    router
+      .get('/admin/permissions/:id', [
+        () => import('#controllers/admin/permissions_controller'),
+        'detailPage',
+      ])
+      .use(middleware.pagePermission({ permission: 'permission:manage' }))
+    router
+      .group(() => {
+        router.get('/api/admin/permissions', [
+          () => import('#controllers/admin/permissions_controller'),
+          'index',
+        ])
+        router.get('/api/admin/permissions/trash', [
+          () => import('#controllers/admin/permissions_controller'),
+          'trash',
+        ])
+        router.get('/api/admin/permissions/:id', [
+          () => import('#controllers/admin/permissions_controller'),
+          'show',
+        ])
+        router.post('/api/admin/permissions', [
+          () => import('#controllers/admin/permissions_controller'),
+          'store',
+        ])
+        router.post('/api/admin/permissions/:id/restore', [
+          () => import('#controllers/admin/permissions_controller'),
+          'restore',
+        ])
+        router.delete('/api/admin/permissions/:id/force', [
+          () => import('#controllers/admin/permissions_controller'),
+          'forceDestroy',
+        ])
+        router.put('/api/admin/permissions/:id', [
+          () => import('#controllers/admin/permissions_controller'),
+          'update',
+        ])
+        router.delete('/api/admin/permissions/:id', [
+          () => import('#controllers/admin/permissions_controller'),
+          'destroy',
+        ])
+      })
+      .use(middleware.permission({ permission: 'permission:manage' }))
+
+    // Content
+    router.get('/admin/content', [() => import('#controllers/admin/content_controller'), 'page'])
+    router.get('/admin/content/new', [
+      () => import('#controllers/admin/content_controller'),
+      'newPage',
+    ])
+    router.get('/admin/content/categories', [
+      () => import('#controllers/admin/content_category_controller'),
+      'page',
+    ])
+    router.get('/admin/content/tags', [
+      () => import('#controllers/admin/content_tag_controller'),
+      'page',
+    ])
+    router.get('/admin/content/:id/edit', [
+      () => import('#controllers/admin/content_controller'),
+      'editPage',
+    ])
+    router
+      .group(() => {
+        router.get('/api/admin/content-categories', [
+          () => import('#controllers/admin/content_category_controller'),
+          'index',
+        ])
+        router.post('/api/admin/content-categories', [
+          () => import('#controllers/admin/content_category_controller'),
+          'store',
+        ])
+        router.put('/api/admin/content-categories/:id', [
+          () => import('#controllers/admin/content_category_controller'),
+          'update',
+        ])
+        router.delete('/api/admin/content-categories/:id', [
+          () => import('#controllers/admin/content_category_controller'),
+          'destroy',
+        ])
+        router.get('/api/admin/content-tags', [
+          () => import('#controllers/admin/content_tag_controller'),
+          'index',
+        ])
+        router.post('/api/admin/content-tags', [
+          () => import('#controllers/admin/content_tag_controller'),
+          'store',
+        ])
+        router.put('/api/admin/content-tags/:id', [
+          () => import('#controllers/admin/content_tag_controller'),
+          'update',
+        ])
+        router.delete('/api/admin/content-tags/:id', [
+          () => import('#controllers/admin/content_tag_controller'),
+          'destroy',
+        ])
+        router.get('/api/admin/content', [
+          () => import('#controllers/admin/content_controller'),
+          'index',
+        ])
+        router.get('/api/admin/content/trash', [
+          () => import('#controllers/admin/content_controller'),
+          'trash',
+        ])
+        router.get('/api/admin/content/check-slug', [
+          () => import('#controllers/admin/content_controller'),
+          'checkSlug',
+        ])
+        // Reveal the decrypted Protected-password for the editor. Behind the same
+        // `content` permission as every other admin content route (see group).
+        router.get('/api/admin/content/:id/password', [
+          () => import('#controllers/admin/content_controller'),
+          'revealPassword',
+        ])
+        router.post('/api/admin/content', [
+          () => import('#controllers/admin/content_controller'),
+          'store',
+        ])
+        router.post('/api/admin/content/:id/restore', [
+          () => import('#controllers/admin/content_controller'),
+          'restore',
+        ])
+        router.delete('/api/admin/content/:id/force', [
+          () => import('#controllers/admin/content_controller'),
+          'forceDestroy',
+        ])
+        router.put('/api/admin/content/:id', [
+          () => import('#controllers/admin/content_controller'),
+          'update',
+        ])
+        router.delete('/api/admin/content/:id', [
+          () => import('#controllers/admin/content_controller'),
+          'destroy',
+        ])
+      })
+      .use(middleware.permission({ resource: 'content' }))
+
+    // Pages (visual builder)
+    router.get('/admin/pages', [() => import('#controllers/admin/pages_controller'), 'page'])
+    router.get('/admin/pages/:id/edit', [
+      () => import('#controllers/admin/pages_controller'),
+      'edit',
+    ])
+    // Admin-only preview — renders a page at ANY status (Draft included), uncached.
+    router
+      .get('/admin/pages/:id/preview', [
+        () => import('#controllers/pages_public_controller'),
+        'preview',
+      ])
+      .use(middleware.pagePermission({ permission: 'page:read' }))
+    router
+      .group(() => {
+        router.get('/api/admin/pages', [
+          () => import('#controllers/admin/pages_controller'),
+          'index',
+        ])
+        router.get('/api/admin/pages/trash', [
+          () => import('#controllers/admin/pages_controller'),
+          'trash',
+        ])
+        router.get('/api/admin/pages/collections', [
+          () => import('#controllers/admin/pages_controller'),
+          'collections',
+        ])
+        router.get('/api/admin/pages/code-components', [
+          () => import('#controllers/admin/pages_controller'),
+          'codeComponents',
+        ])
+        router.get('/api/admin/pages/custom-templates', [
+          () => import('#controllers/admin/pages_controller'),
+          'customTemplates',
+        ])
+        router.get('/api/admin/pages/code-templates', [
+          () => import('#controllers/admin/pages_controller'),
+          'codeTemplates',
+        ])
+        router.get('/api/admin/pages/collection-templates', [
+          () => import('#controllers/admin/pages_controller'),
+          'collectionTemplates',
+        ])
+        router.post('/api/admin/pages/import', [
+          () => import('#controllers/admin/pages_controller'),
+          'importOne',
+        ])
+        router.post('/api/admin/pages/bulk', [
+          () => import('#controllers/admin/pages_controller'),
+          'bulk',
+        ])
+        router.post('/api/admin/pages', [
+          () => import('#controllers/admin/pages_controller'),
+          'store',
+        ])
+        router.post('/api/admin/pages/:id/restore', [
+          () => import('#controllers/admin/pages_controller'),
+          'restore',
+        ])
+        router.delete('/api/admin/pages/:id/force', [
+          () => import('#controllers/admin/pages_controller'),
+          'forceDestroy',
+        ])
+        router.get('/api/admin/pages/:id/revisions', [
+          () => import('#controllers/admin/pages_controller'),
+          'revisions',
+        ])
+        router.post('/api/admin/pages/:id/revisions/:revisionId/restore', [
+          () => import('#controllers/admin/pages_controller'),
+          'restoreRevision',
+        ])
+        router.put('/api/admin/pages/:id/draft', [
+          () => import('#controllers/admin/pages_controller'),
+          'saveDraft',
+        ])
+        router.post('/api/admin/pages/:id/publish', [
+          () => import('#controllers/admin/pages_controller'),
+          'publish',
+        ])
+        router.post('/api/admin/pages/:id/discard-draft', [
+          () => import('#controllers/admin/pages_controller'),
+          'discardDraft',
+        ])
+        router.post('/api/admin/pages/:id/preview-token', [
+          () => import('#controllers/admin/pages_controller'),
+          'previewToken',
+        ])
+        router.delete('/api/admin/pages/:id/preview-token', [
+          () => import('#controllers/admin/pages_controller'),
+          'clearPreviewToken',
+        ])
+        router.post('/api/admin/pages/:id/duplicate', [
+          () => import('#controllers/admin/pages_controller'),
+          'duplicate',
+        ])
+        router.get('/api/admin/pages/:id/export', [
+          () => import('#controllers/admin/pages_controller'),
+          'exportOne',
+        ])
+        router.get('/api/admin/pages/:id', [
+          () => import('#controllers/admin/pages_controller'),
+          'show',
+        ])
+        router.put('/api/admin/pages/:id', [
+          () => import('#controllers/admin/pages_controller'),
+          'update',
+        ])
+        router.delete('/api/admin/pages/:id', [
+          () => import('#controllers/admin/pages_controller'),
+          'destroy',
+        ])
+      })
+      .use(middleware.permission({ resource: 'page' }))
+
+    // Templates (unified header / footer / component / layout builder)
+    router.get('/admin/templates', [
+      () => import('#controllers/admin/templates_controller'),
+      'page',
+    ])
+    router.get('/admin/templates/:id/edit', [
+      () => import('#controllers/admin/templates_controller'),
+      'edit',
+    ])
+    router
+      .group(() => {
+        router.get('/api/admin/templates', [
+          () => import('#controllers/admin/templates_controller'),
+          'index',
+        ])
+        router.post('/api/admin/templates', [
+          () => import('#controllers/admin/templates_controller'),
+          'store',
+        ])
+        // Registered before the `:id` routes so `/import` isn't captured as an id.
+        router.post('/api/admin/templates/import', [
+          () => import('#controllers/admin/templates_controller'),
+          'importOne',
+        ])
+        // Trash: literal `/trash` before `/:id` GET; restore/force before the bare
+        // `:id` PUT/DELETE so the suffixed patterns win.
+        router.get('/api/admin/templates/trash', [
+          () => import('#controllers/admin/templates_controller'),
+          'trash',
+        ])
+        router.post('/api/admin/templates/:id/restore', [
+          () => import('#controllers/admin/templates_controller'),
+          'restore',
+        ])
+        router.delete('/api/admin/templates/:id/force', [
+          () => import('#controllers/admin/templates_controller'),
+          'forceDestroy',
+        ])
+        router.get('/api/admin/templates/:id/export', [
+          () => import('#controllers/admin/templates_controller'),
+          'exportOne',
+        ])
+        router.post('/api/admin/templates/:id/duplicate', [
+          () => import('#controllers/admin/templates_controller'),
+          'duplicate',
+        ])
+        router.post('/api/admin/templates/:id/default', [
+          () => import('#controllers/admin/templates_controller'),
+          'setDefault',
+        ])
+        router.get('/api/admin/templates/:id', [
+          () => import('#controllers/admin/templates_controller'),
+          'show',
+        ])
+        router.put('/api/admin/templates/:id', [
+          () => import('#controllers/admin/templates_controller'),
+          'update',
+        ])
+        router.delete('/api/admin/templates/:id', [
+          () => import('#controllers/admin/templates_controller'),
+          'destroy',
+        ])
+      })
+      .use(middleware.permission({ resource: 'template' }))
+
+    // Menus (reusable WordPress-style navigation menu manager)
+    router.get('/admin/menus', [() => import('#controllers/admin/menus_controller'), 'page'])
+    router.get('/admin/menus/:id/edit', [
+      () => import('#controllers/admin/menus_controller'),
+      'edit',
+    ])
+    router
+      .group(() => {
+        router.get('/api/admin/menus', [
+          () => import('#controllers/admin/menus_controller'),
+          'index',
+        ])
+        router.post('/api/admin/menus', [
+          () => import('#controllers/admin/menus_controller'),
+          'store',
+        ])
+        // Trash: literal `/trash` before `/:id`; restore/force before bare `:id`.
+        router.get('/api/admin/menus/trash', [
+          () => import('#controllers/admin/menus_controller'),
+          'trash',
+        ])
+        router.post('/api/admin/menus/:id/restore', [
+          () => import('#controllers/admin/menus_controller'),
+          'restore',
+        ])
+        router.delete('/api/admin/menus/:id/force', [
+          () => import('#controllers/admin/menus_controller'),
+          'forceDestroy',
+        ])
+        router.get('/api/admin/menus/:id', [
+          () => import('#controllers/admin/menus_controller'),
+          'show',
+        ])
+        router.put('/api/admin/menus/:id', [
+          () => import('#controllers/admin/menus_controller'),
+          'update',
+        ])
+        router.put('/api/admin/menus/:id/items', [
+          () => import('#controllers/admin/menus_controller'),
+          'saveItems',
+        ])
+        router.delete('/api/admin/menus/:id', [
+          () => import('#controllers/admin/menus_controller'),
+          'destroy',
+        ])
+      })
+      .use(middleware.permission({ resource: 'menu' }))
+
+    // CMS Collections
+    router.get('/admin/cms/collections', [
+      () => import('#controllers/admin/cms_controller'),
+      'collectionsPage',
+    ])
+    router.get('/admin/cms/collections/new', [
+      () => import('#controllers/admin/cms_controller'),
+      'collectionsNewPage',
+    ])
+    router.get('/admin/cms/collections/:key', [
+      () => import('#controllers/admin/cms_controller'),
+      'collectionDetailPage',
+    ])
+    router
+      .group(() => {
+        router.get('/api/admin/cms/collections', [
+          () => import('#controllers/admin/cms_controller'),
+          'collectionsIndex',
+        ])
+        router.get('/api/admin/cms/collections/trash', [
+          () => import('#controllers/admin/cms_controller'),
+          'collectionsTrash',
+        ])
+        router.get('/api/admin/cms/collections/:key', [
+          () => import('#controllers/admin/cms_controller'),
+          'collectionsShow',
+        ])
+        router.post('/api/admin/cms/collections', [
+          () => import('#controllers/admin/cms_controller'),
+          'collectionsStore',
+        ])
+        router.post('/api/admin/cms/collections/:key/restore', [
+          () => import('#controllers/admin/cms_controller'),
+          'collectionsRestore',
+        ])
+        router.delete('/api/admin/cms/collections/:key/force', [
+          () => import('#controllers/admin/cms_controller'),
+          'collectionsForceDestroy',
+        ])
+        router.put('/api/admin/cms/collections/:key', [
+          () => import('#controllers/admin/cms_controller'),
+          'collectionsUpdate',
+        ])
+        router.delete('/api/admin/cms/collections/:key', [
+          () => import('#controllers/admin/cms_controller'),
+          'collectionsDestroy',
+        ])
+        router.post('/api/admin/cms/collections/:key/fields', [
+          () => import('#controllers/admin/cms_controller'),
+          'fieldsStore',
+        ])
+        router.put('/api/admin/cms/collections/:key/fields/:fieldKey', [
+          () => import('#controllers/admin/cms_controller'),
+          'fieldsUpdate',
+        ])
+        router.patch('/api/admin/cms/collections/:key/fields/reorder', [
+          () => import('#controllers/admin/cms_controller'),
+          'fieldsReorder',
+        ])
+        router.delete('/api/admin/cms/collections/:key/fields/:fieldKey', [
+          () => import('#controllers/admin/cms_controller'),
+          'fieldsDestroy',
+        ])
+      })
+      .use(middleware.permission({ permission: 'cms:manage' }))
+
+    // CMS Components (reusable field groups) — registered before the :key record
+    // routes so /admin/cms/components isn't captured as a collection key.
+    router.get('/admin/cms/components', [
+      () => import('#controllers/admin/cms_controller'),
+      'componentsPage',
+    ])
+    router
+      .group(() => {
+        router.get('/api/admin/cms/components', [
+          () => import('#controllers/admin/cms_controller'),
+          'componentsIndex',
+        ])
+        router.post('/api/admin/cms/components', [
+          () => import('#controllers/admin/cms_controller'),
+          'componentsStore',
+        ])
+        router.put('/api/admin/cms/components/:key', [
+          () => import('#controllers/admin/cms_controller'),
+          'componentsUpdate',
+        ])
+        router.delete('/api/admin/cms/components/:key', [
+          () => import('#controllers/admin/cms_controller'),
+          'componentsDestroy',
+        ])
+      })
+      .use(middleware.permission({ permission: 'cms:manage' }))
+
+    // CMS Records
+    router.get('/admin/cms/:key', [
+      () => import('#controllers/admin/cms_controller'),
+      'recordsPage',
+    ])
+    router.get('/admin/cms/:key/new', [
+      () => import('#controllers/admin/cms_controller'),
+      'newRecordPage',
+    ])
+    router.get('/admin/cms/:key/:id', [
+      () => import('#controllers/admin/cms_controller'),
+      'recordDetailPage',
+    ])
+    router
+      .group(() => {
+        router.get('/api/admin/cms/:key/records', [
+          () => import('#controllers/admin/cms_controller'),
+          'recordsIndex',
+        ])
+        router.get('/api/admin/cms/:key/records/trash', [
+          () => import('#controllers/admin/cms_controller'),
+          'recordsTrash',
+        ])
+        router.get('/api/admin/cms/:key/records/:id', [
+          () => import('#controllers/admin/cms_controller'),
+          'recordsShow',
+        ])
+        router.post('/api/admin/cms/:key/records', [
+          () => import('#controllers/admin/cms_controller'),
+          'recordsStore',
+        ])
+        router.post('/api/admin/cms/:key/records/:id/restore', [
+          () => import('#controllers/admin/cms_controller'),
+          'recordsRestore',
+        ])
+        router.delete('/api/admin/cms/:key/records/:id/force', [
+          () => import('#controllers/admin/cms_controller'),
+          'recordsForceDestroy',
+        ])
+        router.put('/api/admin/cms/:key/records/:id', [
+          () => import('#controllers/admin/cms_controller'),
+          'recordsUpdate',
+        ])
+        router.delete('/api/admin/cms/:key/records/:id', [
+          () => import('#controllers/admin/cms_controller'),
+          'recordsDestroy',
+        ])
+        router.get('/api/admin/cms/:key/records/:id/revisions', [
+          () => import('#controllers/admin/cms_controller'),
+          'revisionsIndex',
+        ])
+        router.post('/api/admin/cms/:key/records/:id/revisions/:revisionId/restore', [
+          () => import('#controllers/admin/cms_controller'),
+          'revisionsRestore',
+        ])
+      })
+      .use(middleware.permission({ cmsRecord: true }))
+
+    // Media
+    router.get('/admin/media', [() => import('#controllers/admin/media_controller'), 'page'])
+    router
+      .group(() => {
+        router.get('/api/admin/media', [
+          () => import('#controllers/admin/media_controller'),
+          'index',
+        ])
+        router.get('/api/admin/media/trash', [
+          () => import('#controllers/admin/media_controller'),
+          'trash',
+        ])
+        router.post('/api/admin/media', [
+          () => import('#controllers/admin/media_controller'),
+          'store',
+        ])
+        router.post('/api/admin/media/:id/file', [
+          () => import('#controllers/admin/media_controller'),
+          'replace',
+        ])
+        router.patch('/api/admin/media/:id', [
+          () => import('#controllers/admin/media_controller'),
+          'update',
+        ])
+        router.post('/api/admin/media/:id/restore', [
+          () => import('#controllers/admin/media_controller'),
+          'restore',
+        ])
+        router.delete('/api/admin/media/:id/force', [
+          () => import('#controllers/admin/media_controller'),
+          'forceDestroy',
+        ])
+        router.delete('/api/admin/media/:id', [
+          () => import('#controllers/admin/media_controller'),
+          'destroy',
+        ])
+      })
+      .use(middleware.permission({ resource: 'media' }))
+
+    // Settings. These pages expose integration configuration (including masked
+    // credentials) and the module install surface, so the page routes are gated
+    // as well as their APIs.
+    router
+      .group(() => {
+        router.get('/admin/settings', [
+          () => import('#controllers/admin/settings_controller'),
+          'settingsPage',
+        ])
+        router.get('/admin/settings/appearance', [
+          () => import('#controllers/admin/settings_controller'),
+          'appearanceSettingsPage',
+        ])
+        router.get('/admin/settings/general', [
+          () => import('#controllers/admin/settings_controller'),
+          'generalSettingsPage',
+        ])
+        router.get('/admin/website-settings', [
+          () => import('#controllers/admin/settings_controller'),
+          'websiteSettingsPage',
+        ])
+        router.get('/admin/settings/application', [
+          () => import('#controllers/admin/settings_controller'),
+          'applicationSettingsPage',
+        ])
+        router.get('/admin/integrations', [
+          () => import('#controllers/admin/settings_controller'),
+          'integrationsPage',
+        ])
+        router.get('/admin/integrations/google', [
+          () => import('#controllers/admin/settings_controller'),
+          'integrationsGooglePage',
+        ])
+        router.get('/admin/integrations/captcha', [
+          () => import('#controllers/admin/settings_controller'),
+          'integrationsCaptchaPage',
+        ])
+        router.get('/admin/integrations/google-analytics', [
+          () => import('#controllers/admin/settings_controller'),
+          'integrationsGaPage',
+        ])
+        router.get('/admin/integrations/clarity', [
+          () => import('#controllers/admin/settings_controller'),
+          'integrationsClarityPage',
+        ])
+        router.get('/admin/settings/email', [
+          () => import('#controllers/admin/mail_settings_controller'),
+          'page',
+        ])
+        router.get('/admin/settings/export-import', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'page',
+        ])
+      })
+      .use(middleware.pagePermission({ permission: 'settings:manage' }))
+
+    // Outgoing mail (SMTP). Credentials live here, so every route is gated.
+    router
+      .group(() => {
+        router.get('/api/admin/settings/mail', [
+          () => import('#controllers/admin/mail_settings_controller'),
+          'show',
+        ])
+        router.put('/api/admin/settings/mail', [
+          () => import('#controllers/admin/mail_settings_controller'),
+          'update',
+        ])
+        router.post('/api/admin/settings/mail/test', [
+          () => import('#controllers/admin/mail_settings_controller'),
+          'sendTest',
+        ])
+        // Which emails this installation can send, whether each is switched
+        // on, and what actually went out.
+        router.get('/api/admin/settings/mail/events', [
+          () => import('#controllers/admin/mail_settings_controller'),
+          'events',
+        ])
+        router.put('/api/admin/settings/mail/events/:key', [
+          () => import('#controllers/admin/mail_settings_controller'),
+          'updateEvent',
+        ])
+        // Code EMAIL templates (kit `emails/*.tsx`) offered in the Design picker.
+        router.get('/api/admin/settings/mail/code-templates', [
+          () => import('#controllers/admin/mail_settings_controller'),
+          'codeTemplates',
+        ])
+        router.get('/api/admin/settings/mail/deliveries', [
+          () => import('#controllers/admin/mail_settings_controller'),
+          'deliveries',
+        ])
+      })
+      .use(middleware.permission({ permission: 'settings:manage' }))
+
+    router
+      .get('/api/admin/settings/web', [
+        () => import('#controllers/admin/settings_controller'),
+        'getWebSettings',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+    router
+      .put('/api/admin/settings/web', [
+        () => import('#controllers/admin/settings_controller'),
+        'updateWebSettings',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+    router
+      .get('/api/admin/settings/integrations', [
+        () => import('#controllers/admin/settings_controller'),
+        'getIntegrationSettings',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+    router
+      .put('/api/admin/settings/integrations', [
+        () => import('#controllers/admin/settings_controller'),
+        'updateIntegrationSettings',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+
+    // Global (site-wide) custom code — read open to admins; write gated.
+    router
+      .get('/api/admin/settings/page-code', [
+        () => import('#controllers/admin/settings_controller'),
+        'getPageCode',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+    router
+      .put('/api/admin/settings/page-code', [
+        () => import('#controllers/admin/settings_controller'),
+        'updatePageCode',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+
+    // Whole-site export / import.
+    router
+      .group(() => {
+        router.get('/api/admin/data-transfer/manifest', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'manifest',
+        ])
+        router.post('/api/admin/data-transfer/export', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'exportArchive',
+        ])
+        router.post('/api/admin/data-transfer/import', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'importArchive',
+        ])
+      })
+      .use(middleware.permission({ permission: 'settings:manage' }))
+
+    // Site-wide responsive breakpoints — any page editor may READ them (the
+    // builder needs the tier list); changing the site's tiers is gated on
+    // settings:manage since it re-renders every page's `@media` CSS.
+    router
+      .get('/api/admin/settings/breakpoints', [
+        () => import('#controllers/admin/settings_controller'),
+        'getBreakpoints',
+      ])
+      .use(middleware.permission({ resource: 'content' }))
+    router
+      .put('/api/admin/settings/breakpoints', [
+        () => import('#controllers/admin/settings_controller'),
+        'updateBreakpoints',
+      ])
+      .use(middleware.permission({ permission: 'settings:manage' }))
+
+    // API Tokens (Personal Access Tokens for the external /api/v1 API).
+    // Self-service: any authenticated admin-area user manages their OWN tokens
+    // (the controller scopes to auth.user), so no extra permission is required.
+    router.get('/admin/settings/api-tokens', [
+      () => import('#controllers/admin/settings_controller'),
+      'apiTokensPage',
+    ])
+    /**
+     * Moved out of `/admin/integrations/*` — that prefix is nav-gated, so
+     * hiding the Integrations menu used to 404 this page. Kept as a redirect
+     * because it is a page people bookmark, and a 404 on upgrade reads as
+     * "my tokens are gone".
+     */
+    router.get('/admin/integrations/api-tokens', ({ response }) =>
+      response.redirect('/admin/settings/api-tokens')
+    )
+    router.get('/api/admin/api-tokens', [
+      () => import('#controllers/admin/api_tokens_controller'),
+      'index',
+    ])
+    router.post('/api/admin/api-tokens', [
+      () => import('#controllers/admin/api_tokens_controller'),
+      'store',
+    ])
+    router.delete('/api/admin/api-tokens/:id', [
+      () => import('#controllers/admin/api_tokens_controller'),
+      'destroy',
+    ])
+
+    // Database schema installation.
+    //
+    // `module:install` and `module:uninstall` are separate from `settings:manage`
+    // on purpose: every seeded ADMIN holds `settings:manage`, and these routes
+    // run DDL, run a build on the server, and restart the process.
+    // `module:install` is granted to ADMIN as well as SUPERADMIN — which is why
+    // the throttle below is not optional.
+    // Operator-facing health: module boot failures, safe mode, asset state.
+    router.get('/api/admin/health', [() => import('#controllers/admin/health_controller'), 'admin'])
+
+    router
+      .get('/api/admin/schema/pending', [
+        () => import('#controllers/admin/schema_controller'),
+        'pending',
+      ])
+      .use(middleware.permission({ permission: 'module:install' }))
+    router
+      .post('/api/admin/schema/install', [
+        () => import('#controllers/admin/schema_controller'),
+        'install',
+      ])
+      .use(middleware.permission({ permission: 'module:install' }))
+      // Same class of operation as a module install, and previously unthrottled —
+      // a trivial self-DoS. One line, and it removes an asymmetry.
+      .use(moduleInstallThrottle)
+    router
+      .post('/api/admin/modules/:name/uninstall', [
+        () => import('#controllers/admin/schema_controller'),
+        'uninstallModule',
+      ])
+      .use(middleware.permission({ permission: 'module:uninstall' }))
+
+    // Module install from the admin UI: spawns a detached installer, then the
+    // process restarts itself. The GETs are polled every couple of seconds
+    // while one runs, so they are deliberately left unthrottled.
+    router
+      .group(() => {
+        router.get('/api/admin/deployment', [
+          () => import('#controllers/admin/module_install_controller'),
+          'deployment',
+        ])
+        router.get('/api/admin/modules/detected', [
+          () => import('#controllers/admin/module_install_controller'),
+          'detected',
+        ])
+        router.get('/api/admin/module-install-jobs/latest', [
+          () => import('#controllers/admin/module_install_controller'),
+          'latest',
+        ])
+        router.get('/api/admin/module-install-jobs/:id', [
+          () => import('#controllers/admin/module_install_controller'),
+          'show',
+        ])
+      })
+      .use(middleware.permission({ permission: 'module:install' }))
+
+    router
+      .post('/api/admin/modules/:name/install', [
+        () => import('#controllers/admin/module_install_controller'),
+        'install',
+      ])
+      .use(middleware.permission({ permission: 'module:install' }))
+      .use(moduleInstallThrottle)
+
+    /**
+     * `/admin/plugins` was the plugin manager before plugins became modules.
+     * Kept as a redirect rather than deleted: it is a page operators bookmark,
+     * and a 404 on an upgrade reads as data loss rather than a move.
+     */
+    router.get('/admin/plugins', ({ response }) => response.redirect('/admin/settings'))
+
+    // Modules (first-party app areas; enable/disable from Settings)
+    // Sidebar nav for enabled modules — available to any admin.
+    router.get('/api/admin/modules/menu', [
+      () => import('#controllers/admin/modules_controller'),
+      'menu',
+    ])
+    // App nav config (landing on/off + hidden core nav) — available to any admin.
+    router.get('/api/admin/nav-config', [
+      () => import('#controllers/admin/settings_controller'),
+      'navConfig',
+    ])
+    router
+      .group(() => {
+        router.get('/api/admin/modules', [
+          () => import('#controllers/admin/modules_controller'),
+          'index',
+        ])
+        router.put('/api/admin/modules/:name/toggle', [
+          () => import('#controllers/admin/modules_controller'),
+          'toggle',
+        ])
+      })
+      .use(middleware.permission({ permission: 'settings:manage' }))
+  })
+  .use(middleware.auth())
+  .use(middleware.navEnabled())
+
+// ── API v1 (external, token-authenticated) ──────────────────────────────────────
+// Bearer access tokens (guard 'api'). Effective access = RBAC (permission middleware)
+// ∩ token abilities (tokenAbility middleware). Reuses existing services.
+router
+  .group(() => {
+    // Content (explicit route names — avoids Tuyau registry name clashes with the
+    // admin content controller, which derives the same `content.*` names).
+    router
+      .group(() => {
+        router
+          .get('/api/v1/content', [() => import('#controllers/api/v1/content_controller'), 'index'])
+          .as('v1.content.index')
+          .use(middleware.tokenAbility({ ability: 'content:read' }))
+        router
+          .get('/api/v1/content/:id', [
+            () => import('#controllers/api/v1/content_controller'),
+            'show',
+          ])
+          .as('v1.content.show')
+          .use(middleware.tokenAbility({ ability: 'content:read' }))
+        router
+          .post('/api/v1/content', [
+            () => import('#controllers/api/v1/content_controller'),
+            'store',
+          ])
+          .as('v1.content.store')
+          .use(middleware.tokenAbility({ ability: 'content:write' }))
+        router
+          .put('/api/v1/content/:id', [
+            () => import('#controllers/api/v1/content_controller'),
+            'update',
+          ])
+          .as('v1.content.update')
+          .use(middleware.tokenAbility({ ability: 'content:write' }))
+        router
+          .delete('/api/v1/content/:id', [
+            () => import('#controllers/api/v1/content_controller'),
+            'destroy',
+          ])
+          .as('v1.content.destroy')
+          .use(middleware.tokenAbility({ ability: 'content:write' }))
+      })
+      .use(middleware.permission({ resource: 'content' }))
+
+    // CMS records
+    router
+      .group(() => {
+        router
+          .get('/api/v1/cms/:key/records', [
+            () => import('#controllers/api/v1/cms_records_controller'),
+            'index',
+          ])
+          .as('v1.cms.index')
+          .use(middleware.tokenAbility({ ability: 'cms:read' }))
+        router
+          .get('/api/v1/cms/:key/records/:id', [
+            () => import('#controllers/api/v1/cms_records_controller'),
+            'show',
+          ])
+          .as('v1.cms.show')
+          .use(middleware.tokenAbility({ ability: 'cms:read' }))
+        router
+          .post('/api/v1/cms/:key/records', [
+            () => import('#controllers/api/v1/cms_records_controller'),
+            'store',
+          ])
+          .as('v1.cms.store')
+          .use(middleware.tokenAbility({ ability: 'cms:write' }))
+        router
+          .put('/api/v1/cms/:key/records/:id', [
+            () => import('#controllers/api/v1/cms_records_controller'),
+            'update',
+          ])
+          .as('v1.cms.update')
+          .use(middleware.tokenAbility({ ability: 'cms:write' }))
+        router
+          .delete('/api/v1/cms/:key/records/:id', [
+            () => import('#controllers/api/v1/cms_records_controller'),
+            'destroy',
+          ])
+          .as('v1.cms.destroy')
+          .use(middleware.tokenAbility({ ability: 'cms:write' }))
+      })
+      .use(middleware.permission({ cmsRecord: true }))
+  })
+  .use(middleware.auth({ guards: ['api'] }))
+  .use(apiV1Throttle)
+
+// ── Modules (first-party app areas; routes guarded per-request) ─────────────────
+
+registerAllModuleRoutes(router, middleware)
+
+// ── Public CMS pages (catch-all — MUST stay last) ───────────────────────────────
+// Resolves a published builder page by its `path`; 404s reserved prefixes & misses.
+router.get('*', [() => import('#controllers/pages_public_controller'), 'show'])

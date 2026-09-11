@@ -1,0 +1,490 @@
+/**
+ * Storefront client.
+ *
+ * Plain `fetch` rather than the admin's axios wrapper: these pages are public,
+ * and the shared client redirects to `/login` on a 401 — which would throw an
+ * anonymous shopper into the admin login form.
+ *
+ * CSRF still applies (these are cookie-bearing browser requests), so the token
+ * is read from the `XSRF-TOKEN` cookie and echoed, the same way
+ * `inertia/lib/api.ts` does for the admin.
+ */
+
+export interface MoneyDto {
+  amount: number
+  currency: string
+  formatted: string
+}
+
+export interface CartLine {
+  variantId: string
+  productId: string
+  slug: string
+  title: string
+  variantTitle: string
+  imageUrl: string | null
+  quantity: number
+  unit: MoneyDto
+  total: MoneyDto
+  unavailable: boolean
+}
+
+export interface CartDto {
+  lines: CartLine[]
+  currency: string
+  subtotal: MoneyDto
+  discount: MoneyDto
+  tax: MoneyDto
+  total: MoneyDto
+  itemCount: number
+  digitalOnly: boolean
+  email: string | null
+  /** The applied coupon code, if any. */
+  discountCode: string | null
+}
+
+export interface OrderStatusDto {
+  number: string
+  paid: boolean
+  status: string
+  paymentStatus: string
+  email: string
+  placedAt: string
+  /** Present once the order has shipped. */
+  shippedAt: string | null
+  carrier: string | null
+  trackingNumber: string | null
+  trackingUrl: string | null
+  total: MoneyDto
+  subtotal: MoneyDto
+  shipping: MoneyDto
+  tax: MoneyDto
+  items: {
+    title: string
+    variantTitle: string | null
+    quantity: number
+    total: MoneyDto
+    imageUrl: string | null
+  }[]
+  /**
+   * Present only once the order is paid. `url` is built by the server and
+   * already carries the order token — the browser must never assemble it.
+   */
+  downloads: {
+    id: string
+    filename: string
+    sizeBytes: number | null
+    downloadsCount: number
+    maxDownloads: number
+    expiresAt: string | null
+    live: boolean
+    url: string | null
+  }[]
+}
+
+/**
+ * Public (no-secret) CAPTCHA config for the storefront, from
+ * `GET /api/shop/config`. Mirrors the server's `PublicCaptchaConfig`. The
+ * server is authoritative; these flags only tell the client which screens to
+ * render a widget on.
+ */
+export interface PublicCaptchaConfig {
+  enabled: boolean
+  provider: 'turnstile' | 'hcaptcha' | 'recaptcha' | null
+  siteKey: string | null
+  onLogin: boolean
+  onRegister: boolean
+  onCheckout: boolean
+}
+
+export interface AccountDto {
+  id: string
+  email: string
+  firstName: string | null
+  lastName: string | null
+  fullName: string
+  phone: string | null
+  acceptsMarketing: boolean
+  ordersCount: number
+  hasPassword: boolean
+  twoFactorEnabled: boolean
+  memberSince: string | null
+  totalSpent: MoneyDto | null
+}
+
+function csrfToken(): string | undefined {
+  if (typeof document === 'undefined') return undefined
+  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
+  return match ? decodeURIComponent(match[1]!) : undefined
+}
+
+export class ShopError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly reason?: string
+  ) {
+    super(message)
+  }
+}
+
+export async function shopFetch<T>(
+  path: string,
+  options: RequestInit & { idempotencyKey?: string } = {}
+): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    ...((options.headers as Record<string, string>) ?? {}),
+  }
+
+  if (options.body) headers['Content-Type'] = 'application/json'
+
+  const token = csrfToken()
+  if (token) headers['X-XSRF-TOKEN'] = token
+  if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey
+
+  const response = await fetch(path, { ...options, headers, credentials: 'same-origin' })
+
+  if (!response.ok) {
+    let message = 'Something went wrong.'
+    let reason: string | undefined
+
+    try {
+      const body = (await response.json()) as { message?: string; reason?: string }
+      if (body.message) message = body.message
+      reason = body.reason
+    } catch {
+      // Non-JSON error body; the generic message stands.
+    }
+
+    throw new ShopError(response.status, message, reason)
+  }
+
+  if (response.status === 204) return undefined as T
+  return (await response.json()) as T
+}
+
+/**
+ * A key for one checkout attempt.
+ *
+ * Generated once per checkout *form*, not per submit, so pressing the button
+ * twice replays the first response instead of creating a second order. A new
+ * key is only minted when the shopper starts over.
+ */
+export function newIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  return `ck_${Date.now()}_${Math.random().toString(36).slice(2)}`
+}
+
+export const shopApi = {
+  /** Public storefront config (no-secret CAPTCHA config) for login/register/checkout. */
+  config: () => shopFetch<{ captcha: PublicCaptchaConfig }>('/api/shop/config'),
+
+  cart: () => shopFetch<CartDto>('/api/shop/cart'),
+
+  addToCart: (variantId: string, quantity = 1) =>
+    shopFetch<CartDto>('/api/shop/cart/items', {
+      method: 'POST',
+      body: JSON.stringify({ variantId, quantity }),
+    }),
+
+  setQuantity: (variantId: string, quantity: number) =>
+    shopFetch<CartDto>('/api/shop/cart/items', {
+      method: 'PUT',
+      body: JSON.stringify({ variantId, quantity }),
+    }),
+
+  removeLine: (variantId: string) =>
+    shopFetch<CartDto>(`/api/shop/cart/items/${variantId}`, { method: 'DELETE' }),
+
+  applyDiscount: (code: string) =>
+    shopFetch<CartDto>('/api/shop/cart/discount', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
+
+  removeDiscount: () => shopFetch<CartDto>('/api/shop/cart/discount', { method: 'DELETE' }),
+
+  me: () => shopFetch<{ account: AccountDto | null }>('/api/shop/me'),
+
+  orderStatus: (token: string) =>
+    shopFetch<OrderStatusDto>(`/api/shop/order?token=${encodeURIComponent(token)}`),
+}
+
+/** A delivery option quoted by the server for one address and basket. */
+export interface ShippingOptionDto {
+  methodId: string
+  name: string
+  description: string | null
+  price: MoneyDto
+  minDeliveryDays: number | null
+  maxDeliveryDays: number | null
+  /** True when a free-shipping threshold zeroed an otherwise paid rate. */
+  free: boolean
+}
+
+/** The three status axes collapsed to one operator bucket, for a single badge. */
+export type OrderStage = 'action' | 'open' | 'closed'
+
+/** One order in the signed-in buyer's history. */
+export interface AccountOrderDto {
+  number: string
+  status: string
+  paymentStatus: string
+  fulfillmentStatus: string
+  stage: OrderStage
+  placedAt: string
+  total: MoneyDto
+  itemCount: number
+  items: {
+    title: string
+    variantTitle: string | null
+    quantity: number
+    imageUrl: string | null
+  }[]
+}
+
+/** A single order in full, for the account detail view. */
+export interface OrderDetailDto {
+  number: string
+  status: string
+  paymentStatus: string
+  fulfillmentStatus: string
+  stage: OrderStage
+  paid: boolean
+  email: string
+  placedAt: string
+  shippedAt: string | null
+  carrier: string | null
+  trackingNumber: string | null
+  trackingUrl: string | null
+  customerNote: string | null
+  shippingAddress: OrderAddress | null
+  subtotal: MoneyDto
+  discount: MoneyDto | null
+  shipping: MoneyDto
+  tax: MoneyDto
+  total: MoneyDto
+  items: {
+    title: string
+    variantTitle: string | null
+    sku: string | null
+    quantity: number
+    unit: MoneyDto
+    total: MoneyDto
+    imageUrl: string | null
+  }[]
+  downloads: {
+    id: string
+    filename: string
+    sizeBytes: number
+    downloadsCount: number
+    maxDownloads: number
+    expiresAt: string | null
+    live: boolean
+    url: string | null
+  }[]
+}
+
+export interface OrderAddress {
+  firstName?: string | null
+  lastName?: string | null
+  company?: string | null
+  line1?: string | null
+  line2?: string | null
+  city?: string | null
+  state?: string | null
+  postalCode?: string | null
+  country?: string | null
+  phone?: string | null
+}
+
+export interface AddressDto {
+  id: string
+  label: string | null
+  firstName: string | null
+  lastName: string | null
+  company: string | null
+  line1: string
+  line2: string | null
+  city: string
+  state: string | null
+  postalCode: string | null
+  country: string
+  phone: string | null
+  isDefaultShipping: boolean
+  isDefaultBilling: boolean
+}
+
+export interface AddressInput {
+  label?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  company?: string | null
+  line1: string
+  line2?: string | null
+  city: string
+  state?: string | null
+  postalCode?: string | null
+  country: string
+  phone?: string | null
+  isDefaultShipping?: boolean
+  isDefaultBilling?: boolean
+}
+
+export const accountApi = {
+  register: (input: {
+    email: string
+    password: string
+    firstName?: string | null
+    lastName?: string | null
+    acceptsMarketing?: boolean
+    /** Present only when the store requires a CAPTCHA on register. */
+    captchaToken?: string | null
+  }) =>
+    shopFetch<{ account: AccountDto }>('/api/shop/account/register', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  /**
+   * A 2FA account returns `{ needs2fa, pendingToken }` (a 200, so `shopFetch`
+   * doesn't throw) instead of a signed-in `{ account }`; the caller then posts
+   * a code to {@link verify2fa}.
+   */
+  login: (input: { email: string; password: string; captchaToken?: string | null }) =>
+    shopFetch<{ account: AccountDto } | { needs2fa: true; pendingToken: string }>(
+      '/api/shop/account/login',
+      { method: 'POST', body: JSON.stringify(input) }
+    ),
+
+  verify2fa: (input: { pendingToken: string; code: string }) =>
+    shopFetch<{ account: AccountDto }>('/api/shop/account/2fa/verify', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  beginEnroll2fa: () =>
+    shopFetch<{ otpauthUri: string; secret: string }>('/api/shop/account/2fa/enroll', {
+      method: 'POST',
+    }),
+
+  confirmEnroll2fa: (input: { code: string }) =>
+    shopFetch<{ recoveryCodes: string[] }>('/api/shop/account/2fa/confirm', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  disable2fa: (input: { password: string }) =>
+    shopFetch<{ ok: true }>('/api/shop/account/2fa/disable', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  logout: () => shopFetch<{ ok: true }>('/api/shop/account/logout', { method: 'POST' }),
+
+  orders: () => shopFetch<{ orders: AccountOrderDto[] }>('/api/shop/account/orders'),
+
+  orderDetail: (number: string) =>
+    shopFetch<OrderDetailDto>(`/api/shop/account/orders/${encodeURIComponent(number)}`),
+
+  updateProfile: (input: {
+    firstName?: string | null
+    lastName?: string | null
+    phone?: string | null
+    acceptsMarketing?: boolean
+  }) =>
+    shopFetch<{ account: AccountDto }>('/api/shop/account/profile', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  changePassword: (input: { currentPassword: string; newPassword: string }) =>
+    shopFetch<{ ok: true }>('/api/shop/account/password', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  addresses: () => shopFetch<{ addresses: AddressDto[] }>('/api/shop/account/addresses'),
+
+  createAddress: (input: AddressInput) =>
+    shopFetch<AddressDto>('/api/shop/account/addresses', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateAddress: (id: string, input: Partial<AddressInput>) =>
+    shopFetch<AddressDto>(`/api/shop/account/addresses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  deleteAddress: (id: string) =>
+    shopFetch<void>(`/api/shop/account/addresses/${id}`, { method: 'DELETE' }),
+
+  affiliate: () => shopFetch<AffiliateOverviewDto>('/api/shop/account/affiliate'),
+
+  applyAffiliate: (input?: { message?: string }) =>
+    shopFetch<AffiliateOverviewDto>('/api/shop/account/affiliate/apply', {
+      method: 'POST',
+      body: JSON.stringify(input ?? {}),
+    }),
+
+  setPayoutMethod: (input: PayoutMethodInput) =>
+    shopFetch<AffiliateOverviewDto>('/api/shop/account/affiliate/payout-method', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  requestWithdrawal: () =>
+    shopFetch<AffiliateOverviewDto>('/api/shop/account/affiliate/withdrawals', { method: 'POST' }),
+}
+
+export type PayoutMethodInput =
+  | { type: 'bank'; bankName: string; accountNumber: string; accountHolder: string }
+  | { type: 'ewallet'; provider: string; accountNumber: string; accountHolder: string }
+  | { type: 'paypal'; email: string }
+
+/** Server money shape for affiliate figures — amount + preformatted string. */
+export interface AmountDto {
+  amount: number
+  formatted: string
+}
+
+export interface AffiliateCommissionDto {
+  id: string
+  orderNumber: string
+  amount: AmountDto
+  status: 'pending' | 'approved' | 'paid' | 'void'
+  ratePercent: number
+  createdAt: string
+}
+
+export interface AffiliateWithdrawalDto {
+  id: string
+  amount: AmountDto
+  status: 'requested' | 'paid' | 'rejected'
+  requestedAt: string
+  processedAt: string | null
+  rejectionReason: string | null
+}
+
+export interface AffiliateOverviewDto {
+  state: 'none' | 'pending' | 'active' | 'paused' | 'blocked' | 'rejected'
+  code: string | null
+  referralPath: string | null
+  commissionPercent: number
+  clicksCount: number
+  ordersCount: number
+  pending: AmountDto
+  available: AmountDto
+  inWithdrawal: AmountDto
+  paid: AmountDto
+  minWithdrawal: AmountDto
+  canWithdraw: boolean
+  payoutMethod: { type: 'bank' | 'ewallet' | 'paypal'; summary: string } | null
+  recentCommissions: AffiliateCommissionDto[]
+  withdrawals: AffiliateWithdrawalDto[]
+}

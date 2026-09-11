@@ -1,0 +1,55 @@
+{{--
+  Shared shell for every transactional email.
+
+  Deliberately plain: inline styles only, a single-column table, no external
+  stylesheet and no web fonts. Email clients strip <style> blocks, ignore flex
+  and grid, and block remote assets by default, so anything cleverer would
+  degrade unpredictably across Outlook, Gmail and Apple Mail.
+
+  Slots:
+    title    — preheader + <title>
+    @!section('content')  — the body
+--}}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>{{ title ?? siteName ?? 'Driftless' }}</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f4f4f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#18181b;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5; padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; background-color:#ffffff; border-radius:12px; border:1px solid #e4e4e7;">
+
+            @if(siteName)
+              <tr>
+                <td style="padding:24px 32px 0 32px;">
+                  <p style="margin:0; font-size:15px; font-weight:600; color:#18181b;">{{ siteName }}</p>
+                </td>
+              </tr>
+            @end
+
+            <tr>
+              <td style="padding:24px 32px 32px 32px; font-size:15px; line-height:1.6;">
+                @!section('content')
+              </td>
+            </tr>
+          </table>
+
+          @if(footerNote)
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+              <tr>
+                <td style="padding:16px 32px; text-align:center; font-size:12px; line-height:1.5; color:#71717a;">
+                  {{ footerNote }}
+                </td>
+              </tr>
+            </table>
+          @end
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

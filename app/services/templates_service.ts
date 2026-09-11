@@ -1,0 +1,464 @@
+import Template, { type TemplateType } from '#models/template'
+import Page from '#models/page'
+import MailEventSetting from '#models/mail_event_setting'
+import PagesService from '#services/pages_service'
+import { newUlid } from '#services/ulid_service'
+import { DateTime } from 'luxon'
+import { sanitizePuckDocument } from '#services/html_sanitizer_service'
+import { CODE_TEMPLATES, COLLECTION_TEMPLATES } from '#services/custom_templates.generated'
+import { listCodeEmailTemplates } from '#services/code_email_templates'
+import TemplateKitsService from '#services/template_kits_service'
+
+const pagesService = new PagesService()
+const templateKits = new TemplateKitsService()
+
+const EMPTY_DOC: Record<string, unknown> = { content: [], root: {} }
+
+/** Max recursion depth when resolving nested TemplateRef includes. Matches the
+ *  client render guard in `template-ref.tsx` so both stop at the same depth. */
+const MAX_REF_DEPTH = 10
+
+/** Template types that can be a site-wide default (something consumes the flag). */
+const DEFAULTABLE_TYPES: TemplateType[] = ['HEADER', 'FOOTER', 'LAYOUT', 'EMAIL']
+
+/**
+ * Kit code templates (`codetpl:<kit>/…`, no DB row) as read-only list rows, so an
+ * operator sees them in Templates the way a file-page appears in Pages. The id IS
+ * the pointer — unique, and the value a page/event stores to use it. Editing is
+ * in the `.tsx` file, so these rows carry no builder/default/delete actions.
+ */
+function codeTemplateSummaries(activeKits: Set<string>, type?: TemplateType): TemplateSummaryDto[] {
+  const wants = (t: TemplateType) => !type || type === t
+  // Only an active kit contributes its code templates to the list.
+  const on = (kit: string) => activeKits.has(kit)
+  const row = (
+    id: string,
+    name: string,
+    t: TemplateType,
+    collectionKey: string | null
+  ): TemplateSummaryDto => ({
+    id,
+    name,
+    type: t,
+    isDefault: false,
+    collectionKey,
+    createdAt: '',
+    updatedAt: '',
+    source: 'code',
+  })
+
+  const out: TemplateSummaryDto[] = []
+  for (const c of CODE_TEMPLATES) {
+    if (wants(c.type) && on(c.kit))
+      out.push(row(`codetpl:${c.kit}/${c.type.toLowerCase()}`, c.kit, c.type, null))
+  }
+  if (wants('COLLECTION')) {
+    for (const c of COLLECTION_TEMPLATES) {
+      if (!on(c.kit)) continue
+      out.push(
+        row(`codetpl:${c.kit}/collection/${c.collectionKey}`, c.kit, 'COLLECTION', c.collectionKey)
+      )
+    }
+  }
+  if (wants('EMAIL')) {
+    for (const e of listCodeEmailTemplates()) {
+      if (!on(e.kit)) continue
+      out.push(row(`codetpl:${e.kit}/email/${e.name}`, `${e.kit} · ${e.name}`, 'EMAIL', null))
+    }
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name))
+  return out
+}
+
+export interface TemplateSummaryDto {
+  id: string
+  name: string
+  type: TemplateType
+  isDefault: boolean
+  /** The CMS collection a COLLECTION template is the item card for; null otherwise. */
+  collectionKey: string | null
+  createdAt: string
+  updatedAt: string
+  /**
+   * `'db'` — an editable row in the `templates` table. `'code'` — a kit code
+   * template (`codetpl:<kit>/…`, no DB row), listed read-only so an operator can
+   * see it exists and where to edit it, the way a file-page appears in Pages.
+   */
+  source: 'db' | 'code'
+}
+
+export interface TemplateDto extends TemplateSummaryDto {
+  content: Record<string, unknown>
+  /** Email HTML, present only on EMAIL templates that have been published. */
+  renderedHtml: string | null
+}
+
+interface CreateTemplateInput {
+  name: string
+  type: TemplateType
+  content?: Record<string, unknown>
+  isDefault?: boolean
+  collectionKey?: string | null
+}
+
+interface UpdateTemplateInput {
+  /**
+   * Email HTML, rendered by the builder in the operator's browser.
+   *
+   * Client-supplied on purpose: the email block set and React are already
+   * loaded there, whereas the server has no SSR bundle for them. It is written
+   * only for EMAIL templates (see `update`), and reaching this endpoint at all
+   * requires `template:update` — an actor who has it can already put arbitrary
+   * markup in a page's Code Block.
+   */
+  renderedHtml?: string | null
+  name?: string
+  content?: Record<string, unknown>
+  isDefault?: boolean
+  collectionKey?: string | null
+}
+
+/**
+ * Collect template ids referenced anywhere in a Puck node tree.
+ *
+ * Two blocks embed a template: `TemplateRef` (a header/footer/component
+ * include) and `CollectionList` in template mode, whose `templateId` is the
+ * COLLECTION template repeated once per record. Both carry the id under the
+ * same prop name on purpose — `usages()` and the public reachability check
+ * find either by the one `"templateId":"<id>"` needle.
+ */
+function collectRefIds(node: unknown, acc: string[]): void {
+  if (Array.isArray(node)) {
+    for (const child of node) collectRefIds(child, acc)
+    return
+  }
+  if (node && typeof node === 'object') {
+    const block = node as { type?: string; props?: Record<string, unknown> }
+    if (
+      (block.type === 'TemplateRef' || block.type === 'CollectionList') &&
+      typeof block.props?.templateId === 'string' &&
+      block.props.templateId
+    ) {
+      acc.push(block.props.templateId as string)
+    }
+    // Recurse EVERY value, not just `props`: a Puck 0.20 doc keeps nested
+    // content under a `zones` map with arbitrary keys, so a ref placed inside a
+    // slot would otherwise be missed by `usages()` and the reachability check.
+    for (const value of Object.values(node as Record<string, unknown>)) {
+      collectRefIds(value, acc)
+    }
+  }
+}
+
+export default class TemplatesService {
+  async list(type?: TemplateType, includeCode = false): Promise<TemplateSummaryDto[]> {
+    const query = Template.query().whereNull('deleted_at').orderBy('updated_at', 'desc')
+    if (type) query.where('type', type)
+    const rows = await query
+    const db = rows.map((r) => this.toSummary(r))
+    // Kit code templates (no DB row) as read-only entries — the Templates
+    // analogue of file-pages in the Pages list, and only from ACTIVE kits. Only
+    // when asked: the template pickers add their own code options separately.
+    if (!includeCode) return db
+    const activeKits = await templateKits.activeSet()
+    return [...db, ...codeTemplateSummaries(activeKits, type)]
+  }
+
+  async find(id: string): Promise<TemplateDto> {
+    const row = await Template.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    return this.toDto(row)
+  }
+
+  async create(dto: CreateTemplateInput): Promise<TemplateDto> {
+    const name = String(dto.name ?? '').trim()
+    if (!name) throw new Error('Name is required')
+
+    const row = await Template.create({
+      id: newUlid(),
+      name,
+      type: dto.type,
+      content: sanitizePuckDocument(dto.content ?? EMPTY_DOC),
+      isDefault: dto.isDefault ?? false,
+      collectionKey: this.collectionKeyFor(dto.type, dto.collectionKey),
+    })
+    if (row.isDefault) await this.clearOtherDefaults(row.type, row.id)
+    return this.toDto(row)
+  }
+
+  async update(id: string, dto: UpdateTemplateInput): Promise<TemplateDto> {
+    const row = await Template.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    if (dto.name !== undefined) row.name = dto.name
+    if (dto.content !== undefined) row.content = sanitizePuckDocument(dto.content)
+    /**
+     * Only EMAIL templates carry rendered HTML. Ignoring it elsewhere means a
+     * malformed request cannot smuggle a blob onto a header template, where
+     * nothing would ever read it back out.
+     */
+    if (dto.renderedHtml !== undefined && row.type === 'EMAIL') {
+      row.renderedHtml = dto.renderedHtml
+    }
+    if (dto.isDefault !== undefined) row.isDefault = dto.isDefault
+    if (dto.collectionKey !== undefined) {
+      row.collectionKey = this.collectionKeyFor(row.type, dto.collectionKey)
+    }
+    await row.save()
+    if (dto.isDefault) await this.clearOtherDefaults(row.type, row.id)
+    // Templates are shared — any edit can affect SSG pages that include it.
+    // EMAIL templates are never part of a page snapshot, so skip the (expensive)
+    // full snapshot invalidation for them.
+    if (row.type !== 'EMAIL') await pagesService.invalidateAllSnapshots()
+    return this.toDto(row)
+  }
+
+  async remove(id: string): Promise<void> {
+    const usage = await this.usages(id)
+    if (usage.total > 0) {
+      const parts: string[] = []
+      if (usage.pages) parts.push(`${usage.pages} page(s)`)
+      if (usage.templates) parts.push(`${usage.templates} template(s)`)
+      if (usage.mails) parts.push(`${usage.mails} email(s)`)
+      throw new Error(`Template is in use by ${parts.join(', ')} — remove those references first`)
+    }
+    const row = await Template.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    row.deletedAt = DateTime.now()
+    row.isDefault = false
+    await row.save()
+    // An EMAIL template isn't part of any page's SSG snapshot, so removing one
+    // never invalidates page HTML.
+    if (row.type !== 'EMAIL') await pagesService.invalidateAllSnapshots()
+  }
+
+  /** Soft-deleted templates, for the Trash view. Code templates never appear (no DB row). */
+  async findTrashed(): Promise<TemplateSummaryDto[]> {
+    const rows = await Template.query().whereNotNull('deleted_at').orderBy('updated_at', 'desc')
+    return rows.map((r) => this.toSummary(r))
+  }
+
+  /**
+   * Bring a trashed template back. `deletedAt` is cleared; `isDefault` is NOT
+   * re-enabled (it was intentionally dropped on delete). No usages guard — a
+   * trashed template is reference-free by construction (remove only allowed it
+   * when nothing pointed at it).
+   */
+  async restore(id: string): Promise<TemplateDto> {
+    const row = await Template.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    row.deletedAt = null
+    await row.save()
+    if (row.type !== 'EMAIL') await pagesService.invalidateAllSnapshots()
+    return this.toDto(row)
+  }
+
+  /** Permanently delete a trashed template. Guarded to trashed rows only. */
+  async forceDelete(id: string): Promise<void> {
+    const row = await Template.query().where('id', id).whereNotNull('deleted_at').firstOrFail()
+    await row.delete()
+  }
+
+  /** Count pages + other templates + wired mail events that reference this id. */
+  async usages(
+    id: string
+  ): Promise<{ pages: number; templates: number; mails: number; total: number }> {
+    /**
+     * `CAST(... AS TEXT)` rather than pg's `::text`, which threw on SQLite —
+     * the test suite's driver. `public_templates_controller` already used the
+     * portable form for the same query; this one had simply never been
+     * reached from a test.
+     */
+    const needle = `%"templateId":"${id}"%`
+
+    /**
+     * A page uses a template through its layout/header/footer columns, or from
+     * inside its design: a TemplateRef include, or a CollectionList repeating a
+     * COLLECTION template. The staged draft counts too — deleting a template
+     * the operator has just placed, before they publish, would leave the draft
+     * pointing at nothing.
+     */
+    const pageRow = await Page.query()
+      .where((q) =>
+        q
+          .where('layout_id', id)
+          .orWhere('header_template_id', id)
+          .orWhere('footer_template_id', id)
+          .orWhereRaw('CAST(content AS TEXT) like ?', [needle])
+          .orWhereRaw('CAST(draft_content AS TEXT) like ?', [needle])
+      )
+      .whereNull('deleted_at')
+      .count('* as total')
+    const pages = Number((pageRow[0] as any)?.$extras?.total ?? 0)
+
+    const templateRow = await Template.query()
+      .whereNot('id', id)
+      .whereNull('deleted_at')
+      .whereRaw('CAST(content AS TEXT) like ?', [needle])
+      .count('* as total')
+    const templates = Number((templateRow[0] as any)?.$extras?.total ?? 0)
+
+    /**
+     * An EMAIL template wired to a notification counts too. Without this,
+     * deleting one silently reverts that email to the built-in design — the
+     * operator's copy would keep sending, just not the way they designed it.
+     */
+    const mailRow = await MailEventSetting.query().where('template_id', id).count('* as total')
+    const mails = Number((mailRow[0] as any)?.$extras?.total ?? 0)
+
+    return { pages, templates, mails, total: pages + templates + mails }
+  }
+
+  async duplicate(id: string): Promise<TemplateDto> {
+    const source = await Template.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    const row = await Template.create({
+      id: newUlid(),
+      name: `${source.name} (copy)`,
+      type: source.type,
+      content: sanitizePuckDocument(source.content),
+      // Carry the rendered HTML for EMAIL copies — it is the actual email body,
+      // so dropping it left the duplicate rendering nothing.
+      renderedHtml: source.type === 'EMAIL' ? source.renderedHtml : null,
+      isDefault: false,
+      collectionKey: source.collectionKey ?? null,
+    })
+    return this.toDto(row)
+  }
+
+  /** A portable JSON bundle for a single DB template (no id/timestamps/default flag). */
+  async exportTemplate(id: string): Promise<Record<string, unknown>> {
+    const t = await Template.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    return {
+      _type: 'driftless.template',
+      version: 1,
+      name: t.name,
+      type: t.type,
+      content: t.content,
+      collectionKey: t.collectionKey,
+      renderedHtml: t.type === 'EMAIL' ? t.renderedHtml : null,
+    }
+  }
+
+  /**
+   * Create a fresh template from an exported bundle. Always a brand-new,
+   * non-default row with sanitized content — mirrors how `duplicate` clones and
+   * how page import forces a draft. The caller (controller) enforces the
+   * privileged-content gate first, since `content` is attacker-controllable.
+   */
+  async importTemplate(payload: unknown): Promise<TemplateDto> {
+    if (!payload || typeof payload !== 'object') throw new Error('Invalid template file.')
+    const p = payload as Record<string, unknown>
+    if (p._type !== 'driftless.template') throw new Error('Not a Driftless template export.')
+    const type = p.type as TemplateType
+    const VALID: TemplateType[] = ['HEADER', 'FOOTER', 'COMPONENT', 'LAYOUT', 'EMAIL', 'COLLECTION']
+    if (!VALID.includes(type)) throw new Error('Unknown template type.')
+    const name = (typeof p.name === 'string' && p.name.trim()) || 'Imported template'
+
+    const row = await Template.create({
+      id: newUlid(),
+      name,
+      type,
+      content: sanitizePuckDocument((p.content as Record<string, unknown>) ?? EMPTY_DOC),
+      renderedHtml: type === 'EMAIL' && typeof p.renderedHtml === 'string' ? p.renderedHtml : null,
+      isDefault: false,
+      collectionKey: this.collectionKeyFor(type, (p.collectionKey as string | null) ?? null),
+    })
+    if (row.type !== 'EMAIL') await pagesService.invalidateAllSnapshots()
+    return this.toDto(row)
+  }
+
+  /** The site default template for a type, or null. */
+  async getDefault(type: TemplateType): Promise<TemplateDto | null> {
+    const row = await Template.query()
+      .where('type', type)
+      .where('is_default', true)
+      .whereNull('deleted_at')
+      .first()
+    return row ? this.toDto(row) : null
+  }
+
+  async setDefault(id: string): Promise<TemplateDto> {
+    const row = await Template.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    // COLLECTION/COMPONENT templates are picked by reference, never as a
+    // site-wide default — nothing would consume the flag.
+    if (!DEFAULTABLE_TYPES.includes(row.type)) {
+      throw new Error(`A ${row.type} template can't be a site default.`)
+    }
+    row.isDefault = true
+    await row.save()
+    await this.clearOtherDefaults(row.type, row.id)
+    // Default changes alter which template SSG pages inherit — drop snapshots.
+    await pagesService.invalidateAllSnapshots()
+    return this.toDto(row)
+  }
+
+  /**
+   * Resolve every TemplateRef referenced across the given docs into a map of
+   * `{ [templateId]: content }`, recursively (so a referenced template that itself
+   * references others is included). Guards against cycles + runaway depth.
+   */
+  async resolveRefs(
+    docs: Array<Record<string, unknown> | null | undefined>,
+    depth = 0,
+    visited: Set<string> = new Set()
+  ): Promise<Record<string, Record<string, unknown>>> {
+    const map: Record<string, Record<string, unknown>> = {}
+    if (depth >= MAX_REF_DEPTH) return map
+
+    const ids: string[] = []
+    for (const doc of docs) {
+      if (!doc) continue
+      collectRefIds((doc as { content?: unknown }).content, ids)
+      collectRefIds((doc as { zones?: unknown }).zones, ids)
+    }
+
+    const fresh = [...new Set(ids)].filter((id) => !visited.has(id))
+    if (!fresh.length) return map
+
+    const rows = await Template.query().whereIn('id', fresh).whereNull('deleted_at')
+    const nextDocs: Record<string, unknown>[] = []
+    for (const row of rows) {
+      visited.add(row.id)
+      map[row.id] = row.content
+      nextDocs.push(row.content)
+    }
+
+    if (nextDocs.length) {
+      const nested = await this.resolveRefs(nextDocs, depth + 1, visited)
+      Object.assign(map, nested)
+    }
+    return map
+  }
+
+  private async clearOtherDefaults(type: TemplateType, keepId: string): Promise<void> {
+    await Template.query()
+      .where('type', type)
+      .whereNot('id', keepId)
+      .where('is_default', true)
+      .update({ is_default: false })
+  }
+
+  /**
+   * A collection key is meaningful only on COLLECTION templates. Dropping it
+   * elsewhere keeps a header from claiming a collection it can never bind to,
+   * which would otherwise surface in the CollectionList template picker.
+   */
+  private collectionKeyFor(type: TemplateType, key: string | null | undefined): string | null {
+    if (type !== 'COLLECTION') return null
+    const trimmed = String(key ?? '').trim()
+    if (!trimmed) throw new Error('A collection template must be bound to a collection')
+    return trimmed
+  }
+
+  private toSummary(row: Template): TemplateSummaryDto {
+    return {
+      id: row.id,
+      name: row.name,
+      type: row.type,
+      isDefault: row.isDefault,
+      collectionKey: row.collectionKey ?? null,
+      createdAt: row.createdAt.toISO()!,
+      updatedAt: row.updatedAt.toISO()!,
+      source: 'db',
+    }
+  }
+
+  private toDto(row: Template): TemplateDto {
+    return { ...this.toSummary(row), content: row.content, renderedHtml: row.renderedHtml ?? null }
+  }
+}

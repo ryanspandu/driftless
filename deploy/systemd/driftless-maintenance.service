@@ -1,0 +1,9 @@
+[Unit]
+Description=Driftless module maintenance sweep
+
+[Service]
+Type=oneshot
+User=driftless
+WorkingDirectory=/opt/driftless
+ExecStart=/usr/bin/node current/bin/console.js modules:maintenance
+Environment=NODE_ENV=production

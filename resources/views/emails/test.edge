@@ -1,0 +1,32 @@
+@layout('emails/layout')
+
+@section('content')
+  <h1 style="margin:0 0 12px 0; font-size:20px; font-weight:600; color:#18181b;">
+    Your email settings work
+  </h1>
+
+  <p style="margin:0 0 16px 0;">
+    This is a test message from {{ siteName ?? 'Driftless' }}. If you are reading it,
+    outgoing email is configured correctly and transactional messages — order
+    confirmations, receipts, password resets — will reach your customers.
+  </p>
+
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 16px 0; border-collapse:collapse; font-size:13px;">
+    <tr>
+      <td style="padding:8px 0; color:#71717a; width:120px;">Host</td>
+      <td style="padding:8px 0; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">{{ host }}:{{ port }}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 0; color:#71717a;">Source</td>
+      <td style="padding:8px 0;">{{ source === 'database' ? 'Configured in the dashboard' : 'Environment variables' }}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 0; color:#71717a;">Sent at</td>
+      <td style="padding:8px 0;">{{ sentAt }}</td>
+    </tr>
+  </table>
+
+  <p style="margin:0; font-size:13px; color:#71717a;">
+    No action is needed — you can safely delete this message.
+  </p>
+@end

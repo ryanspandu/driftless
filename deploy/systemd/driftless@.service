@@ -1,0 +1,38 @@
+# Advanced: several web processes sharing one socket-activated listener.
+#
+#   sudo systemctl enable --now driftless.socket
+#   sudo systemctl enable --now driftless@1 driftless@2
+#
+# Each instance accepts from the same kernel socket, so restarts are rolling —
+# the instances notice a new release at slightly different moments (see the
+# jitter in app/services/restart_watcher.ts) and leave one at a time.
+#
+# **Do not combine this with PM2 cluster or with driftless.service.** Three ways
+# of running several copies at once is three ways for them to fight over the
+# same port. Pick one.
+#
+# Only worth it on a box with memory to spare: each instance holds its own copy
+# of the module registry, the CMS collections and the SSR bundle.
+
+[Unit]
+Description=Driftless CMS (instance %i)
+After=network.target postgresql.service redis.service
+Requires=driftless.socket
+After=driftless.socket
+
+[Service]
+Type=simple
+User=driftless
+WorkingDirectory=/opt/driftless
+ExecStart=/usr/bin/node current/bin/server.js
+Environment=NODE_ENV=production
+Environment=NODE_APP_INSTANCE=%i
+Sockets=driftless.socket
+
+Restart=always
+RestartSec=1
+TimeoutStopSec=20
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

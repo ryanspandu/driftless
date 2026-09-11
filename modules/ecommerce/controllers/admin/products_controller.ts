@@ -1,0 +1,332 @@
+import type { HttpContext } from '@adonisjs/core/http'
+import { newUlid } from '#services/ulid_service'
+import { publicError } from '#exceptions/public_error'
+import VariantPrice from '#modules/ecommerce/models/variant_price'
+import CurrencyService from '#modules/ecommerce/services/currency_service'
+import { renderPage } from '#helpers/inertia_render'
+import { apiFail } from '#helpers/api_error_response'
+import AuditLogService from '#services/audit_log_service'
+import type User from '#models/user'
+import { readFile } from 'node:fs/promises'
+import CatalogService from '#modules/ecommerce/services/catalog_service'
+import ProductImportService from '#modules/ecommerce/services/import_service'
+import {
+  createProductValidator,
+  updateProductValidator,
+  createVariantValidator,
+  updateVariantValidator,
+} from '#modules/ecommerce/validators/catalog'
+
+const catalog = new CatalogService()
+const importer = new ProductImportService()
+const audit = new AuditLogService()
+
+const fail = (response: HttpContext['response'], error: unknown) =>
+  apiFail(response, error, 'ecommerce/products')
+
+export default class ProductsController {
+  /** The category management screen. */
+  async categoriesPage({ inertia }: HttpContext) {
+    return renderPage(inertia, 'modules/ecommerce/admin/products/categories', {})
+  }
+
+  /** The tag management screen. */
+  async tagsPage({ inertia }: HttpContext) {
+    return renderPage(inertia, 'modules/ecommerce/admin/products/tags', {})
+  }
+
+  async page({ inertia }: HttpContext) {
+    return renderPage(inertia, 'modules/ecommerce/admin/products/index', {})
+  }
+
+  async newPage({ inertia }: HttpContext) {
+    return renderPage(inertia, 'modules/ecommerce/admin/products/edit', { productId: null })
+  }
+
+  async detailPage({ inertia, params }: HttpContext) {
+    return renderPage(inertia, 'modules/ecommerce/admin/products/edit', {
+      productId: String(params.id),
+    })
+  }
+
+  async index({ request, response }: HttpContext) {
+    const result = await catalog.list({
+      page: Number(request.input('page', 1)) || 1,
+      pageSize: Number(request.input('pageSize', 20)) || 20,
+      search: request.input('search') || undefined,
+      status: request.input('status') || undefined,
+      type: request.input('type') || undefined,
+      categoryId: request.input('categoryId') || undefined,
+    })
+    return response.json(result)
+  }
+
+  async show({ params, response }: HttpContext) {
+    try {
+      return response.json(await catalog.find(String(params.id)))
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  async store(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const payload = await request.validateUsing(createProductValidator)
+      const product = await catalog.create(payload, (auth.user as User).id)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'product.created',
+        subjectType: 'product',
+        subjectId: product.id,
+        changes: { title: product.title, slug: product.slug, status: product.status },
+        ctx,
+      })
+
+      return response.status(201).json(product)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /**
+   * Bulk create/update products from an uploaded CSV.
+   *
+   * Best-effort: the service imports every valid row and reports the rest, so a
+   * partial file still lands what it can. The response is the summary
+   * (`created`/`updated`/`skipped` + per-row `errors`), not a 4xx — a file with
+   * some bad rows is a normal, expected outcome here, not a failed request.
+   */
+  async import(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const file = request.file('file', { size: '5mb', extnames: ['csv', 'txt'] })
+      if (!file) {
+        return response.status(422).json({ message: 'No file uploaded.' })
+      }
+      if (!file.isValid || !file.tmpPath) {
+        return response.status(422).json({ message: 'Invalid upload.', errors: file.errors })
+      }
+
+      const text = await readFile(file.tmpPath, 'utf8')
+      const result = await importer.import(text, (auth.user as User).id)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'ecommerce.products_imported',
+        subjectType: 'import',
+        subjectId: 'products',
+        changes: {
+          created: result.created,
+          updated: result.updated,
+          skipped: result.skipped,
+          errors: result.errors.length,
+        },
+        ctx,
+      })
+
+      return response.json(result)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  async update(ctx: HttpContext) {
+    const { params, request, response, auth } = ctx
+    try {
+      const payload = await request.validateUsing(updateProductValidator)
+      const product = await catalog.update(String(params.id), payload)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'product.updated',
+        subjectType: 'product',
+        subjectId: product.id,
+        changes: payload,
+        ctx,
+      })
+
+      return response.json(product)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  async destroy(ctx: HttpContext) {
+    const { params, response, auth } = ctx
+    try {
+      const id = String(params.id)
+      await catalog.remove(id)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'product.deleted',
+        subjectType: 'product',
+        subjectId: id,
+        ctx,
+      })
+
+      return response.status(204).send('')
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  async storeVariant(ctx: HttpContext) {
+    const { params, request, response, auth } = ctx
+    try {
+      const payload = await request.validateUsing(createVariantValidator)
+      const variant = await catalog.createVariant(String(params.id), payload)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'variant.created',
+        subjectType: 'variant',
+        subjectId: variant.id,
+        changes: { productId: params.id, title: variant.title, sku: variant.sku },
+        amount: variant.price.amount,
+        currency: variant.price.currency,
+        ctx,
+      })
+
+      return response.status(201).json(variant)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  async updateVariant(ctx: HttpContext) {
+    const { params, request, response, auth } = ctx
+    try {
+      const payload = await request.validateUsing(updateVariantValidator)
+      const variant = await catalog.updateVariant(String(params.variantId), payload)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'variant.updated',
+        subjectType: 'variant',
+        subjectId: variant.id,
+        changes: payload,
+        amount: variant.price.amount,
+        currency: variant.price.currency,
+        ctx,
+      })
+
+      return response.json(variant)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  async destroyVariant(ctx: HttpContext) {
+    const { params, response, auth } = ctx
+    try {
+      const id = String(params.variantId)
+      await catalog.removeVariant(id)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'variant.deleted',
+        subjectType: 'variant',
+        subjectId: id,
+        ctx,
+      })
+
+      return response.status(204).send('')
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /** Listed prices for a variant, in every currency but the base. */
+  async variantPrices({ params, response }: HttpContext) {
+    const rows = await VariantPrice.query()
+      .where('variant_id', String(params.variantId))
+      .orderBy('currency', 'asc')
+
+    return response.json(
+      rows.map((row) => ({
+        currency: row.currency.toUpperCase(),
+        priceAmount: row.priceAmount,
+        compareAtAmount: row.compareAtAmount,
+      }))
+    )
+  }
+
+  /**
+   * Replace a variant's listed prices.
+   *
+   * Amounts are integer minor units in **that currency's** exponent — ¥1000 is
+   * `1000`, $10.00 is `1000`. They are never derived from the base price;
+   * there is no conversion anywhere in this module, which is precisely why a
+   * missing entry means "not sold here" rather than "same number".
+   */
+  async updateVariantPrices(ctx: HttpContext) {
+    const { params, request, response, auth } = ctx
+    try {
+      const variantId = String(params.variantId)
+      const currencies = new CurrencyService()
+      const base = await currencies.baseCurrency()
+
+      const raw = request.input('prices')
+      const entries = Array.isArray(raw) ? raw : []
+
+      const clean: { currency: string; priceAmount: number; compareAtAmount: number | null }[] = []
+      for (const entry of entries) {
+        const currency = String(entry?.currency ?? '')
+          .trim()
+          .toUpperCase()
+
+        // The base price lives on the variant itself; a row here would be a
+        // second source of truth for the same number.
+        if (!currency || currency === base) continue
+
+        // `isEnabled` already implies "is a real code" — `normalise` rejects
+        // anything not on the ISO list before the lookup happens.
+        if (!(await currencies.isEnabled(currency))) {
+          throw publicError.unprocessable(
+            `This shop does not sell in ${currency}.`,
+            'currency_unavailable'
+          )
+        }
+
+        const priceAmount = Math.trunc(Number(entry?.priceAmount))
+        if (!Number.isSafeInteger(priceAmount) || priceAmount < 0) {
+          throw publicError.unprocessable(
+            `The ${currency} price must be a positive whole number of minor units.`,
+            'invalid_price'
+          )
+        }
+
+        const compareRaw = entry?.compareAtAmount
+        const compareAtAmount =
+          compareRaw === null || compareRaw === undefined || compareRaw === ''
+            ? null
+            : Math.trunc(Number(compareRaw))
+
+        clean.push({ currency, priceAmount, compareAtAmount })
+      }
+
+      // Replace wholesale: anything the operator removed from the list stops
+      // being sold in that currency, which is the intent of removing it.
+      await VariantPrice.query().where('variant_id', variantId).delete()
+      for (const entry of clean) {
+        await VariantPrice.create({ id: newUlid(), variantId, ...entry })
+      }
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'product.prices_changed',
+        subjectType: 'variant',
+        subjectId: variantId,
+        changes: { currencies: clean.map((entry) => entry.currency) },
+        ctx,
+      })
+
+      return response.json(clean)
+    } catch (error) {
+      return apiFail(response, error, 'ecommerce/variant-prices')
+    }
+  }
+}

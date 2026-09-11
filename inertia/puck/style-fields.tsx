@@ -1,0 +1,727 @@
+import {
+  createElement,
+  Fragment,
+  useContext,
+  type CSSProperties,
+  type ElementType,
+  type ReactNode,
+} from 'react'
+import type { Field } from '@measured/puck'
+import { cn } from '~/lib/utils'
+import {
+  AlignControl,
+  BoxModelControl,
+  ColorControl,
+  NumberUnitControl,
+} from '~/puck/style-controls'
+import { backgroundsToCss, readLayers, newLayer, type BgImageLayer } from '~/puck/background-layers'
+import { scrollAnimationAttrs } from '~/puck/scroll-animation'
+import {
+  readConditions,
+  useConditionallyHidden,
+  useBoundField,
+  type Binding,
+} from '~/puck/record-binding'
+import {
+  BreakpointContext,
+  NonceContext,
+  StatePreviewContext,
+  cascadeStyleBag,
+  orderBreakpoints,
+  readResponsive,
+  type Breakpoint,
+} from '~/puck/breakpoints'
+
+/**
+ * Shared style controls for the Pages builder ("enrich toward Webflow").
+ *
+ * Defined once and spread into every block's `fields`, so new style controls
+ * (border, shadow, typography, per-breakpoint…) are added in ONE place and
+ * inherited everywhere. Block props are plain JSON, so every key is additive —
+ * enriching the controls needs no migration.
+ *
+ * SSR-safe: `Box` renders via `createElement` and touches no window/document,
+ * so it is safe to import into the SSR render path.
+ */
+
+/** Box-shadow presets → real CSS box-shadow values. */
+const boxShadowPresets: Record<string, string> = {
+  none: 'none',
+  sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+  md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
+  lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+}
+
+/**
+ * Shared style controls — defined once, spread into every block's `fields`.
+ *
+ * Ordered into logical groups (spacing → size → typography → background →
+ * border) and using Webflow-style visual controls for the high-traffic ones
+ * (see style-controls.tsx). All values stay plain CSS strings, so this is
+ * additive & backward-compatible — no data migration.
+ */
+export const styleFields: Record<string, Field> = {
+  // Spacing
+  padding: {
+    type: 'custom',
+    label: 'Padding',
+    render: ({ value, onChange }) => <BoxModelControl value={value} onChange={onChange} />,
+  },
+  margin: {
+    type: 'custom',
+    label: 'Margin',
+    render: ({ value, onChange }) => <BoxModelControl value={value} onChange={onChange} />,
+  },
+
+  // Size
+  maxWidth: {
+    type: 'custom',
+    label: 'Max width',
+    render: ({ value, onChange }) => <NumberUnitControl value={value} onChange={onChange} />,
+  },
+  width: {
+    type: 'custom',
+    label: 'Width',
+    render: ({ value, onChange }) => <NumberUnitControl value={value} onChange={onChange} />,
+  },
+  minHeight: {
+    type: 'custom',
+    label: 'Min height',
+    render: ({ value, onChange }) => <NumberUnitControl value={value} onChange={onChange} />,
+  },
+
+  // Typography
+  textSize: { type: 'text', label: 'Font size' },
+  fontWeight: {
+    type: 'select',
+    label: 'Font weight',
+    options: [
+      { label: 'Regular (400)', value: '400' },
+      { label: 'Medium (500)', value: '500' },
+      { label: 'Semibold (600)', value: '600' },
+      { label: 'Bold (700)', value: '700' },
+    ],
+  },
+  lineHeight: { type: 'text', label: 'Line height' },
+  font: { type: 'text', label: 'Font family' },
+  textColor: {
+    type: 'custom',
+    label: 'Text color',
+    render: ({ value, onChange }) => <ColorControl value={value} onChange={onChange} />,
+  },
+  align: {
+    type: 'custom',
+    label: 'Text align',
+    render: ({ value, onChange }) => <AlignControl value={value} onChange={onChange} />,
+  },
+
+  // Background
+  bg: {
+    type: 'custom',
+    label: 'Background',
+    render: ({ value, onChange }) => <ColorControl value={value} onChange={onChange} />,
+  },
+
+  // Border & effects
+  borderWidth: {
+    type: 'custom',
+    label: 'Border width',
+    render: ({ value, onChange }) => <NumberUnitControl value={value} onChange={onChange} />,
+  },
+  borderColor: {
+    type: 'custom',
+    label: 'Border color',
+    render: ({ value, onChange }) => <ColorControl value={value} onChange={onChange} />,
+  },
+  borderRadius: {
+    type: 'custom',
+    label: 'Border radius',
+    render: ({ value, onChange }) => <NumberUnitControl value={value} onChange={onChange} />,
+  },
+  boxShadow: {
+    type: 'select',
+    label: 'Box shadow',
+    options: [
+      { label: 'None', value: '' },
+      { label: 'Small', value: 'sm' },
+      { label: 'Medium', value: 'md' },
+      { label: 'Large', value: 'lg' },
+    ],
+  },
+
+  // Advanced
+  className: { type: 'text', label: 'Custom class' },
+}
+
+/** Block props are loose JSON; read style keys defensively. */
+type StyleBag = Record<string, unknown>
+
+/**
+ * Fold a layout block's computed layout into its style bag so the responsive /
+ * stylesheet path (Box) can override it per breakpoint. The layout blocks used to
+ * set `gridTemplateColumns` / `flexDirection` INLINE, which `@media` rules cannot
+ * beat — so a Grid stayed 4-up and an HFlex stayed a row on mobile. Now the base
+ * layout lives in the bag (emitted to the base rule) and each `responsive[bp]`
+ * override is translated field→CSS (e.g. `{ columns: '1' }` → gridTemplateColumns)
+ * so the narrower tier wins. `translate` maps a breakpoint override's block fields
+ * to layout CSS; plain styleProps in the override pass through untouched.
+ */
+export function mergeLayout(
+  s: StyleBag,
+  base: Record<string, string | undefined>,
+  translate?: (bpOverride: Record<string, unknown>) => Record<string, string | undefined>
+): StyleBag {
+  const out: StyleBag = { ...s, ...base }
+  const responsive = readResponsive(s)
+  const bps = Object.keys(responsive)
+  if (bps.length) {
+    const r: Record<string, unknown> = {}
+    for (const bp of bps) {
+      const ov = responsive[bp] as Record<string, unknown>
+      r[bp] = translate ? { ...ov, ...translate(ov) } : ov
+    }
+    out.responsive = r
+  }
+  return out
+}
+
+function str(s: StyleBag, key: string): string | undefined {
+  return typeof s[key] === 'string' ? (s[key] as string) : undefined
+}
+
+function styleToCss(s: StyleBag): CSSProperties {
+  const css: CSSProperties = {
+    padding: str(s, 'padding'),
+    margin: str(s, 'margin'),
+    // Per-side longhands — a design tool exports spacing per side, and a model
+    // reaches for `marginTop`/`paddingLeft` naturally. Read them alongside the
+    // shorthand so exact per-side spacing survives (they compose in CSS: a
+    // longhand refines the shorthand). Kept in step with RENDERED_STYLE_PROP_NAMES.
+    marginTop: str(s, 'marginTop'),
+    marginRight: str(s, 'marginRight'),
+    marginBottom: str(s, 'marginBottom'),
+    marginLeft: str(s, 'marginLeft'),
+    paddingTop: str(s, 'paddingTop'),
+    paddingRight: str(s, 'paddingRight'),
+    paddingBottom: str(s, 'paddingBottom'),
+    paddingLeft: str(s, 'paddingLeft'),
+    maxWidth: str(s, 'maxWidth'),
+    color: str(s, 'textColor'),
+    fontFamily: str(s, 'font'),
+    textAlign: str(s, 'align') as CSSProperties['textAlign'],
+    textDecoration: str(s, 'textDecoration'),
+    borderRadius: str(s, 'borderRadius'),
+    // Per-corner radius — designs round corners asymmetrically (a card with a
+    // rounded TOP only, a joined bar). Listed after `borderRadius` so a corner
+    // refines the shorthand instead of being reset by it.
+    borderTopLeftRadius: str(s, 'borderTopLeftRadius'),
+    borderTopRightRadius: str(s, 'borderTopRightRadius'),
+    borderBottomRightRadius: str(s, 'borderBottomRightRadius'),
+    borderBottomLeftRadius: str(s, 'borderBottomLeftRadius'),
+    width: str(s, 'width'),
+    height: str(s, 'height'),
+    minWidth: str(s, 'minWidth'),
+    minHeight: str(s, 'minHeight'),
+    maxHeight: str(s, 'maxHeight'),
+    overflow: str(s, 'overflow') as CSSProperties['overflow'],
+    display: str(s, 'display'),
+    flexDirection: str(s, 'flexDirection') as CSSProperties['flexDirection'],
+    justifyContent: str(s, 'justifyContent'),
+    alignItems: str(s, 'alignItems'),
+    gap: str(s, 'gap'),
+    position: str(s, 'position') as CSSProperties['position'],
+    top: str(s, 'top'),
+    right: str(s, 'right'),
+    bottom: str(s, 'bottom'),
+    left: str(s, 'left'),
+    zIndex: str(s, 'zIndex') as CSSProperties['zIndex'],
+    fontSize: str(s, 'textSize'),
+    fontWeight: str(s, 'fontWeight') as CSSProperties['fontWeight'],
+    lineHeight: str(s, 'lineHeight'),
+    letterSpacing: str(s, 'letterSpacing'),
+    textIndent: str(s, 'textIndent'),
+    textTransform: str(s, 'textTransform') as CSSProperties['textTransform'],
+    fontStyle: str(s, 'fontStyle') as CSSProperties['fontStyle'],
+    direction: str(s, 'direction') as CSSProperties['direction'],
+    whiteSpace: str(s, 'whiteSpace') as CSSProperties['whiteSpace'],
+    mixBlendMode: str(s, 'mixBlendMode') as CSSProperties['mixBlendMode'],
+    opacity: str(s, 'opacity') as CSSProperties['opacity'],
+    cursor: str(s, 'cursor'),
+    alignSelf: str(s, 'alignSelf') as CSSProperties['alignSelf'],
+    order: str(s, 'order') as CSSProperties['order'],
+    flexGrow: str(s, 'flexGrow') as CSSProperties['flexGrow'],
+    flexShrink: str(s, 'flexShrink') as CSSProperties['flexShrink'],
+    flexBasis: str(s, 'flexBasis'),
+    flexWrap: str(s, 'flexWrap') as CSSProperties['flexWrap'],
+    // Grid track props — set by the layout blocks (Grid/Columns/QuickStack) via
+    // the style bag (not inline) so per-breakpoint `responsive` overrides can win.
+    gridTemplateColumns: str(s, 'gridTemplateColumns'),
+    gridTemplateRows: str(s, 'gridTemplateRows'),
+    gridAutoFlow: str(s, 'gridAutoFlow') as CSSProperties['gridAutoFlow'],
+    float: str(s, 'float') as CSSProperties['float'],
+    clear: str(s, 'clear') as CSSProperties['clear'],
+    transform: str(s, 'transform'),
+    transition: str(s, 'transition'),
+    filter: str(s, 'filter'),
+  }
+
+  /**
+   * Background: a base colour, optionally under a stack of layers.
+   *
+   * With no layers this keeps writing the `background` **shorthand** exactly as
+   * it always did, so every page built before layers existed renders byte for
+   * byte. With layers, the colour has to move to `backgroundColor` — the
+   * shorthand resets `background-image`, and would wipe the stack out.
+   */
+  const layers = backgroundsToCss(readLayers(s.backgrounds))
+  if (layers) {
+    css.backgroundColor = str(s, 'bg')
+    Object.assign(css, layers)
+  } else if (str(s, 'bg')) {
+    // Use the `background-color` longhand, never the `background` shorthand: a
+    // state/breakpoint delta that changes only `bg` carries no `backgrounds`
+    // layers, and the shorthand would reset (wipe) the base block's
+    // background-image on that selector. The longhand overrides only the colour.
+    css.backgroundColor = str(s, 'bg')
+  }
+
+  /**
+   * A capped block with no margin of its own centres itself — what an author
+   * means by "max width 1100px" almost always includes "in the middle".
+   *
+   * But only when they have not said otherwise. This used to centre
+   * unconditionally, writing `marginLeft/Right: auto` over an authored `margin`
+   * (longhand beats shorthand), so a Container with `margin: 0 0 0 40px` sat
+   * centred and the left offset simply vanished with nothing to explain it.
+   * An explicit margin now wins outright; `auto` typed into the left/right
+   * boxes still centres.
+   */
+  if (str(s, 'maxWidth') && !str(s, 'margin') && !str(s, 'marginLeft') && !str(s, 'marginRight')) {
+    css.marginLeft = 'auto'
+    css.marginRight = 'auto'
+  }
+
+  const borderWidth = str(s, 'borderWidth')
+  const borderStyle = str(s, 'borderStyle')
+  const borderColor = str(s, 'borderColor')
+  if (borderWidth || borderStyle) {
+    css.border = `${borderWidth || '1px'} ${borderStyle || 'solid'} ${borderColor || 'currentColor'}`
+  } else if (borderColor) {
+    // A state/breakpoint delta that recolours the border carries only
+    // `borderColor` (width/style match base and are pruned). Emit the colour
+    // longhand so it overrides the base border's colour instead of being
+    // dropped — otherwise the change is silently lost on the published page.
+    css.borderColor = borderColor
+  }
+
+  const shadow = str(s, 'boxShadow')
+  if (shadow) {
+    css.boxShadow = boxShadowPresets[shadow] ?? shadow
+  }
+
+  // Per-side border shorthands (e.g. borderBottom:"1px solid #e5e2da") — the
+  // common "hairline on one side" a design uses for a nav bar / divided row.
+  // Assigned AFTER the `border` shorthand above so the side longhand wins the
+  // cascade instead of being reset by it (key order = serialisation order).
+  for (const side of ['Top', 'Right', 'Bottom', 'Left'] as const) {
+    const v = str(s, `border${side}`)
+    if (v) (css as Record<string, unknown>)[`border${side}`] = v
+  }
+
+  return css
+}
+
+/**
+ * Every style prop the renderer honours — the single source of truth for what an
+ * API/MCP client may set on ANY block, not just the ~17 that have a visual editor
+ * control in `styleFields`. `styleToCss` above (plus the border/bg/backgrounds
+ * paths) is the authority; keep this list in step with it — a drift test
+ * (tests/functional/mcp_style_vocabulary.spec.ts) scans the style-bag reads inside
+ * styleToCss and fails if any prop it consumes is missing from this list.
+ *
+ * The MCP catalog emits this as each block's `styleProps` so the model can
+ * express layout/positioning it otherwise had no idea existed (flex, gap, align,
+ * absolute position, sizing, transform…). Order groups related props for reading.
+ */
+export const RENDERED_STYLE_PROP_NAMES: string[] = [
+  // Box model
+  'padding', 'margin',
+  'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+  'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+  'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'overflow',
+  // Flex / grid layout
+  'display', 'flexDirection', 'flexWrap', 'justifyContent', 'alignItems', 'alignSelf', 'gap',
+  'flexGrow', 'flexShrink', 'flexBasis', 'order',
+  'gridTemplateColumns', 'gridTemplateRows', 'gridAutoFlow',
+  // Positioning
+  'position', 'top', 'right', 'bottom', 'left', 'zIndex', 'float', 'clear',
+  // Typography
+  'textSize', 'fontWeight', 'lineHeight', 'font', 'textColor', 'align', 'letterSpacing',
+  'textIndent', 'textTransform', 'textDecoration', 'fontStyle', 'direction', 'whiteSpace',
+  // Appearance
+  'bg', 'backgrounds', 'borderWidth', 'borderStyle', 'borderColor',
+  'borderTop', 'borderRight', 'borderBottom', 'borderLeft',
+  'borderRadius',
+  'borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius',
+  'boxShadow',
+  'opacity', 'mixBlendMode', 'transform', 'transition', 'filter', 'cursor',
+  // Advanced
+  'className',
+]
+
+/**
+ * Names a custom attribute may never set: either managed by the builder
+ * elsewhere (class/id via their own fields, style via the style panel, React
+ * internals) or an XSS vector. `id` is allowed only through the dedicated `htmlId`
+ * field, never as a free-form attribute.
+ */
+const BLOCKED_ATTRS = new Set([
+  'class',
+  'classname',
+  'id',
+  'style',
+  'ref',
+  'key',
+  'srcdoc',
+  'dangerouslysetinnerhtml',
+])
+
+/**
+ * The element's custom `id` + arbitrary name/value attributes (Element panel →
+ * Attributes), emitted onto the DOM. Filtered for safety: valid attribute names
+ * only, no `on*` event handlers, no managed/unsafe names, and no `javascript:`
+ * values. Both the editor and the published page run through here, so the guard
+ * is consistent.
+ */
+function customAttributes(s: StyleBag): Record<string, string> {
+  const out: Record<string, string> = {}
+
+  const htmlId = str(s, 'htmlId')?.trim()
+  if (htmlId) out.id = htmlId
+
+  const list = s.attributes
+  if (Array.isArray(list)) {
+    for (const raw of list) {
+      if (!raw || typeof raw !== 'object') continue
+      const name = String((raw as { name?: unknown }).name ?? '').trim()
+      const value = String((raw as { value?: unknown }).value ?? '')
+      if (!/^[a-zA-Z][a-zA-Z0-9-]*$/.test(name)) continue // valid attribute name
+      if (/^on/i.test(name)) continue // no event handlers
+      if (BLOCKED_ATTRS.has(name.toLowerCase())) continue
+      if (/^\s*javascript:/i.test(value)) continue // no javascript: URLs
+      out[name] = value
+    }
+  }
+  return out
+}
+
+// ─────────────── Responsive (per-breakpoint) CSS generation ───────────────
+
+/**
+ * A style value is safe to drop into a generated `<style>` when it can't break
+ * out of its declaration or the tag: `{`/`}` would open a new rule, `<`/`>` could
+ * close `</style>` and inject markup, and `@import`/`expression()`/
+ * `url(javascript:)` are the classic CSS-injection vectors. `;`, `()`, `,` are
+ * left alone — legitimate in `calc()`, `rgba()`, `url(data:…;base64,…)`, and
+ * without braces a stray `;` can only add a declaration to this same element's
+ * rule, which the author already controls.
+ */
+function isSafeCssValue(v: string): boolean {
+  return (
+    !/[<>{}]/.test(v) &&
+    !/@import/i.test(v) &&
+    !/expression\s*\(/i.test(v) &&
+    !/url\s*\(\s*['"]?\s*javascript:/i.test(v)
+  )
+}
+
+/**
+ * Percent-encode `<`/`>` that appear *inside* a `url(...)` — an inline SVG data
+ * URI (`url("data:image/svg+xml,<svg…>")`) is otherwise rejected wholesale by
+ * `isSafeCssValue` on the stylesheet path (while the inline path keeps it),
+ * dropping the background only for responsive/state blocks. Encoding is
+ * equivalent inside a URI and still neutralises any `</style>` breakout; angle
+ * brackets outside a `url()` are left untouched so they stay rejected.
+ */
+function encodeUrlAngles(v: string): string {
+  return v.replace(/url\(([^)]*)\)/gi, (_m, inner: string) => {
+    return `url(${inner.replace(/</g, '%3C').replace(/>/g, '%3E')})`
+  })
+}
+
+/** Serialise a React style object to a sanitised CSS declaration string. */
+function styleObjectToCssText(obj: CSSProperties): string {
+  let out = ''
+  for (const key of Object.keys(obj)) {
+    const raw = (obj as Record<string, unknown>)[key]
+    if (raw == null || raw === '') continue
+    const value = encodeUrlAngles(String(raw))
+    if (!isSafeCssValue(value)) continue
+    const prop = key.startsWith('--') ? key : key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+    out += `${prop}:${value};`
+  }
+  return out
+}
+
+/** Puck block ids are safe selector tokens; guard anyway before building CSS. */
+function safeBlockId(s: StyleBag): string | null {
+  const id = str(s, 'id')
+  return id && /^[A-Za-z0-9_-]+$/.test(id) ? id : null
+}
+
+/**
+ * The published-page stylesheet for a block that has per-breakpoint overrides:
+ * a base rule (its flat props) plus one `@media (max-width: N)` rule per tier
+ * that overrides something, emitted widest → narrowest so the narrower tier wins
+ * on a specificity tie. Scoped by `[data-b="<id>"]`. Empty when nothing applies.
+ */
+function responsiveCss(s: StyleBag, breakpoints: Breakpoint[], id: string): string {
+  const sel = `[data-b="${id}"]`
+  const responsive = readResponsive(s)
+  let out = ''
+
+  const base = styleObjectToCssText(styleToCss(s))
+  if (base) out += `${sel}{${base}}`
+
+  for (const bp of orderBreakpoints(breakpoints)) {
+    if (bp.maxWidth === null) continue
+    const override = responsive[bp.id]
+    if (!override) continue
+    const delta = styleObjectToCssText(styleToCss(override))
+    if (delta) out += `@media (max-width:${bp.maxWidth}px){${sel}{${delta}}}`
+  }
+  return out
+}
+
+// ─────────────── Interaction states (hover / focus / active) ───────────────
+
+/**
+ * Pseudo-class per editable state. `:focus-visible` (not `:focus`) so a focus
+ * style shows for keyboard users without flashing on every mouse click.
+ */
+export const STATE_PSEUDO: Record<string, string> = {
+  hover: ':hover',
+  focus: ':focus-visible',
+  active: ':active',
+}
+
+/** The per-state style overrides stored on a block (`props.states.hover`, …). */
+export function readStates(s: StyleBag): Record<string, StyleBag> {
+  const raw = s.states
+  if (!raw || typeof raw !== 'object') return {}
+  const out: Record<string, StyleBag> = {}
+  for (const name of Object.keys(STATE_PSEUDO)) {
+    const layer = (raw as Record<string, unknown>)[name]
+    if (layer && typeof layer === 'object' && Object.keys(layer as object).length) {
+      out[name] = layer as StyleBag
+    }
+  }
+  return out
+}
+
+/**
+ * One `[data-b="id"]:hover{…}` rule per defined state. Because a state change
+ * looks abrupt without one, a default `transition` is emitted on the base
+ * selector when the author has not set their own.
+ */
+function statesCss(s: StyleBag, id: string): string {
+  const states = readStates(s)
+  const names = Object.keys(states)
+  if (!names.length) return ''
+
+  let out = ''
+  if (!str(s, 'transition')) {
+    out += `[data-b="${id}"]{transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease,opacity .18s ease;}`
+  }
+  for (const name of names) {
+    const delta = styleObjectToCssText(styleToCss(states[name]!))
+    if (delta) out += `[data-b="${id}"]${STATE_PSEUDO[name]}{${delta}}`
+  }
+  return out
+}
+
+export function Box({
+  s = {},
+  as = 'div',
+  className,
+  style,
+  children,
+  ...rest
+}: {
+  s?: StyleBag
+  as?: ElementType
+  className?: string
+  style?: CSSProperties
+  children?: ReactNode
+  /** Extra DOM attributes forwarded to the element (e.g. `href`/`target` for links). */
+  [key: string]: unknown
+}) {
+  // `_hidden` (toggled from the Layers panel) hides the block on the published
+  // page / SSR (render nothing). In the editor (`puck.isEditing`) it stays
+  // visible but dimmed so it can still be selected and un-hidden. `puck` is spread
+  // into `s` by Puck; when absent (e.g. plain SSR) we simply hide it.
+  const puck = s.puck as { isEditing?: boolean; dragRef?: (el: Element | null) => void } | undefined
+  const hidden = s._hidden === true
+  const isEditing = !!puck?.isEditing
+  // Conditional visibility (Webflow-style): inside a repeater, hide the element
+  // when its field conditions fail. Published only — the editor keeps it visible
+  // (and dimmed) so it stays selectable.
+  const condHidden = useConditionallyHidden(readConditions(s.conditions))
+
+  // Bound background image (Webflow-style "cover from field"). Inside a repeater
+  // a layout block can pull its background image straight from the record's MEDIA
+  // field. Resolved here — Box is a React component — and applied inline below so
+  // it wins over the responsive/state stylesheet, which is compiled from the
+  // static (unbound) props and would otherwise paint the empty background. An
+  // empty bound field returns the editor's `[field]` placeholder (not a URL) →
+  // treated as "no bound image", leaving the designed background untouched.
+  const boundBgRaw = useBoundField((s.binding as Binding | undefined)?.background)
+  const boundBgUrl =
+    typeof boundBgRaw === 'string' && boundBgRaw !== '' && !/^\[[^\]]+\]$/.test(boundBgRaw)
+      ? boundBgRaw
+      : null
+
+  // Scroll-into-view reveal: data-attrs + inert CSS custom properties, applied
+  // only on the published page (suppressed while editing). The hidden start
+  // state lives in `.sa-active`-gated CSS, never in this inline style — so SSR
+  // and no-JS keep the element visible.
+  const anim = scrollAnimationAttrs(s, isEditing)
+
+  /*
+   * Responsive breakpoints. A block with no `responsive` overrides renders
+   * exactly as before (inline `styleToCss`). Otherwise:
+   *   • Editor — the fixed-width canvas can't honour real `@media`, so flatten
+   *     the currently-previewed breakpoint (`activeBp`) to inline styles.
+   *   • Published — move ALL of this block's style props into a generated
+   *     `@media` stylesheet keyed by `data-b` (inline would out-specify the media
+   *     rules) and drop the inline style props. Non-responsive blocks keep the
+   *     inline path untouched, so existing pages are byte-for-byte identical.
+   */
+  const { breakpoints, activeBp } = useContext(BreakpointContext)
+  // Per-request CSP nonce for the generated `<style>` below (published path only).
+  const nonce = useContext(NonceContext)
+  const hasResponsive = Object.keys(readResponsive(s)).length > 0
+  // Interaction states (`:hover`/`:focus`/`:active`) can only be expressed in a
+  // stylesheet, never inline — so a block with any defined state joins the same
+  // generated-`<style>` path that responsive blocks use.
+  const hasStates = Object.keys(readStates(s)).length > 0
+  const bId = hasResponsive || hasStates ? safeBlockId(s) : null
+  const useStylesheet = !isEditing && !!bId
+  const styleBag = isEditing && hasResponsive ? cascadeStyleBag(s, breakpoints, activeBp) : s
+
+  // Live state preview (editor only): when THIS block is the selected one and the
+  // Style panel is on a non-base tab, render it as if in that state. The editor
+  // has no stylesheet (`useStylesheet` is false while editing), so we overlay the
+  // state's declarations inline. Merge the style BAGS (not the CSSProperties) so
+  // `styleToCss` recomposes shorthands and unset base keys aren't clobbered by the
+  // `undefined`s a full CSSProperties object carries. Inline style needs no CSP
+  // nonce; `null` here (any other block / Base tab / published) leaves output
+  // byte-identical to before.
+  const preview = useContext(StatePreviewContext)
+
+  // Hidden-and-published → render nothing. Placed AFTER every hook so hook order
+  // is unconditional (the editor keeps hidden blocks visible + dimmed, selectable).
+  if ((hidden || condHidden) && !isEditing) return null
+
+  const previewLayer =
+    isEditing && preview.state !== 'base' && preview.id !== null && preview.id === str(s, 'id')
+      ? (readStates(s)[preview.state] ?? null)
+      : null
+  const effectiveBag = previewLayer ? { ...styleBag, ...previewLayer } : styleBag
+
+  // For components marked `inline: true`, Puck skips its own drag wrapper and
+  // hands us a `dragRef` to put on the real element instead — so the block is
+  // itself the flex/grid item (matching the published DOM) while Puck still
+  // tracks/selects/drags it. `null` for non-inline blocks (React ignores it).
+  const inlineStyle: CSSProperties = {
+    ...(useStylesheet ? null : styleToCss(effectiveBag)),
+    ...anim.vars,
+    ...style,
+    ...(hidden ? { opacity: 0.4 } : null),
+  }
+
+  // Apply a bound background image: swap the URL into the first designed image
+  // layer (or inject a `cover` layer beneath any gradients/overlays when none is
+  // designed), recompile, and override the background longhands inline. Inline
+  // out-specifies the generated stylesheet, so this is correct on the responsive/
+  // state path too. When nothing is bound, output is byte-for-byte unchanged.
+  if (boundBgUrl) {
+    const layers = readLayers(s.backgrounds)
+    const imageIdx = layers.findIndex((l) => l.type === 'image')
+    if (imageIdx >= 0) {
+      layers[imageIdx] = { ...(layers[imageIdx] as BgImageLayer), url: boundBgUrl }
+    } else {
+      layers.push({
+        ...(newLayer('image') as BgImageLayer),
+        url: boundBgUrl,
+        sizeMode: 'cover',
+        repeat: 'no-repeat',
+        posX: '50%',
+        posY: '50%',
+      })
+    }
+    const boundBg = backgroundsToCss(layers)
+    if (boundBg) {
+      if (str(s, 'bg')) inlineStyle.backgroundColor = str(s, 'bg')
+      Object.assign(inlineStyle, boundBg)
+    }
+  }
+
+  /*
+   * Opt-in lazy background: move the (inline-path) background image into a
+   * `data-bg-lazy` attribute so the client observer paints it on scroll. Only
+   * on the published page (never editing) and only when the image is inline —
+   * the stylesheet path (responsive/state blocks) keeps loading eagerly.
+   */
+  let lazyBgAttr: Record<string, string> | null = null
+  if (
+    s.bgLazy === true &&
+    !isEditing &&
+    !useStylesheet &&
+    typeof inlineStyle.backgroundImage === 'string' &&
+    inlineStyle.backgroundImage !== 'none'
+  ) {
+    lazyBgAttr = { 'data-bg-lazy': inlineStyle.backgroundImage }
+    inlineStyle.backgroundImage = undefined
+  }
+
+  const el = createElement(
+    as,
+    {
+      ...rest,
+      ...anim.attrs,
+      ...customAttributes(s),
+      ...(useStylesheet ? { 'data-b': bId } : null),
+      ...lazyBgAttr,
+      ref: puck?.dragRef,
+      className: cn(className, str(s, 'className')),
+      style: inlineStyle,
+    },
+    children
+  )
+
+  if (useStylesheet && bId) {
+    const css = responsiveCss(s, breakpoints, bId) + statesCss(s, bId)
+    if (css) {
+      // A `<style>` in the body is `display:none` (inert, no layout impact); it
+      // is server-rendered so it lands in the SSG snapshot and works with no JS.
+      return createElement(
+        Fragment,
+        null,
+        createElement('style', {
+          nonce: nonce || undefined,
+          dangerouslySetInnerHTML: { __html: css },
+        }),
+        el
+      )
+    }
+  }
+  return el
+}
+
+/** Responsive preview breakpoints for `<Puck viewports={...}>`. */
+export const builderViewports = [
+  { width: 390, height: 'auto', label: 'Mobile' },
+  { width: 768, height: 'auto', label: 'Tablet' },
+  { width: 1280, height: 'auto', label: 'Desktop' },
+] as const

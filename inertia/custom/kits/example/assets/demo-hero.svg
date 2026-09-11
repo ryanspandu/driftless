@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" role="img" aria-label="Demo hero placeholder">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f3d31"/>
+      <stop offset="1" stop-color="#c99a3f"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="750" fill="url(#g)"/>
+  <circle cx="300" cy="230" r="140" fill="#ffffff" opacity="0.10"/>
+  <circle cx="930" cy="560" r="200" fill="#ffffff" opacity="0.08"/>
+  <text x="600" y="400" font-family="system-ui, sans-serif" font-size="52" font-weight="700" fill="#ffffff" text-anchor="middle">Demo hero image</text>
+</svg>

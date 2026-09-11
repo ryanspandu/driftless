@@ -1,0 +1,15 @@
+---
+description: Adonis backend conventions for driftless
+globs: app/**,start/**,config/**,providers/**
+alwaysApply: false
+---
+
+# Backend (AdonisJS)
+
+See [docs/ai/backend.md](../../docs/ai/backend.md) and [docs/ai/auth-and-permissions.md](../../docs/ai/auth-and-permissions.md).
+
+- Use `#controllers`, `#services`, `#models`, `#validators` import aliases.
+- Admin JSON routes: group under `auth()` + `middleware.permission({ permission })` or `{ resource }` or `{ cmsRecord: true }`.
+- Inertia pages: `renderPage(ctx.inertia, 'admin/page_name', props)` from `app/helpers/inertia_render.ts`.
+- Shared Inertia props come from `inertia_middleware.ts` — extend there for global client state.
+- Permission codes: `cms:manage`, `cms:{key}:{verb}`, `{resource}:{action}`, `*` — match `permission_ability_service.ts`.

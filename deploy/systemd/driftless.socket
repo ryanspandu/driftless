@@ -1,0 +1,29 @@
+[Unit]
+Description=Driftless CMS listening socket
+
+[Socket]
+ListenStream=0.0.0.0:3333
+Service=driftless.service
+
+# Held by systemd across restarts, which is the whole point: while the app is
+# restarting, connections queue in the kernel instead of being refused. Nobody
+# sees an error — they see one slow page.
+#
+# It is *not* zero downtime. A visitor who arrives mid-restart waits out a full
+# application boot. The admin UI reports that number rather than guessing at it.
+
+# Deep enough to absorb a boot's worth of arrivals on a busy site.
+Backlog=1024
+
+[Install]
+WantedBy=sockets.target
+
+# Install:
+#   sudo cp deploy/systemd/driftless.socket /etc/systemd/system/
+#   sudo cp -r deploy/systemd/driftless.service.d /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now driftless.socket
+#
+# PORT is still required in shared/.env even though nothing binds it in this
+# mode — start/env.ts validates it at boot, and relaxing that schema has a much
+# wider blast radius than one unused variable.
