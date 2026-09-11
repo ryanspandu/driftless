@@ -64,6 +64,8 @@ export interface ProductDto {
   externalUrl: string | null
   externalLabel: string | null
   position: number
+  /** Custom-field values from the singleton PRODUCT-type CMS collection. */
+  data: Record<string, unknown> | null
   variants: VariantDto[]
   images: ProductImageDto[]
   categoryIds: string[]
@@ -429,6 +431,8 @@ export interface ProductInput {
   categoryIds?: string[]
   tagIds?: string[]
   images?: { mediaUrl: string; alt?: string | null }[]
+  /** Custom-field values for the singleton PRODUCT-type CMS collection. */
+  data?: Record<string, unknown> | null
 }
 
 export function useSaveProduct() {

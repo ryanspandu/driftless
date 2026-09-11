@@ -72,6 +72,66 @@ test.group('Data transfer | content, content-type collections, kits', (group) =>
     assert.isFalse(await db.connection().schema.hasTable('cms_article_fields'))
   })
 
+  test('collections + records export skips metadata-only types (no 500) and round-trips', async ({
+    assert,
+  }) => {
+    // Enable ecommerce so a PRODUCT-type collection can be created.
+    const { default: Module } = await import('#models/module')
+    const { default: ModulesService } = await import('#services/modules_service')
+    await Module.updateOrCreate(
+      { name: 'ecommerce' },
+      { id: 'test-ecommerce', name: 'ecommerce', enabled: true, version: '1.0.0' }
+    )
+    new ModulesService().bustCache()
+
+    const cms = new CmsService()
+    await cms.createCollection({
+      key: 'article_fields',
+      label: 'Article Fields',
+      type: 'CONTENT',
+      fields: [{ key: 'subtitle', label: 'Subtitle', type: 'TEXT' }],
+    })
+    await cms.createCollection({
+      key: 'product_fields',
+      label: 'Product Fields',
+      type: 'PRODUCT',
+      fields: [{ key: 'care', label: 'Care', type: 'TEXT' }],
+    })
+    await cms.createCollection({
+      key: 'authors',
+      label: 'Authors',
+      draftsOn: false,
+      fields: [{ key: 'name', label: 'Name', type: 'TEXT', required: true }],
+    })
+    await cms.createRecord('authors', null, { data: { name: 'Ada' } })
+
+    // This is exactly the export that used to 500: `collection_records` iterated
+    // the metadata-only collections and threw. It must now succeed.
+    const archive = await new SiteExportService().export({
+      only: ['collections', 'collection_records'],
+    })
+    assert.isTrue(archive.length > 0)
+
+    // Hard-wipe all three, then re-import from the archive.
+    for (const key of ['article_fields', 'product_fields', 'authors']) {
+      await cms.deleteCollection(key)
+      await cms.forceDeleteCollection(key)
+    }
+    await new SiteImportService().import(archive, { authorId: null })
+
+    // Metadata-only schemas round-trip with their type and no physical table.
+    const articleCol = await cms.findCollection('article_fields')
+    const productCol = await cms.findCollection('product_fields')
+    const authorsCol = await cms.findCollection('authors')
+    assert.equal(articleCol.type, 'CONTENT')
+    assert.equal(productCol.type, 'PRODUCT')
+    assert.isFalse(await db.connection().schema.hasTable('cms_product_fields'))
+    // The records collection and its row come back intact.
+    assert.equal(authorsCol.type, 'COLLECTION')
+    const recs = await cms.listRecords('authors', { pageSize: 10 }, { resolveRelations: false })
+    assert.isTrue(recs.items.some((r) => r.data.name === 'Ada'))
+  })
+
   test('kits section exports installed kits as base64 archives', async ({ assert }) => {
     const ctx = {
       mode: 'preserve' as const,

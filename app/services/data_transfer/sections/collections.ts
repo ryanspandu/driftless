@@ -37,8 +37,9 @@ export const collectionsSection: DataSection = {
         label: c.label,
         icon: c.icon,
         group: c.group,
-        // COLLECTION (own records + table) vs CONTENT (fields for the built-in
-        // Content, no table) — must round-trip or a Content type imports wrong.
+        // COLLECTION (own records + table) vs the metadata-only types CONTENT /
+        // PRODUCT (fields for a built-in editor, no table) — must round-trip or a
+        // metadata-only type imports as a plain records collection.
         type: c.type,
         kind: c.kind,
         revisionsOn: c.revisionsOn,
@@ -64,7 +65,7 @@ export const collectionsSection: DataSection = {
         label: string
         icon?: string | null
         group?: string | null
-        type?: 'COLLECTION' | 'CONTENT'
+        type?: 'COLLECTION' | 'CONTENT' | 'PRODUCT'
         kind?: 'collection' | 'single'
         revisionsOn?: boolean
         draftsOn?: boolean
@@ -104,8 +105,10 @@ export const collectionsSection: DataSection = {
           label: c.label,
           icon: c.icon ?? undefined,
           group: c.group ?? undefined,
-          // A Content-type is a singleton with no physical table; createCollection
-          // enforces that and skips the DDL. Default keeps old exports importing.
+          // Content/Product are singletons with no physical table; createCollection
+          // enforces that (and, for Product, that the ecommerce module is enabled —
+          // failure is caught into a warning) and skips the DDL. Default keeps old
+          // exports importing.
           type: c.type ?? 'COLLECTION',
           kind: c.kind ?? 'collection',
           revisionsOn: c.revisionsOn,

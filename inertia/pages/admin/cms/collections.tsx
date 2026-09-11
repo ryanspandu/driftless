@@ -91,6 +91,15 @@ function CollectionCard({
   const isCustomImage = isCustomCollectionIcon(iconValue)
   const LucideIcon = resolveCollectionLucideIcon(iconValue)
 
+  // What this collection is: a records COLLECTION, or a metadata-only type whose
+  // fields extend a built-in editor (Content / ecommerce Product).
+  const typeLabel =
+    collection.type === 'CONTENT'
+      ? 'Content'
+      : collection.type === 'PRODUCT'
+        ? 'Product'
+        : 'Collection'
+
   const iconTile = (
     <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/50 text-foreground/80">
       {isCustomImage ? (
@@ -184,8 +193,10 @@ function CollectionCard({
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+        {/* One pill: the collection's type (Collection / Content / Product);
+            native collections show "Native" since their schema is code-managed. */}
         <Badge variant={isNative ? 'secondary' : 'default'} className="text-[11px]">
-          {isNative ? 'Native' : 'Dynamic'}
+          {isNative ? 'Native' : typeLabel}
         </Badge>
         {collection.kind === 'single' ? (
           <Badge variant="outline" className="text-[11px]">
@@ -292,13 +303,17 @@ export default function CmsCollectionsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return items
-    return items.filter(
-      (c) =>
-        c.label.toLowerCase().includes(q) ||
-        c.key.toLowerCase().includes(q) ||
-        (c.group ?? '').toLowerCase().includes(q)
-    )
+    const matched = q
+      ? items.filter(
+          (c) =>
+            c.label.toLowerCase().includes(q) ||
+            c.key.toLowerCase().includes(q) ||
+            (c.group ?? '').toLowerCase().includes(q)
+        )
+      : items
+    // Newest first — ISO timestamps sort lexicographically, so a string compare
+    // is a correct descending order.
+    return [...matched].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   }, [items, search])
 
   /** Stable group order: named groups alphabetically, ungrouped last. */

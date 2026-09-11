@@ -85,7 +85,7 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
       {children}
       <Dialog open={state !== null} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="max-w-lg py-10"
+          className="max-w-sm py-10"
           onClick={(event) => event.stopPropagation()}
         >
           <DialogHeader>

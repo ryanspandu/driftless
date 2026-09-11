@@ -133,6 +133,21 @@ export default class MediaController {
     return response.json({ success: true })
   }
 
+  /** Download one media item as a portable JSON bundle (metadata + base64 bytes). */
+  async exportOne({ params, response }: HttpContext) {
+    return response.json(await mediaService.exportOne(params.id))
+  }
+
+  /** Recreate a media item from an exported bundle (mints a fresh id/file). */
+  async importOne({ request, auth, response }: HttpContext) {
+    try {
+      const item = await mediaService.importOne(auth.user?.id ?? null, request.input('media'))
+      return response.status(201).json(item)
+    } catch (e) {
+      return response.status(422).json({ message: (e as Error).message })
+    }
+  }
+
   async page({ inertia }: HttpContext) {
     return inertia.render('admin/media', {})
   }

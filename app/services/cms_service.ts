@@ -9,6 +9,7 @@ import CmsRevision from '#models/cms_revision'
 import { newUlid } from '#services/ulid_service'
 import CmsPermissionsService from '#services/cms_permissions_service'
 import PagesService from '#services/pages_service'
+import ModulesService from '#services/modules_service'
 import { isPostgres, recordLabel, coerceFieldValue, serializeFieldValue } from '#cms/field_values'
 import { nativeFieldColumn, nativeTableName } from '#cms/native_registry'
 import {
@@ -164,8 +165,17 @@ function relationJoinTableName(srcKey: string, fieldKey: string): string {
   return `cms_${srcKey}_${fieldKey}`
 }
 
-/** A dynamic collection's flavour: a stand-alone table, or the built-in Content schema. */
-export type CmsCollectionType = 'COLLECTION' | 'CONTENT'
+/**
+ * A dynamic collection's flavour:
+ * - COLLECTION — a stand-alone `cms_<key>` table with its own records.
+ * - CONTENT / PRODUCT — metadata-only: no table of its own; its fields extend a
+ *   built-in editor (Content / ecommerce Product) and their values live in that
+ *   host row's `data` JSON. Each is a singleton.
+ */
+export type CmsCollectionType = 'COLLECTION' | 'CONTENT' | 'PRODUCT'
+
+/** The metadata-only subset of {@link CmsCollectionType}. */
+export type CmsMetadataType = 'CONTENT' | 'PRODUCT'
 
 /**
  * Collection keys that are off-limits to dynamic collections: `posts` is the
@@ -186,6 +196,74 @@ const CONTENT_RESERVED_FIELD_KEYS = new Set([
   'visibility',
   'password',
 ])
+
+/**
+ * Field keys a Product-type collection may not define — the built-in ecommerce
+ * Product editor owns these natively (its own columns / relations).
+ */
+const PRODUCT_RESERVED_FIELD_KEYS = new Set([
+  'title',
+  'slug',
+  'subtitle',
+  'description',
+  'type',
+  'status',
+  'currency',
+  'price',
+  'seo',
+  'options',
+  'featured',
+  'cta_mode',
+  'external_url',
+  'external_label',
+  'position',
+  'variants',
+  'images',
+  'categories',
+  'tags',
+  'data',
+])
+
+/**
+ * The metadata-only collection types, in one place. Each owns no physical table
+ * — its fields extend a built-in editor and their values live in that host
+ * table's `data` JSON — is a singleton, and may require a module to be enabled.
+ */
+const METADATA_TYPE_CONFIG: Record<
+  CmsMetadataType,
+  {
+    /** Human label for error messages. */
+    label: string
+    /** Field keys the built-in editor owns natively — off-limits to custom fields. */
+    reservedFieldKeys: Set<string>
+    /** Module that must be enabled for this type (null = always available). */
+    requiresModule: string | null
+    /** Built-in host table whose `data` column holds this type's field values. */
+    dataTable: string
+  }
+> = {
+  CONTENT: {
+    label: 'Content',
+    reservedFieldKeys: CONTENT_RESERVED_FIELD_KEYS,
+    requiresModule: null,
+    dataTable: 'contents',
+  },
+  PRODUCT: {
+    label: 'Product',
+    reservedFieldKeys: PRODUCT_RESERVED_FIELD_KEYS,
+    requiresModule: 'ecommerce',
+    dataTable: 'ecommerce_products',
+  },
+}
+
+/**
+ * True for the metadata-only types (no table, singleton, fields extend an editor).
+ * Exported so callers that enumerate record-bearing collections (e.g. the
+ * data-transfer sections) share one definition instead of re-checking `type`.
+ */
+export function isMetadataOnly(type: CmsCollectionType): type is CmsMetadataType {
+  return type === 'CONTENT' || type === 'PRODUCT'
+}
 
 export interface CmsCollectionDto {
   id: string
@@ -373,10 +451,11 @@ export default class CmsService {
    */
   async listBindableCollections(): Promise<CmsCollectionDto[]> {
     const builtins = await listBuiltinCollections()
-    // Content-type collections define fields for the built-in Content, not their
-    // own records — nothing to bind a CollectionList to, so they never appear here.
+    // Metadata-only collections (Content / Product) define fields for a built-in
+    // editor, not their own records — nothing to bind a CollectionList to, so
+    // they never appear here.
     const allDynamic = await this.listCollections()
-    const dynamic = allDynamic.filter((c) => c.type !== 'CONTENT')
+    const dynamic = allDynamic.filter((c) => !isMetadataOnly(c.type))
     const epoch = new Date(0).toISOString()
     const mapped: CmsCollectionDto[] = builtins.map((b) => ({
       id: `builtin:${b.key}`,
@@ -415,18 +494,64 @@ export default class CmsService {
     return this.collectionToDto(row)
   }
 
+  /** The singleton metadata-only collection of a given type, or null. */
+  private async metadataCollectionOfType(type: CmsMetadataType): Promise<CmsCollectionDto | null> {
+    const row = await CmsCollection.query()
+      .where('type', type)
+      .whereNull('deleted_at')
+      .preload('fields', (q) => q.whereNull('deleted_at').orderBy('order'))
+      .first()
+    return row ? this.collectionToDto(row) : null
+  }
+
   /**
    * The singleton Content-type collection (its fields extend the built-in
    * Content editor), or null when none has been created. Used by
    * `ContentService` to coerce + resolve a post's custom `data`.
    */
   async contentTypeCollection(): Promise<CmsCollectionDto | null> {
-    const row = await CmsCollection.query()
-      .where('type', 'CONTENT')
-      .whereNull('deleted_at')
-      .preload('fields', (q) => q.whereNull('deleted_at').orderBy('order'))
-      .first()
-    return row ? this.collectionToDto(row) : null
+    return this.metadataCollectionOfType('CONTENT')
+  }
+
+  /**
+   * The singleton Product-type collection (its fields extend the built-in
+   * ecommerce Product editor), or null when none has been created. Used by the
+   * ecommerce catalog to coerce + resolve a product's custom `data`.
+   */
+  async productTypeCollection(): Promise<CmsCollectionDto | null> {
+    return this.metadataCollectionOfType('PRODUCT')
+  }
+
+  /**
+   * Guard that a metadata-only type's owning module is enabled. Creating or
+   * switching to such a type while its module is off is refused with a clear
+   * message; COLLECTION and module-less types always pass.
+   */
+  private async assertMetadataTypeAvailable(type: CmsCollectionType): Promise<void> {
+    if (!isMetadataOnly(type)) return
+    const cfg = METADATA_TYPE_CONFIG[type]
+    if (!cfg.requiresModule) return
+    const enabled = await new ModulesService().isEnabled(cfg.requiresModule)
+    if (!enabled) {
+      throw new Error(
+        `${cfg.label}-type collections require the ${cfg.requiresModule} module to be enabled`
+      )
+    }
+  }
+
+  /**
+   * Enforce the one-per-type rule for a metadata-only type. `exceptId` skips the
+   * collection being switched so it never conflicts with itself.
+   */
+  private async assertMetadataSingleton(type: CmsMetadataType, exceptId?: string): Promise<void> {
+    const q = CmsCollection.query().where('type', type).whereNull('deleted_at')
+    if (exceptId) q.whereNot('id', exceptId)
+    const existing = await q.first()
+    if (existing) {
+      throw new Error(
+        `A ${METADATA_TYPE_CONFIG[type].label}-type collection ("${existing.key}") already exists — there can be only one`
+      )
+    }
   }
 
   /** Fetch dynamic records by id for a given collection key (public helper for label/media resolution). */
@@ -453,7 +578,8 @@ export default class CmsService {
     }>
   }): Promise<CmsCollectionDto> {
     assertValidKey(dto.key, 'collection')
-    const type: CmsCollectionType = dto.type === 'CONTENT' ? 'CONTENT' : 'COLLECTION'
+    const type: CmsCollectionType =
+      dto.type === 'CONTENT' || dto.type === 'PRODUCT' ? dto.type : 'COLLECTION'
     // `posts` / `products` are answered by their adapters; a dynamic collection
     // under the same key could never be reached from the builder.
     if (isBuiltinCollectionKey(dto.key)) {
@@ -464,18 +590,12 @@ export default class CmsService {
       throw new Error(`"${dto.key}" is a reserved collection key — pick another key`)
     }
 
-    // A Content-type collection *is* the built-in Content's schema: only one may
-    // exist, and it owns no records of its own (metadata only).
-    if (type === 'CONTENT') {
-      const existingContent = await CmsCollection.query()
-        .where('type', 'CONTENT')
-        .whereNull('deleted_at')
-        .first()
-      if (existingContent) {
-        throw new Error(
-          `A Content-type collection ("${existingContent.key}") already exists — there can be only one`
-        )
-      }
+    // A metadata-only type (Content / Product) extends a built-in editor: its
+    // module must be enabled, only one may exist, and it owns no records of its
+    // own (metadata only).
+    if (isMetadataOnly(type)) {
+      await this.assertMetadataTypeAvailable(type)
+      await this.assertMetadataSingleton(type)
     }
 
     const existing = await CmsCollection.query()
@@ -509,8 +629,11 @@ export default class CmsService {
     const relationTargetByKey = new Map<string, CmsCollection>()
     for (const f of inputFields) {
       assertValidKey(f.key, 'field')
-      if (type === 'CONTENT' && CONTENT_RESERVED_FIELD_KEYS.has(f.key)) {
-        throw new Error(`"${f.key}" is a built-in Content field — pick another field key`)
+      if (isMetadataOnly(type)) {
+        const cfg = METADATA_TYPE_CONFIG[type]
+        if (cfg.reservedFieldKeys.has(f.key)) {
+          throw new Error(`"${f.key}" is a built-in ${cfg.label} field — pick another field key`)
+        }
       }
       if (seenFieldKeys.has(f.key)) throw new Error(`Duplicate field key "${f.key}"`)
       seenFieldKeys.add(f.key)
@@ -535,9 +658,9 @@ export default class CmsService {
           group: dto.group ?? null,
           source: 'DYNAMIC',
           type,
-          // A Content-type collection has no physical table of its own — its
-          // fields are stored in `contents.data`.
-          tableName: type === 'CONTENT' ? null : dynamicTableName(dto.key),
+          // A metadata-only collection has no physical table of its own — its
+          // fields are stored in the host editor's `data` (contents / products).
+          tableName: isMetadataOnly(type) ? null : dynamicTableName(dto.key),
           listConfig: {},
           revisionsOn: dto.revisionsOn ?? true,
           draftsOn: dto.draftsOn ?? true,
@@ -548,22 +671,22 @@ export default class CmsService {
 
       // Scalar fields become physical columns; relation fields own their own
       // storage (join table / FK) and must be created AFTER the main table
-      // exists, so they are deferred. On a CONTENT collection every field —
-      // relations included — is metadata only (stored in `contents.data`).
+      // exists, so they are deferred. On a metadata-only collection every field —
+      // relations included — is metadata only (stored in the host `data`).
       const scalarFields: CmsField[] = []
       const relationInputs: Array<{ input: (typeof inputFields)[number]; order: number }> = []
 
       for (let i = 0; i < inputFields.length; i++) {
         const f = inputFields[i]!
-        if (f.type === 'RELATION' && type !== 'CONTENT') {
+        if (f.type === 'RELATION' && !isMetadataOnly(type)) {
           relationInputs.push({ input: f, order: i })
           continue
         }
 
         let config = f.config ?? {}
         let unique = f.unique ?? false
-        // A CONTENT relation is metadata only — normalize its config (target
-        // already validated above, before the transaction).
+        // A metadata-only relation is metadata only — normalize its config
+        // (target already validated above, before the transaction).
         if (f.type === 'RELATION') {
           const rel = this.parseRelationConfig(f.config)
           config = { targetKey: rel.targetKey, relationType: rel.relationType }
@@ -587,8 +710,8 @@ export default class CmsService {
         scalarFields.push(field)
       }
 
-      // CONTENT collections are metadata only: no table, no records permissions.
-      if (type !== 'CONTENT') {
+      // Metadata-only collections have no table and no records permissions.
+      if (!isMetadataOnly(type)) {
         await this.createDynamicTable(dto.key, scalarFields, trx)
         // Now the source table exists — seed each relation's storage + metadata.
         // Targets were validated before the transaction (SQLite lock safety).
@@ -619,7 +742,7 @@ export default class CmsService {
       throw e
     }
 
-    if (type !== 'CONTENT') {
+    if (!isMetadataOnly(type)) {
       await this.permissions.mintForCollection(dto.key)
     }
     return this.findCollection(dto.key)
@@ -636,7 +759,7 @@ export default class CmsService {
       kind?: 'collection' | 'single'
       /** Rename the collection's key (renames its physical storage live). */
       key?: string
-      /** Switch COLLECTION ↔ CONTENT (allowed only while empty). */
+      /** Switch between COLLECTION and a metadata-only type (allowed only while empty). */
       type?: CmsCollectionType
     }
   ): Promise<CmsCollectionDto> {
@@ -671,89 +794,131 @@ export default class CmsService {
   }
 
   /**
-   * Switch a collection between COLLECTION and CONTENT — allowed only while
-   * "empty", so no records are ever dropped:
-   * - COLLECTION → CONTENT: the records table must have no rows; it (and any
-   *   relation storage) is dropped, relation fields become metadata-only, and
-   *   the singleton rule is enforced.
-   * - CONTENT → COLLECTION: no Content post may already carry custom-field data;
-   *   a fresh records table (plus relation storage) is built from the fields.
+   * Switch a collection's type — allowed only while "empty", so no data is ever
+   * dropped. Modelled as a **leave** step (guard the source is empty) then an
+   * **enter** step (build/strip storage for the destination):
+   * - Leaving COLLECTION: the `cms_<key>` table must have no rows.
+   * - Leaving a metadata-only type (CONTENT/PRODUCT): no host row (contents /
+   *   ecommerce_products) may carry saved custom-field `data`.
+   * - Entering a metadata-only type: its module must be enabled and its singleton
+   *   free; the records table (and relation storage) is dropped and relation
+   *   fields become metadata-only.
+   * - Entering COLLECTION: a fresh records table (plus relation storage) is built
+   *   from the fields.
+   * COLLECTION ↔ metadata and metadata ↔ metadata are all covered by composing
+   * these two steps.
    */
   private async switchCollectionType(
     collection: CmsCollection,
     newType: CmsCollectionType
   ): Promise<void> {
-    if (newType === 'CONTENT') {
-      const existing = await CmsCollection.query()
-        .where('type', 'CONTENT')
-        .whereNull('deleted_at')
-        .whereNot('id', collection.id)
-        .first()
-      if (existing) {
-        throw new Error(
-          `A Content-type collection ("${existing.key}") already exists — there can be only one`
-        )
-      }
+    const oldType: CmsCollectionType = collection.type ?? 'COLLECTION'
+    if (oldType === newType) return
+
+    // Entering a metadata-only type: gate on its module + singleton up front.
+    if (isMetadataOnly(newType)) {
+      await this.assertMetadataTypeAvailable(newType)
+      await this.assertMetadataSingleton(newType, collection.id)
+    }
+
+    // Leave guard: the source must be empty so the switch drops no data.
+    if (oldType === 'COLLECTION') {
       const table = dynamicTableName(collection.key)
       if (await db.connection().schema.hasTable(table)) {
         const counted = await db.from(table).count('* as total')
         if (Number((counted[0] as any)?.total ?? 0) > 0) {
-          throw new Error('Switch to Content is only allowed while the collection has no records')
+          throw new Error('Switching type is only allowed while the collection has no records')
         }
       }
+    } else {
+      await this.assertNoSavedMetadataData(oldType)
+    }
 
-      const trx = await db.transaction()
-      try {
-        for (const field of collection.fields) {
-          if (field.type === 'RELATION') {
-            const cfg = field.config as {
-              relationType?: string
-              joinTable?: string
-              inverseColumn?: string
-              targetKey?: string
-            }
-            if (cfg.relationType === 'manyToMany') {
-              const joinTable = cfg.joinTable ?? relationJoinTableName(collection.key, field.key)
-              await trx.rawQuery(`DROP TABLE IF EXISTS "${joinTable}"`)
-            } else if (cfg.relationType === 'oneToMany' && cfg.targetKey) {
-              const targetTable = dynamicTableName(cfg.targetKey)
-              const col = cfg.inverseColumn ?? `${collection.key}_${field.key}`
-              if (await db.connection().schema.hasColumn(targetTable, col)) {
-                await trx.rawQuery(`ALTER TABLE "${targetTable}" DROP COLUMN "${col}"`)
-              }
-            }
-            // Strip storage-specific config — CONTENT relations keep only the shape.
-            field.useTransaction(trx)
-            field.config = { targetKey: cfg.targetKey, relationType: cfg.relationType }
-            await field.save()
-          }
-        }
-        await trx.rawQuery(`DROP TABLE IF EXISTS "${table}"`)
-        collection.type = 'CONTENT'
-        collection.tableName = null
-        collection.useTransaction(trx)
-        await collection.save()
-        await trx.commit()
-      } catch (e) {
-        await trx.rollback()
-        throw e
-      }
+    if (isMetadataOnly(newType)) {
+      await this.demoteToMetadataOnly(collection, newType)
       await this.permissions.removeForCollection(collection.key)
       return
     }
 
-    // CONTENT → COLLECTION
+    await this.promoteToCollection(collection)
+    await this.permissions.mintForCollection(collection.key)
+  }
+
+  /**
+   * Refuse to leave a metadata-only type once its host editor has saved any
+   * custom-field data. The host table is read from {@link METADATA_TYPE_CONFIG}
+   * (`contents` / `ecommerce_products`); a missing table (e.g. the ecommerce
+   * module was never installed) means no data, so the switch is allowed.
+   */
+  private async assertNoSavedMetadataData(type: CmsMetadataType): Promise<void> {
+    const { dataTable, label } = METADATA_TYPE_CONFIG[type]
+    if (!(await db.connection().schema.hasTable(dataTable))) return
     const usedRow = await db
-      .from('contents')
+      .from(dataTable)
       .whereNotNull('data')
       .whereNotIn('data', ['{}', 'null', ''])
       .first()
     if (usedRow) {
       throw new Error(
-        'Switch to Collection is only allowed before any Content post has saved custom-field data'
+        `Switching away from ${label} is only allowed before any ${label.toLowerCase()} has saved custom-field data`
       )
     }
+  }
 
+  /**
+   * Turn a collection into a metadata-only type: drop the records table and any
+   * relation storage, strip relations to their shape (target + cardinality), and
+   * re-tag the row. Safe to run on a collection that already has no table (a
+   * metadata → metadata switch).
+   */
+  private async demoteToMetadataOnly(
+    collection: CmsCollection,
+    newType: CmsMetadataType
+  ): Promise<void> {
+    const table = dynamicTableName(collection.key)
+    const trx = await db.transaction()
+    try {
+      for (const field of collection.fields) {
+        if (field.type === 'RELATION') {
+          const cfg = field.config as {
+            relationType?: string
+            joinTable?: string
+            inverseColumn?: string
+            targetKey?: string
+          }
+          if (cfg.relationType === 'manyToMany') {
+            const joinTable = cfg.joinTable ?? relationJoinTableName(collection.key, field.key)
+            await trx.rawQuery(`DROP TABLE IF EXISTS "${joinTable}"`)
+          } else if (cfg.relationType === 'oneToMany' && cfg.targetKey) {
+            const targetTable = dynamicTableName(cfg.targetKey)
+            const col = cfg.inverseColumn ?? `${collection.key}_${field.key}`
+            if (await db.connection().schema.hasColumn(targetTable, col)) {
+              await trx.rawQuery(`ALTER TABLE "${targetTable}" DROP COLUMN "${col}"`)
+            }
+          }
+          // Strip storage-specific config — metadata relations keep only the shape.
+          field.useTransaction(trx)
+          field.config = { targetKey: cfg.targetKey, relationType: cfg.relationType }
+          await field.save()
+        }
+      }
+      await trx.rawQuery(`DROP TABLE IF EXISTS "${table}"`)
+      collection.type = newType
+      collection.tableName = null
+      collection.useTransaction(trx)
+      await collection.save()
+      await trx.commit()
+    } catch (e) {
+      await trx.rollback()
+      throw e
+    }
+  }
+
+  /**
+   * Turn a metadata-only collection into a records COLLECTION: build a fresh
+   * `cms_<key>` table plus relation storage from its fields, and re-tag the row.
+   */
+  private async promoteToCollection(collection: CmsCollection): Promise<void> {
     // Validate every relation target BEFORE the transaction (SQLite lock safety).
     const relationTargets = new Map<string, CmsCollection>()
     for (const field of collection.fields) {
@@ -785,7 +950,6 @@ export default class CmsService {
       await trx.rollback()
       throw e
     }
-    await this.permissions.mintForCollection(collection.key)
   }
 
   /**
@@ -811,7 +975,9 @@ export default class CmsService {
     }
 
     const oldKey = collection.key
-    const isCollectionType = (collection.type ?? 'COLLECTION') !== 'CONTENT'
+    // Only a records COLLECTION owns physical storage to rename; metadata-only
+    // types (Content / Product) have none.
+    const isCollectionType = !isMetadataOnly(collection.type ?? 'COLLECTION')
 
     const trx = await db.transaction()
     try {
@@ -902,23 +1068,17 @@ export default class CmsService {
     const clash = await CmsCollection.query().where('key', key).whereNull('deleted_at').first()
     if (clash) throw new Error(`A collection with key "${key}" already exists`)
 
-    // Restoring must not resurrect a second Content-type collection.
-    if (collection.type === 'CONTENT') {
-      const liveContent = await CmsCollection.query()
-        .where('type', 'CONTENT')
-        .whereNull('deleted_at')
-        .first()
-      if (liveContent) {
-        throw new Error(
-          `A Content-type collection ("${liveContent.key}") already exists — there can be only one`
-        )
-      }
+    // Restoring must not resurrect a second metadata-only collection of the same
+    // type, nor re-enable one whose module has since been turned off.
+    if (isMetadataOnly(collection.type)) {
+      await this.assertMetadataTypeAvailable(collection.type)
+      await this.assertMetadataSingleton(collection.type, collection.id)
     }
 
     collection.deletedAt = null
     await collection.save()
-    // CONTENT collections mint no records permissions (they have no records).
-    if (collection.type !== 'CONTENT') {
+    // Metadata-only collections mint no records permissions (they have no records).
+    if (!isMetadataOnly(collection.type)) {
       await this.permissions.mintForCollection(key)
     }
     return this.collectionToDto(collection)
@@ -1042,8 +1202,11 @@ export default class CmsService {
 
     if (collection.source !== 'DYNAMIC') throw new Error('Native collections are read-only')
 
-    if (collection.type === 'CONTENT' && CONTENT_RESERVED_FIELD_KEYS.has(dto.key)) {
-      throw new Error(`"${dto.key}" is a built-in Content field — pick another field key`)
+    if (isMetadataOnly(collection.type)) {
+      const cfg = METADATA_TYPE_CONFIG[collection.type]
+      if (cfg.reservedFieldKeys.has(dto.key)) {
+        throw new Error(`"${dto.key}" is a built-in ${cfg.label} field — pick another field key`)
+      }
     }
 
     const existing = collection.fields.find((f) => f.key === dto.key)
@@ -1056,10 +1219,10 @@ export default class CmsService {
 
     const order = collection.fields.length
 
-    // A Content-type collection has no physical table — every field (relation
-    // included) is metadata only, stored in `contents.data`. No DDL at all.
-    if (collection.type === 'CONTENT') {
-      return this.addContentTypeField(collection, dto, order)
+    // A metadata-only collection has no physical table — every field (relation
+    // included) is metadata only, stored in the host `data`. No DDL at all.
+    if (isMetadataOnly(collection.type)) {
+      return this.addMetadataField(collection, dto, order)
     }
 
     if (dto.type === 'RELATION') {
@@ -1109,12 +1272,12 @@ export default class CmsService {
   }
 
   /**
-   * Persist a field on a Content-type collection: metadata only, no DDL. A
-   * relation just records its target + cardinality in `config` (its ids live in
-   * `contents.data[key]`); the target must be a real records collection, never
-   * another Content-type collection.
+   * Persist a field on a metadata-only collection (Content / Product): metadata
+   * only, no DDL. A relation just records its target + cardinality in `config`
+   * (its ids live in the host `data[key]`); the target must be a real records
+   * collection, never another metadata-only collection.
    */
-  private async addContentTypeField(
+  private async addMetadataField(
     collection: CmsCollection,
     dto: {
       key: string
@@ -1132,7 +1295,7 @@ export default class CmsService {
         .where('key', rel.targetKey)
         .whereNull('deleted_at')
         .first()
-      if (!target || target.source !== 'DYNAMIC' || target.type === 'CONTENT') {
+      if (!target || target.source !== 'DYNAMIC' || isMetadataOnly(target.type)) {
         throw new Error(`Relation target "${rel.targetKey}" must be an existing records collection`)
       }
       config = { targetKey: rel.targetKey, relationType: rel.relationType }
@@ -1192,7 +1355,7 @@ export default class CmsService {
           `(relations can only point at dynamic collections)`
       )
     }
-    if (target.source !== 'DYNAMIC' || target.type === 'CONTENT') {
+    if (target.source !== 'DYNAMIC' || isMetadataOnly(target.type)) {
       throw new Error('Relations can only target dynamic records collections')
     }
     return target
@@ -1408,8 +1571,8 @@ export default class CmsService {
       .whereNull('deleted_at')
       .firstOrFail()
 
-    // Content-type fields own no physical schema — just soft-delete the metadata.
-    if (collection.type === 'CONTENT') {
+    // Metadata-only fields own no physical schema — just soft-delete the metadata.
+    if (isMetadataOnly(collection.type)) {
       field.deletedAt = DateTime.now()
       await field.save()
       return
@@ -1808,7 +1971,7 @@ export default class CmsService {
     if (collection.source === 'PRISMA' && collectionKey === 'user') {
       throw new Error('User records must be created via Admin → Users')
     }
-    this.assertNotContentType(collection)
+    this.assertNotMetadataOnly(collection)
 
     const table = this.tableForCollection(collection)
 
@@ -1918,7 +2081,7 @@ export default class CmsService {
     if (collection.source === 'PRISMA' && collectionKey === 'user') {
       throw new Error('User records must be updated via Admin → Users')
     }
-    this.assertNotContentType(collection)
+    this.assertNotMetadataOnly(collection)
 
     const table = this.tableForCollection(collection)
     const existing = await db.from(table).where('id', id).whereNull('deleted_at').first()
@@ -2071,19 +2234,22 @@ export default class CmsService {
       .whereNull('deleted_at')
       .preload('fields', (q) => q.whereNull('deleted_at').orderBy('order'))
       .firstOrFail()
-    this.assertNotContentType(collection)
+    this.assertNotMetadataOnly(collection)
     return { table: this.tableForCollection(collection), collection }
   }
 
   /**
-   * A Content-type collection owns no table of its own — its "records" are the
-   * built-in Content posts (`/admin/content`), not generic CMS records. Guards
-   * every records path so a stray call can't hit a non-existent `cms_<key>` table.
+   * A metadata-only collection owns no table of its own — its "records" are the
+   * built-in editor's rows (Content posts / ecommerce Products), not generic CMS
+   * records. Guards every records path so a stray call can't hit a non-existent
+   * `cms_<key>` table.
    */
-  private assertNotContentType(collection: CmsCollection): void {
-    if (collection.type === 'CONTENT') {
+  private assertNotMetadataOnly(collection: CmsCollection): void {
+    if (isMetadataOnly(collection.type)) {
+      const where =
+        collection.type === 'PRODUCT' ? 'Admin → E-commerce → Products' : 'Admin → Content'
       throw new Error(
-        `"${collection.key}" is a Content-type collection — its entries are managed in Admin → Content, not as generic records`
+        `"${collection.key}" is a ${METADATA_TYPE_CONFIG[collection.type].label}-type collection — its entries are managed in ${where}, not as generic records`
       )
     }
   }

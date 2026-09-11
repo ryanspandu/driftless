@@ -27,8 +27,11 @@ export default class CmsCollection extends BaseModel {
 
   // COLLECTION = a dynamic collection with its own `cms_<key>` table.
   // CONTENT = metadata-only; its fields extend the built-in Content editor.
+  // PRODUCT = metadata-only; its fields extend the built-in ecommerce Product
+  //   editor (stored in `ecommerce_products.data`). Only available while the
+  //   ecommerce module is enabled.
   @column()
-  declare type: 'COLLECTION' | 'CONTENT'
+  declare type: 'COLLECTION' | 'CONTENT' | 'PRODUCT'
 
   @column()
   declare modelName: string | null

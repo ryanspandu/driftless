@@ -1,6 +1,7 @@
 import type { MediaDto } from '~/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api, { ApiError } from '~/lib/api'
+import { downloadJson, fileStem } from '~/lib/export-download'
 
 export interface PaginatedMedia {
   items: MediaDto[]
@@ -140,6 +141,26 @@ export function useUploadMedia() {
       void qc.invalidateQueries({ queryKey: ['media'] })
     },
   })
+}
+
+/** Import one media item from an exported bundle (recreates the file + row). */
+export function useImportMedia() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (parsed: unknown) => {
+      const res = await api.post<MediaDto>('/api/admin/media/import', { media: parsed })
+      return res.data
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['media'] })
+    },
+  })
+}
+
+/** Download one media item as a portable `.json` bundle (metadata + base64 bytes). */
+export async function exportMediaItem(id: string, filename: string): Promise<void> {
+  const res = await api.get(`/api/admin/media/${id}/export`)
+  downloadJson(fileStem(filename, 'media'), res.data)
 }
 
 export function useDeleteMedia() {
