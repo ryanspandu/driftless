@@ -103,10 +103,14 @@ const EXECUTABLE_DENIED =
 function autoResponsive(
   content: unknown,
   flag: unknown
-): { responsiveAdded: number } | undefined {
+):
+  | { responsiveAdded: number; responsiveChanges: Array<{ id: string; bp: string; field: string }> }
+  | undefined {
   if (flag === false || content == null) return undefined
-  const { touched } = generateResponsive(content)
-  return touched ? { responsiveAdded: touched } : undefined
+  const { touched, changes } = generateResponsive(content)
+  // Echo WHICH overrides were added (capped) so the caller can see the auto
+  // mobile/tablet tweaks and override any it disagrees with — not just a count.
+  return touched ? { responsiveAdded: touched, responsiveChanges: changes.slice(0, 60) } : undefined
 }
 
 /**
@@ -136,13 +140,23 @@ function withAdvisories<T extends object>(
   extra?: Record<string, unknown>
 ): T {
   const out: Record<string, unknown> = {}
-  // Surface dropped props FIRST — a compact roll-up of what silently did not
-  // apply, so the caller sees it without scanning the (large) warnings/echo.
-  if (check?.droppedProps.length) out.droppedProps = check.droppedProps
-  if (check?.warnings.length) out.warnings = check.warnings
-  if (check?.changes.length) out.changes = check.changes
+  // A one-line count so the caller sees at a glance whether anything needs
+  // attention even if the (large) echoed document is truncated downstream.
+  const dropped = check?.droppedProps ?? []
+  const warnings = check?.warnings ?? []
+  const changes = check?.changes ?? []
+  if (dropped.length || warnings.length || changes.length) {
+    out.advisorySummary = `${dropped.length} dropped prop(s), ${warnings.length} warning(s), ${changes.length} change(s)`
+  }
+  if (dropped.length) out.droppedProps = dropped
+  if (warnings.length) out.warnings = warnings
+  if (changes.length) out.changes = changes
   if (extra) Object.assign(out, extra)
-  return Object.keys(out).length ? ({ ...entity, ...out } as T) : entity
+  // Spread advisories BEFORE the entity so they serialise at the TOP of the
+  // response — the entity carries the full normalized `content` (large), and a
+  // downstream size cap truncates from the end, which would otherwise bury the
+  // advisories the caller most needs to read.
+  return Object.keys(out).length ? ({ ...out, ...entity } as T) : entity
 }
 
 /**
@@ -207,7 +221,7 @@ export default class BuilderPagesController {
     if (kitErr) return response.status(422).json({ message: kitErr })
 
     let check: ValidationResult | undefined
-    let resp: { responsiveAdded: number } | undefined
+    let resp: ReturnType<typeof autoResponsive>
     if (dto.content !== undefined) {
       check = await validatePuckDocument(dto.content, 'page')
       if (!check.valid)
@@ -266,7 +280,7 @@ export default class BuilderPagesController {
     }
 
     let check: ValidationResult | undefined
-    let resp: { responsiveAdded: number } | undefined
+    let resp: ReturnType<typeof autoResponsive>
     if (dto.content !== undefined) {
       check = await validatePuckDocument(dto.content, 'page')
       if (!check.valid)
@@ -316,7 +330,7 @@ export default class BuilderPagesController {
     const seo = request.input('seo')
     const dto: Parameters<PagesService['publish']>[2] = {}
     let check: ValidationResult | undefined
-    let resp: { responsiveAdded: number } | undefined
+    let resp: ReturnType<typeof autoResponsive>
     if (content !== undefined) {
       check = await validatePuckDocument(content, 'page')
       if (!check.valid)

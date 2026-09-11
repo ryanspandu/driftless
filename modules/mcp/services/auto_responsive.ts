@@ -39,18 +39,33 @@ function ensureBp(props: Record<string, unknown>, bp: string): Record<string, un
   if (!r[bp] || typeof r[bp] !== 'object') r[bp] = {}
   return r[bp] as Record<string, unknown>
 }
+interface Report {
+  touched: number
+  /** One entry per override actually added — { block id, breakpoint, field }. */
+  changes: Array<{ id: string; bp: string; field: string }>
+}
+
 /** Set an override key only if the author hasn't already set it (additive). */
-function fill(props: Record<string, unknown>, bp: string, key: string, value: string): boolean {
+function fill(
+  props: Record<string, unknown>,
+  bp: string,
+  key: string,
+  value: string,
+  report?: Report,
+  id?: string
+): boolean {
   const layer = ensureBp(props, bp)
   if (layer[key] !== undefined) return false
   layer[key] = value
+  if (report && id) report.changes.push({ id, bp, field: key })
   return true
 }
 
-function autoNode(node: Node, report: { touched: number }): void {
+function autoNode(node: Node, report: Report): void {
   if (!node || typeof node !== 'object') return
   const type = node.type
   const props = (node.props ??= {}) as Record<string, unknown>
+  const id = typeof props.id === 'string' ? props.id : typeof type === 'string' ? type : 'block'
   let touched = false
 
   // Grid / QuickStack / Columns — fewer columns on smaller tiers.
@@ -60,8 +75,8 @@ function autoNode(node: Node, report: { touched: number }): void {
     if (cols && cols >= 2) {
       const tablet = Math.min(cols, 2)
       const mobile = cols >= 4 ? 2 : 1
-      if (tablet < cols) touched = fill(props, TABLET, field, String(tablet)) || touched
-      if (mobile < cols) touched = fill(props, MOBILE, field, String(mobile)) || touched
+      if (tablet < cols) touched = fill(props, TABLET, field, String(tablet), report, id) || touched
+      if (mobile < cols) touched = fill(props, MOBILE, field, String(mobile), report, id) || touched
     }
   }
 
@@ -74,9 +89,13 @@ function autoNode(node: Node, report: { touched: number }): void {
       (k) => k && typeof k === 'object' && typeof k.props?.width === 'string' && (k.props.width as string).includes('%')
     )
     if (splitKids.length) {
-      touched = fill(props, MOBILE, 'flexDirection', 'column') || touched
-      touched = fill(props, MOBILE, 'alignItems', 'stretch') || touched
-      for (const k of splitKids) fill((k.props ??= {}) as Record<string, unknown>, MOBILE, 'width', '100%')
+      touched = fill(props, MOBILE, 'flexDirection', 'column', report, id) || touched
+      touched = fill(props, MOBILE, 'alignItems', 'stretch', report, id) || touched
+      for (const k of splitKids) {
+        const kp = (k.props ??= {}) as Record<string, unknown>
+        const kid = typeof kp.id === 'string' ? kp.id : id
+        fill(kp, MOBILE, 'width', '100%', report, kid)
+      }
     }
   }
 
@@ -84,15 +103,16 @@ function autoNode(node: Node, report: { touched: number }): void {
   if (type === 'Heading') {
     const size = px(props.textSize)
     if (size && size >= 34) {
-      touched = fill(props, MOBILE, 'textSize', `${Math.round(size * 0.6)}px`) || touched
-      touched = fill(props, TABLET, 'textSize', `${Math.round(size * 0.8)}px`) || touched
+      touched = fill(props, MOBILE, 'textSize', `${Math.round(size * 0.6)}px`, report, id) || touched
+      touched = fill(props, TABLET, 'textSize', `${Math.round(size * 0.8)}px`, report, id) || touched
     }
   }
 
   // Section — trim a tall hero on mobile.
   if (type === 'Section') {
     const mh = px(props.minHeight)
-    if (mh && mh >= 480) touched = fill(props, MOBILE, 'minHeight', `${Math.round(mh * 0.7)}px`) || touched
+    if (mh && mh >= 480)
+      touched = fill(props, MOBILE, 'minHeight', `${Math.round(mh * 0.7)}px`, report, id) || touched
   }
 
   if (touched) report.touched++
@@ -107,17 +127,20 @@ export interface AutoResponsiveResult {
   doc: unknown
   /** How many blocks received at least one new override. */
   touched: number
+  /** Each override added — { block id, breakpoint, field } — so the caller can see exactly what changed. */
+  changes: Array<{ id: string; bp: string; field: string }>
 }
 
 /**
- * Mutate `doc` in place, filling responsive overrides. Returns the doc + a count.
- * Safe to call on any value; a non-object doc is returned untouched.
+ * Mutate `doc` in place, filling responsive overrides. Returns the doc + a count
+ * + the per-override list. Safe to call on any value; a non-object doc is
+ * returned untouched.
  */
 export function generateResponsive(doc: unknown): AutoResponsiveResult {
-  const report = { touched: 0 }
+  const report: Report = { touched: 0, changes: [] }
   if (doc && typeof doc === 'object') {
     const d = doc as { content?: unknown }
     if (Array.isArray(d.content)) for (const n of d.content) autoNode(n as Node, report)
   }
-  return { doc, touched: report.touched }
+  return { doc, touched: report.touched, changes: report.changes }
 }

@@ -182,7 +182,7 @@ const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string 
       'get_appearance',
       'set_appearance(primaryColor, secondaryColor, fontFamily, savedColors)',
     ],
-    note: 'Extract the design’s palette + typeface and apply them with set_appearance BEFORE composing. primary/secondary drive every CTA and product button; savedColors (bg, ink, accent, surface) become var(--color-<slug>) for use in any block’s bg/textColor/borderColor. Skipping this ships the default purple CTAs — the #1 reason a build looks off-brand.',
+    note: 'Extract the design’s palette + typeface and apply them with set_appearance BEFORE composing. primary/secondary drive every CTA and product button; savedColors (bg, ink, accent, surface) become var(--color-<slug>) for use in any block’s bg/textColor/borderColor. Skipping this ships the default purple CTAs — the #1 reason a build looks off-brand. ALSO seed the design’s SCALES as designTokens so the whole page shares one rhythm instead of scattered magic numbers: set the type scale (text: { base, lg, xl, "2xl", "3xl"… } → var(--text-*)) from the design’s heading/body sizes and the spacing scale (space: { xs, sm, md, lg, xl… } → var(--space-*)) from its section paddings/gaps, then reference those tokens in blocks (textSize:"var(--text-3xl)", padding:"var(--space-2xl)") rather than raw px. Container widths → container tokens (var(--container-*)). Use analyze_reference to seed the palette from a reference image’s pixels.',
   },
   {
     section: 'Asset inventory (do this SECOND)',
