@@ -98,24 +98,35 @@ const BLOCK_HINTS: Record<string, string> = {
     'Testimonials as rating cards (author, rating, text, avatar). Use for a "what customers say" section — do NOT hand-build testimonial cards. Set layout:"carousel" for a horizontal slider of cards (vs the default "grid"). An omitted avatar renders a monogram, so it is safe to leave blank. showAggregate:"true" prints an AVERAGE rating computed from the reviews array — turn it OFF if the reviews are placeholder/invented, so you are not showing a fabricated stat.',
   Icon: 'A single icon for trust-bar / feature glyphs. Match the design in FIDELITY ORDER: (1) if the design’s icons are visible in a reference image, crop_media them and set the Icon `src` to the crop url; (2) if you have the icon files, upload_media them and set `src`; (3) otherwise set "name" to the closest curated key (e.g. palette, truck, shield-check, leaf) and colour it with the `textColor` styleProp = the design’s icon/accent colour (for a tinted badge add bg + borderRadius:"999px" + padding). Use an EMOJI only when the design literally shows emoji, and report it as a substitution. `src` overrides `name`. Curated glyphs are LINE-style; set filled:"true" for a SOLID glyph (e.g. a rating star or heart).',
   FormBlock:
-    'A working form (contact / signup / lead capture) — renders the fields of a SAVED form definition and handles submission. REQUIRED: set formSlug to an existing form\'s slug (from list_forms). Author the form itself with the form tools: create_form then update_form to add its `fields` (the FormBlock only picks a form, it does not define fields). A form CTA renders the SITE THEME colour like any Button. There is no error if formSlug is empty — it just renders nothing, so always bind it.',
+    "A working form (contact / signup / lead capture) — renders the fields of a SAVED form definition and handles submission. REQUIRED: set formSlug to an existing form's slug (from list_forms). Author the form itself with the form tools: create_form then update_form to add its `fields` (the FormBlock only picks a form, it does not define fields). A form CTA renders the SITE THEME colour like any Button. There is no error if formSlug is empty — it just renders nothing, so always bind it.",
   Accordion: 'An expandable question/answer list. Use for any FAQ or "common questions" section.',
   Tabs: 'Tabbed content panels for switching between related bodies of content.',
   Text: 'A short inline text run (label, eyebrow, caption, stat number). For a real paragraph of body copy use Paragraph; for a section title use Heading.',
-  TextLink: 'A single inline text hyperlink — footer links, inline "read more", legal links. Set text + href; colour it with textColor. It is UNDERLINED by default — set textDecoration:"none" for nav-menu / footer links that should not be underlined, and set textSize/fontWeight to match the design. For a button-style CTA use Button instead.',
-  LinkBlock: 'Wraps its child blocks in one clickable link (a whole card/tile that navigates). Set href; put the content in its slot.',
-  DivBlock: 'A generic styleable box — use only when no purpose-built layout block fits. Make it a container with the layout styleProps (display:"flex"/"grid", gap, …), or an absolutely-positioned overlay child (position:"absolute" inside a position:"relative" parent).',
+  TextLink:
+    'A single inline text hyperlink — footer links, inline "read more", legal links. Set text + href; colour it with textColor. It is UNDERLINED by default — set textDecoration:"none" for nav-menu / footer links that should not be underlined, and set textSize/fontWeight to match the design. For a button-style CTA use Button instead.',
+  LinkBlock:
+    'Wraps its child blocks in one clickable link (a whole card/tile that navigates). Set href; put the content in its slot.',
+  DivBlock:
+    'A generic styleable box — use only when no purpose-built layout block fits. Make it a container with the layout styleProps (display:"flex"/"grid", gap, …), or an absolutely-positioned overlay child (position:"absolute" inside a position:"relative" parent).',
   List: 'A bulleted/numbered list container; put ListItem children in its slot. Use for real lists, not for laying out cards (use Grid/VFlex for those).',
   ListItem: 'One item inside a List.',
-  Divider: 'A thin horizontal rule to separate content (e.g. above a footer copyright). Style with borderColor/borderWidth/margin.',
-  Spacer: 'Adds vertical blank space. Prefer padding/margin/gap styleProps for rhythm; use Spacer only for a one-off gap.',
+  Divider:
+    'A thin horizontal rule to separate content (e.g. above a footer copyright). Style with borderColor/borderWidth/margin.',
+  Spacer:
+    'Adds vertical blank space. Prefer padding/margin/gap styleProps for rhythm; use Spacer only for a one-off gap.',
   BlockQuote: 'A styled pull-quote. For customer testimonials use Reviews instead.',
-  Callout: 'A highlighted note/aside box (tip, warning, info). Give it a bg + borderRadius + padding.',
-  RichText: 'A block of pre-formatted HTML (headings, lists, links, emphasis) — html is a sanitized HTML string. Use for long-form body content; for a single heading/paragraph prefer Heading/Paragraph so you can style them individually.',
-  Navbar: 'A bare navigation container you build by hand. For the real site menu prefer the MenuBar block (labelled "Menu") — it renders a reusable Menu-Manager menu with automatic dropdowns/mega panels. Only hand-build in Navbar for a one-off custom bar.',
-  TemplateRef: 'Embeds a reusable COMPONENT/LAYOUT template inline (design once, reuse across pages). Set templateId to an id from list_templates. Use it to keep a shared section (a CTA, a feature block) consistent everywhere.',
-  CodeEmbed: 'Renders a snippet of sanitized presentation HTML (an embed/widget markup). NOT for running JS — put JS in per-page root.props.codeSnippets or set_global_code. To just SHOW source code to readers, use CodeBlock.',
-  CodeBlock: 'Displays escaped source code in a <pre> for readers to look at (a code sample). It does NOT execute anything and does NOT render HTML — for embed markup use CodeEmbed.',
+  Callout:
+    'A highlighted note/aside box (tip, warning, info). Give it a bg + borderRadius + padding.',
+  RichText:
+    'A block of pre-formatted HTML (headings, lists, links, emphasis) — html is a sanitized HTML string. Use for long-form body content; for a single heading/paragraph prefer Heading/Paragraph so you can style them individually.',
+  Navbar:
+    'A bare navigation container you build by hand. For the real site menu prefer the MenuBar block (labelled "Menu") — it renders a reusable Menu-Manager menu with automatic dropdowns/mega panels. Only hand-build in Navbar for a one-off custom bar.',
+  TemplateRef:
+    'Embeds a reusable COMPONENT/LAYOUT template inline (design once, reuse across pages). Set templateId to an id from list_templates. Use it to keep a shared section (a CTA, a feature block) consistent everywhere.',
+  CodeEmbed:
+    'Renders a snippet of sanitized presentation HTML (an embed/widget markup). NOT for running JS — put JS in per-page root.props.codeSnippets or set_global_code. To just SHOW source code to readers, use CodeBlock.',
+  CodeBlock:
+    'Displays escaped source code in a <pre> for readers to look at (a code sample). It does NOT execute anything and does NOT render HTML — for embed markup use CodeEmbed.',
   MenuBar:
     'THE navigation menu block (labelled "Menu"). Renders a REUSABLE menu built in the admin Menu Manager as a nav bar. REQUIRED: set `menuHandle` to an existing menu\'s handle (from list_menus) — without it it renders a placeholder. Popups are AUTOMATIC from the menu\'s structure: a top-level item that has sub-items opens a dropdown, and a full-width MEGA panel when those sub-items themselves have children (columns). Build/nest the tree with the menu tools (create_menu + set_menu_items) or the Menus admin, not here. Drop it in a HEADER/FOOTER template so the nav is shared site-wide.',
   CollectionList:
@@ -214,6 +225,15 @@ const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string 
       'HFlex( VFlex(Heading, Paragraph, HFlex(Button,Button)) , Image )',
     ],
     note: 'TWO SHAPES — pick the one the design shows. (a) Split: HFlex with child widths — a left VFlex (copy + CTA row) and a right Image. (b) Immersive full-bleed: ONE Section with a background image via its `backgrounds` prop (plus a gradient/overlay layer for legibility) and a `minHeight`, the content (optional thumbnail, Heading, Paragraph, HFlex of buttons) overlaid inside a Container aligned where the design puts it (often lower-left). A trust bar overlapping the hero bottom uses a negative top margin. Match the design; do not default to text-left/image-right.',
+  },
+  {
+    section: 'Section header (band title + supporting text / CTA on the right)',
+    blocks: [
+      'HFlex(alignItems:"flex-start", justifyContent:"space-between")',
+      'left: Heading(align:"left")',
+      'right: VFlex(alignItems:"flex-end") → Paragraph(align:"right") + Button',
+    ],
+    note: 'The title row many bands share (bestsellers, gallery, "find your space"): a big Heading on the LEFT with a short Paragraph + a CTA Button on the RIGHT. Use ONE HFlex(justifyContent:"space-between") and set alignItems:"flex-start" so the heading TOP-aligns with the top of the right column — do NOT use flex-end (it drops the heading to the bottom so it no longer lines up with the supporting text) and do not leave it on the default stretch. The right side is a VFlex(alignItems:"flex-end", gap) holding the Paragraph (align:"right") above the Button. If the design instead CENTRES the title over the band (e.g. a testimonials header), skip the split entirely: a single Heading with align:"center". Start from the "Section — Header" preset (list_section_presets) — it already carries these defaults.',
   },
   {
     section: 'Trust bar / logos / stats',

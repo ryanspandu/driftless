@@ -25,6 +25,7 @@ import {
 import {
   BreakpointContext,
   NonceContext,
+  PreviewContext,
   StatePreviewContext,
   cascadeStyleBag,
   orderBreakpoints,
@@ -345,26 +346,83 @@ function styleToCss(s: StyleBag): CSSProperties {
  */
 export const RENDERED_STYLE_PROP_NAMES: string[] = [
   // Box model
-  'padding', 'margin',
-  'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
-  'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-  'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'overflow',
+  'padding',
+  'margin',
+  'marginTop',
+  'marginRight',
+  'marginBottom',
+  'marginLeft',
+  'paddingTop',
+  'paddingRight',
+  'paddingBottom',
+  'paddingLeft',
+  'width',
+  'height',
+  'minWidth',
+  'minHeight',
+  'maxWidth',
+  'maxHeight',
+  'overflow',
   // Flex / grid layout
-  'display', 'flexDirection', 'flexWrap', 'justifyContent', 'alignItems', 'alignSelf', 'gap',
-  'flexGrow', 'flexShrink', 'flexBasis', 'order',
-  'gridTemplateColumns', 'gridTemplateRows', 'gridAutoFlow',
+  'display',
+  'flexDirection',
+  'flexWrap',
+  'justifyContent',
+  'alignItems',
+  'alignSelf',
+  'gap',
+  'flexGrow',
+  'flexShrink',
+  'flexBasis',
+  'order',
+  'gridTemplateColumns',
+  'gridTemplateRows',
+  'gridAutoFlow',
   // Positioning
-  'position', 'top', 'right', 'bottom', 'left', 'zIndex', 'float', 'clear',
+  'position',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'zIndex',
+  'float',
+  'clear',
   // Typography
-  'textSize', 'fontWeight', 'lineHeight', 'font', 'textColor', 'align', 'letterSpacing',
-  'textIndent', 'textTransform', 'textDecoration', 'fontStyle', 'direction', 'whiteSpace',
+  'textSize',
+  'fontWeight',
+  'lineHeight',
+  'font',
+  'textColor',
+  'align',
+  'letterSpacing',
+  'textIndent',
+  'textTransform',
+  'textDecoration',
+  'fontStyle',
+  'direction',
+  'whiteSpace',
   // Appearance
-  'bg', 'backgrounds', 'borderWidth', 'borderStyle', 'borderColor',
-  'borderTop', 'borderRight', 'borderBottom', 'borderLeft',
+  'bg',
+  'backgrounds',
+  'borderWidth',
+  'borderStyle',
+  'borderColor',
+  'borderTop',
+  'borderRight',
+  'borderBottom',
+  'borderLeft',
   'borderRadius',
-  'borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius',
+  'borderTopLeftRadius',
+  'borderTopRightRadius',
+  'borderBottomRightRadius',
+  'borderBottomLeftRadius',
   'boxShadow',
-  'opacity', 'mixBlendMode', 'transform', 'transition', 'filter', 'cursor',
+  'opacity',
+  'mixBlendMode',
+  'transform',
+  'transition',
+  'filter',
+  'cursor',
   // Advanced
   'className',
 ]
@@ -600,6 +658,9 @@ export function Box({
   const { breakpoints, activeBp } = useContext(BreakpointContext)
   // Per-request CSP nonce for the generated `<style>` below (published path only).
   const nonce = useContext(NonceContext)
+  // True only on the admin draft-preview render — gates the `data-pb-id` probe
+  // attribute so published pages stay byte-for-byte unchanged.
+  const isPreview = useContext(PreviewContext)
   const hasResponsive = Object.keys(readResponsive(s)).length > 0
   // Interaction states (`:hover`/`:focus`/`:active`) can only be expressed in a
   // stylesheet, never inline — so a block with any defined state joins the same
@@ -692,6 +753,11 @@ export function Box({
       ...anim.attrs,
       ...customAttributes(s),
       ...(useStylesheet ? { 'data-b': bId } : null),
+      // Stable block id for the layout lint (probeLayout) to read each block's
+      // rendered geometry and match it to the design by id. DRAFT-PREVIEW ONLY —
+      // never on live published pages (they stay byte-for-byte unchanged) nor in
+      // the editor (which has its own selection machinery).
+      ...(isPreview && str(s, 'id') ? { 'data-pb-id': str(s, 'id') } : null),
       ...lazyBgAttr,
       ref: puck?.dragRef,
       className: cn(className, str(s, 'className')),

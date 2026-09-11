@@ -207,10 +207,75 @@ function ctaBand() {
   )
 }
 
+/**
+ * Band header row: a big title on the LEFT with a short supporting line + a CTA
+ * on the RIGHT, TOP-aligned. The common heading of a bestsellers / gallery /
+ * "find your space" band. `alignItems:"flex-start"` is deliberate — it top-aligns
+ * the heading with the top of the right column; `flex-end` (the mistake this
+ * preset exists to prevent) drops the heading to the bottom and misaligns it.
+ * For a header whose title is CENTRED over the band instead, use a single
+ * Heading(align:"center") rather than this split.
+ */
+function sectionHeader() {
+  return doc(
+    b('Section', {
+      padding: 'var(--space-3xl) 0 var(--space-xl)',
+      content: [
+        b('Container', {
+          maxWidth: 'var(--container-xl)',
+          margin: '0 auto',
+          padding: '0 var(--space-lg)',
+          content: [
+            b('HFlex', {
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: 'var(--space-lg)',
+              content: [
+                b('Heading', {
+                  text: 'Section title',
+                  level: '2',
+                  textSize: 'var(--text-4xl)',
+                  fontWeight: '600',
+                  align: 'left',
+                }),
+                b('VFlex', {
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  gap: 'var(--space-sm)',
+                  content: [
+                    b('Paragraph', {
+                      text: 'One or two supporting lines that introduce the section.',
+                      textSize: 'var(--text-base)',
+                      textColor: 'var(--color-ink)',
+                      align: 'right',
+                      maxWidth: '360px',
+                    }),
+                    b('Button', {
+                      label: 'View all →',
+                      href: '#',
+                      variant: 'outline',
+                      borderRadius: 'var(--radius-md)',
+                      padding: 'var(--space-sm) var(--space-lg)',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    })
+  )
+}
+
 const PRESETS: Array<{ id: string; name: string; content: () => Record<string, unknown> }> = [
   { id: 'seedsec-hero-split', name: 'Section — Split hero', content: splitHero },
   { id: 'seedsec-feature-grid', name: 'Section — Feature grid (3)', content: featureGrid },
   { id: 'seedsec-cta-band', name: 'Section — CTA band', content: ctaBand },
+  { id: 'seedsec-header', name: 'Section — Header', content: sectionHeader },
 ]
 
 export default class extends BaseSeeder {
@@ -218,7 +283,13 @@ export default class extends BaseSeeder {
     for (const preset of PRESETS) {
       await Template.firstOrCreate(
         { id: preset.id },
-        { name: preset.name, type: 'COMPONENT', content: preset.content(), isDefault: false, collectionKey: null }
+        {
+          name: preset.name,
+          type: 'COMPONENT',
+          content: preset.content(),
+          isDefault: false,
+          collectionKey: null,
+        }
       )
     }
   }

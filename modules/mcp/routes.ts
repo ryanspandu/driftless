@@ -220,6 +220,14 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .as('mcp.pages.coverage')
             .use(read('builder:read'))
           router
+            .post('/api/mcp/v1/pages/:id/analyze-layout', [PagesCtrl, 'analyzeLayout'])
+            .as('mcp.pages.analyzeLayout')
+            .use(read('builder:pages'))
+          router
+            .get('/api/mcp/v1/pages/:id/lint-layout', [PagesCtrl, 'lintLayout'])
+            .as('mcp.pages.lintLayout')
+            .use(read('builder:read'))
+          router
             .post('/api/mcp/v1/pages/:id/discard-draft', [PagesCtrl, 'discardDraft'])
             .as('mcp.pages.discard')
             .use(read('builder:pages'))
@@ -353,34 +361,33 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       // `forms:read` / `forms:manage` RBAC permissions (no `form` resource verb
       // exists); token ability splits builder:read vs builder:forms. Submissions
       // are deliberately NOT exposed — this authors the form, not its inbox.
-      router
-        .group(() => {
-          router
-            .get('/api/mcp/v1/forms', [FormsCtrl, 'index'])
-            .as('mcp.forms.index')
-            .use(read('builder:read'))
-            .use(middleware.permission({ permission: 'forms:read' }))
-          router
-            .get('/api/mcp/v1/forms/:id', [FormsCtrl, 'show'])
-            .as('mcp.forms.show')
-            .use(read('builder:read'))
-            .use(middleware.permission({ permission: 'forms:read' }))
-          router
-            .post('/api/mcp/v1/forms', [FormsCtrl, 'store'])
-            .as('mcp.forms.store')
-            .use(read('builder:forms'))
-            .use(middleware.permission({ permission: 'forms:manage' }))
-          router
-            .put('/api/mcp/v1/forms/:id', [FormsCtrl, 'update'])
-            .as('mcp.forms.update')
-            .use(read('builder:forms'))
-            .use(middleware.permission({ permission: 'forms:manage' }))
-          router
-            .delete('/api/mcp/v1/forms/:id', [FormsCtrl, 'destroy'])
-            .as('mcp.forms.destroy')
-            .use(read('builder:forms'))
-            .use(middleware.permission({ permission: 'forms:manage' }))
-        })
+      router.group(() => {
+        router
+          .get('/api/mcp/v1/forms', [FormsCtrl, 'index'])
+          .as('mcp.forms.index')
+          .use(read('builder:read'))
+          .use(middleware.permission({ permission: 'forms:read' }))
+        router
+          .get('/api/mcp/v1/forms/:id', [FormsCtrl, 'show'])
+          .as('mcp.forms.show')
+          .use(read('builder:read'))
+          .use(middleware.permission({ permission: 'forms:read' }))
+        router
+          .post('/api/mcp/v1/forms', [FormsCtrl, 'store'])
+          .as('mcp.forms.store')
+          .use(read('builder:forms'))
+          .use(middleware.permission({ permission: 'forms:manage' }))
+        router
+          .put('/api/mcp/v1/forms/:id', [FormsCtrl, 'update'])
+          .as('mcp.forms.update')
+          .use(read('builder:forms'))
+          .use(middleware.permission({ permission: 'forms:manage' }))
+        router
+          .delete('/api/mcp/v1/forms/:id', [FormsCtrl, 'destroy'])
+          .as('mcp.forms.destroy')
+          .use(read('builder:forms'))
+          .use(middleware.permission({ permission: 'forms:manage' }))
+      })
 
       // Appearance + site config — RBAC `settings:manage`.
       router

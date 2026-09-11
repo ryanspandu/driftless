@@ -10,7 +10,12 @@ import { puckConfig } from '~/puck/config'
 import { type CmsRecord } from '~/puck/collection-list'
 import { PageOutletContext } from '~/puck/page-outlet'
 import { type CodeSnippet } from '~/puck/custom-code'
-import { BreakpointContext, NonceContext, readBreakpoints } from '~/puck/breakpoints'
+import {
+  BreakpointContext,
+  NonceContext,
+  PreviewContext,
+  readBreakpoints,
+} from '~/puck/breakpoints'
 import { PublicPageFrame } from '~/components/public-page-frame'
 import { ChromeSlot, CodeLayout } from '~/puck/chrome_slot'
 
@@ -128,7 +133,15 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
           exactly as before. Code headers keep the normal stacked flow. */}
       {overlayHeader ? (
         <div style={{ position: 'relative' }}>
-          <div style={{ position: 'absolute', insetInlineStart: 0, insetInlineEnd: 0, top: 0, zIndex: 50 }}>
+          <div
+            style={{
+              position: 'absolute',
+              insetInlineStart: 0,
+              insetInlineEnd: 0,
+              top: 0,
+              zIndex: 50,
+            }}
+          >
             <ChromeSlot code={page.codeHeader} doc={page.header} />
           </div>
           <main id="main-content">{pageContent}</main>
@@ -147,7 +160,11 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
   const cspNonce = usePage<{ cspNonce?: string }>().props.cspNonce ?? ''
   const body = (
     <NonceContext.Provider value={cspNonce}>
-      <BreakpointContext.Provider value={bpContext}>{inner}</BreakpointContext.Provider>
+      <BreakpointContext.Provider value={bpContext}>
+        {/* Draft-preview only: lets Box emit `data-pb-id` for the layout-lint probe
+            without touching published pages (default false everywhere else). */}
+        <PreviewContext.Provider value={!!page.preview}>{inner}</PreviewContext.Provider>
+      </BreakpointContext.Provider>
     </NonceContext.Provider>
   )
 

@@ -48,43 +48,117 @@ const server = new McpServer(
  * `?profile=`/`?tools=` in `modules/mcp/mcp_tools.ts` — keep the 'pages' list in sync.
  */
 const PAGES_PROFILE = [
-  'get_block_catalog', 'list_pages', 'get_page', 'list_custom_templates', 'create_page', 'update_page',
-  'set_page_content', 'validate_page_content', 'render_page', 'screenshot_page', 'compare_to_reference', 'patch_page_content',
-  'list_section_presets', 'insert_section',
-  'publish_page', 'discard_draft', 'delete_page', 'get_appearance', 'set_appearance',
-  'set_design_brief', 'check_design_coverage', 'get_preview_url', 'upload_media',
-  'crop_media', 'analyze_reference', 'list_media',
-  'list_menus', 'get_menu', 'create_menu', 'set_menu_items',
-  'list_forms', 'get_form', 'create_form', 'update_form', 'delete_form',
+  'get_block_catalog',
+  'list_pages',
+  'get_page',
+  'list_custom_templates',
+  'create_page',
+  'update_page',
+  'set_page_content',
+  'validate_page_content',
+  'render_page',
+  'screenshot_page',
+  'compare_to_reference',
+  'patch_page_content',
+  'analyze_layout',
+  'lint_layout',
+  'list_section_presets',
+  'insert_section',
+  'publish_page',
+  'discard_draft',
+  'delete_page',
+  'get_appearance',
+  'set_appearance',
+  'set_design_brief',
+  'check_design_coverage',
+  'get_preview_url',
+  'upload_media',
+  'crop_media',
+  'analyze_reference',
+  'list_media',
+  'list_menus',
+  'get_menu',
+  'create_menu',
+  'set_menu_items',
+  'list_forms',
+  'get_form',
+  'create_form',
+  'update_form',
+  'delete_form',
 ]
 // Collections/fields/records + full templates — what `build` adds over `pages`.
 const BUILD_EXTRAS = [
-  'list_collections', 'get_collection', 'create_collection', 'update_collection', 'delete_collection',
-  'add_field', 'update_field', 'delete_field', 'reorder_fields',
-  'list_records', 'create_record', 'update_record', 'delete_record',
-  'list_templates', 'get_template', 'create_template', 'update_template', 'delete_template', 'set_default_template',
+  'list_collections',
+  'get_collection',
+  'create_collection',
+  'update_collection',
+  'delete_collection',
+  'add_field',
+  'update_field',
+  'delete_field',
+  'reorder_fields',
+  'list_records',
+  'create_record',
+  'update_record',
+  'delete_record',
+  'list_templates',
+  'get_template',
+  'create_template',
+  'update_template',
+  'delete_template',
+  'set_default_template',
 ]
 // Posts/content + their taxonomies — the CMS content surface.
 const CONTENT_EXTRAS = [
-  'list_content', 'get_content', 'create_content', 'update_content', 'delete_content',
-  'list_content_categories', 'create_content_category', 'update_content_category', 'delete_content_category',
-  'list_content_tags', 'create_content_tag', 'update_content_tag', 'delete_content_tag',
+  'list_content',
+  'get_content',
+  'create_content',
+  'update_content',
+  'delete_content',
+  'list_content_categories',
+  'create_content_category',
+  'update_content_category',
+  'delete_content_category',
+  'list_content_tags',
+  'create_content_tag',
+  'update_content_tag',
+  'delete_content_tag',
 ]
 // Ecommerce: products, variants, categories, product tags + storefront assign.
 const ECOMMERCE_EXTRAS = [
-  'list_products', 'get_product', 'create_product', 'update_product', 'delete_product',
-  'add_variant', 'update_variant', 'delete_variant',
-  'list_categories', 'create_category', 'update_category', 'delete_category',
-  'list_product_tags', 'create_product_tag', 'update_product_tag', 'delete_product_tag',
+  'list_products',
+  'get_product',
+  'create_product',
+  'update_product',
+  'delete_product',
+  'add_variant',
+  'update_variant',
+  'delete_variant',
+  'list_categories',
+  'create_category',
+  'update_category',
+  'delete_category',
+  'list_product_tags',
+  'create_product_tag',
+  'update_product_tag',
+  'delete_product_tag',
   'set_storefront_page',
 ]
 // Bare page-building set — deliberately UNDER ~10 tools so a consumer client
 // (Claude Desktop) that defers to tool-search past ~10 tools still loads them all
 // and create_page stays callable. Pair with the connector's "Always available" mode.
 const ESSENTIALS_PROFILE = [
-  'get_block_catalog', 'list_pages', 'get_page', 'create_page', 'set_page_content',
+  'get_block_catalog',
+  'list_pages',
+  'get_page',
+  'create_page',
+  'set_page_content',
   // screenshot_page (pixels) over render_page (HTML) — kept tiny so it loads eagerly.
-  'patch_page_content', 'screenshot_page', 'publish_page', 'set_appearance', 'upload_media',
+  'patch_page_content',
+  'screenshot_page',
+  'publish_page',
+  'set_appearance',
+  'upload_media',
 ]
 const PROFILES: Record<string, string[]> = {
   essentials: ESSENTIALS_PROFILE,
@@ -98,7 +172,12 @@ const PROFILES: Record<string, string[]> = {
   const t = process.env.DRIFTLESS_MCP_TOOLS
   const p = process.env.DRIFTLESS_MCP_PROFILE
   const only = t
-    ? new Set(t.split(',').map((x) => x.trim()).filter(Boolean))
+    ? new Set(
+        t
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean)
+      )
     : p && p !== 'full' && PROFILES[p]
       ? new Set(PROFILES[p])
       : null
@@ -143,7 +222,11 @@ async function runImage(fn: () => Promise<unknown>): Promise<ToolResult> {
     const { base64, mimeType, ...meta } = r
     return {
       content: [
-        { type: 'image', data: base64, mimeType: typeof mimeType === 'string' ? mimeType : 'image/png' },
+        {
+          type: 'image',
+          data: base64,
+          mimeType: typeof mimeType === 'string' ? mimeType : 'image/png',
+        },
         { type: 'text', text: JSON.stringify(meta, null, 2) },
       ],
     }
@@ -157,12 +240,19 @@ async function runImage(fn: () => Promise<unknown>): Promise<ToolResult> {
 type ImagePayload = { base64?: unknown; mimeType?: unknown } | null | undefined
 function imgBlock(img: ImagePayload): ContentBlock | null {
   return img && typeof img.base64 === 'string'
-    ? { type: 'image', data: img.base64, mimeType: typeof img.mimeType === 'string' ? img.mimeType : 'image/png' }
+    ? {
+        type: 'image',
+        data: img.base64,
+        mimeType: typeof img.mimeType === 'string' ? img.mimeType : 'image/png',
+      }
     : null
 }
 async function runCompare(fn: () => Promise<unknown>): Promise<ToolResult> {
   try {
-    const r = (await fn()) as { screenshot?: ImagePayload; reference?: ImagePayload } & Record<string, unknown>
+    const r = (await fn()) as { screenshot?: ImagePayload; reference?: ImagePayload } & Record<
+      string,
+      unknown
+    >
     const content: ContentBlock[] = []
     const shot = imgBlock(r?.screenshot)
     const ref = imgBlock(r?.reference)
@@ -199,7 +289,10 @@ const DesignBrief = z
     source: z
       .object({
         kind: z.enum(['png', 'figma', 'text']).optional(),
-        referenceMediaId: z.string().optional().describe('The upload_media id of the reference image.'),
+        referenceMediaId: z
+          .string()
+          .optional()
+          .describe('The upload_media id of the reference image.'),
       })
       .optional(),
     palette: z
@@ -212,14 +305,21 @@ const DesignBrief = z
       })
       .optional()
       .describe('The design colours (hex). Apply them with set_appearance too.'),
-    typography: z.object({ heading: z.string().optional(), body: z.string().optional() }).optional(),
+    typography: z
+      .object({ heading: z.string().optional(), body: z.string().optional() })
+      .optional(),
     iconStyle: z.enum(['line', 'custom', 'emoji']).optional(),
     sections: z
       .array(
         z.object({
-          key: z.string().describe('A short name for the design section (hero, trustBar, productGrid, …).'),
+          key: z
+            .string()
+            .describe('A short name for the design section (hero, trustBar, productGrid, …).'),
           recipe: z.string().optional().describe('The matching GUIDANCE_RECIPES section name.'),
-          headline: z.string().optional().describe("The section's main heading text, for coverage matching."),
+          headline: z
+            .string()
+            .optional()
+            .describe("The section's main heading text, for coverage matching."),
           assets: z
             .array(
               z.object({
@@ -350,9 +450,15 @@ server.tool(
     ),
     label: z.string().describe('Human name shown in the admin (e.g. "Blog posts").'),
     icon: z.string().optional().describe('Optional lucide icon name for the admin nav.'),
-    group: z.string().optional().describe('Optional admin-sidebar group heading to file this collection under.'),
+    group: z
+      .string()
+      .optional()
+      .describe('Optional admin-sidebar group heading to file this collection under.'),
     revisionsOn: z.boolean().optional().describe('Keep a version history of records.'),
-    draftsOn: z.boolean().optional().describe('Allow Draft vs Published records (public reads return published only).'),
+    draftsOn: z
+      .boolean()
+      .optional()
+      .describe('Allow Draft vs Published records (public reads return published only).'),
     kind: z
       .enum(['collection', 'single'])
       .optional()
@@ -560,7 +666,9 @@ const PageMeta = {
     .string()
     .nullable()
     .optional()
-    .describe('Kit code-chrome HEADER pointer ("codetpl:<kit>/header"), the coded alternative to headerTemplateId.'),
+    .describe(
+      'Kit code-chrome HEADER pointer ("codetpl:<kit>/header"), the coded alternative to headerTemplateId.'
+    ),
   codeFooter: z
     .string()
     .nullable()
@@ -621,7 +729,9 @@ server.tool(
     path: z
       .string()
       .optional()
-      .describe('URL slug — no leading slash, lowercase (e.g. "about", "blog/hello"). Must stay unique.'),
+      .describe(
+        'URL slug — no leading slash, lowercase (e.g. "about", "blog/hello"). Must stay unique.'
+      ),
     content: PuckDoc.optional(),
     ...PageMeta,
   },
@@ -685,20 +795,55 @@ server.tool(
 
 server.tool(
   'compare_to_reference',
-  "Compare the built page against its design reference: returns TWO images — a live screenshot of the DRAFT (image 1) and the reference image from the page's design brief (image 2) — plus a critique checklist. LOOK at both, list concrete mismatches (sections, layout, spacing, proportion, typography, colour, imagery), then fix them with patch_page_content ops keyed by props.id and call this again until they match. This grades against the REAL reference, not the brief you wrote. Needs a brief with source.referenceMediaId (set_design_brief after upload_media(purpose:\"reference\")); without one it returns just the screenshot for a self-check.",
+  'Compare the built page against its design reference: returns TWO images — a live screenshot of the DRAFT (image 1) and the reference image from the page\'s design brief (image 2) — plus a critique checklist. LOOK at both, list concrete mismatches (sections, layout, spacing, proportion, typography, colour, imagery), then fix them with patch_page_content ops keyed by props.id and call this again until they match. This grades against the REAL reference, not the brief you wrote. Needs a brief with source.referenceMediaId (set_design_brief after upload_media(purpose:"reference")); without one it returns just the screenshot for a self-check.',
   { id: z.string(), viewport: z.enum(['desktop', 'tablet', 'mobile']).default('desktop') },
   ({ id, viewport }) =>
     runCompare(() => api.get(`/api/mcp/v1/pages/${id}/compare?viewport=${viewport}`))
+)
+
+server.tool(
+  'analyze_layout',
+  "Extract deterministic LAYOUT FACTS from a design frame and get a fill-ready Puck scaffold — so you stop guessing alignment from a scaled screenshot (the #1 source of fidelity drift). Pass ONE design section as a Lunacy FREE-format frame subtree (e.g. from the Lunacy MCP's get_layers_by_ids on a single section frame) in `frame`. Returns { nodes (per-element role + bbox + inferred flexDirection/alignItems/justifyContent/textAlign + overlay markers), scaffold (a Puck doc whose blocks already carry those styleProps and whose ids are stored as design expectations) }. Flow: analyze_layout → set_page_content(scaffold) → fill real text/images/colours with patch_page_content → lint_layout to verify. It also stores compact expectations on the page brief for lint_layout. Call once per section; the whole page in one call is rejected as too large.",
+  {
+    id: z.string().describe('The page id (expectations are stored on its brief).'),
+    frame: z
+      .record(z.any())
+      .describe('A design section as a Lunacy FREE-format frame object (with pos/size/layers).'),
+    mode: z.enum(['facts', 'scaffold', 'both']).default('both').optional(),
+    viewportWidth: z
+      .number()
+      .optional()
+      .describe("Design frame width in px (default: the frame's own width, else 1440)."),
+  },
+  ({ id, frame, mode, viewportWidth }) =>
+    run(() => api.post(`/api/mcp/v1/pages/${id}/analyze-layout`, { frame, mode, viewportWidth }))
+)
+
+server.tool(
+  'lint_layout',
+  "Grade the built page's RENDERED layout against the design expectations stored by analyze_layout. Renders the DRAFT in a real browser and reads each block's true geometry + computed styles + occlusion, then returns concrete issues — wrong text-align, wrong flex cross-axis (alignItems) or main-axis (justifyContent), a block hidden behind another, a missing overlay marker — each with a ready patch_page_content `suggestedOp`. Apply the ops, then run lint_layout again until it's clean. Needs analyze_layout to have run first (it seeds the expectations); returns a note if none exist.",
+  { id: z.string(), viewport: z.enum(['desktop', 'tablet', 'mobile']).default('desktop') },
+  ({ id, viewport }) =>
+    run(() => api.get(`/api/mcp/v1/pages/${id}/lint-layout?viewport=${viewport}`))
 )
 
 const PatchOps = z
   .array(
     z.object({
       op: z.enum(['update_props', 'update_style', 'insert', 'move', 'remove']),
-      id: z.string().optional().describe('Target block props.id (update_props/update_style/move/remove).'),
-      props: z.record(z.any()).optional().describe('Fields/styleProps to MERGE into the target (update_props/update_style).'),
+      id: z
+        .string()
+        .optional()
+        .describe('Target block props.id (update_props/update_style/move/remove).'),
+      props: z
+        .record(z.any())
+        .optional()
+        .describe('Fields/styleProps to MERGE into the target (update_props/update_style).'),
       block: z.record(z.any()).optional().describe('The block to add (insert).'),
-      parentId: z.string().optional().describe('Parent block id to insert/move INTO; omit for the document root.'),
+      parentId: z
+        .string()
+        .optional()
+        .describe('Parent block id to insert/move INTO; omit for the document root.'),
       slot: z.string().optional().describe('Slot name on the parent (default "content").'),
       index: z.number().optional().describe('Position within the target array (default: append).'),
     })
@@ -714,23 +859,30 @@ server.tool(
 
 server.tool(
   'list_section_presets',
-  'List the reusable SECTION PRESETS — known-good, token-driven sections (hero, feature grid, CTA, …) you can drop into a page and then fill, instead of composing every block from scratch. Returns { id, name } for each (they are COMPONENT templates). Use get_template to inspect a preset\'s tree, then insert_section to add a COPY to your page.',
+  "List the reusable SECTION PRESETS — known-good, token-driven sections (hero, feature grid, CTA, …) you can drop into a page and then fill, instead of composing every block from scratch. Returns { id, name } for each (they are COMPONENT templates). Use get_template to inspect a preset's tree, then insert_section to add a COPY to your page.",
   {},
   () => run(() => api.get('/api/mcp/v1/section-presets'))
 )
 
 server.tool(
   'insert_section',
-  'Insert a SECTION PRESET (from list_section_presets) into a page: it COPIES the preset\'s block tree into the page draft with fresh ids (unlike a shared TemplateRef), so you then fill it with THIS design\'s content/images. Returns insertedBlockIds — the new top-level block ids — plus advisories; use get_page to see the copied children\'s ids, then patch_page_content to set the real headings/text/images/colours. parentId/slot/index place it (default: appended to the page root).',
+  "Insert a SECTION PRESET (from list_section_presets) into a page: it COPIES the preset's block tree into the page draft with fresh ids (unlike a shared TemplateRef), so you then fill it with THIS design's content/images. Returns insertedBlockIds — the new top-level block ids — plus advisories; use get_page to see the copied children's ids, then patch_page_content to set the real headings/text/images/colours. parentId/slot/index place it (default: appended to the page root).",
   {
     id: z.string().describe('The page id to insert into.'),
-    presetId: z.string().describe('The section preset / COMPONENT template id (from list_section_presets).'),
-    parentId: z.string().optional().describe('Parent block id to insert INTO; omit for the page root.'),
+    presetId: z
+      .string()
+      .describe('The section preset / COMPONENT template id (from list_section_presets).'),
+    parentId: z
+      .string()
+      .optional()
+      .describe('Parent block id to insert INTO; omit for the page root.'),
     slot: z.string().optional().describe('Slot on the parent (default "content").'),
     index: z.number().optional().describe('Position in the target array (default: append).'),
   },
   ({ id, presetId, parentId, slot, index }) =>
-    run(() => api.post(`/api/mcp/v1/pages/${id}/insert-section`, { presetId, parentId, slot, index }))
+    run(() =>
+      api.post(`/api/mcp/v1/pages/${id}/insert-section`, { presetId, parentId, slot, index })
+    )
 )
 
 server.tool(
@@ -828,8 +980,11 @@ server.tool('list_menus', 'List reusable navigation menus (the Menu Manager).', 
   run(() => api.get('/api/mcp/v1/menus'))
 )
 
-server.tool('get_menu', 'Get one menu with its full nested item tree.', { id: z.string() }, ({ id }) =>
-  run(() => api.get(`/api/mcp/v1/menus/${id}`))
+server.tool(
+  'get_menu',
+  'Get one menu with its full nested item tree.',
+  { id: z.string() },
+  ({ id }) => run(() => api.get(`/api/mcp/v1/menus/${id}`))
 )
 
 server.tool(
@@ -851,25 +1006,49 @@ server.tool(
 const FormFieldDef = z.object({
   key: z
     .string()
-    .describe('Field key — /^[a-z][a-z0-9_]{0,31}$/ (lowercase, no spaces). This is the submission payload key; never rename it once live.'),
+    .describe(
+      'Field key — /^[a-z][a-z0-9_]{0,31}$/ (lowercase, no spaces). This is the submission payload key; never rename it once live.'
+    ),
   label: z.string().describe('Human label shown above the input.'),
   type: z
-    .enum(['text', 'textarea', 'email', 'tel', 'number', 'date', 'url', 'select', 'radio', 'checkbox', 'checkbox_group', 'file'])
-    .describe('Input type. select/radio/checkbox_group REQUIRE `options`. `checkbox` is a single consent box; `checkbox_group` is multi-select; `email`/`tel`/`url`/`number`/`date` are validated on submit.'),
+    .enum([
+      'text',
+      'textarea',
+      'email',
+      'tel',
+      'number',
+      'date',
+      'url',
+      'select',
+      'radio',
+      'checkbox',
+      'checkbox_group',
+      'file',
+    ])
+    .describe(
+      'Input type. select/radio/checkbox_group REQUIRE `options`. `checkbox` is a single consent box; `checkbox_group` is multi-select; `email`/`tel`/`url`/`number`/`date` are validated on submit.'
+    ),
   required: z.boolean().optional(),
   placeholder: z.string().optional(),
   help: z.string().optional().describe('Small helper text under the field.'),
   options: z
     .array(z.string())
     .optional()
-    .describe('Choices for select/radio/checkbox_group (required for those types; ignored otherwise).'),
+    .describe(
+      'Choices for select/radio/checkbox_group (required for those types; ignored otherwise).'
+    ),
   width: z
     .enum(['full', 'half', 'third', 'quarter', 'sixth'])
     .optional()
     .describe('Width in the form grid (default full) — pair two "half" fields on one row.'),
   min: z.number().nullable().optional().describe('number only: minimum value.'),
   max: z.number().nullable().optional().describe('number only: maximum value.'),
-  accept: z.string().optional().describe('file only: an accept hint like ".pdf,image/*" (the server also enforces its own allow-list).'),
+  accept: z
+    .string()
+    .optional()
+    .describe(
+      'file only: an accept hint like ".pdf,image/*" (the server also enforces its own allow-list).'
+    ),
 })
 
 server.tool(
@@ -889,20 +1068,35 @@ server.tool(
 server.tool(
   'create_form',
   'Create a named form. Only sets the title (+ optional slug); it starts with NO fields and status:"active". Add its fields with update_form next, then render it by placing a FormBlock whose formSlug = this form\'s slug.',
-  { title: z.string(), slug: z.string().optional().describe('URL-safe key the FormBlock binds to; derived from the title if omitted. Lowercase, no spaces.') },
+  {
+    title: z.string(),
+    slug: z
+      .string()
+      .optional()
+      .describe(
+        'URL-safe key the FormBlock binds to; derived from the title if omitted. Lowercase, no spaces.'
+      ),
+  },
   (args) => run(() => api.post('/api/mcp/v1/forms', args))
 )
 
 server.tool(
   'update_form',
-  "Update a form. `fields` REPLACES the whole field list (submit the complete array). A structurally invalid schema (bad key, unknown type, an option-field with no options) is rejected 422 with the reason.",
+  'Update a form. `fields` REPLACES the whole field list (submit the complete array). A structurally invalid schema (bad key, unknown type, an option-field with no options) is rejected 422 with the reason.',
   {
     id: z.string(),
     title: z.string().optional(),
     slug: z.string().optional(),
-    successMessage: z.string().nullable().optional().describe('Message shown after a successful submit (null clears it).'),
+    successMessage: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Message shown after a successful submit (null clears it).'),
     status: z.enum(['active', 'inactive', 'draft']).optional(),
-    fields: z.array(FormFieldDef).optional().describe('The COMPLETE ordered field list — replaces any existing fields.'),
+    fields: z
+      .array(FormFieldDef)
+      .optional()
+      .describe('The COMPLETE ordered field list — replaces any existing fields.'),
   },
   ({ id, ...body }) => run(() => api.put(`/api/mcp/v1/forms/${id}`, body))
 )
@@ -918,27 +1112,33 @@ server.tool(
 
 server.tool(
   'get_appearance',
-  "Read the current public theme AND the EFFECTIVE colours a block renders with. `effective.primary` is what a Button variant:\"primary\", product CTAs, FormButton and cart/checkout render as — the default is purple #5225e6 on an un-themed site. Call this (or read `theme` in get_block_catalog) BEFORE composing so you can match a design's palette with set_appearance instead of shipping the default.",
+  'Read the current public theme AND the EFFECTIVE colours a block renders with. `effective.primary` is what a Button variant:"primary", product CTAs, FormButton and cart/checkout render as — the default is purple #5225e6 on an un-themed site. Call this (or read `theme` in get_block_catalog) BEFORE composing so you can match a design\'s palette with set_appearance instead of shipping the default.',
   {},
   () => run(() => api.get('/api/mcp/v1/appearance'))
 )
 
 server.tool(
   'set_appearance',
-  "Set the public theme: font, primary/secondary colours, named saved-colour variables, and the design-token SCALES (spacing/type/shadow/container) via designTokens. Only the fields you pass are changed. Match a design's brand palette AND spacing/type scale here FIRST — Button variant:\"primary\"/\"secondary\", product CTAs, FormButton and cart/checkout all render the theme colours, and blocks reference the token scales as var(--space-*)/var(--text-*)/… Values are validated: an unusable colour/font/length is rejected with 422 + issues (not silently ignored). Responds with the sanitised theme that will actually render.",
+  'Set the public theme: font, primary/secondary colours, named saved-colour variables, and the design-token SCALES (spacing/type/shadow/container) via designTokens. Only the fields you pass are changed. Match a design\'s brand palette AND spacing/type scale here FIRST — Button variant:"primary"/"secondary", product CTAs, FormButton and cart/checkout all render the theme colours, and blocks reference the token scales as var(--space-*)/var(--text-*)/… Values are validated: an unusable colour/font/length is rejected with 422 + issues (not silently ignored). Responds with the sanitised theme that will actually render.',
   {
     fontFamily: z
       .string()
       .optional()
-      .describe('Active font name: a Google family (with fontCssUrl) OR fontCustomName to activate an uploaded font. Letters/digits/spaces/_/- only.'),
+      .describe(
+        'Active font name: a Google family (with fontCssUrl) OR fontCustomName to activate an uploaded font. Letters/digits/spaces/_/- only.'
+      ),
     fontCssUrl: z
       .string()
       .optional()
-      .describe('A https://fonts.googleapis.com/css2?family=… stylesheet href; fontFamily must be that family name.'),
+      .describe(
+        'A https://fonts.googleapis.com/css2?family=… stylesheet href; fontFamily must be that family name.'
+      ),
     fontFaceUrl: z
       .string()
       .optional()
-      .describe('Same-origin .woff2/.woff/.ttf/.otf path from upload_media; set fontFamily to fontCustomName to activate it.'),
+      .describe(
+        'Same-origin .woff2/.woff/.ttf/.otf path from upload_media; set fontFamily to fontCustomName to activate it.'
+      ),
     fontCustomName: z
       .string()
       .optional()
@@ -946,12 +1146,19 @@ server.tool(
     primaryColor: z
       .string()
       .optional()
-      .describe("Brand primary/CTA colour. Hex (#3a4a3e), rgb()/hsl()/oklch(), or a CSS keyword. Use the design's colour verbatim."),
-    secondaryColor: z.string().optional().describe('Brand secondary colour. Same formats as primaryColor.'),
+      .describe(
+        "Brand primary/CTA colour. Hex (#3a4a3e), rgb()/hsl()/oklch(), or a CSS keyword. Use the design's colour verbatim."
+      ),
+    secondaryColor: z
+      .string()
+      .optional()
+      .describe('Brand secondary colour. Same formats as primaryColor.'),
     savedColors: z
       .array(z.object({ slug: z.string(), name: z.string(), value: z.string() }))
       .optional()
-      .describe("Named colour variables (bg, ink, accent, surface, …), published as var(--color-<slug>) — reference them in any block's bg/textColor/borderColor."),
+      .describe(
+        "Named colour variables (bg, ink, accent, surface, …), published as var(--color-<slug>) — reference them in any block's bg/textColor/borderColor."
+      ),
     designTokens: z
       .object({
         space: z.record(z.string()).optional(),
@@ -1017,7 +1224,9 @@ server.tool(
       'categoryArchive',
       'tagArchive',
     ]),
-    pageId: z.string().describe('The builder page id to assign, or "" to reset to the built-in screen.'),
+    pageId: z
+      .string()
+      .describe('The builder page id to assign, or "" to reset to the built-in screen.'),
   },
   (args) => run(() => api.put('/api/mcp/v1/page-roles', args))
 )
@@ -1042,14 +1251,16 @@ server.tool(
 
 server.tool(
   'upload_media',
-  "Upload an image/file from a local path or a URL — the returned `url` is what you put in image blocks / product images. NEVER upload random stock or placeholder photos (picsum, loremflickr, unsplash-source, placehold.co, …) as brand/hero/product imagery — those hosts are rejected unless you pass purpose:\"placeholder\". To reuse a design's OWN photos, upload the reference image with purpose:\"reference\" then cut regions out with crop_media.",
+  'Upload an image/file from a local path or a URL — the returned `url` is what you put in image blocks / product images. NEVER upload random stock or placeholder photos (picsum, loremflickr, unsplash-source, placehold.co, …) as brand/hero/product imagery — those hosts are rejected unless you pass purpose:"placeholder". To reuse a design\'s OWN photos, upload the reference image with purpose:"reference" then cut regions out with crop_media.',
   {
     path: z.string().optional().describe('A local file path (server-side).'),
     url: z.string().optional().describe('A remote image URL to fetch and self-host.'),
     purpose: z
       .enum(['reference', 'brand', 'placeholder'])
       .optional()
-      .describe('reference = a design mockup to crop from; brand = a real asset; placeholder = a labelled stand-in (the ONLY way to accept a placeholder-service URL).'),
+      .describe(
+        'reference = a design mockup to crop from; brand = a real asset; placeholder = a labelled stand-in (the ONLY way to accept a placeholder-service URL).'
+      ),
     alt: z.string().optional(),
     title: z.string().optional(),
   },
@@ -1071,7 +1282,15 @@ server.tool(
   },
   ({ mediaId, x, y, width, height, targetWidth, alt, title }) =>
     run(() =>
-      api.post(`/api/mcp/v1/media/${mediaId}/crop`, { x, y, width, height, targetWidth, alt, title })
+      api.post(`/api/mcp/v1/media/${mediaId}/crop`, {
+        x,
+        y,
+        width,
+        height,
+        targetWidth,
+        alt,
+        title,
+      })
     )
 )
 
@@ -1284,7 +1503,7 @@ server.tool(
 
 server.tool(
   'create_product_tag',
-  "Create a store product tag. Assign products to it with create_product/update_product `tagIds` (the tag id). The response returns the tag `slug` — use it as a ProductList `source.tagSlug` (or a storefront /tag/<slug> archive) to show only that tag.",
+  'Create a store product tag. Assign products to it with create_product/update_product `tagIds` (the tag id). The response returns the tag `slug` — use it as a ProductList `source.tagSlug` (or a storefront /tag/<slug> archive) to show only that tag.',
   { name: z.string(), ...productTagOptional },
   (args) => run(() => api.post('/api/mcp/v1/product-tags', args))
 )
@@ -1350,7 +1569,9 @@ const contentOptional = {
     .record(z.any())
     .nullable()
     .optional()
-    .describe('Custom fields defined by the Content-type collection; coerced + filtered server-side.'),
+    .describe(
+      'Custom fields defined by the Content-type collection; coerced + filtered server-side.'
+    ),
   categoryIds: z
     .array(z.string())
     .optional()
@@ -1389,11 +1610,8 @@ server.tool(
   ({ id, ...body }) => run(() => api.put(`/api/mcp/v1/content/${id}`, body))
 )
 
-server.tool(
-  'delete_content',
-  'Delete (trash) a content post.',
-  { id: z.string() },
-  ({ id }) => run(() => api.del(`/api/mcp/v1/content/${id}`))
+server.tool('delete_content', 'Delete (trash) a content post.', { id: z.string() }, ({ id }) =>
+  run(() => api.del(`/api/mcp/v1/content/${id}`))
 )
 
 const contentTaxonomyOptional = {
