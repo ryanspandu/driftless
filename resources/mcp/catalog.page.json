@@ -1,6 +1,6 @@
 {
   "target": "page",
-  "generatedAt": "2026-09-11T00:14:53.929Z",
+  "generatedAt": "2026-09-11T00:17:36.447Z",
   "contentShape": "A Puck document is { root: { props: {} }, content: [ Block ] } — only the ROOT uses a top-level \"content\" array. A Block is { type: \"<block type>\", props: { id: \"<unique>\", ...fields } }. Nest children INSIDE props, keyed by the slot name (see each block's \"slots\") — e.g. { type: \"Section\", props: { content: [ ...child Blocks ] } }. Do NOT put the children in a top-level \"content\" on the block (a sibling of props) — that renders EMPTY. Every block also accepts the shared \"styleProps\" (see the block's \"styleProps\" list and the catalog's \"styleSchemas\") — most are a plain CSS STRING value (e.g. padding:\"16px 24px\", display:\"flex\", gap:\"16px\", alignItems:\"center\", position:\"absolute\", top:\"0\", zIndex:\"2\", width:\"60%\", bg:\"#ffffff\", textColor:\"#111827\"). PREFER DESIGN TOKENS over raw px/hex for spacing, type, radius and shadow — write padding:\"var(--space-lg)\", gap:\"var(--space-md)\", textSize:\"var(--text-2xl)\", borderRadius:\"var(--radius-lg)\", boxShadow:\"var(--shadow-md)\", maxWidth:\"var(--container-xl)\" instead of hardcoded values, so the whole page shares ONE scale and re-themes from set_appearance (the token scales live on the theme; see set_appearance designTokens). A FEW are structured and documented under \"styleSchemas\": \"backgrounds\" (a layer stack), \"responsive\" ({ breakpointId: { …styleProps } }), and \"states\" ({ hover|focus|active: { …styleProps } }) — these ARE honoured, not dropped. A style value that is neither a string nor one of those structured shapes is dropped on render. BEYOND styling, every block also honours a few structured BEHAVIOUR props documented under \"behaviorSchemas\" — \"scrollAnimation\" (animate-on-scroll reveal, SSR-safe), \"bgLazy\" (lazy background), \"htmlId\" (anchor-target id), \"attributes\" (extra DOM attributes), and — inside a CollectionList custom template only — \"binding\" and \"conditions\" (per-record field binding + conditional visibility). A field with type \"object\" documents its shape under \"objectFields\"; a field with type \"array\" documents each item's shape under \"arrayFields\" (+ \"defaultItemProps\" as an example). Each block's \"defaultProps\" is a ready-to-use worked example of valid props. Leave \"id\" out and the API fills it in. A block's \"module\" names the module that provides it (null = core); a module block only renders while that module is enabled — see the catalog's \"enabledModules\" and prefer core blocks unless the site uses that module.",
   "guidance": {
     "rules": [
@@ -754,7 +754,7 @@
         "href": "#",
         "variant": "primary"
       },
-      "useFor": "A call-to-action link. variant:\"primary\"/\"secondary\" follow the SITE THEME colours (default purple until you set_appearance); \"outline\" is bordered; \"custom\" drops the theme colours so you set the exact design colour with the bg + textColor (+ borderRadius/padding) styleProps. Group a primary + secondary CTA inside an HFlex to place them side by side.",
+      "useFor": "A call-to-action link. variant:\"primary\"/\"secondary\" follow the SITE THEME colours (default purple until you set_appearance); \"outline\" is bordered; \"custom\" drops the theme colours so you set the exact design colour with the bg + textColor (+ borderRadius/padding) styleProps. Group a primary + secondary CTA inside an HFlex to place them side by side. DEFAULT CHROME is a medium rounded button with 8px/16px padding at 14px — to match a design set the styleProps explicitly: borderRadius (e.g. \"999px\" for a pill), padding (e.g. \"15px 28px\"), textSize and fontWeight. For an exact colour on a coloured band use variant:\"custom\" + bg + textColor (a primary button on a same-colour band is invisible).",
       "styleProps": [
         "padding",
         "margin",
@@ -3462,7 +3462,7 @@
         "size": "28px",
         "filled": "false"
       },
-      "useFor": "A single icon for trust-bar / feature glyphs. Match the design in FIDELITY ORDER: (1) if the design’s icons are visible in a reference image, crop_media them and set the Icon `src` to the crop url; (2) if you have the icon files, upload_media them and set `src`; (3) otherwise set \"name\" to the closest curated key (e.g. palette, truck, shield-check, leaf) and colour it with the `textColor` styleProp = the design’s icon/accent colour (for a tinted badge add bg + borderRadius:\"999px\" + padding). Use an EMOJI only when the design literally shows emoji, and report it as a substitution. `src` overrides `name`.",
+      "useFor": "A single icon for trust-bar / feature glyphs. Match the design in FIDELITY ORDER: (1) if the design’s icons are visible in a reference image, crop_media them and set the Icon `src` to the crop url; (2) if you have the icon files, upload_media them and set `src`; (3) otherwise set \"name\" to the closest curated key (e.g. palette, truck, shield-check, leaf) and colour it with the `textColor` styleProp = the design’s icon/accent colour (for a tinted badge add bg + borderRadius:\"999px\" + padding). Use an EMOJI only when the design literally shows emoji, and report it as a substitution. `src` overrides `name`. Curated glyphs are LINE-style; set filled:\"true\" for a SOLID glyph (e.g. a rating star or heart).",
       "styleProps": [
         "padding",
         "margin",
@@ -7318,7 +7318,7 @@
         "href": "#",
         "newTab": "false"
       },
-      "useFor": "A single inline text hyperlink — footer links, inline \"read more\", legal links. Set text + href; colour it with textColor. For a button-style CTA use Button instead.",
+      "useFor": "A single inline text hyperlink — footer links, inline \"read more\", legal links. Set text + href; colour it with textColor. It is UNDERLINED by default — set textDecoration:\"none\" for nav-menu / footer links that should not be underlined, and set textSize/fontWeight to match the design. For a button-style CTA use Button instead.",
       "styleProps": [
         "padding",
         "margin",
