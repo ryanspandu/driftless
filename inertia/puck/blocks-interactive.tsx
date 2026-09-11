@@ -45,7 +45,10 @@ import type { ResolvedMenuDto, ResolvedMenuItemDto } from '~/types/api'
  * row or a stat without shipping all of lucide. Keyed by a stable kebab name the
  * MCP catalog can enumerate; unknown names fall back to a star.
  */
-const ICONS: Record<string, ComponentType<{ size?: number | string; strokeWidth?: number }>> = {
+const ICONS: Record<
+  string,
+  ComponentType<{ size?: number | string; strokeWidth?: number; fill?: string }>
+> = {
   'palette': Palette,
   'blocks': Blocks,
   'layers': Layers,
@@ -95,8 +98,9 @@ export function IconView({
   name,
   size,
   src,
+  filled,
   ...s
-}: { name?: string; size?: string; src?: string } & StyleBag) {
+}: { name?: string; size?: string; src?: string; filled?: string } & StyleBag) {
   const key = (name || '').trim()
   const px = typeof size === 'string' && size.trim() ? Number.parseInt(size, 10) || 28 : 28
   const url = typeof src === 'string' ? src.trim() : ''
@@ -123,9 +127,16 @@ export function IconView({
     )
   }
   const Cmp = ICONS[key] ?? Star
+  // `filled` paints the glyph solid (fill:currentColor) instead of the default
+  // line style — a design's solid star / heart / badge reads wrong as an outline.
+  const isFilled = filled === 'true'
   return (
     <Box s={s}>
-      <Cmp size={px} strokeWidth={1.75} />
+      <Cmp
+        size={px}
+        strokeWidth={isFilled ? 0 : 1.75}
+        {...(isFilled ? { fill: 'currentColor' } : null)}
+      />
     </Box>
   )
 }

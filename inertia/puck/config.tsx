@@ -2166,11 +2166,20 @@ export const baseConfig: Config = {
           ),
         },
         size: { type: 'text', label: 'Size (px)' },
+        filled: {
+          type: 'radio',
+          label: 'Style',
+          options: [
+            { label: 'Line', value: 'false' },
+            { label: 'Filled', value: 'true' },
+          ],
+        },
         ...styleFields,
       },
-      // Colour comes from `textColor` (the icon strokes in currentColor); an
+      // Colour comes from `textColor` (the glyph uses currentColor); `filled:"true"`
+      // paints it solid (e.g. a rating star) instead of the default line style; an
       // uploaded `src` image overrides `name` for a design's own icon.
-      defaultProps: { name: 'star', size: '28px' },
+      defaultProps: { name: 'star', size: '28px', filled: 'false' },
       render: (props) => <IconView {...props} />,
     },
 
