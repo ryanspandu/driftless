@@ -211,6 +211,13 @@ function styleToCss(s: StyleBag): CSSProperties {
     textAlign: str(s, 'align') as CSSProperties['textAlign'],
     textDecoration: str(s, 'textDecoration'),
     borderRadius: str(s, 'borderRadius'),
+    // Per-corner radius — designs round corners asymmetrically (a card with a
+    // rounded TOP only, a joined bar). Listed after `borderRadius` so a corner
+    // refines the shorthand instead of being reset by it.
+    borderTopLeftRadius: str(s, 'borderTopLeftRadius'),
+    borderTopRightRadius: str(s, 'borderTopRightRadius'),
+    borderBottomRightRadius: str(s, 'borderBottomRightRadius'),
+    borderBottomLeftRadius: str(s, 'borderBottomLeftRadius'),
     width: str(s, 'width'),
     height: str(s, 'height'),
     minWidth: str(s, 'minWidth'),
@@ -312,6 +319,15 @@ function styleToCss(s: StyleBag): CSSProperties {
     css.boxShadow = boxShadowPresets[shadow] ?? shadow
   }
 
+  // Per-side border shorthands (e.g. borderBottom:"1px solid #e5e2da") — the
+  // common "hairline on one side" a design uses for a nav bar / divided row.
+  // Assigned AFTER the `border` shorthand above so the side longhand wins the
+  // cascade instead of being reset by it (key order = serialisation order).
+  for (const side of ['Top', 'Right', 'Bottom', 'Left'] as const) {
+    const v = str(s, `border${side}`)
+    if (v) (css as Record<string, unknown>)[`border${side}`] = v
+  }
+
   return css
 }
 
@@ -343,7 +359,11 @@ export const RENDERED_STYLE_PROP_NAMES: string[] = [
   'textSize', 'fontWeight', 'lineHeight', 'font', 'textColor', 'align', 'letterSpacing',
   'textIndent', 'textTransform', 'textDecoration', 'fontStyle', 'direction', 'whiteSpace',
   // Appearance
-  'bg', 'backgrounds', 'borderWidth', 'borderStyle', 'borderColor', 'borderRadius', 'boxShadow',
+  'bg', 'backgrounds', 'borderWidth', 'borderStyle', 'borderColor',
+  'borderTop', 'borderRight', 'borderBottom', 'borderLeft',
+  'borderRadius',
+  'borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius',
+  'boxShadow',
   'opacity', 'mixBlendMode', 'transform', 'transition', 'filter', 'cursor',
   // Advanced
   'className',

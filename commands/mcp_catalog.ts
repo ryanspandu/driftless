@@ -190,6 +190,23 @@ const GUIDANCE_RECIPES: Array<{ section: string; blocks: string[]; note: string 
     note: 'Before composing, map every image the design shows to a real asset. If you have the design as an image, upload_media(purpose:"reference") once, then crop_media each hero/thumbnail/product photo out of it (pixel coords in the reference). For assets the operator supplied, upload_media them. Any slot you cannot fill with a real asset must be reported — do NOT paper over it with a stock photo.',
   },
   {
+    section: 'Reproduce a design 1:1 (structure + precision checklist)',
+    blocks: [
+      'per section: Section(bg, padding) → Container(maxWidth, centered) → HFlex/VFlex/Grid',
+      'validate_page_content → screenshot_page → compare_to_reference → patch_page_content',
+    ],
+    note: 'BAKED STRUCTURE: every section is a full-width Section (carries the band bg + vertical padding) → a Container (maxWidth = the design’s content width, e.g. var(--container-xl) or the exact px like "1312px"; a maxWidth with no margin auto-centres) → an HFlex/VFlex/Grid for the layout. PRECISION CHECKLIST — the small misses that make a build read "off" even when the structure is right: (1) set an explicit `textSize` (and `fontWeight`) on EVERY Heading/Text — sizes are not inferred, an un-set Heading falls back to a generic scale; (2) every CTA Button = variant:"custom" + exact `bg`/`textColor` + `borderRadius` (e.g. "999px" pill) + `padding` + `textSize` (the default is a plain rounded button); (3) nav/footer TextLink → `textDecoration:"none"` (they underline by default); (4) rating stars → Icon `filled:"true"` (the curated glyphs are line-style); (5) asymmetric spacing/rounding → per-side `marginTop`/`paddingLeft`… and per-corner `borderTopLeftRadius`… (all honoured), and a one-sided rule via `borderBottom:"1px solid #.."`; (6) use the design’s EXACT hex on each block, or set_appearance so variant:"primary" already matches — never leave the theme default; (7) match the typeface with set_appearance `fontFamily` + `fontCssUrl` (headings are the same sans as the body unless the design clearly uses a serif). Intuitive CSS names are accepted and auto-mapped (textAlign→align, fontSize→textSize, fontFamily→font, color→textColor, backgroundColor→bg) — but a write response’s `droppedProps` lists anything that still did NOT apply, so read it and fix those. After building, screenshot_page per viewport and compare_to_reference, then patch the mismatches.',
+  },
+  {
+    section: 'Header / nav (site chrome)',
+    blocks: [
+      'create_template(type:"HEADER")',
+      'Section → Container → HFlex( Image(logo), HFlex(TextLink×N | MenuBar), Button )',
+      'point the page at it: headerTemplateId',
+    ],
+    note: 'Build the header as its own HEADER template (create_template type:"HEADER") and attach it with the page’s `headerTemplateId`; footer likewise (type:"FOOTER"). Structure: a Section (bg, a `borderBottom` hairline, padding) → Container → an HFlex(justifyContent:"space-between", alignItems:"center") holding the logo Image, a centred HFlex of nav TextLinks (textDecoration:"none"), and the CTA Button. For a real dropdown/mega menu use a MenuBar (needs a menu handle from create_menu/set_menu_items). OVERLAY / TRANSPARENT HEADER: for a bar that sits ON TOP of a full-bleed hero, set the header document’s `root.props.overlay: true` — the renderer paints the header over the first section without pushing it down, so the hero image shows behind the nav and you do NOT add a negative top margin to the hero. Give the hero enough top padding to clear the bar.',
+  },
+  {
     section: 'Hero',
     blocks: [
       'Section',

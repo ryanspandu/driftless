@@ -92,6 +92,14 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
 
   const pageContent = <Render config={puckConfig} data={data} />
 
+  // Opt-in transparent/overlay header: the header document declares it via
+  // `root.props.overlay: true`. Only for a builder header (a code header keeps the
+  // normal stacked flow); everything without the flag is byte-for-byte unchanged.
+  const overlayHeader =
+    !page.codeHeader &&
+    hasBlocks(page.header) &&
+    (page.header?.root as { props?: { overlay?: unknown } } | undefined)?.props?.overlay === true
+
   // A layout (code or builder) wraps the page and owns its own header/footer;
   // otherwise render header → content → footer, each a code component or a
   // builder document (ChromeSlot resolves which).
@@ -113,8 +121,24 @@ export function PublicPageView({ page }: { page: PublicPageData }) {
       >
         Skip to content
       </a>
-      <ChromeSlot code={page.codeHeader} doc={page.header} />
-      <main id="main-content">{pageContent}</main>
+      {/* Overlay header (opt-in via the header doc's `root.props.overlay`): paint a
+          transparent bar OVER the first section instead of stacking above it, so a
+          full-bleed hero shows behind the nav with no negative-margin hack. Additive
+          — only a builder header that sets the flag overlays; everything else stacks
+          exactly as before. Code headers keep the normal stacked flow. */}
+      {overlayHeader ? (
+        <div style={{ position: 'relative' }}>
+          <div style={{ position: 'absolute', insetInlineStart: 0, insetInlineEnd: 0, top: 0, zIndex: 50 }}>
+            <ChromeSlot code={page.codeHeader} doc={page.header} />
+          </div>
+          <main id="main-content">{pageContent}</main>
+        </div>
+      ) : (
+        <>
+          <ChromeSlot code={page.codeHeader} doc={page.header} />
+          <main id="main-content">{pageContent}</main>
+        </>
+      )}
       <ChromeSlot code={page.codeFooter} doc={page.footer} />
     </>
   )
