@@ -65,6 +65,13 @@ export function PublicPageFrame({
   const globalSnippets: CodeSnippet[] = Array.isArray(globalCode) ? globalCode : []
   const globalCss = cssFromSnippets(globalSnippets)
 
+  // Per-page web fonts declared on the Puck root (`root.props.webFonts`): a list
+  // of Google-Fonts stylesheet hrefs for the page's own typeface, so a block's
+  // `font` styleProp resolves without a CSS @import hack. Linked in <head> below.
+  const webFonts = Array.isArray(rootProps?.webFonts)
+    ? (rootProps!.webFonts as unknown[]).filter((h): h is string => typeof h === 'string')
+    : []
+
   /**
    * Custom JS runs only here on the public page — never in the editor. Each
    * snippet becomes a real `<script>` so it executes under SSR and CSR alike.
@@ -107,7 +114,13 @@ export function PublicPageFrame({
 
   return (
     <>
-      <PublicPageHead title={title} seo={seo} blockCss={blockCss} globalMeta={globalMeta} />
+      <PublicPageHead
+        title={title}
+        seo={seo}
+        blockCss={blockCss}
+        globalMeta={globalMeta}
+        webFonts={webFonts}
+      />
       {globalCss ? (
         <style
           nonce={cspNonce}

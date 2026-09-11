@@ -308,7 +308,11 @@ export function registerTools(
         '{ id, name, lang:"css"|"js", code, enabled } — CSS is concatenated into one <style>, each ' +
         'enabled JS snippet becomes its own <script>, and BOTH run only on THIS page (unlike ' +
         'set_global_code, which is site-wide). Keep any JS tiny for performance; a page carrying JS ' +
-        'needs the settings:manage ability to save.'
+        'needs the settings:manage ability to save. ' +
+        'PER-PAGE WEB FONTS: set root.props.webFonts to an array of Google-Fonts stylesheet hrefs ' +
+        '("https://fonts.googleapis.com/css2?family=…") to load the design\'s typeface for THIS page, ' +
+        'then reference it with the `font` styleProp on blocks (e.g. font:"Geist, sans-serif") — no ' +
+        'CSS @import needed. For a site-wide font use set_appearance instead.'
     )
 
   // The structured design brief (stored on the page, checked by coverage).

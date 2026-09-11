@@ -47,6 +47,7 @@ export function PublicPageHead({
   seo,
   blockCss,
   globalMeta,
+  webFonts,
 }: {
   /** Falls back to the page's own title when SEO has none. */
   title: string
@@ -59,6 +60,13 @@ export function PublicPageHead({
    */
   blockCss?: string[]
   globalMeta?: MetaTag[]
+  /**
+   * Per-page Google-Fonts stylesheet hrefs (the page's own typeface, distinct
+   * from the site theme font). Linked in the <head> so a block's `font` styleProp
+   * (e.g. font:"Geist, sans-serif") actually has the family loaded — no CSS
+   * `@import` hack. Guarded to fonts.googleapis.com to satisfy the strict CSP.
+   */
+  webFonts?: string[]
 }) {
   const bag = seo ?? {}
   const str = (key: string): string | undefined =>
@@ -75,6 +83,12 @@ export function PublicPageHead({
 
   const blockStyles = Array.isArray(blockCss) ? blockCss : []
 
+  // Per-page web fonts — Google Fonts stylesheet hrefs only (CSP), fixed slots
+  // (Inertia's <Head> drops a mapped array on SSR), realistically one or two.
+  const fonts = (Array.isArray(webFonts) ? webFonts : [])
+    .filter((h): h is string => typeof h === 'string' && /^https:\/\/fonts\.googleapis\.com\//.test(h))
+    .slice(0, 3)
+
   return (
     <Head title={seoTitle}>
       {/* Render-critical block CSS, up front so the server-rendered blocks paint
@@ -85,6 +99,11 @@ export function PublicPageHead({
       {blockStyles[0] ? <link rel="stylesheet" href={blockStyles[0]} /> : null}
       {blockStyles[1] ? <link rel="stylesheet" href={blockStyles[1]} /> : null}
       {blockStyles[2] ? <link rel="stylesheet" href={blockStyles[2]} /> : null}
+      {/* Per-page Google Fonts (same fixed-slot reason as blockCss). */}
+      {fonts.length ? <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" /> : null}
+      {fonts[0] ? <link rel="stylesheet" href={fonts[0]} /> : null}
+      {fonts[1] ? <link rel="stylesheet" href={fonts[1]} /> : null}
+      {fonts[2] ? <link rel="stylesheet" href={fonts[2]} /> : null}
       {description ? <meta name="description" content={description} /> : null}
       {canonical ? <link rel="canonical" href={canonical} /> : null}
       {/* Open Graph — a full card so a shared link previews correctly, not just
