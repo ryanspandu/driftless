@@ -77,7 +77,13 @@ export default function DataTransferPage() {
         headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': csrfToken() },
         body: JSON.stringify({ only: onlyList, mode }),
       })
-      if (!res.ok) throw new Error(`Export failed (${res.status})`)
+      if (!res.ok) {
+        // The server returns { message } on a handled failure — surface it.
+        const body = (await res.json().catch(() => null)) as { message?: string } | null
+        throw new Error(
+          body?.message ? `Export failed: ${body.message}` : `Export failed (${res.status})`
+        )
+      }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')

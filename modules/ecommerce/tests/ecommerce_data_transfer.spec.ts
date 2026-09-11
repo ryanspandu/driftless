@@ -56,6 +56,25 @@ test.group('Ecommerce | data transfer', (group) => {
     assert.isNotNull(pivot)
   })
 
+  test('product custom fields (data) survive a round-trip', async ({ assert }) => {
+    const catalog = new CatalogService()
+    const prod = await catalog.create({ title: 'Sofa', slug: 'sofa', status: 'active' }, null)
+    // Custom-field values from a PRODUCT-type collection live in `data`; set them
+    // directly to isolate the transfer layer (coercion is tested elsewhere).
+    const row = await Product.findOrFail(prod.id)
+    row.data = { warranty_months: 24, care: 'Wipe clean' }
+    await row.save()
+
+    const archive = await new SiteExportService().export({ only: ['ecommerce'] })
+
+    await db.from('ecommerce_products').delete()
+
+    await new SiteImportService().import(archive)
+    const restored = await Product.query().where('id', prod.id).first()
+    assert.isNotNull(restored)
+    assert.deepEqual(restored!.data, { warranty_months: 24, care: 'Wipe clean' })
+  })
+
   test('orders & customers round-trip and strip secrets', async ({ assert }) => {
     const account = await Account.create({
       id: newUlid(),

@@ -1081,9 +1081,18 @@ router
           () => import('#controllers/admin/media_controller'),
           'trash',
         ])
+        // Import BEFORE the `:id` routes so "import" is never read as an id.
+        router.post('/api/admin/media/import', [
+          () => import('#controllers/admin/media_controller'),
+          'importOne',
+        ])
         router.post('/api/admin/media', [
           () => import('#controllers/admin/media_controller'),
           'store',
+        ])
+        router.get('/api/admin/media/:id/export', [
+          () => import('#controllers/admin/media_controller'),
+          'exportOne',
         ])
         router.post('/api/admin/media/:id/file', [
           () => import('#controllers/admin/media_controller'),

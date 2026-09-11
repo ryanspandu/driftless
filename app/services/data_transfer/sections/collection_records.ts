@@ -1,9 +1,15 @@
-import CmsService from '#services/cms_service'
+import CmsService, { isMetadataOnly } from '#services/cms_service'
 import { emptyReport, type DataSection } from '../registry.js'
 import { rewriteRefs } from '../rewrite_refs.js'
 
 /**
  * The content rows inside each DYNAMIC collection's `cms_<key>` table.
+ *
+ * Only record-bearing collections (`type === 'COLLECTION'`) are handled here.
+ * Metadata-only types (Content / Product) own no records table — their field
+ * values live in the host editor's `data` (`contents.data` / `ecommerce_products.data`)
+ * and travel in the `content` / `ecommerce` sections — so they are skipped, and
+ * calling `listRecords` on them would throw.
  *
  * `createRecord` mints a fresh ULID and ignores any incoming id, so record ids
  * are always regenerated — fine because records are only ever referenced
@@ -33,7 +39,7 @@ export const collectionRecordsSection: DataSection = {
   async export() {
     const cms = new CmsService()
     const allCollections = await cms.listCollections()
-    const dynamic = allCollections.filter((c) => c.source === 'DYNAMIC')
+    const dynamic = allCollections.filter((c) => c.source === 'DYNAMIC' && !isMetadataOnly(c.type))
     const records: Record<string, RecordPayload[]> = {}
     for (const collection of dynamic) {
       const rows: RecordPayload[] = []
@@ -62,6 +68,12 @@ export const collectionRecordsSection: DataSection = {
     for (const key of Object.keys(byCollection)) {
       try {
         const c = await cms.findCollection(key)
+        // Metadata-only collections own no records table — never create records
+        // into them (a well-formed export won't include these, but be defensive).
+        if (isMetadataOnly(c.type)) {
+          report.warnings.push(`collection "${key}" is metadata-only — skipping its records`)
+          continue
+        }
         relationKeys.set(
           key,
           new Set(c.fields.filter((f) => f.type === 'RELATION').map((f) => f.key))

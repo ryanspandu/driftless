@@ -38,7 +38,14 @@ export default class DataTransferController {
         : undefined
     const mode: IdMode = request.input('mode') === 'regenerate' ? 'regenerate' : 'preserve'
 
-    const buffer = await new SiteExportService().export({ only, mode })
+    let buffer: Buffer
+    try {
+      buffer = await new SiteExportService().export({ only, mode })
+    } catch (e) {
+      // Surface a clean 422 with the reason instead of an unhandled 500 (mirrors
+      // importArchive), so the UI shows why the export failed.
+      return response.status(422).json({ message: (e as Error).message })
+    }
     const stamp = new Date().toISOString().slice(0, 10)
     return response
       .header('Content-Type', 'application/octet-stream')

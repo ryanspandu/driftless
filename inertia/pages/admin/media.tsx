@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
-import { FileText, ImageOff, Loader2, Search, Trash2, X } from 'lucide-react'
+import { Download, FileText, ImageOff, Loader2, Search, Trash2, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { MediaDto } from '~/types/api'
@@ -14,11 +14,14 @@ import { TrashModal } from '~/components/trash-modal'
 import { DragDropImageUpload } from '~/components/drag-drop-image-upload'
 import { MediaDetailDialog } from '~/components/admin/media-detail-dialog'
 import { DateRangePicker } from '~/components/admin/date-range-picker'
+import { ImportJsonDialog } from '~/components/admin/import-json-dialog'
 import {
+  exportMediaItem,
   formatBytes,
   mediaSrc,
   useDeleteMedia,
   useForceDeleteMedia,
+  useImportMedia,
   useMediaList,
   useRestoreMedia,
   useTrashedMedia,
@@ -95,6 +98,8 @@ export default function MediaPage() {
   })
   const uploadMut = useUploadMedia()
   const deleteMut = useDeleteMedia()
+  const importMut = useImportMedia()
+  const [importOpen, setImportOpen] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
   const trashedQuery = useTrashedMedia()
@@ -199,7 +204,17 @@ export default function MediaPage() {
         title="Media"
         subtitle="Manage images, documents, and other assets"
         count={listQuery.isLoading ? undefined : total}
-        actions={trashButton}
+        actions={
+          <div className="flex items-center gap-2">
+            {trashButton}
+            {canWrite ? (
+              <Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+                <Upload className="size-4" />
+                Import
+              </Button>
+            ) : null}
+          </div>
+        }
       />
 
       {canWrite ? (
@@ -318,6 +333,21 @@ export default function MediaPage() {
                     </p>
                   </div>
                 </button>
+                {canWrite ? (
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute right-11 top-2 z-10 size-8 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                    aria-label={`Export ${item.filename}`}
+                    onClick={() => {
+                      void exportMediaItem(item.id, item.filename)
+                        .then(() => toast.success('Media exported'))
+                        .catch((e) => toast.error((e as Error).message))
+                    }}
+                  >
+                    <Download className="size-4" />
+                  </Button>
+                ) : null}
                 {canDelete ? (
                   <Button
                     variant="destructive"
@@ -383,6 +413,19 @@ export default function MediaPage() {
         }}
         onForceDelete={(id) => forceMut.mutateAsync(id)}
         emptyMessage="No deleted files."
+      />
+
+      <ImportJsonDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="Import media"
+        description="Recreates a media item from a .json export (metadata + file)."
+        expectedType="driftless.media"
+        expectedLabel="media"
+        successMessage="Media imported"
+        onImport={async (payload) => {
+          await importMut.mutateAsync(payload)
+        }}
       />
     </div>
   )

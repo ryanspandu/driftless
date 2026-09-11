@@ -6,7 +6,7 @@ import { DateTime } from 'luxon'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import { extname, isAbsolute, join, relative } from 'node:path'
-import { fileTypeFromFile } from 'file-type'
+import { fileTypeFromBuffer } from 'file-type'
 import sharp from 'sharp'
 import Media from '#models/media'
 import MediaVariant from '#models/media_variant'
@@ -18,6 +18,25 @@ import { sanitizeSvg } from '#services/html_sanitizer_service'
 const VARIANT_WIDTHS = [480, 960, 1440]
 /** Mime types we run through sharp (animated GIF + SVG are left as-is). */
 const RASTER_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+/** File types accepted by upload + per-item import (one source of truth). */
+const UPLOAD_ALLOWED_MIMES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'font/woff',
+  'font/woff2',
+  'font/ttf',
+  'font/otf',
+])
+
+/** The JSON discriminator for a single-media export bundle. */
+const MEDIA_EXPORT_TYPE = 'driftless.media'
 
 export interface MediaVariantDto {
   width: number
@@ -234,16 +253,28 @@ export default class MediaService {
     allowed: Set<string>
   ): Promise<{ mimeType: string; ext: string; svg?: string }> {
     if (!file.isValid || !file.tmpPath) throw new Error('Invalid upload')
-    const bytes = await readFile(file.tmpPath)
+    return this.inspectBytes(await readFile(file.tmpPath), allowed)
+  }
+
+  /**
+   * Validate raw bytes against an allowed set — the buffer twin of
+   * {@link inspectUpload}, so an upload and a per-item import share one gate:
+   * an SVG is sanitized (or rejected), everything else is sniffed by real magic
+   * bytes (never a client-declared mime). Returns the canonical mime + extension.
+   */
+  private async inspectBytes(
+    bytes: Buffer,
+    allowed: Set<string>
+  ): Promise<{ mimeType: string; ext: string; svg?: string }> {
     const text = bytes.subarray(0, 1024).toString('utf8')
     if (/^\s*<svg(?:\s|>)/i.test(text)) {
       const svg = sanitizeSvg(bytes.toString('utf8'))
-      if (!svg || !allowed.has('image/svg+xml')) throw new Error('Unsafe SVG upload rejected')
+      if (!svg || !allowed.has('image/svg+xml')) throw new Error('Unsafe SVG rejected')
       return { mimeType: 'image/svg+xml', ext: 'svg', svg }
     }
-    const detected = await fileTypeFromFile(file.tmpPath)
+    const detected = await fileTypeFromBuffer(bytes)
     if (!detected || !allowed.has(detected.mime)) {
-      throw new Error('Uploaded bytes do not match an allowed file type')
+      throw new Error('File bytes do not match an allowed file type')
     }
     return { mimeType: detected.mime, ext: detected.ext }
   }
@@ -348,23 +379,7 @@ export default class MediaService {
       mkdirSync(this.uploadDir, { recursive: true })
     }
 
-    const inspected = await this.inspectUpload(
-      file,
-      new Set([
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-        'image/svg+xml',
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'font/woff',
-        'font/woff2',
-        'font/ttf',
-        'font/otf',
-      ])
-    )
+    const inspected = await this.inspectUpload(file, UPLOAD_ALLOWED_MIMES)
     const id = newUlid()
     const filename = `${id}.${inspected.ext}`
     const size = await this.persistUpload(file, join(this.uploadDir, filename), inspected.svg)
@@ -390,6 +405,99 @@ export default class MediaService {
     }
     await media.load('variants')
 
+    return this.toDto(media)
+  }
+
+  /**
+   * Serialize one media item as a portable, self-contained JSON bundle: its
+   * metadata plus the original file bytes (base64). No id / url / authorId /
+   * timestamps — import mints fresh ones. Variants are omitted (regenerated on
+   * import). The per-item counterpart to the site-wide `media` section, which
+   * bundles bytes into the `.driftless` archive instead.
+   */
+  async exportOne(id: string): Promise<{
+    _type: string
+    version: number
+    media: Record<string, unknown>
+    file: { base64: string; encoding: 'base64' }
+  }> {
+    const media = await Media.query().where('id', id).whereNull('deleted_at').firstOrFail()
+    const path = this.resolveFilePath(media.filename)
+    if (!path) throw new Error('The media file is missing on disk and cannot be exported.')
+    const bytes = await readFile(path)
+    return {
+      _type: MEDIA_EXPORT_TYPE,
+      version: 1,
+      media: {
+        filename: media.filename,
+        mimeType: media.mimeType,
+        size: media.size,
+        title: media.title,
+        description: media.description,
+        alt: media.alt,
+        width: media.width,
+        height: media.height,
+        origin: media.origin,
+        sourceUrl: media.sourceUrl,
+      },
+      file: { base64: bytes.toString('base64'), encoding: 'base64' },
+    }
+  }
+
+  /**
+   * Recreate a media item from an {@link exportOne} bundle: validates the
+   * discriminator, decodes + RE-VALIDATES the bytes through the same gate as an
+   * upload (SVG sanitized, everything else sniffed by magic bytes — never a
+   * declared mime), writes a fresh ULID-named file, creates the row, and
+   * regenerates raster variants. Always mints a NEW id/filename — a per-item
+   * import is a create (like `importPage`'s draft), so it never collides with or
+   * overwrites an existing item.
+   */
+  async importOne(authorId: number | null, payload: unknown): Promise<MediaDto> {
+    const p = (payload ?? {}) as {
+      _type?: string
+      media?: Record<string, unknown>
+      file?: { base64?: string }
+    }
+    if (p._type !== MEDIA_EXPORT_TYPE) throw new Error('Not a Driftless media export.')
+    const meta = p.media ?? {}
+    const base64 = typeof p.file?.base64 === 'string' ? p.file.base64 : ''
+    if (!base64) throw new Error('The media export has no file bytes.')
+    const bytes = Buffer.from(base64, 'base64')
+    if (bytes.length === 0) throw new Error('The media export file is empty or corrupt.')
+
+    const inspected = await this.inspectBytes(bytes, UPLOAD_ALLOWED_MIMES)
+
+    if (!existsSync(this.uploadDir)) mkdirSync(this.uploadDir, { recursive: true })
+    const id = newUlid()
+    const filename = `${id}.${inspected.ext}`
+    const abs = join(this.uploadDir, filename)
+    // For an SVG, write the sanitized markup (not the raw bytes).
+    await writeFile(abs, inspected.svg !== undefined ? inspected.svg : bytes, { flag: 'wx' })
+
+    const validOrigins = new Set(['upload', 'url', 'crop', 'reference', 'placeholder'])
+    const origin = validOrigins.has(String(meta.origin)) ? String(meta.origin) : 'upload'
+
+    const media = await Media.create({
+      id,
+      filename,
+      mimeType: inspected.mimeType,
+      size: inspected.svg !== undefined ? Buffer.byteLength(inspected.svg) : bytes.length,
+      url: `${this.urlPrefix}/${filename}`,
+      width: typeof meta.width === 'number' ? meta.width : null,
+      height: typeof meta.height === 'number' ? meta.height : null,
+      authorId,
+      origin,
+      sourceUrl: normalizeText(typeof meta.sourceUrl === 'string' ? meta.sourceUrl : null),
+      title: normalizeText(typeof meta.title === 'string' ? meta.title : null),
+      description: normalizeText(typeof meta.description === 'string' ? meta.description : null),
+      alt: normalizeText(typeof meta.alt === 'string' ? meta.alt : null),
+    })
+
+    if (RASTER_MIMES.has(inspected.mimeType)) {
+      await this.generateVariants(media, abs)
+    }
+    await media.load('variants')
     return this.toDto(media)
   }
 
