@@ -6,6 +6,10 @@ build
 # Churns on every run, so it is not committed.
 .adonisjs
 
+# Vite dependency pre-bundle cache — regenerated on any Vite run
+# (dev/build/test/typecheck). Local-only, never committed.
+.vite
+
 # Release layout — see scripts/build-release.mjs
 releases/
 shared/
