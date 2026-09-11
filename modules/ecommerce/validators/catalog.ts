@@ -54,6 +54,12 @@ export const createProductValidator = vine.compile(
     categoryIds: vine.array(vine.string().trim()).maxLength(20).optional(),
     tagIds: vine.array(vine.string().trim()).maxLength(50).optional(),
     images: vine.array(imageSchema).maxLength(20).optional(),
+    /**
+     * Custom-field values for the singleton PRODUCT-type CMS collection. Kept
+     * loose here (arbitrary keys) because the schema is defined at runtime by the
+     * operator; `CatalogService` coerces + drops unknown keys against it on save.
+     */
+    data: vine.object({}).allowUnknownProperties().nullable().optional(),
   })
 )
 
@@ -75,6 +81,7 @@ export const updateProductValidator = vine.compile(
     categoryIds: vine.array(vine.string().trim()).maxLength(20).optional(),
     tagIds: vine.array(vine.string().trim()).maxLength(50).optional(),
     images: vine.array(imageSchema).maxLength(20).optional(),
+    data: vine.object({}).allowUnknownProperties().nullable().optional(),
   })
 )
 

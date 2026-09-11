@@ -268,10 +268,13 @@ export default class CmsController {
 
   async recordsPage({ params, inertia, response }: HttpContext) {
     const collection = await cmsService.findCollection(params.key)
-    // Content-type collections own no records — their entries are the built-in
-    // Content posts. Send anyone landing here to the Content admin instead.
+    // Metadata-only collections own no records — their entries are the built-in
+    // editor's rows. Send anyone landing here to that editor instead.
     if (collection.type === 'CONTENT') {
       return response.redirect('/admin/content')
+    }
+    if (collection.type === 'PRODUCT') {
+      return response.redirect('/admin/ecommerce/products')
     }
     // Single types have no list view: jump straight to their sole entry,
     // or to the new-entry form if none exists yet.

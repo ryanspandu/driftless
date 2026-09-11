@@ -26,6 +26,8 @@ import { BackButton } from '~/components/admin/back-button'
 import { PageHeader } from '~/components/admin/page-header'
 import { MediaImagePicker } from '~/components/admin/media-image-picker'
 import { RichTextEditor } from '~/components/cms/rich-text-editor'
+import { FieldRenderer } from '~/components/cms/field-renderer'
+import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { apiErrorMessage } from '~/lib/api-client'
 import { cn } from '~/lib/utils'
@@ -211,6 +213,14 @@ export default function ProductEditPage() {
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
+  // Custom fields defined by the singleton PRODUCT-type CMS collection — the
+  // ecommerce analogue of the Content editor's custom fields. Their values live
+  // in the product's `data` and render with the same shared FieldRenderer.
+  const cmsCollections = useCmsCollectionsList()
+  const productType = (cmsCollections.data ?? []).find((c) => c.type === 'PRODUCT')
+  const customFields = productType?.fields ?? []
+  const [customData, setCustomData] = useState<Record<string, unknown>>({})
+
   const data = product.data
 
   useEffect(() => {
@@ -229,6 +239,7 @@ export default function ProductEditPage() {
     setTagIds(data.tagIds)
     setImages(data.images.map((img) => ({ mediaUrl: img.mediaUrl, alt: img.alt })))
     setDrafts(Object.fromEntries(data.variants.map((v) => [v.id, variantToDraft(v)])))
+    setCustomData((data.data as Record<string, unknown> | null) ?? {})
   }, [data])
 
   const categoryOptions = useMemo(
@@ -271,6 +282,9 @@ export default function ProductEditPage() {
           categoryIds,
           tagIds,
           images,
+          // Only send custom data when a PRODUCT-type collection defines fields;
+          // otherwise leave it null so the column stays empty.
+          data: customFields.length ? customData : null,
         },
       })
 
@@ -386,6 +400,26 @@ export default function ProductEditPage() {
               </div>
             </CardContent>
           </Card>
+
+          {customFields.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>{productType?.label ?? 'Details'}</CardTitle>
+                <CardDescription>Custom fields for this product.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {customFields.map((field) => (
+                  <FieldRenderer
+                    key={field.id}
+                    field={field}
+                    value={customData[field.key]}
+                    onChange={(v) => setCustomData((prev) => ({ ...prev, [field.key]: v }))}
+                    disabled={saveProduct.isPending}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>

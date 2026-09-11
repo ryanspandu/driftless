@@ -26,6 +26,7 @@ import {
 } from '~/components/cms/collection-schema-fields'
 import { ApiError } from '~/lib/api'
 import { useCmsCollectionsList, useCreateCmsCollection } from '~/hooks/api/use-cms-collections'
+import { useModulesList } from '~/hooks/api/use-modules'
 import { ComboboxInput } from '~/components/ui/combobox-input'
 import { CollectionIconPicker } from '~/components/cms/collection-icon-popover'
 import { BackButton } from '~/components/admin/back-button'
@@ -129,15 +130,24 @@ export default function NewCmsCollectionPage() {
   const [kind, setKind] = useState<'collection' | 'single'>('collection')
   const [type, setType] = useState<CmsCollectionType>('COLLECTION')
   const isContent = type === 'CONTENT'
+  const isProduct = type === 'PRODUCT'
+  // Content and Product are both metadata-only: no table, no default fields, no
+  // single-type toggle — their fields extend a built-in editor.
+  const isMetadata = isContent || isProduct
+  // The "Product (ecommerce)" type is only offered while the ecommerce module is
+  // enabled — its custom fields have nowhere to render otherwise.
+  const ecommerceEnabled = (useModulesList().data ?? []).some(
+    (m) => m.name === 'ecommerce' && m.enabled
+  )
   const [fields, setFields] = useState<SchemaFieldDraft[]>(defaultCollectionFields)
   const [error, setError] = useState<string | null>(null)
 
-  // Content-type collections extend the built-in Content, which already owns
-  // title/slug/body/status — so they seed no default fields (custom ones only).
+  // Metadata-only collections extend a built-in editor that already owns its core
+  // columns — so they seed no default fields (custom ones only).
   function onChangeType(next: CmsCollectionType) {
     setType(next)
     setFields((prev) => {
-      if (next === 'CONTENT') {
+      if (next === 'CONTENT' || next === 'PRODUCT') {
         return isDefaultCollectionFields(prev) ? [] : prev
       }
       return prev.length === 0 ? defaultCollectionFields() : prev
@@ -164,8 +174,8 @@ export default function NewCmsCollectionPage() {
     !collectionKeyError &&
     !collectionKeyDuplicateError &&
     !labelError &&
-    // A Content-type collection may start with no custom fields (add them later).
-    (isContent || fields.length > 0) &&
+    // A metadata-only collection may start with no custom fields (add them later).
+    (isMetadata || fields.length > 0) &&
     !hasFieldErrors &&
     !duplicateKey &&
     !createMut.isPending
@@ -220,7 +230,7 @@ export default function NewCmsCollectionPage() {
         type,
         revisionsOn,
         draftsOn,
-        kind: isContent ? 'collection' : kind,
+        kind: isMetadata ? 'collection' : kind,
         fields: fields.map<CreateCmsCollectionFieldRequest>((f) => ({
           key: f.key,
           label: f.label,
@@ -270,13 +280,23 @@ export default function NewCmsCollectionPage() {
               options={[
                 { value: 'COLLECTION', label: 'Collection — its own records + table' },
                 { value: 'CONTENT', label: 'Content — custom fields for the built-in Content' },
+                ...(ecommerceEnabled
+                  ? [
+                      {
+                        value: 'PRODUCT',
+                        label: 'Product (ecommerce) — custom fields for the built-in Product',
+                      },
+                    ]
+                  : []),
               ]}
               isSearchable={false}
             />
             <p className="text-xs text-muted-foreground">
-              {isContent
-                ? 'Fields here appear on the Content editor (Admin → Content) and store on each post. Only one Content type may exist.'
-                : 'A standalone content type with its own records list and database table.'}
+              {isProduct
+                ? 'Fields here appear on the Product editor (Admin → E-commerce → Products) and store on each product. Only one Product type may exist.'
+                : isContent
+                  ? 'Fields here appear on the Content editor (Admin → Content) and store on each post. Only one Content type may exist.'
+                  : 'A standalone content type with its own records list and database table.'}
             </p>
           </div>
           <div className="space-y-1">
@@ -314,8 +334,8 @@ export default function NewCmsCollectionPage() {
             >
               {collectionKeyError ??
                 collectionKeyDuplicateError ??
-                (isContent
-                  ? `Auto-filled from the label — editable. Identifier for this Content type (no separate table).`
+                (isMetadata
+                  ? `Auto-filled from the label — editable. Identifier for this ${isProduct ? 'Product' : 'Content'} type (no separate table).`
                   : `Auto-filled from the label — editable. Becomes table cms_${key || '…'}.`)}
             </p>
           </div>
@@ -345,7 +365,7 @@ export default function NewCmsCollectionPage() {
               <Checkbox checked={draftsOn} onCheckedChange={(v) => setDraftsOn(v === true)} />
               Enable draft / publish workflow
             </label>
-            {!isContent ? (
+            {!isMetadata ? (
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox
                   checked={kind === 'single'}

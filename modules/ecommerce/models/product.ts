@@ -65,6 +65,14 @@ export default class Product extends BaseModel {
   @column(jsonColumn)
   declare options: ProductOption[]
 
+  /**
+   * Custom-field values from the singleton PRODUCT-type CMS collection, coerced
+   * against its schema on save. Null when no custom fields are set. Mirrors
+   * `contents.data` for the built-in Content editor.
+   */
+  @column(jsonColumn)
+  declare data: Record<string, unknown> | null
+
   @column(booleanColumn)
   declare featured: boolean
 

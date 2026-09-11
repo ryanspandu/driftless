@@ -24,10 +24,10 @@ export function buildCollectionSections(collections: CmsCollectionDto[]): Collec
   const ungrouped: CmsCollectionDto[] = []
   const grouped = new Map<string, CmsCollectionDto[]>()
 
-  // Content-type collections define fields for the built-in Content editor and
-  // own no records of their own — they never appear as a records link.
+  // Metadata-only collections (Content / Product) define fields for a built-in
+  // editor and own no records of their own — they never appear as a records link.
   const dynamicCollections = collections.filter(
-    (c) => c.source === 'DYNAMIC' && c.type !== 'CONTENT'
+    (c) => c.source === 'DYNAMIC' && c.type !== 'CONTENT' && c.type !== 'PRODUCT'
   )
 
   for (const col of dynamicCollections) {

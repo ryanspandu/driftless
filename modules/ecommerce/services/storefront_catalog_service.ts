@@ -5,6 +5,8 @@ import Tag from '#modules/ecommerce/models/tag'
 import { Money, type MoneyDto } from '#modules/ecommerce/services/money'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 import { publicError } from '#exceptions/public_error'
+import CmsService from '#services/cms_service'
+import { resolvePublicCustomData } from '#cms/custom_field_resolver'
 
 /**
  * The catalogue as a shopper sees it.
@@ -61,6 +63,13 @@ export interface PublicProductDto {
     label: string | null
   }
   seo: Record<string, unknown>
+  /**
+   * Custom-field values from the singleton PRODUCT-type CMS collection, with
+   * RELATION ids resolved to labels and MEDIA ids to URLs. Null when none. Only
+   * resolved on the single-product path (`findBySlug`); list DTOs carry the raw
+   * stored values to avoid an N+1.
+   */
+  data: Record<string, unknown> | null
 }
 
 export interface PublicCategoryDto {
@@ -192,7 +201,15 @@ export default class StorefrontCatalogService {
 
     if (!product) throw publicError.notFound('Product not found.', 'product_not_found')
 
-    return (await this.toDtos([product], store.locale, currency))[0]
+    const dto = (await this.toDtos([product], store.locale, currency))[0]
+    // Resolve the single product's custom fields (RELATION ids → labels, MEDIA
+    // ids → URLs) — single-product only, so the list path stays free of N+1s.
+    // `toDtos` can drop a product with nothing sellable in this currency; guard.
+    if (dto) {
+      const cms = new CmsService()
+      dto.data = await resolvePublicCustomData(cms, await cms.productTypeCollection(), product.data)
+    }
+    return dto
   }
 
   /**
@@ -338,6 +355,8 @@ export default class StorefrontCatalogService {
         label: product.ctaMode === 'external' ? product.externalLabel : null,
       },
       seo: product.seo,
+      // Raw here; `findBySlug` resolves the single product's custom data.
+      data: product.data ?? null,
     }
   }
 

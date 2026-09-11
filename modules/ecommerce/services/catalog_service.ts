@@ -12,6 +12,8 @@ import Category from '#modules/ecommerce/models/category'
 import Tag from '#modules/ecommerce/models/tag'
 import { Money, type MoneyDto } from '#modules/ecommerce/services/money'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
+import CmsService from '#services/cms_service'
+import { coerceCustomData } from '#cms/custom_field_resolver'
 
 /**
  * Catalogue reads and writes for the admin.
@@ -71,6 +73,8 @@ export interface ProductDto {
   externalUrl: string | null
   externalLabel: string | null
   position: number
+  /** Custom-field values from the singleton PRODUCT-type CMS collection. */
+  data: Record<string, unknown> | null
   variants: VariantDto[]
   images: ProductImageDto[]
   categoryIds: string[]
@@ -142,6 +146,8 @@ export interface ProductInput {
   categoryIds?: string[]
   tagIds?: string[]
   images?: { mediaUrl: string; alt?: string | null }[]
+  /** Custom-field values for the singleton PRODUCT-type CMS collection. */
+  data?: Record<string, unknown> | null
 }
 
 /** URL-safe slug. Falls back to a ULID fragment so a title of only symbols still works. */
@@ -155,7 +161,6 @@ export function slugify(input: string): string {
     .slice(0, 180)
   return base || newUlid().toLowerCase().slice(0, 12)
 }
-
 
 /**
  * The buy-button settings, made consistent before they are stored.
@@ -268,6 +273,9 @@ export default class CatalogService {
   async create(input: ProductInput, authorId: number | null): Promise<ProductDto> {
     const settings = await this.settings.getOrCreate()
     const slug = await this.uniqueSlug(input.slug?.trim() || slugify(input.title))
+    // Coerced BEFORE the transaction: it queries the CMS on the default
+    // connection, and doing that inside an open write trx deadlocks SQLite.
+    const data = await this.prepareProductData(input.data)
 
     const product = await db.transaction(async (trx) => {
       const row = await Product.create(
@@ -282,6 +290,7 @@ export default class CatalogService {
           currency: settings.currency,
           seo: input.seo ?? {},
           options: input.options ?? [],
+          data,
           featured: input.featured ?? false,
           ...normaliseCta(input),
           position: input.position ?? 0,
@@ -305,8 +314,13 @@ export default class CatalogService {
     const row = await Product.query().where('id', id).whereNull('deleted_at').first()
     if (!row) throw publicError.notFound('Product not found.', 'product_not_found')
 
+    // Coerced BEFORE the transaction (SQLite lock safety — see `create`).
+    const nextData =
+      input.data !== undefined ? await this.prepareProductData(input.data) : undefined
+
     await db.transaction(async (trx) => {
       row.useTransaction(trx)
+      if (nextData !== undefined) row.data = nextData
 
       if (input.title !== undefined) row.title = input.title.trim()
       if (input.slug !== undefined && input.slug.trim() && input.slug.trim() !== row.slug) {
@@ -836,6 +850,19 @@ export default class CatalogService {
     }
   }
 
+  /**
+   * Coerce an incoming custom-field payload against the singleton PRODUCT-type
+   * CMS collection's schema — unknown keys dropped, each value coerced by its
+   * field type. Null when no PRODUCT collection exists or nothing survives.
+   * Mirrors how `ContentService` coerces a post's custom `data`.
+   */
+  private async prepareProductData(
+    data: Record<string, unknown> | null | undefined
+  ): Promise<Record<string, unknown> | null> {
+    const collection = await new CmsService().productTypeCollection()
+    return coerceCustomData(collection, data)
+  }
+
   private toDto(row: Product, currency: string): ProductDto {
     const variants = (row.variants ?? []).map((v) => this.variantToDto(v, row.currency || currency))
     const tracked = (row.variants ?? []).filter((v) => v.trackInventory && !v.allowBackorder)
@@ -864,6 +891,7 @@ export default class CatalogService {
       externalUrl: row.externalUrl,
       externalLabel: row.externalLabel,
       position: row.position,
+      data: row.data ?? null,
       variants,
       images: (row.images ?? []).map((img) => ({
         id: img.id,

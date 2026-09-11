@@ -677,8 +677,12 @@ export interface ModuleDto {
 }
 
 export type CmsCollectionSource = 'PRISMA' | 'DYNAMIC'
-/** COLLECTION = a stand-alone dynamic table; CONTENT = fields for the built-in Content. */
-export type CmsCollectionType = 'COLLECTION' | 'CONTENT'
+/**
+ * COLLECTION = a stand-alone dynamic table; CONTENT / PRODUCT = metadata-only,
+ * their fields extend a built-in editor (Content / ecommerce Product). PRODUCT is
+ * only offered while the ecommerce module is enabled.
+ */
+export type CmsCollectionType = 'COLLECTION' | 'CONTENT' | 'PRODUCT'
 export type CmsFieldType =
   | 'TEXT'
   | 'TEXTAREA'

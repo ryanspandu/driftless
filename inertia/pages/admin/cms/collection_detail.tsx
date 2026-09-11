@@ -22,6 +22,7 @@ import {
   useUpdateCmsCollection,
   useUpdateCmsField,
 } from '~/hooks/api/use-cms-collections'
+import { useModulesList } from '~/hooks/api/use-modules'
 import { ComboboxInput } from '~/components/ui/combobox-input'
 import { CollectionIconPicker } from '~/components/cms/collection-icon-popover'
 import {
@@ -94,6 +95,11 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
   const collection = query.data
   const isNative = collection?.source === 'PRISMA'
   const listQuery = useCmsCollectionsList()
+  // The "Product (ecommerce)" type is only offered while the ecommerce module is
+  // enabled; an existing PRODUCT collection still shows its label regardless.
+  const ecommerceEnabled = (useModulesList().data ?? []).some(
+    (m) => m.name === 'ecommerce' && m.enabled
+  )
   const groupOptions = useMemo(
     () =>
       Array.from(
@@ -165,7 +171,13 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
             </h1>
             {collection ? (
               <Badge variant="secondary">
-                {isNative ? 'Native' : collection.type === 'CONTENT' ? 'Content' : 'Dynamic'}
+                {isNative
+                  ? 'Native'
+                  : collection.type === 'CONTENT'
+                    ? 'Content'
+                    : collection.type === 'PRODUCT'
+                      ? 'Product'
+                      : 'Dynamic'}
               </Badge>
             ) : null}
           </div>
@@ -189,12 +201,18 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
                 href={
                   collection.type === 'CONTENT'
                     ? '/admin/content'
-                    : `/admin/cms/${encodeURIComponent(collection.key)}`
+                    : collection.type === 'PRODUCT'
+                      ? '/admin/ecommerce/products'
+                      : `/admin/cms/${encodeURIComponent(collection.key)}`
                 }
               />
             }
           >
-            {collection.type === 'CONTENT' ? 'Open Content →' : 'Open records →'}
+            {collection.type === 'CONTENT'
+              ? 'Open Content →'
+              : collection.type === 'PRODUCT'
+                ? 'Open Products →'
+                : 'Open records →'}
           </Button>
         ) : null}
       </div>
@@ -225,6 +243,7 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
               onChange={setForm}
               disabled={isNative}
               groupOptions={groupOptions}
+              ecommerceEnabled={ecommerceEnabled}
               error={saveError}
             />
           </TabsContent>
@@ -251,7 +270,7 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
                     disabled={addFieldMut.isPending}
                     existingKeys={collection.fields.map((f) => f.key)}
                     relationTargets={(listQuery.data ?? []).filter(
-                      (c) => c.source === 'DYNAMIC' && c.type !== 'CONTENT'
+                      (c) => c.source === 'DYNAMIC' && c.type !== 'CONTENT' && c.type !== 'PRODUCT'
                     )}
                     siblingFields={collection.fields}
                     onAdd={(body) => addFieldMut.mutateAsync(body)}
@@ -357,16 +376,21 @@ function SettingsPanel({
   onChange,
   disabled,
   groupOptions,
+  ecommerceEnabled,
   error,
 }: {
   form: SettingsForm
   onChange: (next: SettingsForm) => void
   disabled: boolean
   groupOptions: string[]
+  ecommerceEnabled: boolean
   error: string | null
 }) {
   const set = (patch: Partial<SettingsForm>) => onChange({ ...form, ...patch })
   const isContent = form.type === 'CONTENT'
+  const isProduct = form.type === 'PRODUCT'
+  // Content and Product are both metadata-only (no table, no single-type toggle).
+  const isMetadata = isContent || isProduct
   const keyError = keyHint(form.key)
 
   return (
@@ -401,8 +425,8 @@ function SettingsPanel({
               />
               <p className={`text-xs ${keyError ? 'text-destructive' : 'text-muted-foreground'}`}>
                 {keyError ??
-                  (isContent
-                    ? 'Identifier for this Content type. Renaming updates its stored key.'
+                  (isMetadata
+                    ? `Identifier for this ${isProduct ? 'Product' : 'Content'} type. Renaming updates its stored key.`
                     : `Renames the database table to cms_${form.key || '…'} and any relation tables. Page-builder blocks or links using the old key must be re-pointed.`)}
               </p>
             </div>
@@ -448,17 +472,29 @@ function SettingsPanel({
                 options={[
                   { value: 'COLLECTION', label: 'Collection — its own records + table' },
                   { value: 'CONTENT', label: 'Content — custom fields for the built-in Content' },
+                  // Offered while ecommerce is on, or when this collection already
+                  // is a PRODUCT type (so its label still shows if the module is off).
+                  ...(ecommerceEnabled || isProduct
+                    ? [
+                        {
+                          value: 'PRODUCT',
+                          label: 'Product (ecommerce) — custom fields for the built-in Product',
+                        },
+                      ]
+                    : []),
                 ]}
                 isSearchable={false}
               />
               <p className="text-xs text-muted-foreground">
-                {isContent
-                  ? 'Fields here appear on the Content editor (Admin → Content).'
-                  : 'A standalone content type with its own records.'}{' '}
-                Switching type is only allowed while empty (no records / no saved post data).
+                {isProduct
+                  ? 'Fields here appear on the Product editor (Admin → E-commerce → Products).'
+                  : isContent
+                    ? 'Fields here appear on the Content editor (Admin → Content).'
+                    : 'A standalone content type with its own records.'}{' '}
+                Switching type is only allowed while empty (no records / no saved data).
               </p>
             </div>
-            {!isContent ? (
+            {!isMetadata ? (
               <div className="flex items-center justify-between gap-4">
                 <label htmlFor="coll-single" className="cursor-pointer">
                   <span className="block text-sm">Single type</span>
