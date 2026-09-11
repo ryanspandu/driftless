@@ -198,3 +198,13 @@ export const StatePreviewContext = createContext<StatePreview>({ id: null, state
  * `Box` emits inline styles, never a `<style>` element. Default `''` = omit the attr.
  */
 export const NonceContext = createContext<string>('')
+
+/**
+ * True only on the admin DRAFT-preview render (`/preview/<token>`), false on live
+ * published pages and in the editor. Provided by `PublicPageView` from the
+ * `page.preview` flag; read by `Box` to emit a `data-pb-id` block-id attribute for
+ * the layout-lint geometry probe. Gating it to preview keeps PUBLISHED pages
+ * byte-for-byte identical (no extra attribute in the SSG snapshot, no internal ids
+ * exposed on production HTML). Default `false` = never emit.
+ */
+export const PreviewContext = createContext<boolean>(false)

@@ -6,11 +6,24 @@ import {
   validatePuckDocument,
   type ValidationResult,
 } from '#modules/mcp/services/puck_content_validator'
-import { applyPatchOps, cloneWithFreshIds, type PatchOp, type PuckNode } from '#modules/mcp/services/puck_patch'
+import {
+  applyPatchOps,
+  cloneWithFreshIds,
+  type PatchOp,
+  type PuckNode,
+} from '#modules/mcp/services/puck_patch'
 import TemplatesService from '#services/templates_service'
 import { generateResponsive } from '#modules/mcp/services/auto_responsive'
 import { checkDesignCoverage } from '#modules/mcp/services/design_coverage'
-import { screenshotUrl, normalizeViewport } from '#services/screenshot_service'
+import { screenshotUrl, probeLayout, normalizeViewport } from '#services/screenshot_service'
+import {
+  normalizeFreeFrame,
+  scaffoldFromLayout,
+  toExpectations,
+  type FreeNode,
+  type LayoutExpectation,
+} from '#services/design_layout_service'
+import { lintLayout } from '#modules/mcp/services/layout_lint'
 import MediaService from '#services/media_service'
 import { appUrl } from '#config/app'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
@@ -230,7 +243,9 @@ export default class BuilderPagesController {
       resp = autoResponsive(dto.content, request.input('autoResponsive'))
     }
     try {
-      return response.status(201).json(withAdvisories(await pages.create(user.id, dto), check, resp))
+      return response
+        .status(201)
+        .json(withAdvisories(await pages.create(user.id, dto), check, resp))
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
@@ -340,7 +355,9 @@ export default class BuilderPagesController {
     }
     if (seo !== undefined) dto.seo = seo
     try {
-      return response.json(withAdvisories(await pages.publish(params.id, user.id, dto), check, resp))
+      return response.json(
+        withAdvisories(await pages.publish(params.id, user.id, dto), check, resp)
+      )
     } catch (e) {
       return response.status(422).json({ message: (e as Error).message })
     }
@@ -396,6 +413,92 @@ export default class BuilderPagesController {
         themeEffective: theme.effective,
       })
       return response.json(report)
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
+  }
+
+  /**
+   * Extract deterministic LAYOUT FACTS from a design frame (Lunacy FREE format)
+   * and return a fill-ready Puck scaffold with the correct alignment / overlays
+   * already set — so the model stops guessing align/justify/text-align from a
+   * scaled screenshot. Also stores compact expectations on the page's brief
+   * (`brief.layout.expects`) for the layout lint to grade against. Pass ONE
+   * section subtree per call to keep the payload bounded.
+   */
+  async analyzeLayout({ params, request, response }: HttpContext) {
+    const frame = request.input('frame')
+    if (!frame || typeof frame !== 'object') {
+      return response
+        .status(422)
+        .json({ message: '`frame` (a design frame subtree in Lunacy FREE format) is required' })
+    }
+    const bytes = JSON.stringify(frame).length
+    if (bytes > 1_500_000) {
+      return response.status(413).json({
+        message: `Frame payload is ${bytes} bytes — too large. Pass ONE section subtree per call (get_layers_by_ids on a single section frame), not the whole page.`,
+      })
+    }
+    const mode = String(request.input('mode') ?? 'both')
+    const viewportWidth = request.input('viewportWidth')
+      ? Number(request.input('viewportWidth'))
+      : undefined
+
+    let page
+    try {
+      page = await pages.findOne(String(params.id))
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
+
+    const facts = normalizeFreeFrame(frame as FreeNode, { viewportWidth })
+    const expects = toExpectations(facts)
+
+    // Merge this section's expectations into the brief without clobbering the rest.
+    const brief = (page.designBrief ?? {}) as Record<string, unknown>
+    const layout = (brief.layout ?? {}) as { expects?: Record<string, LayoutExpectation> }
+    const mergedExpects = { ...(layout.expects ?? {}), ...expects }
+    const newBrief = { ...brief, layout: { viewportW: facts.viewportW, expects: mergedExpects } }
+    try {
+      await pages.setDesignBrief(String(params.id), newBrief)
+    } catch (e) {
+      return response.status(404).json({ message: (e as Error).message })
+    }
+
+    const body: Record<string, unknown> = {
+      viewportW: facts.viewportW,
+      frameName: facts.frameName,
+      idPrefix: facts.idPrefix,
+      warnings: facts.warnings,
+      expectationsStored: Object.keys(expects).length,
+      note: 'Scaffold blocks carry the design ids — set_page_content it, fill content/images, then run lint_layout to verify alignment/overlays against the stored expectations.',
+    }
+    if (mode === 'facts' || mode === 'both') body.nodes = facts.nodes
+    if (mode === 'scaffold' || mode === 'both') body.scaffold = scaffoldFromLayout(facts)
+    return response.json(body)
+  }
+
+  /**
+   * Grade the built page's RENDERED layout against the design expectations stored
+   * by `analyze_layout`. Renders the draft headless, reads each block's real
+   * geometry + computed styles + occlusion, and returns concrete issues (wrong
+   * text-align / cross-axis / main-axis, a block hidden behind another, a missing
+   * overlay) each with a ready patch_page_content op.
+   */
+  async lintLayout({ params, request, response }: HttpContext) {
+    try {
+      const viewport = normalizeViewport(request.input('viewport'))
+      const page = await pages.findOne(String(params.id))
+      const brief = page.designBrief as {
+        layout?: { expects?: Record<string, LayoutExpectation> }
+      } | null
+      const expects = brief?.layout?.expects ?? {}
+      const token = await pages.ensurePreviewToken(String(params.id))
+      const base = `${request.protocol()}://${request.host()}`
+      const url = `${base}/preview/${token}`
+      const probe = await probeLayout(url, viewport)
+      const report = lintLayout({ probe, expects })
+      return response.json({ url, viewport, ...report })
     } catch (e) {
       return response.status(404).json({ message: (e as Error).message })
     }
@@ -540,7 +643,9 @@ export default class BuilderPagesController {
     try {
       template = await templates.find(presetId)
     } catch {
-      return response.status(404).json({ message: `No section preset / template with id "${presetId}"` })
+      return response
+        .status(404)
+        .json({ message: `No section preset / template with id "${presetId}"` })
     }
     if (template.type !== 'COMPONENT') {
       return response
