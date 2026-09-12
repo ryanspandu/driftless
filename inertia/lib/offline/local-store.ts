@@ -45,12 +45,18 @@ export interface LocalStore {
   /** Soft-delete the row and queue the delete job. */
   softDeleteLocal(entity: EntityName, id: string): Promise<void>;
 
-  /** Mark the row as fully synced with the server (outbox drained). */
+  /**
+   * Mark the row as synced with the server (outbox job drained). `jobCreatedAt`
+   * is the acking job's `createdAt`: if the row was edited again after that
+   * (newer `pendingSince`), the newer local edit is kept and only the base is
+   * advanced, so a late ack never clobbers a fresher edit.
+   */
   markSynced<TData>(
     entity: EntityName,
     id: string,
     data: TData,
     serverUpdatedAt: string,
+    jobCreatedAt: string,
   ): Promise<void>;
 
   /** Overwrite metadata to surface an error / conflict state in the UI. */

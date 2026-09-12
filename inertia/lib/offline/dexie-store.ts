@@ -289,43 +289,49 @@ export class DexieLocalStore implements LocalStore {
     id: string,
     data: TData,
     serverUpdatedAt: string,
+    jobCreatedAt: string,
   ): Promise<void> {
     const targetId = storageKeyForSyncedRow(id, data);
     const now = new Date().toISOString();
+    /**
+     * A local edit made AFTER this job was enqueued must not be clobbered by the
+     * job's (now-stale) server result. When the row's `pendingSince` is newer
+     * than this job, keep the newer local data + pending state and only advance
+     * the base so the newer edit's own job pushes cleanly; otherwise ack fully.
+     */
+    const resolve = (existing: LocalRow<TData> | undefined | null) => {
+      const superseded =
+        !!existing?._sync.pendingSince && existing._sync.pendingSince > jobCreatedAt;
+      if (superseded) {
+        return {
+          data: existing!.data,
+          _sync: { ...existing!._sync, baseUpdatedAt: serverUpdatedAt },
+        };
+      }
+      return {
+        data,
+        _sync: { ...freshSyncMeta(), synced: true, syncedAt: now, baseUpdatedAt: serverUpdatedAt },
+      };
+    };
     if (isCmsEntity(entity)) {
       await this.db.transaction("rw", this.db.cmsRecords, async () => {
+        const existing = await this.db.cmsRecords.get([entity, id]);
+        const next = resolve(existing as LocalRow<TData> | undefined);
         if (targetId !== id) {
           await this.db.cmsRecords.delete([entity, id]);
         }
-        await this.db.cmsRecords.put({
-          entity,
-          id: targetId,
-          data,
-          _sync: {
-            ...freshSyncMeta(),
-            synced: true,
-            syncedAt: now,
-            baseUpdatedAt: serverUpdatedAt,
-          },
-        });
+        await this.db.cmsRecords.put({ entity, id: targetId, data: next.data, _sync: next._sync });
       });
       return;
     }
     const table = this.nativeTable(entity);
     await this.db.transaction("rw", table, async () => {
+      const existing = await table.get(id);
+      const next = resolve(existing as LocalRow<TData> | undefined);
       if (targetId !== id) {
         await table.delete(id);
       }
-      await table.put({
-        id: targetId,
-        data,
-        _sync: {
-          ...freshSyncMeta(),
-          synced: true,
-          syncedAt: now,
-          baseUpdatedAt: serverUpdatedAt,
-        },
-      });
+      await table.put({ id: targetId, data: next.data, _sync: next._sync });
     });
   }
 
