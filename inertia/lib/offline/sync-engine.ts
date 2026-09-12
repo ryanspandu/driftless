@@ -193,6 +193,7 @@ export class SyncEngine {
             job.refId,
             result.row,
             result.updatedAt,
+            job.createdAt,
           );
           // A create may be re-keyed to the server id. Re-point any follow-up
           // jobs (edits/deletes queued before this create drained) so they

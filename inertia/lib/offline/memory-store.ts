@@ -1,5 +1,5 @@
 import type { LocalStore } from "./local-store";
-import { storageKeyForSyncedRow } from "./row-key";
+import { storageKeyForSyncedRow } from "./row-key.js";
 import {
   freshSyncMeta,
   type EntityName,
@@ -8,7 +8,7 @@ import {
   type OutboxStatus,
   type SyncMeta,
   type SyncOp,
-} from "./schema";
+} from "./schema.js";
 
 type StoredRow<TData = unknown> = {
   id: string;
@@ -151,21 +151,29 @@ export class MemoryLocalStore implements LocalStore {
     id: string,
     data: TData,
     serverUpdatedAt: string,
+    jobCreatedAt: string,
   ): Promise<void> {
     const targetId = storageKeyForSyncedRow(id, data);
     const m = this.tableFor(entity);
+    const existing = m.get(id);
+    // A local edit newer than this job must not be clobbered by the job's stale
+    // server result — keep it and only advance the base (parity with dexie-store).
+    const superseded =
+      !!existing?._sync.pendingSince && existing._sync.pendingSince > jobCreatedAt;
     if (targetId !== id) {
       m.delete(id);
     }
     m.set(targetId, {
       id: targetId,
-      data,
-      _sync: {
-        ...freshSyncMeta(),
-        synced: true,
-        syncedAt: new Date().toISOString(),
-        baseUpdatedAt: serverUpdatedAt,
-      },
+      data: superseded ? (existing!.data as TData) : data,
+      _sync: superseded
+        ? { ...existing!._sync, baseUpdatedAt: serverUpdatedAt }
+        : {
+            ...freshSyncMeta(),
+            synced: true,
+            syncedAt: new Date().toISOString(),
+            baseUpdatedAt: serverUpdatedAt,
+          },
     });
   }
 
