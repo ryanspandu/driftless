@@ -6,8 +6,9 @@
  *
  * Three processes, because two of them are silently load-bearing:
  *
- * - **worker** delivers mail and retries payment webhooks. Without it those sit
- *   undelivered forever, and nothing on the site says so.
+ * - **worker** delivers mail, retries payment webhooks, and runs site
+ *   export/import jobs. Without it those sit undelivered/unprocessed forever
+ *   (export/import falls back to a slower in-request run), and nothing says so.
  * - **maintenance** releases stock held by abandoned checkouts, matures
  *   affiliate commissions and closes orders past their refund window. Skipping
  *   it does not break a page; it quietly stops the shop from being correct.

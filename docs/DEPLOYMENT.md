@@ -154,7 +154,7 @@ if you write your own, make sure yours does too, or the drain is pointless.
 | Process | Command | What breaks without it |
 |---|---|---|
 | Web | `node current/bin/server.js` | — |
-| Queue worker | `node current/bin/console.js queue:work` | mail is never delivered, payment webhooks are never retried |
+| Queue worker | `node current/bin/console.js queue:work` | mail is never delivered, payment webhooks are never retried, and site export/import jobs never run (they fall back to a slower in-request run) |
 | Maintenance | `node current/bin/console.js modules:maintenance`, every 5 min | stock held by abandoned checkouts is never released, commissions never mature, delivered orders never close |
 
 The last two fail **silently**. Nothing on the site reports that they are missing, which is
