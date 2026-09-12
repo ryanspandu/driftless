@@ -153,6 +153,38 @@ test.group('E-commerce | product template route', (group) => {
     assert.equal(product.title, 'Blue Widget')
   })
 
+  test('a CODE template receives the resolved product in props.record (SSR)', async ({
+    client,
+    assert,
+  }) => {
+    await seedProduct('blue-widget', 'Blue Widget')
+    // A code/kit page assigned as the product template (component need not exist
+    // for the server payload; the client would resolve the kit component).
+    const page = await Page.create({
+      id: newUlid(),
+      title: 'Product code template',
+      path: 'product-code-template',
+      status: 'PUBLISHED',
+      renderMode: 'SSR',
+      kind: 'CODE',
+      component: 'x',
+      content: { root: {}, content: [] },
+      seo: {},
+      publishedAt: DateTime.now(),
+    } as never)
+    const row = await settings.getOrCreate()
+    row.productPageId = page.id
+    await row.save()
+
+    const res = await client.get('/shop/p/blue-widget').header('x-inertia', 'true')
+    const payload = res.body().props.page
+
+    // The kit renders SSR from props.record — no client fetch, no ?slug hack.
+    assert.equal(payload.component, 'x')
+    assert.equal((payload.record as { title: string }).title, 'Blue Widget')
+    assert.deepEqual(payload.bindings, { slug: 'blue-widget' })
+  })
+
   test('the page title comes from the product, not the template', async ({ client, assert }) => {
     await seedProduct('blue-widget', 'Blue Widget')
     await seedTemplate()

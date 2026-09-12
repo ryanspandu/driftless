@@ -38,7 +38,10 @@ export default function ProductPagePanel() {
     { value: '', label: 'No product pages' },
     ...(pages.data ?? [])
       .filter((page) => page.status === 'PUBLISHED')
-      .map((page) => ({ value: page.id, label: `${page.title} · /${page.path}` })),
+      .map((page) => ({
+        value: page.id,
+        label: `${page.title} · /${page.path}${page.kind === 'CODE' ? ' · code' : ''}`,
+      })),
   ]
 
   async function onSave() {
@@ -74,7 +77,10 @@ export default function ProductPagePanel() {
               { value: '', label: 'No shop front' },
               ...(pages.data ?? [])
                 .filter((page) => page.status === 'PUBLISHED')
-                .map((page) => ({ value: page.id, label: `${page.title} · /${page.path}` })),
+                .map((page) => ({
+                  value: page.id,
+                  label: `${page.title} · /${page.path}${page.kind === 'CODE' ? ' · code' : ''}`,
+                })),
             ]}
             placeholder={pages.isLoading ? 'Loading…' : 'Choose a page…'}
           />

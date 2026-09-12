@@ -102,9 +102,9 @@ export default class BuilderSettingsController {
     if (pageId) {
       const page = await Page.query().where('id', pageId).whereNull('deleted_at').first()
       if (!page) return response.status(404).json({ message: `Page "${pageId}" not found.` })
-      if (page.status !== 'PUBLISHED' || page.kind !== 'BUILDER') {
+      if (page.status !== 'PUBLISHED') {
         return response.status(422).json({
-          message: 'A page role needs a PUBLISHED builder page (drafts/code pages are ignored).',
+          message: 'A page role needs a PUBLISHED page (a draft resolves to the built-in screen).',
         })
       }
     }

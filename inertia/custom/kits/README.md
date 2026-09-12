@@ -61,11 +61,30 @@ rebuild. See `example/emails/password_reset.tsx`.
 - `kit.json` = `{ "name": "...", "description": "..." }` — shown in the
   create-page picker. Its presence is also what marks the folder as a kit.
 - `index.tsx` receives `CodePageProps` (see `inertia/custom/types.ts`): `title`,
-  `path`, `seo`, `header`, `footer`, `bindings`, `preview`. Wrap your markup in
-  `<SiteChrome header footer>` to sit inside the real site header/footer, or omit
-  it to own the whole viewport.
+  `path`, `seo`, `header`, `footer`, `bindings`, `record`, `preview`. Wrap your
+  markup in `<SiteChrome header footer>` to sit inside the real site header/footer,
+  or omit it to own the whole viewport.
 - Add `export const editableRegion = true` and render `<BuilderRegion />` to
   expose a slice of the page to the visual builder.
+
+### Use a kit page as an override / storefront template
+
+A **published** kit/CODE page can be pointed at any built-in slot — the same
+pickers a builder page uses:
+- **Pages → row menu → "Use as page"** and **Settings → Appearance → "Replace
+  built-in pages"** (front page, sign in/up, 404/500, category/tag archive).
+- **E-commerce → Store settings → Storefront pages / screens** (shop front,
+  **product-detail template**, basket, checkout, account, …).
+
+When a kit page backs a **record template** — the product-detail template at
+`/shop/p/<slug>` — it is handed the resolved record server-side:
+- `props.bindings.slug` — the route slug.
+- `props.record` — the already-resolved record (the product DTO). Render from it
+  directly (SSR, SEO-safe); no need to client-fetch `/api/shop/*` or read a
+  `?slug` query. `record` is `undefined` for an ordinary (non-template) page.
+
+The kit must be **enabled** — an override on a disabled kit falls back to the
+built-in screen (or 404s the product template) rather than rendering a broken panel.
 
 ## Fetching CMS data (SSR first — a kit is a public, SEO-facing page)
 

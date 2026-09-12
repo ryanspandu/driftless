@@ -195,12 +195,12 @@ function PageOverridesSection() {
   }, [data])
 
   /**
-   * Only Published builder pages are offered. A Draft would resolve to the
-   * built-in screen anyway, so listing one would be an option that silently
-   * does nothing.
+   * Only Published pages are offered (builder OR code/kit pages — both render as
+   * overrides). A Draft would resolve to the built-in screen anyway, so listing
+   * one would be an option that silently does nothing.
    */
   const options = useMemo(
-    () => (pages.data ?? []).filter((p) => p.status === 'PUBLISHED' && p.kind === 'BUILDER'),
+    () => (pages.data ?? []).filter((p) => p.status === 'PUBLISHED'),
     [pages.data]
   )
 
@@ -208,7 +208,10 @@ function PageOverridesSection() {
   const pageOptions = useMemo<AppSelectOption[]>(
     () => [
       { value: '', label: 'Default (built-in)' },
-      ...options.map((p) => ({ value: p.id, label: `${p.title} — /${p.path}` })),
+      ...options.map((p) => ({
+        value: p.id,
+        label: `${p.title} — /${p.path}${p.kind === 'CODE' ? ' · code' : ''}`,
+      })),
     ],
     [options]
   )

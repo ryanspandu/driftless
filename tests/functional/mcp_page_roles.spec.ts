@@ -67,6 +67,22 @@ test.group('MCP | use_page_as_role', (group) => {
     assert.equal(row!.value, page.id)
   })
 
+  test('accepts a PUBLISHED code/kit page (not builder-only)', async ({ client, assert }) => {
+    const page = await builderPage('PUBLISHED', 'CODE')
+    const t = await token(['builder:settings'])
+    const res = await client
+      .put('/api/mcp/v1/page-roles')
+      .header('Authorization', bearer(t))
+      .json({ role: 'categoryArchive', pageId: page.id })
+    res.assertStatus(200)
+    const row = await WebSetting.query()
+      .where('section', 'content_pages')
+      .where('key', 'category_archive_page_id')
+      .whereNull('deleted_at')
+      .first()
+    assert.equal(row!.value, page.id)
+  })
+
   test('clears the slot when pageId is empty', async ({ client, assert }) => {
     const page = await builderPage()
     const t = await token(['builder:settings'])

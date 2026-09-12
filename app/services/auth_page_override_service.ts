@@ -1,8 +1,15 @@
 import Page from '#models/page'
 import { WebSettingsService } from '#services/settings_service'
 import { PAGE_ROLE_SLOTS_BY_SLOT, type OverrideSlot } from '#services/page_role_slots'
+import TemplateKitsService from '#services/template_kits_service'
 
 const webSettingsService = new WebSettingsService()
+const templateKits = new TemplateKitsService()
+
+/** The kit id if this page is backed by a `kit:<id>` code page, else null. */
+function pageKitId(page: Page): string | null {
+  return page.component?.startsWith('kit:') ? page.component.slice(4) : null
+}
 
 export type { OverrideSlot }
 
@@ -47,7 +54,16 @@ export default class AuthPageOverrideService {
       .where('status', 'PUBLISHED')
       .whereNull('deleted_at')
       .first()
+    if (!page) return null
 
-    return page ?? null
+    // A CODE page built on a disabled kit can't render — fall back to the
+    // built-in screen (fail-open) instead of the "component not found" panel.
+    const kit = pageKitId(page)
+    if (kit) {
+      const active = await templateKits.activeSet()
+      if (!active.has(kit)) return null
+    }
+
+    return page
   }
 }
