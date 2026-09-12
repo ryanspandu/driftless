@@ -54,10 +54,9 @@ export default class BuilderEcommerceSettingsController {
     if (pageId) {
       const page = await Page.query().where('id', pageId).whereNull('deleted_at').first()
       if (!page) return response.status(404).json({ message: `Page "${pageId}" not found.` })
-      if (page.status !== 'PUBLISHED' || page.kind !== 'BUILDER') {
+      if (page.status !== 'PUBLISHED') {
         return response.status(422).json({
-          message:
-            'A storefront page needs a PUBLISHED builder page (drafts/code pages are ignored).',
+          message: 'A storefront page needs a PUBLISHED page (a draft would 404 every product).',
         })
       }
     }

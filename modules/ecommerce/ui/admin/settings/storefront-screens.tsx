@@ -87,7 +87,10 @@ export default function StorefrontScreensPanel() {
     { value: '', label: 'Default (built-in screen)' },
     ...(pages.data ?? [])
       .filter((page) => page.status === 'PUBLISHED')
-      .map((page) => ({ value: page.id, label: `${page.title} · /${page.path}` })),
+      .map((page) => ({
+        value: page.id,
+        label: `${page.title} · /${page.path}${page.kind === 'CODE' ? ' · code' : ''}`,
+      })),
   ]
 
   async function onSave() {

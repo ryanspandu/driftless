@@ -31,6 +31,12 @@ export interface CodePageProps {
   footer?: Record<string, unknown>
   /** Route params when this page is rendered as a template for a record. */
   bindings?: Record<string, string>
+  /**
+   * The server-resolved record when this page backs a template slot — e.g. the
+   * product on `/shop/p/<slug>`. Lets a code/kit page render SSR from props
+   * instead of client-fetching. Undefined for an ordinary page.
+   */
+  record?: Record<string, unknown> | null
   /** True when rendered through the admin preview route. */
   preview?: boolean
 }

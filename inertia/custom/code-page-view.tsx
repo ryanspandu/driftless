@@ -52,6 +52,7 @@ export function CodePageView({ page }: { page: CodePageEnvelope }) {
     header: page.header,
     footer: page.footer,
     bindings: page.bindings,
+    record: page.record,
     preview: page.preview,
   }
   const rootProps = (page.content?.root as { props?: Record<string, unknown> } | undefined)?.props

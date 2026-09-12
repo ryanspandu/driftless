@@ -40,6 +40,13 @@ export interface RenderPageOptions {
    */
   bindings?: BlockRenderContext
   /**
+   * The server-resolved record this page is a template for (e.g. the product on
+   * `/shop/p/<slug>`). Forwarded to a CODE page's props as `record` so a kit
+   * page renders SSR from props instead of client-fetching. Ignored for builder
+   * pages (their blocks get data through the resolvers instead).
+   */
+  record?: Record<string, unknown> | null
+  /**
    * Overrides for the page's own SEO.
    *
    * A template page has one title; the records it renders each have their own.
@@ -301,6 +308,8 @@ export default class PageRenderer {
         preview,
         // Echoed to the client so a block can inherit the binding there too.
         bindings: options.bindings?.params,
+        // The server-resolved record (e.g. product) for a CODE template page.
+        record: options.record ?? undefined,
       },
     })
 

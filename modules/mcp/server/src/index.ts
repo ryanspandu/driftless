@@ -1211,7 +1211,7 @@ server.tool(
 )
 server.tool(
   'use_page_as_role',
-  'Assign a PUBLISHED builder page to a site page-role slot ("use as page"): the home front page, the sign-in/sign-up/forgot/reset auth screens, the 404/500 error screens, and the content category/tag archives. pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED and a builder page, else it is rejected (a draft/code page would silently fall back). For a `categoryArchive`/`tagArchive` page, put a Collection List bound to the `posts` collection on it — it auto-lists that category/tag.',
+  'Assign a PUBLISHED page (a builder page OR a custom-code/kit page) to a site page-role slot ("use as page"): the home front page, the sign-in/sign-up/forgot/reset auth screens, the 404/500 error screens, and the content category/tag archives. pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED (a draft resolves to the built-in screen). For a `categoryArchive`/`tagArchive` page, put a Collection List bound to the `posts` collection on it — it auto-lists that category/tag.',
   {
     role: z.enum([
       'home',
@@ -1523,7 +1523,7 @@ server.tool(
 )
 server.tool(
   'set_storefront_page',
-  'Assign a PUBLISHED builder page to an e-commerce storefront screen: the shop front (`shop`), the product-detail template (`product`), cart/checkout/order status, account/login/register, and the category/tag archives (`/shop/category|tag/:slug`). pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED + a builder page. Requires the ecommerce module enabled. For a `category`/`tag` archive, drop a ProductList block on the page — it auto-lists that taxonomy.',
+  'Assign a PUBLISHED page (a builder page OR a custom-code/kit page) to an e-commerce storefront screen: the shop front (`shop`), the product-detail template (`product`), cart/checkout/order status, account/login/register, and the category/tag archives (`/shop/category|tag/:slug`). pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED (a draft would 404 every product). Requires the ecommerce module enabled. For a `category`/`tag` archive, drop a ProductList block on the page — it auto-lists that taxonomy. A kit product template receives the resolved product in `props.record` and the slug in `props.bindings.slug`.',
   {
     slot: z.enum([
       'shop',

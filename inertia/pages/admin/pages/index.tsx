@@ -612,7 +612,9 @@ function PageRoleMenu({ page }: { page: PageSummaryDto }) {
   const { data } = useWebsiteSettings()
   const update = useUpdateWebsiteSettings()
   const sections = data?.sections
-  const eligible = page.status === 'PUBLISHED' && page.kind === 'BUILDER'
+  // Builder AND code/kit pages can back a role — the renderer + every resolver
+  // handle both; only a Draft resolves to nothing.
+  const eligible = page.status === 'PUBLISHED'
 
   const setRole = (slot: (typeof PAGE_ROLE_SLOTS)[number], value: string) => {
     void update.mutateAsync({ patches: [{ section: slot.section, key: slot.key, value }] })
@@ -630,7 +632,7 @@ function PageRoleMenu({ page }: { page: PageSummaryDto }) {
       <DropdownMenuSubContent className="max-h-[min(24rem,var(--available-height))] overflow-y-auto">
         {!eligible ? (
           <DropdownMenuItem disabled className="text-xs text-muted-foreground">
-            Publish this builder page to assign a role
+            Publish this page to assign a role
           </DropdownMenuItem>
         ) : (
           <>

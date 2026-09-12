@@ -4,6 +4,7 @@ import { renderPage } from '#helpers/inertia_render'
 import Page from '#models/page'
 import PageRenderer from '#services/page_renderer'
 import SiteChromeService from '#services/site_chrome_service'
+import TemplateKitsService from '#services/template_kits_service'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
 import StorefrontCatalogService from '#modules/ecommerce/services/storefront_catalog_service'
 import CurrencyService from '#modules/ecommerce/services/currency_service'
@@ -19,6 +20,12 @@ const catalog = new StorefrontCatalogService()
 const currencies = new CurrencyService()
 const renderer = new PageRenderer()
 const siteChrome = new SiteChromeService()
+const templateKits = new TemplateKitsService()
+
+/** The kit id if this page is a `kit:<id>` code page, else null. */
+function pageKitId(page: Page): string | null {
+  return page.component?.startsWith('kit:') ? page.component.slice(4) : null
+}
 
 /**
  * Where product pages live.
@@ -51,11 +58,19 @@ export default class StorefrontPagesController {
    */
   private async overridePage(pageId: string | null): Promise<Page | null> {
     if (!pageId) return null
-    return Page.query()
+    const page = await Page.query()
       .where('id', pageId)
       .where('status', 'PUBLISHED')
       .whereNull('deleted_at')
       .first()
+    if (!page) return null
+    // A CODE page on a disabled kit can't render — fall back to the built-in screen.
+    const kit = pageKitId(page)
+    if (kit) {
+      const active = await templateKits.activeSet()
+      if (!active.has(kit)) return null
+    }
+    return page
   }
 
   /**
@@ -170,6 +185,14 @@ export default class StorefrontPagesController {
     // nothing would look like the product had vanished.
     if (!page) notFound()
 
+    // A template built on a disabled kit can't render — 404 (same as an
+    // unpublished template) rather than a broken "component not found" panel.
+    const templateKit = pageKitId(page)
+    if (templateKit) {
+      const active = await templateKits.activeSet()
+      if (!active.has(templateKit)) notFound()
+    }
+
     const seo = (product.seo ?? {}) as Record<string, unknown>
     const productUrl = absoluteUrl(`${PRODUCT_PATH_PREFIX}/${product.slug}`)
 
@@ -196,6 +219,12 @@ export default class StorefrontPagesController {
 
     return renderer.render(page, ctx, {
       bindings: { params: { slug } },
+      /**
+       * Hand the resolved product to a CODE/kit template so it renders SSR from
+       * `props.record` (no client fetch). Builder pages ignore it — their
+       * ProductDetail block gets the product through the block resolvers instead.
+       */
+      record: product as unknown as Record<string, unknown>,
       /**
        * The template's SEO is the fallback; the product's own wins field by
        * field. `canonicalPath` matters most — without it every product would
