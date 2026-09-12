@@ -502,11 +502,17 @@ export function registerTools(
         .boolean()
         .optional()
         .describe('Allow Draft vs Published records (public reads return published only).'),
+      type: z
+        .enum(['COLLECTION', 'CONTENT', 'PRODUCT'])
+        .optional()
+        .describe(
+          'Collection type (default COLLECTION). COLLECTION = a stand-alone model with its own records table. CONTENT = metadata-only: no table of its own, its `fields` become extra custom fields on the built-in Content (blog) editor — only ONE Content-type collection may exist. PRODUCT = metadata-only: its `fields` extend the built-in ecommerce Product editor, requires the ecommerce module enabled, only ONE may exist. For CONTENT/PRODUCT `kind` is ignored, and reserved built-in field keys (title/slug/… for Content; sku/price/… for Product) are rejected.'
+        ),
       kind: z
         .enum(['collection', 'single'])
         .optional()
         .describe(
-          '"collection" (default) = many records (blog posts, products). "single" = exactly one record (a homepage/settings singleton).'
+          '"collection" (default) = many records (blog posts, products). "single" = exactly one record (a homepage/settings singleton). Ignored for CONTENT/PRODUCT types.'
         ),
       fields: z.array(z.object(FieldInput)).optional(),
     },
@@ -514,7 +520,7 @@ export function registerTools(
   )
   server.tool(
     'update_collection',
-    "Update a collection's metadata (label/icon/group/toggles/kind).",
+    "Update a collection's metadata (label/icon/group/toggles/kind/type).",
     {
       key: z.string(),
       label: z.string().optional(),
@@ -523,6 +529,12 @@ export function registerTools(
       revisionsOn: z.boolean().optional(),
       draftsOn: z.boolean().optional(),
       kind: z.enum(['collection', 'single']).optional(),
+      type: z
+        .enum(['COLLECTION', 'CONTENT', 'PRODUCT'])
+        .optional()
+        .describe(
+          'Switch the collection type. Allowed only while the collection is empty (no records / no saved custom-field data), so no data is dropped. Entering CONTENT/PRODUCT needs its module enabled and its singleton free.'
+        ),
     },
     ({ key, ...body }) => run(() => call('PUT', `/api/mcp/v1/collections/${key}`, body))
   )

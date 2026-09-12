@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import User from '#models/user'
+import Module from '#models/module'
 import ModulesService from '#services/modules_service'
 import TemplateKitsService from '#services/template_kits_service'
 
@@ -27,6 +28,15 @@ async function token(abilities: string[]): Promise<string> {
 }
 
 const bearer = (t: string) => `Bearer ${t}`
+
+/** ecommerce is autoEnable:false — turn it on + bust the cache `isEnabled` reads. */
+async function enableEcommerce() {
+  await Module.updateOrCreate(
+    { name: 'ecommerce' },
+    { id: 'test-ecommerce', name: 'ecommerce', enabled: true, version: '1.0.0' }
+  )
+  new ModulesService().bustCache()
+}
 
 const validPage = {
   root: { props: {} },
@@ -94,6 +104,64 @@ test.group('MCP builder-API | ability gating', (group) => {
       .header('Authorization', bearer(t))
       .json({ key: 'nope', label: 'Nope' })
     res.assertStatus(403)
+  })
+})
+
+test.group('MCP builder-API | collection types', (group) => {
+  group.each.setup(async () => resetDatabase())
+
+  test('create_collection makes a CONTENT (metadata-only) collection', async ({
+    client,
+    assert,
+  }) => {
+    await enableMcp()
+    const t = await token(['builder:collections'])
+    const res = await client
+      .post('/api/mcp/v1/collections')
+      .header('Authorization', bearer(t))
+      .json({
+        key: 'article_meta',
+        label: 'Article meta',
+        type: 'CONTENT',
+        fields: [{ key: 'reading_time', label: 'Reading time', type: 'INTEGER' }],
+      })
+    // The whole bug in one assertion: the MCP endpoint now honours `type` — a
+    // metadata-only collection is created rather than a plain COLLECTION.
+    assert.equal(res.status(), 201, `body: ${JSON.stringify(res.body())}`)
+    assert.equal(res.body().type, 'CONTENT')
+    assert.isNull(res.body().tableName ?? null)
+  })
+
+  test('create_collection makes a PRODUCT collection when ecommerce is on', async ({
+    client,
+    assert,
+  }) => {
+    await enableMcp()
+    await enableEcommerce()
+    const t = await token(['builder:collections'])
+    const res = await client
+      .post('/api/mcp/v1/collections')
+      .header('Authorization', bearer(t))
+      .json({
+        key: 'product_meta',
+        label: 'Product meta',
+        type: 'PRODUCT',
+        fields: [{ key: 'warranty_months', label: 'Warranty', type: 'INTEGER' }],
+      })
+    assert.equal(res.status(), 201, `body: ${JSON.stringify(res.body())}`)
+    assert.equal(res.body().type, 'PRODUCT')
+    assert.isNull(res.body().tableName ?? null)
+  })
+
+  test('a PRODUCT collection is refused (422) while ecommerce is off', async ({ client }) => {
+    await enableMcp()
+    // Deliberately not enabling ecommerce.
+    const t = await token(['builder:collections'])
+    const res = await client
+      .post('/api/mcp/v1/collections')
+      .header('Authorization', bearer(t))
+      .json({ key: 'product_meta', label: 'Product meta', type: 'PRODUCT' })
+    res.assertStatus(422)
   })
 })
 
