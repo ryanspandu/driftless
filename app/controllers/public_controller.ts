@@ -222,19 +222,15 @@ export default class PublicController {
 
     const q = String(request.qs().q ?? '').trim()
     const result = await contentService.listPublished({ search: q || undefined, pageSize: 12 })
-    const posts = result.items.map((p) => ({
-      id: p.id,
-      title: p.title,
-      slug: p.slug,
-      visibility: p.visibility,
-      featuredImage: p.featuredImage,
-      updatedAt: p.updatedAt,
-    }))
 
     const override = await overrides.resolve('postsArchive')
     if (override) {
       return renderer.render(override, ctx, {
-        record: { items: posts, total: result.total, query: q } as unknown as Record<
+        // The full DTO (body/categories/tags/custom `data`), not just the
+        // built-in listing's trimmed fields below — a CODE/kit template may
+        // want an excerpt, category chip or tag that the fixed screen doesn't
+        // show, and it renders SSR from this instead of client-fetching.
+        record: { items: result.items, total: result.total, query: q } as unknown as Record<
           string,
           unknown
         >,
@@ -244,6 +240,14 @@ export default class PublicController {
       })
     }
 
+    const posts = result.items.map((p) => ({
+      id: p.id,
+      title: p.title,
+      slug: p.slug,
+      visibility: p.visibility,
+      featuredImage: p.featuredImage,
+      updatedAt: p.updatedAt,
+    }))
     return renderPage(inertia, 'posts/index', { posts, total: result.total, query: q })
   }
 
