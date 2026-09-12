@@ -1264,6 +1264,19 @@ router
           () => import('#controllers/admin/data_transfer_controller'),
           'importArchive',
         ])
+        // Status polling (every couple seconds) + the finished-export download.
+        router.get('/api/admin/data-transfer/jobs/:id', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'job',
+        ])
+        router.get('/api/admin/data-transfer/latest/:kind', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'latestJob',
+        ])
+        router.get('/api/admin/data-transfer/exports/:id/download', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'downloadExport',
+        ])
       })
       .use(middleware.permission({ permission: 'settings:manage' }))
 

@@ -108,6 +108,25 @@ export async function enqueue(
   }
 }
 
+/**
+ * Whether a worker is currently listening on the queue.
+ *
+ * Lets a caller with a synchronous fallback avoid enqueueing work that would sit
+ * unprocessed forever — e.g. `node ace queue:work` not running in dev. Best-effort:
+ * any error (queue disabled, Redis down) reports "no worker", so the caller runs
+ * inline. A false negative just means running inline when a worker also exists.
+ */
+export async function hasWorker(): Promise<boolean> {
+  try {
+    const q = getQueue()
+    if (!q) return false
+    const workers = await q.getWorkers()
+    return workers.length > 0
+  } catch {
+    return false
+  }
+}
+
 /** Close the queue's Redis connection. Called on process shutdown only. */
 export async function closeQueue(): Promise<void> {
   if (!queue) return

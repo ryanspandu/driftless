@@ -25,6 +25,14 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 export type IdMode = 'preserve' | 'regenerate'
 export type ConflictMode = 'overwrite' | 'skip' | 'replace'
 
+/** Per-section progress, emitted at the start and end of each section. */
+export interface TransferProgress {
+  completed: number
+  total: number
+  section: string
+  phase: 'start' | 'done'
+}
+
 /** What one section did during an import, folded into the overall report. */
 export interface SectionReport {
   name: string
@@ -36,6 +44,22 @@ export interface SectionReport {
 
 export function emptyReport(name: string): SectionReport {
   return { name, created: 0, updated: 0, skipped: 0, warnings: [] }
+}
+
+/**
+ * Best-effort row count for a section payload: sums top-level arrays' lengths
+ * and object groups' key counts. Used for the export manifest and the import
+ * dry-run preview, so both report the same rough shape without executing a
+ * section.
+ */
+export function countRows(payload: unknown): number {
+  if (!payload || typeof payload !== 'object') return 0
+  let n = 0
+  for (const value of Object.values(payload as Record<string, unknown>)) {
+    if (Array.isArray(value)) n += value.length
+    else if (value && typeof value === 'object') n += Object.keys(value).length
+  }
+  return n
 }
 
 /** A media asset a section needs bundled, addressed by id or self-hosted URL. */

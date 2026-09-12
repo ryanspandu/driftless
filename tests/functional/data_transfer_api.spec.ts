@@ -37,16 +37,32 @@ test.group('Data transfer | admin API', (group) => {
     assert.include(names, 'settings')
   })
 
-  test('export streams a .driftless attachment', async ({ client }) => {
-    const res = await client
+  test('export runs as a background job and yields a downloadable archive', async ({
+    client,
+    assert,
+  }) => {
+    // 202 + jobId. In tests the queue is disabled, so the job runs inline and is
+    // already terminal by the time the request returns.
+    const start = await client
       .post('/api/admin/data-transfer/export')
       .loginAs(await admin())
       .json({ only: ['settings'] })
-    res.assertStatus(200)
-    res.assertHeader('content-type', 'application/octet-stream')
+    start.assertStatus(202)
+    const jobId = start.body().jobId as string
+    assert.exists(jobId)
+
+    const status = await client.get(`/api/admin/data-transfer/jobs/${jobId}`).loginAs(await admin())
+    status.assertStatus(200)
+    assert.equal(status.body().job.state, 'succeeded')
+    assert.isTrue(status.body().job.downloadReady)
+
+    const dl = await client
+      .get(`/api/admin/data-transfer/exports/${jobId}/download`)
+      .loginAs(await admin())
+    dl.assertStatus(200)
   })
 
-  test('import restores an uploaded archive', async ({ client, assert }) => {
+  test('import runs as a background job and restores the archive', async ({ client, assert }) => {
     await new RedirectsService().create({ fromPath: '/old', toPath: '/new' })
     const archive = await new SiteExportService().export({ only: ['redirects'] })
     const tmp = join(tmpdir(), `dt-api-${Date.now()}.driftless`)
@@ -60,10 +76,34 @@ test.group('Data transfer | admin API', (group) => {
       .file('archive', tmp)
       .field('mode', 'preserve')
       .field('conflict', 'overwrite')
-    res.assertStatus(200)
-    assert.isTrue(
-      (res.body().sections as Array<{ name: string }>).some((s) => s.name === 'redirects')
-    )
+    res.assertStatus(202)
+    const jobId = res.body().jobId as string
+    assert.exists(jobId)
+
+    // Inline (queue disabled) → already restored + terminal.
     assert.lengthOf(await Redirect.query().where('from_path', 'old'), 1)
+    const status = await client.get(`/api/admin/data-transfer/jobs/${jobId}`).loginAs(await admin())
+    assert.equal(status.body().job.state, 'succeeded')
+    assert.isTrue(
+      (status.body().job.result.sections as Array<{ name: string }>).some(
+        (s) => s.name === 'redirects'
+      )
+    )
+  })
+
+  test('dry-run import previews without writing (synchronous)', async ({ client, assert }) => {
+    await new RedirectsService().create({ fromPath: '/keep', toPath: '/there' })
+    const archive = await new SiteExportService().export({ only: ['redirects'] })
+    const tmp = join(tmpdir(), `dt-api-dry-${Date.now()}.driftless`)
+    await writeFile(tmp, archive)
+
+    const res = await client
+      .post('/api/admin/data-transfer/import')
+      .loginAs(await admin())
+      .file('archive', tmp)
+      .field('dryRun', 'true')
+    res.assertStatus(200)
+    assert.isTrue(res.body().dryRun)
+    assert.exists(res.body().result)
   })
 })

@@ -35,6 +35,21 @@ export default class QueueProvider {
     })
 
     /**
+     * Background site export/import. Idempotent: the service only runs a job row
+     * still in `queued`, so a redelivery on an already-running/finished row no-ops.
+     */
+    const { SITE_IMPORT_JOB, SITE_EXPORT_JOB } =
+      await import('#services/data_transfer/transfer_jobs')
+    const { default: TransferJobService } =
+      await import('#services/data_transfer/transfer_job_service')
+    registerJobHandler(SITE_IMPORT_JOB, async (payload) => {
+      await new TransferJobService().runImport((payload as { jobId: string }).jobId)
+    })
+    registerJobHandler(SITE_EXPORT_JOB, async (payload) => {
+      await new TransferJobService().runExport((payload as { jobId: string }).jobId)
+    })
+
+    /**
      * Close the producer's Redis socket on shutdown.
      *
      * Without this the process does not exit on SIGTERM at all: `getQueue()`

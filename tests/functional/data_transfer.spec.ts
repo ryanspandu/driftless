@@ -75,6 +75,8 @@ test.group('Data transfer | core round-trip', (group) => {
     const result = await new SiteImportService().import(archive, { dryRun: true })
     assert.isTrue(result.dryRun)
     assert.lengthOf(await Redirect.query(), 0)
+    // The dry-run preview reports the row count per section (no writes).
+    assert.isTrue(result.log.some((l) => /would import 1 row/.test(l)))
   })
 
   test('media round-trips original file bytes + rows (preserve ids)', async ({ assert }) => {
