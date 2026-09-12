@@ -284,14 +284,26 @@ export default class StorefrontPagesController {
     const overrideId = kind === 'category' ? store.categoryPageId : store.tagPageId
     const canonicalPath = `/shop/${kind}/${taxonomy.slug}`
 
+    const currency = await currencies.forRequest(ctx)
+    const filter =
+      kind === 'category' ? { categorySlug: taxonomy.slug } : { tagSlug: taxonomy.slug }
+    const products = await catalog.list({ ...filter, pageSize: 48 }, currency)
+
     const override = await this.overridePage(overrideId)
     if (override) {
       // The slug is bound so an archive block on the page can filter to this
       // taxonomy; the page's own SEO wins field by field, with the taxonomy as
       // the fallback title and this URL as canonical (or every archive built on
-      // the same template would claim the template's path).
+      // the same template would claim the template's path). A CODE/kit template
+      // also gets the resolved list as `props.record` so it renders SSR instead
+      // of client-fetching — same pattern as the `shop` slot; a BUILDER page
+      // ignores it since its ProductList block gets data through the resolvers.
       return renderer.render(override, ctx, {
         bindings: { params: { slug: taxonomy.slug, kind } },
+        record: { taxonomy, items: products.items, total: products.total } as unknown as Record<
+          string,
+          unknown
+        >,
         seoOverride: {
           title: taxonomy.name,
           description: taxonomy.description,
@@ -302,11 +314,6 @@ export default class StorefrontPagesController {
         skipSnapshot: true,
       })
     }
-
-    const currency = await currencies.forRequest(ctx)
-    const filter =
-      kind === 'category' ? { categorySlug: taxonomy.slug } : { tagSlug: taxonomy.slug }
-    const products = await catalog.list({ ...filter, pageSize: 48 }, currency)
 
     return this.renderStorefront(ctx, 'modules/ecommerce/storefront/archive', {
       taxonomy,

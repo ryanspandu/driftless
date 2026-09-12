@@ -191,4 +191,41 @@ test.group('Content search — /blog, /category/:slug, /tag/:slug ?q=', (group) 
     const res = await inertia(client, '/blog')
     assert.equal(res.body().component, 'posts/index')
   })
+
+  test('a CODE/kit postsArchive override receives the FULL post DTO in props.record', async ({
+    client,
+    assert,
+  }) => {
+    await post('Hello world', 'hello-world', { body: '<p>the full body, not trimmed</p>' })
+
+    // Component need not exist for the server payload — the client would
+    // resolve the kit component (mirrors the equivalent product-template test).
+    const page = await Page.create({
+      id: newUlid(),
+      title: 'Kit blog index',
+      path: 'kit-blog-index',
+      status: 'PUBLISHED',
+      renderMode: 'SSR',
+      kind: 'CODE',
+      component: 'x',
+      content: { root: {}, content: [] },
+      seo: {},
+    } as never)
+    await webSettings.applyPatches([
+      { section: 'content_pages', key: 'posts_archive_page_id', value: page.id },
+    ])
+
+    const res = await inertia(client, '/blog')
+    res.assertStatus(200)
+    assert.equal(res.body().component, 'public/code_ssr')
+
+    // The built-in listing's trimmed shape (id/title/slug/visibility/
+    // featuredImage/updatedAt) is NOT what a kit template gets — it gets the
+    // full PublicContentDto (body, categories, tags, custom `data`) so it can
+    // render an excerpt/chips SSR instead of client-fetching them.
+    const record = res.body().props.page.record as { items: Array<Record<string, unknown>> }
+    assert.equal(record.items[0].body, '<p>the full body, not trimmed</p>')
+    assert.property(record.items[0], 'categories')
+    assert.property(record.items[0], 'tags')
+  })
 })
