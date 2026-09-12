@@ -39,6 +39,7 @@ router
   .use(postUnlockThrottle)
 router.get('/category/:slug', [() => import('#controllers/public_controller'), 'category'])
 router.get('/tag/:slug', [() => import('#controllers/public_controller'), 'tag'])
+router.get('/blog', [() => import('#controllers/public_controller'), 'blog']).as('blog')
 router.get('/offline', [() => import('#controllers/public_controller'), 'offline'])
 
 // First-party analytics beacon. Public + unauthenticated (real visitors have no
@@ -303,7 +304,10 @@ router
     // Forms — page renders: list, global submissions inbox, per-form detail.
     // `submissions` is registered before `:id` so the literal wins.
     router
-      .get('/admin/forms', [() => import('#controllers/admin/forms_definitions_controller'), 'page'])
+      .get('/admin/forms', [
+        () => import('#controllers/admin/forms_definitions_controller'),
+        'page',
+      ])
       .use(middleware.pagePermission({ permission: 'forms:read' }))
     router
       .get('/admin/forms/submissions', [

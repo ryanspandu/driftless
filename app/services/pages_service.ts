@@ -8,6 +8,7 @@ import { CUSTOM_TEMPLATES } from '#services/custom_templates.generated'
 import { DateTime } from 'luxon'
 import { sanitizePuckDocument } from '#services/html_sanitizer_service'
 import RedirectsService from '#services/redirects_service'
+import { reservedFirstSegment } from '#services/reserved_paths'
 
 export type PageStatus = 'DRAFT' | 'PUBLISHED'
 export type PageRenderMode = 'SSR' | 'SSG' | 'CSR'
@@ -135,6 +136,7 @@ export default class PagesService {
   async create(authorId: number, dto: CreatePageInput): Promise<PageDto> {
     const path = normalizePath(dto.path)
     if (!path) throw new Error('Path is required')
+    this.assertPathNotReserved(path)
     await this.assertPathFree(path)
 
     const status = dto.status ?? 'DRAFT'
@@ -283,7 +285,10 @@ export default class PagesService {
     if (dto.path !== undefined) {
       const path = normalizePath(dto.path)
       if (!path) throw new Error('Path is required')
-      if (path !== row.path) await this.assertPathFree(path, id)
+      if (path !== row.path) {
+        this.assertPathNotReserved(path)
+        await this.assertPathFree(path, id)
+      }
       row.path = path
     }
     if (dto.title !== undefined) row.title = dto.title
@@ -650,6 +655,26 @@ export default class PagesService {
     if (exceptId) q.whereNot('id', exceptId)
     const existing = await q.first()
     if (existing) throw new Error('Path already in use')
+  }
+
+  /**
+   * A page saved at a reserved first segment (`shop/...`, `admin/...`, `api/...`,
+   * …) would save fine but could NEVER render there — a module's own fixed route
+   * (or a core route) always wins at that URL ahead of the CMS catch-all
+   * (`pages_public_controller.ts`). That used to be a silent trap: no error, just
+   * a page that quietly never renders. Reject it outright instead, with the fix.
+   */
+  private assertPathNotReserved(path: string): void {
+    const segment = reservedFirstSegment(path)
+    if (!segment) return
+    throw new Error(
+      `Path "${path}" starts with the reserved segment "${segment}" — a fixed route already ` +
+        `owns it, so a page there can never render. To replace what renders at /${segment}/..., ` +
+        'create this page at a DIFFERENT path and assign it with set_storefront_page (ecommerce ' +
+        'screens: shop/cart/checkout/order/account/login/register/category/tag/product) or ' +
+        'use_page_as_role (site-wide slots: home/login/register/notFound/serverError/category ' +
+        'archive/tag archive/posts archive) — not by path.'
+    )
   }
 
   private stripDeletedPrefix(id: string, value: string): string {

@@ -5,6 +5,7 @@ import { cn } from '~/lib/utils'
 import type { ContentTagRef, ContentVisibility } from '~/types/api'
 import { PostVisibilityIcon } from '~/pages/posts/category'
 import { useAuthPublicConfig } from '~/hooks/api/use-auth'
+import { PostSearchForm } from '~/components/post-search-form'
 
 interface TagPost {
   id: string
@@ -18,9 +19,11 @@ interface TagPost {
 interface TagShowProps {
   tag: ContentTagRef
   posts: TagPost[]
+  /** The `?q=` search term this listing was filtered by, if any. */
+  query?: string
 }
 
-const TagShow: FC<TagShowProps> = ({ tag, posts }) => {
+const TagShow: FC<TagShowProps> = ({ tag, posts, query = '' }) => {
   const { data: authConfig } = useAuthPublicConfig()
   const siteTitle = authConfig?.web?.siteTitle?.trim() || 'Driftless'
   const pageTitle = `#${tag.name} · ${siteTitle}`
@@ -37,9 +40,14 @@ const TagShow: FC<TagShowProps> = ({ tag, posts }) => {
         </Link>
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tag</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">#{tag.name}</h1>
+        <PostSearchForm query={query} placeholder={`Search #${tag.name}…`} />
 
         {posts.length === 0 ? (
-          <p className="mt-8 text-sm text-muted-foreground">No posts with this tag yet.</p>
+          <p className="mt-8 text-sm text-muted-foreground">
+            {query
+              ? `No posts matching “${query}” tagged #${tag.name}.`
+              : 'No posts with this tag yet.'}
+          </p>
         ) : (
           <ul className="mt-8 space-y-4">
             {posts.map((p) => (

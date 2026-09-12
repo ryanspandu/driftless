@@ -96,11 +96,15 @@ export default class ContentCategoryService {
     await row.save()
   }
 
-  /** Published posts assigned to a category (by slug), most-recent first. */
-  async publishedPostsInCategory(slug: string): Promise<Content[]> {
+  /**
+   * Published posts assigned to a category (by slug), most-recent first.
+   * `search` filters by title/body (LIKE, server-side) so `?q=` on the archive
+   * page returns real SSR results — same pattern as the ecommerce storefront.
+   */
+  async publishedPostsInCategory(slug: string, search?: string): Promise<Content[]> {
     const cat = await ContentCategory.query().where('slug', slug).whereNull('deleted_at').first()
     if (!cat) return []
-    return Content.query()
+    const builder = Content.query()
       .where('status', 'PUBLISHED')
       .whereNull('deleted_at')
       .whereExists((q) =>
@@ -109,7 +113,13 @@ export default class ContentCategoryService {
           .whereColumn('content_post_category.content_id', 'contents.id')
           .where('content_post_category.category_id', cat.id)
       )
-      .orderBy('updated_at', 'desc')
+    if (search?.trim()) {
+      const term = `%${search.trim().toLowerCase().slice(0, 100)}%`
+      builder.where((q) => {
+        q.whereRaw('LOWER(title) LIKE ?', [term]).orWhereRaw('LOWER(body) LIKE ?', [term])
+      })
+    }
+    return builder.orderBy('updated_at', 'desc')
   }
 
   /** The category (by slug) as a ref, or null. */

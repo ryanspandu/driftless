@@ -316,6 +316,23 @@ A kit can build a full storefront experience, but **only through the store's pub
     [five rules](../../modules/ecommerce/README.md#the-five-rules).
   - **`/shop/*` is a reserved path** — a kit page cannot live there; put your storefront under your
     own route (e.g. `/kit-example/shop-demo`) and drive views with client state.
+- **Replacing what renders at `/shop/cart`, `/shop/checkout`, `/shop/order`, the account screens, or
+  the shop front/category/tag archives with your own kit UI.** These URLs are owned by
+  `StorefrontPagesController`'s fixed routes — a page can never live *at* `shop/cart` (see above), but
+  the CONTENT it renders is swappable via the storefront-screen override slots:
+  1. Author the kit page at any **non-reserved** path (e.g. `create_page({ path: "kit-demo/my-cart",
+     kind: "CODE", component: "kit:<id>" })`) and publish it — build its UI against `/api/shop/*` per
+     this section, exactly like `shop-demo.tsx`/`account-demo.tsx`.
+  2. Point the screen at it with the `set_storefront_page` MCP tool (or admin **E-commerce → Store
+     settings → Storefront screens**): `slot` ∈ `shop | product | cart | checkout | order | account |
+     login | register | category | tag`. The page's own `path` is irrelevant here — only the slot
+     assignment decides what renders at the fixed URL.
+  3. The kit must be **active** (see "Activation toggle" below) — an override pinned to a disabled kit
+     falls back to the built-in screen (or 404s the shop front) rather than a broken panel.
+  - **Never set a page's `path` to `shop/...`** (or any other reserved segment — `admin/...`,
+    `api/...`, …) expecting it to render there directly — `create_page`/`update_page` now REJECT this
+    outright with a message pointing at `set_storefront_page`/`use_page_as_role`, because such a page
+    used to save silently and simply never render, which is indistinguishable from "not supported."
 - **Detecting the store.** There is no public "is enabled" flag — a call to `/api/shop/*` returns
   **404** when the module is off. Branch on it and show a graceful "store unavailable" state.
 - **Customer accounts** are a **separate login** from the admin users (their own table + cookie —

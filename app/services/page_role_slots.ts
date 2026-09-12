@@ -21,6 +21,7 @@ export type OverrideSlot =
   | 'serverError'
   | 'categoryArchive'
   | 'tagArchive'
+  | 'postsArchive'
 
 export interface PageRoleSlot {
   slot: OverrideSlot
@@ -38,6 +39,7 @@ export const PAGE_ROLE_SLOTS: readonly PageRoleSlot[] = [
   { slot: 'serverError', section: 'error_pages', key: 'server_error_page_id' },
   { slot: 'categoryArchive', section: 'content_pages', key: 'category_archive_page_id' },
   { slot: 'tagArchive', section: 'content_pages', key: 'tag_archive_page_id' },
+  { slot: 'postsArchive', section: 'content_pages', key: 'posts_archive_page_id' },
 ]
 
 /** `slot -> { section, key }`, built from the list so the two never diverge. */

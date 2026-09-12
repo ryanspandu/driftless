@@ -324,35 +324,47 @@ export default class StorefrontPagesController {
    * SSR/SSG and SEO for free. `/shop` is a reserved first segment, so the CMS
    * catch-all would never serve it — this route does instead.
    *
-   * Unlike `/shop/p/:slug` this **is** snapshot-able: one URL, one page, no
-   * per-record binding. Whatever render mode the operator chose applies
-   * normally.
+   * Snapshot-able only for the plain listing (no `?q=`): one URL, one page, no
+   * per-record binding. A search is resolved server-side too — so a shared or
+   * crawled `/shop?q=...` link gets real SSR results, not an empty shell —
+   * which makes its HTML query-dependent, so that one render is never cached.
    */
   async shopFront(ctx: HttpContext) {
     const store = await storeSettings.getOrCreate()
-    const pageId = store.shopPageId
-
-    if (!pageId) {
+    if (!store.shopPageId) {
       throw new Exception('Shop front not configured', {
         status: 404,
         code: 'E_PAGE_NOT_FOUND',
       })
     }
 
-    const page = await Page.query()
-      .where('id', pageId)
-      .where('status', 'PUBLISHED')
-      .whereNull('deleted_at')
-      .first()
-
+    // Same PUBLISHED + active-kit guard every other storefront slot uses (see
+    // `overridePage`) — a shop front pinned to a since-disabled kit now 404s
+    // cleanly instead of rendering a broken "component not found" panel.
+    const page = await this.overridePage(store.shopPageId)
     if (!page) {
-      throw new Exception('Shop front not published', {
+      throw new Exception('Shop front not available', {
         status: 404,
         code: 'E_PAGE_NOT_FOUND',
       })
     }
 
-    return renderer.render(page, ctx)
+    const q = String(ctx.request.qs().q ?? '').trim()
+    const currency = await currencies.forRequest(ctx)
+    const products = await catalog.list({ search: q || undefined, pageSize: 48 }, currency)
+
+    return renderer.render(page, ctx, {
+      // Hands a CODE/kit shop template the resolved catalogue so it renders
+      // SSR from `props.record` instead of client-fetching. Builder pages
+      // ignore it — their ProductList block gets data through the resolvers.
+      record: { items: products.items, total: products.total, query: q } as unknown as Record<
+        string,
+        unknown
+      >,
+      // The query changes what this URL renders — caching one search's HTML
+      // under the page id would serve it back for every other search.
+      skipSnapshot: Boolean(q),
+    })
   }
 
   // ── Account ──────────────────────────────────────────────────────────────
