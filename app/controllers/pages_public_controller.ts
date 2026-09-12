@@ -3,8 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Page from '#models/page'
 import PageRenderer, { SSG_CACHE, CSP_NONCE_SENTINEL } from '#services/page_renderer'
 import { currentBuildId } from '#services/release'
-import { allReservedSegments } from '#modules/registry'
-import { mediaUrlSegment } from '#services/media_url'
+import { reservedFirstSegment } from '#services/reserved_paths'
 import RedirectsService from '#services/redirects_service'
 import PagesService from '#services/pages_service'
 import { findFilePageByPath, virtualPageForFilePage } from '#services/file_pages'
@@ -14,45 +13,6 @@ const renderer = new PageRenderer()
 const redirects = new RedirectsService()
 const pagesService = new PagesService()
 const templateKits = new TemplateKitsService()
-
-/**
- * Route prefixes that must never be treated as a builder page path.
- *
- * Core's own, plus whatever the installed modules claim — a module registers
- * its routes before this catch-all, so a page authored at `/shop/...` would be
- * permanently shadowed rather than merely wrong. Modules contribute through
- * `reservedSegments` so this list never has to name one.
- */
-const RESERVED_FIRST_SEGMENT = new Set([
-  ...allReservedSegments(),
-  'api',
-  'admin',
-  'auth',
-  'login',
-  'register',
-  'logout',
-  'forgot-password',
-  'reset-password',
-  'offline',
-  'health',
-  'assets',
-  'build',
-  /**
-   * Media, at both the configured prefix and the legacy one. A missing file has
-   * to 404 as a missing *file* — falling through to here makes it a missing
-   * page instead, which is how a broken image ends up reported as a routing bug.
-   */
-  mediaUrlSegment(),
-  'uploads',
-  'sw.js',
-  'robots.txt',
-  'sitemap.xml',
-  'favicon.ico',
-  /** Shareable draft-preview links (`/preview/:token`). */
-  'preview',
-  /** Affiliate referral links (`/ref/:code`), registered by the same module. */
-  'ref',
-])
 
 /**
  * Signal "no such page" so the exception handler can shape the response.
@@ -75,7 +35,7 @@ export default class PagesPublicController {
     const raw = (params as Record<string, unknown>)['*']
     const path = (Array.isArray(raw) ? raw.join('/') : String(raw ?? '')).replace(/^\/+|\/+$/g, '')
 
-    if (!path || RESERVED_FIRST_SEGMENT.has(path.split('/')[0])) {
+    if (!path || reservedFirstSegment(path)) {
       pageNotFound()
     }
 

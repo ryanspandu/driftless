@@ -17,7 +17,11 @@ test.group('Page role slots — server/client mirror', () => {
     const client = await readFile(join(process.cwd(), 'inertia/types/api.ts'), 'utf-8')
     for (const slot of PAGE_ROLE_SLOTS) {
       assert.include(client, `'${slot.key}'`, `client mirror is missing key '${slot.key}'`)
-      assert.include(client, `'${slot.section}'`, `client mirror is missing section '${slot.section}'`)
+      assert.include(
+        client,
+        `'${slot.section}'`,
+        `client mirror is missing section '${slot.section}'`
+      )
     }
   })
 
@@ -34,6 +38,7 @@ test.group('Page role slots — server/client mirror', () => {
         'serverError',
         'categoryArchive',
         'tagArchive',
+        'postsArchive',
       ]
     )
   })

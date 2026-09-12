@@ -117,9 +117,8 @@ export default class PublicController {
     if (ctx.auth.user) return true
     if (await modules.isEnabled('ecommerce')) {
       // Dynamic import so core keeps no static dependency on the module.
-      const { default: AccountAuthService } = await import(
-        '#modules/ecommerce/services/account_auth_service'
-      )
+      const { default: AccountAuthService } =
+        await import('#modules/ecommerce/services/account_auth_service')
       const account = await new AccountAuthService().resolve(ctx)
       if (account) return true
     }
@@ -127,7 +126,7 @@ export default class PublicController {
   }
 
   async category(ctx: HttpContext) {
-    const { params, inertia, response, auth } = ctx
+    const { params, inertia, response, auth, request } = ctx
     const { landingEnabled } = await webSettingsService.getAppConfig()
     if (!landingEnabled) {
       return response.redirect(auth.user ? '/admin/dashboard' : '/login')
@@ -136,6 +135,8 @@ export default class PublicController {
     if (!category) {
       return response.status(404).send('Category not found')
     }
+
+    const q = String(request.qs().q ?? '').trim()
 
     // An operator can assign a builder page as the archive template ("Use as
     // page → Category archive"); otherwise the built-in Inertia archive shows.
@@ -148,7 +149,9 @@ export default class PublicController {
       })
     }
 
-    const rows = await contentCategoryService.publishedPostsInCategory(params.slug)
+    // `q` filters (title/body) within this category, resolved server-side so a
+    // shared/crawled `/category/:slug?q=...` link renders real SSR results.
+    const rows = await contentCategoryService.publishedPostsInCategory(params.slug, q || undefined)
     const posts = rows.map((p) => ({
       id: p.id,
       title: p.title,
@@ -157,11 +160,11 @@ export default class PublicController {
       featuredImage: p.featuredImage ?? null,
       updatedAt: p.updatedAt.toISO(),
     }))
-    return renderPage(inertia, 'posts/category', { category, posts })
+    return renderPage(inertia, 'posts/category', { category, posts, query: q })
   }
 
   async tag(ctx: HttpContext) {
-    const { params, inertia, response, auth } = ctx
+    const { params, inertia, response, auth, request } = ctx
     const { landingEnabled } = await webSettingsService.getAppConfig()
     if (!landingEnabled) {
       return response.redirect(auth.user ? '/admin/dashboard' : '/login')
@@ -170,6 +173,8 @@ export default class PublicController {
     if (!tag) {
       return response.status(404).send('Tag not found')
     }
+
+    const q = String(request.qs().q ?? '').trim()
 
     const override = await overrides.resolve('tagArchive')
     if (override) {
@@ -180,7 +185,9 @@ export default class PublicController {
       })
     }
 
-    const rows = await contentTagService.publishedPostsInTag(params.slug)
+    // `q` filters (title/body) within this tag, resolved server-side so a
+    // shared/crawled `/tag/:slug?q=...` link renders real SSR results.
+    const rows = await contentTagService.publishedPostsInTag(params.slug, q || undefined)
     const posts = rows.map((p) => ({
       id: p.id,
       title: p.title,
@@ -189,7 +196,55 @@ export default class PublicController {
       featuredImage: p.featuredImage ?? null,
       updatedAt: p.updatedAt.toISO(),
     }))
-    return renderPage(inertia, 'posts/tag', { tag, posts })
+    return renderPage(inertia, 'posts/tag', { tag, posts, query: q })
+  }
+
+  /**
+   * `/blog` — the blog index, every published post with optional search.
+   *
+   * Mirrors the ecommerce storefront's `/shop`: one URL, no per-record binding,
+   * search resolved server-side (title/body) so a shared or crawled
+   * `/blog?q=...` link gets real SSR results, not an empty client-fetched shell
+   * — which is what makes it pick up in search-engine indexing/SEO at all.
+   *
+   * An operator can assign a builder OR CODE/kit page as the index ("Use as
+   * page → Blog index"); otherwise the built-in Inertia listing shows. A
+   * CODE/kit override gets the resolved + searched list as `props.record`
+   * (same mechanism as the product/shop templates) — a builder page ignores it
+   * and shows its own configured content, same as ProductList on `/shop`.
+   */
+  async blog(ctx: HttpContext) {
+    const { inertia, response, auth, request } = ctx
+    const { landingEnabled } = await webSettingsService.getAppConfig()
+    if (!landingEnabled) {
+      return response.redirect(auth.user ? '/admin/dashboard' : '/login')
+    }
+
+    const q = String(request.qs().q ?? '').trim()
+    const result = await contentService.listPublished({ search: q || undefined, pageSize: 12 })
+    const posts = result.items.map((p) => ({
+      id: p.id,
+      title: p.title,
+      slug: p.slug,
+      visibility: p.visibility,
+      featuredImage: p.featuredImage,
+      updatedAt: p.updatedAt,
+    }))
+
+    const override = await overrides.resolve('postsArchive')
+    if (override) {
+      return renderer.render(override, ctx, {
+        record: { items: posts, total: result.total, query: q } as unknown as Record<
+          string,
+          unknown
+        >,
+        // The query changes what this URL renders — caching the plain listing's
+        // HTML under the page id would serve it back for every search too.
+        skipSnapshot: Boolean(q),
+      })
+    }
+
+    return renderPage(inertia, 'posts/index', { posts, total: result.total, query: q })
   }
 
   async offline({ inertia }: HttpContext) {

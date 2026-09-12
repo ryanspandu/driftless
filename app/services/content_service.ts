@@ -101,6 +101,43 @@ export default class ContentService {
   }
 
   /**
+   * Paginated, optionally-searched published-post list for the public blog
+   * index (`/blog?q=...`). Search is server-side (title + body LIKE) so a
+   * shared/crawled search URL renders real SSR results — mirrors
+   * StorefrontCatalogService.list's `search` handling for products.
+   */
+  async listPublished(
+    opts: { search?: string; page?: number; pageSize?: number } = {}
+  ): Promise<{ items: PublicContentDto[]; total: number; page: number; pageSize: number }> {
+    const page = Math.max(opts.page ?? 1, 1)
+    // Hard ceiling, same reasoning as the ecommerce storefront: an
+    // unauthenticated endpoint must not be able to ask for the whole table.
+    const pageSize = Math.min(Math.max(opts.pageSize ?? 12, 1), 48)
+
+    const builder = Content.query().where('status', 'PUBLISHED').whereNull('deleted_at')
+
+    if (opts.search?.trim()) {
+      const term = `%${opts.search.trim().toLowerCase().slice(0, 100)}%`
+      builder.where((q) => {
+        q.whereRaw('LOWER(title) LIKE ?', [term]).orWhereRaw('LOWER(body) LIKE ?', [term])
+      })
+    }
+
+    const result = await builder
+      .preload('categories')
+      .preload('tags')
+      .orderBy('updated_at', 'desc')
+      .paginate(page, pageSize)
+
+    return {
+      items: result.all().map((r) => this.toPublicDto(r)),
+      total: result.total,
+      page,
+      pageSize,
+    }
+  }
+
+  /**
    * A single published post for public render.
    *
    * `includeSecret` is the server-side guarantee behind the visibility gate:

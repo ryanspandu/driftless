@@ -754,7 +754,7 @@ export function registerTools(
       path: z
         .string()
         .describe(
-          'URL slug for the public page — no leading slash, lowercase, e.g. "about" or "blog/hello". Must be unique. Special routes (home, auth, archives, storefront) are assigned via use_page_as_role / set_storefront_page, not by path.'
+          'URL slug for the public page — no leading slash, lowercase, e.g. "about" or "blog/hello". Must be unique. Special routes (home, auth, archives, storefront) are assigned via use_page_as_role / set_storefront_page, not by path — a path under a reserved first segment (e.g. "shop/cart", "admin/…") is REJECTED (422): that segment is already owned by a fixed route, so a page there could never render. To replace what renders at e.g. /shop/cart with your own kit UI, create the page at a DIFFERENT path and call set_storefront_page({ slot:"cart", pageId }) instead.'
         ),
       content: PuckDoc.optional(),
       ...PageMeta,
@@ -771,7 +771,7 @@ export function registerTools(
         .string()
         .optional()
         .describe(
-          'URL slug — no leading slash, lowercase (e.g. "about", "blog/hello"). Must stay unique.'
+          'URL slug — no leading slash, lowercase (e.g. "about", "blog/hello"). Must stay unique, and cannot start with a reserved segment (see create_page\'s path field) — use set_storefront_page / use_page_as_role for those screens instead.'
         ),
       content: PuckDoc.optional(),
       ...PageMeta,
@@ -1223,7 +1223,7 @@ export function registerTools(
   )
   server.tool(
     'use_page_as_role',
-    'Assign a PUBLISHED page (a builder page OR a custom-code/kit page) to a site page-role slot ("use as page"): the home front page, the sign-in/sign-up/forgot/reset auth screens, the 404/500 error screens, and the content category/tag archives. pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED (a draft resolves to the built-in screen). For a `categoryArchive`/`tagArchive` page, put a Collection List bound to the `posts` collection on it — it auto-lists that category/tag.',
+    'Assign a PUBLISHED page (a builder page OR a custom-code/kit page) to a site page-role slot ("use as page"): the home front page, the sign-in/sign-up/forgot/reset auth screens, the 404/500 error screens, and the content category/tag/posts archives. pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED (a draft resolves to the built-in screen). For a `categoryArchive`/`tagArchive` page, put a Collection List bound to the `posts` collection on it — it auto-lists that category/tag. `postsArchive` (`/blog`) is the site\'s blog index (server-rendered ?q= search); a CODE/kit page there gets the resolved + searched post list as `props.record` — a builder page there is not search-aware (Collection List does not read the ?q=) and just shows its own configured content.',
     {
       role: z.enum([
         'home',
@@ -1235,6 +1235,7 @@ export function registerTools(
         'serverError',
         'categoryArchive',
         'tagArchive',
+        'postsArchive',
       ]),
       pageId: z
         .string()

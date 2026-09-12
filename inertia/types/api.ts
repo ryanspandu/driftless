@@ -303,6 +303,12 @@ export const PAGE_ROLE_SLOTS: readonly PageRoleSlot[] = [
     label: 'Tag archive',
     hint: 'Replaces the built-in /tag/:slug archive',
   },
+  {
+    section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
+    key: 'posts_archive_page_id',
+    label: 'Blog index',
+    hint: 'Replaces the built-in /blog listing (supports ?q= search)',
+  },
 ] as const
 
 export interface WebsiteSettingsDto {
