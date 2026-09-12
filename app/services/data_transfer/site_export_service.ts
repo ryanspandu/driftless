@@ -1,10 +1,12 @@
 import { CMS_VERSION } from '#cms_version'
 import ModulesService from '#services/modules_service'
 import {
+  countRows,
   registeredDataSections,
   type ExportCtx,
   type IdMode,
   type MediaRefInput,
+  type TransferProgress,
 } from './registry.js'
 import { ARCHIVE_TYPE, FORMAT_VERSION, type Manifest, type ManifestSection } from './manifest.js'
 import { packArchive, type ArchiveFile } from './bundle.js'
@@ -13,17 +15,8 @@ export interface ExportOptions {
   /** Restrict to these section names; empty/undefined = every eligible section. */
   only?: string[]
   mode?: IdMode
-}
-
-/** Best-effort row count for the manifest (top-level arrays + object groups). */
-function countRows(payload: unknown): number {
-  if (!payload || typeof payload !== 'object') return 0
-  let n = 0
-  for (const value of Object.values(payload as Record<string, unknown>)) {
-    if (Array.isArray(value)) n += value.length
-    else if (value && typeof value === 'object') n += Object.keys(value).length
-  }
-  return n
+  /** Called at the start + end of each exported section so a job row can show progress. */
+  onProgress?: (p: TransferProgress) => void | Promise<void>
 }
 
 /**
@@ -55,19 +48,30 @@ export default class SiteExportService {
     const files: ArchiveFile[] = []
     const sections: ManifestSection[] = []
 
-    for (const section of registeredDataSections()) {
-      if (section.owner !== 'core' && !enabled.get(section.owner)) continue
-      if (only && !only.has(section.name)) continue
+    // Sections that will run (enabled owner + selected). Denominator for progress;
+    // empty sections still count as processed so the bar reaches 100%.
+    const runnables = registeredDataSections().filter(
+      (s) => (s.owner === 'core' || enabled.get(s.owner)) && (!only || only.has(s.name))
+    )
+    const total = runnables.length
+    let completed = 0
+
+    for (const section of runnables) {
+      const label = section.label ?? section.name
+      await opts.onProgress?.({ completed, total, section: label, phase: 'start' })
 
       const payload = await section.export(ctx)
       const count = countRows(payload)
-      if (count === 0) continue
+      if (count > 0) {
+        files.push({
+          name: `sections/${section.name}.json`,
+          content: Buffer.from(JSON.stringify(payload, null, 2), 'utf8'),
+        })
+        sections.push({ name: section.name, owner: section.owner, count, tables: section.tables })
+      }
 
-      files.push({
-        name: `sections/${section.name}.json`,
-        content: Buffer.from(JSON.stringify(payload, null, 2), 'utf8'),
-      })
-      sections.push({ name: section.name, owner: section.owner, count, tables: section.tables })
+      completed++
+      await opts.onProgress?.({ completed, total, section: label, phase: 'done' })
     }
 
     for (const [name, content] of mediaFiles) files.push({ name, content })

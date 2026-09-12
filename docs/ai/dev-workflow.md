@@ -21,10 +21,12 @@ Default database URL: `postgresql://postgres:postgres@localhost:5433/driftless` 
 
 ## npm scripts
 
-| Script      | Command                | Use                             |
-| ----------- | ---------------------- | ------------------------------- |
-| `dev`       | `node ace serve --hmr` | Local development with Vite HMR |
-| `serve`     | Same as `dev`          | Alias                           |
+| Script      | Command                     | Use                                                          |
+| ----------- | --------------------------- | ------------------------------------------------------------ |
+| `dev`       | `node scripts/dev.mjs`      | Local development: Vite HMR web server **+ the queue worker** |
+| `dev:web`   | `node ace serve --hmr`      | Web server only (no worker) — when you run the worker yourself |
+| `worker`    | `node ace queue:work`       | The background-job worker on its own                          |
+| `serve`     | `node ace serve --hmr`      | Web-only alias (like `dev:web`)                              |
 | `build`     | `node ace build`       | Production compile              |
 | `start`     | `node bin/server.js`   | Run production build            |
 | `test`      | `node ace test`        | Japa test runner                |
@@ -36,12 +38,22 @@ Default database URL: `postgresql://postgres:postgres@localhost:5433/driftless` 
 
 ### Long-running and scheduled processes
 
-Neither is needed for local development, but both are required in production:
+Both are required in production. The **queue worker now starts automatically with
+`npm run dev`** (via `scripts/dev.mjs`), so local dev "just works"; the maintenance
+cron is still not needed locally.
 
 | Process          | Command                                      | What breaks without it                                                                                                                                                                                            |
 | ---------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Queue worker     | `node ace queue:work`                        | Emails and webhook follow-up sit undelivered. Nothing money-affecting is lost — every such transition commits synchronously in whichever process observed it                                                      |
+| Queue worker     | `node ace queue:work` (auto in `npm run dev`) | Emails and webhook follow-up sit undelivered, and **site export/import background jobs never run** (they fall back to a slower in-request run). Nothing money-affecting is lost — those transitions commit synchronously |
 | Maintenance cron | `node ace modules:maintenance`, every ~5 min | Real breakage: stock reserved by abandoned checkouts is never released, affiliate commissions never mature, failed webhooks are never retried. See [modules.md](./modules.md#maintenance--scheduled-housekeeping) |
+
+Background jobs go through **BullMQ + Redis** (see the "Background jobs" section
+below). The worker is a **separate process** from the web server — HMR only
+reloads the web side, so **worker/service code changes need a worker restart**
+(stop and re-run `npm run dev`). Redis is optional in dev: with no Redis (or no
+worker) the queue is unavailable and jobs run **inline** in the request instead.
+Production runs the worker as its own supervised process — see
+[DEPLOYMENT.md](../DEPLOYMENT.md) ("Three processes, not one").
 
 ## Dev server rules
 

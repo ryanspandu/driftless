@@ -1,6 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 import ModulesService from '#services/modules_service'
 import {
+  countRows,
   getDataSection,
   registeredDataSections,
   type ConflictMode,
@@ -8,6 +9,7 @@ import {
   type IdMode,
   type ImportCtx,
   type SectionReport,
+  type TransferProgress,
 } from './registry.js'
 import { parseManifest } from './manifest.js'
 import { readArchive } from './bundle.js'
@@ -18,6 +20,10 @@ export interface ImportOptions {
   authorId?: number | null
   only?: string[]
   dryRun?: boolean
+  /** Called at the start + end of each section so a job row can show progress. */
+  onProgress?: (p: TransferProgress) => void | Promise<void>
+  /** Called for each live log line (mirrors the returned `log`). */
+  onLog?: (line: string) => void | Promise<void>
 }
 
 export interface ImportResult {
@@ -48,6 +54,10 @@ export default class SiteImportService {
     const enabled = await new ModulesService().enabledMap()
 
     const log: string[] = []
+    const pushLog = (line: string) => {
+      log.push(line)
+      void opts.onLog?.(line)
+    }
     const skipped: Array<{ name: string; reason: string }> = []
     const reports: SectionReport[] = []
     const idMap = new Map<string, string>()
@@ -65,6 +75,14 @@ export default class SiteImportService {
       present.has(section.name) &&
       (!only || only.has(section.name)) &&
       (section.owner === 'core' || !!enabled.get(section.owner))
+
+    // Denominator for progress: sections that will actually import (present +
+    // selected + enabled + carry a payload). Dry-run does no work, so 0.
+    const total = opts.dryRun
+      ? 0
+      : registeredDataSections().filter((s) => willRun(s) && files.has(`sections/${s.name}.json`))
+          .length
+    let completed = 0
 
     // conflict:'replace' — wipe each selected section's tables first, in reverse
     // dependency order (child sections + child tables before their parents) so
@@ -95,10 +113,15 @@ export default class SiteImportService {
       if (!buf) continue
       const data = JSON.parse(buf.toString('utf8'))
 
+      const label = section.label ?? section.name
+
       if (opts.dryRun) {
-        log.push(`[dry-run] would import section "${section.name}"`)
+        const count = countRows(data)
+        pushLog(`[dry-run] would import ${count} ${count === 1 ? 'row' : 'rows'} → ${label}`)
         continue
       }
+
+      await opts.onProgress?.({ completed, total, section: label, phase: 'start' })
 
       const ctx: ImportCtx = {
         mode,
@@ -107,13 +130,15 @@ export default class SiteImportService {
         resolveMediaRef: () => null,
         authorId: opts.authorId ?? null,
         getFile: (name) => files.get(name),
-        log: (line) => log.push(line),
+        log: (line) => pushLog(line),
       }
       const report = await section.import(ctx, data)
       reports.push(report)
-      log.push(
+      pushLog(
         `${section.name}: +${report.created} created, ~${report.updated} updated, ${report.skipped} skipped`
       )
+      completed++
+      await opts.onProgress?.({ completed, total, section: label, phase: 'done' })
     }
 
     return { dryRun: !!opts.dryRun, mode, conflict, sections: reports, skipped, log }

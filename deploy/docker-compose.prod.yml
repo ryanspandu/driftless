@@ -5,7 +5,7 @@
 # Three app services, not one. The two extra ones fail **silently** — nothing on
 # the site reports that they are missing:
 #
-#   worker       mail delivery and payment-webhook retries
+#   worker       mail delivery, payment-webhook retries, site export/import jobs
 #   maintenance  releases stock held by abandoned checkouts, matures affiliate
 #                commissions, closes orders past their refund window
 #

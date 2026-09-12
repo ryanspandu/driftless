@@ -7,33 +7,83 @@ import { Checkbox } from '~/components/ui/checkbox'
 import { Label } from '~/components/ui/label'
 import { AppSelect } from '~/components/ui/app-select'
 import { DragDropImageUpload } from '~/components/drag-drop-image-upload'
-import { FileArchive } from 'lucide-react'
+import { Download, FileArchive, Loader2 } from 'lucide-react'
 import { apiFetch } from '~/lib/api-client'
+import {
+  useTransferJob,
+  type ImportResult,
+  type TransferJobDto,
+} from '~/hooks/api/use-data-transfer'
 
 interface Section {
   name: string
   label: string
   owner: string
 }
-interface SectionReport {
-  name: string
-  created: number
-  updated: number
-  skipped: number
-  warnings: string[]
-}
-interface ImportResult {
-  dryRun: boolean
-  mode: string
-  conflict: string
-  sections: SectionReport[]
-  skipped: Array<{ name: string; reason: string }>
-  log: string[]
-}
 
 function csrfToken(): string {
   const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
   return m ? decodeURIComponent(m[1]) : ''
+}
+
+function isActive(job: TransferJobDto | undefined): boolean {
+  return job?.state === 'queued' || job?.state === 'running'
+}
+
+/** Section progress bar + current section + a live tail of the log. */
+function ProgressPanel({ job }: { job: TransferJobDto }) {
+  const pct = job.total > 0 ? Math.round((job.completed / job.total) * 100) : 0
+  return (
+    <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
+      <div className="flex items-center gap-2 font-medium">
+        <Loader2 className="size-4 animate-spin" />
+        {job.kind === 'import' ? 'Importing' : 'Exporting'}…
+        {job.currentSection ? (
+          <span className="text-muted-foreground">· {job.currentSection}</span>
+        ) : null}
+        <span className="ml-auto tabular-nums text-muted-foreground">
+          {job.completed}/{job.total || '…'}
+        </span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-primary transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {job.logTail.length ? (
+        <ul className="max-h-32 overflow-y-auto text-xs text-muted-foreground">
+          {job.logTail.slice(-12).map((l, i) => (
+            <li key={i}>{l}</li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="text-xs text-muted-foreground">
+        Running in the background — safe to leave this page.
+      </p>
+    </div>
+  )
+}
+
+/** The final import report (dry-run or a completed background import). */
+function ReportPanel({ result }: { result: ImportResult }) {
+  return (
+    <div className="rounded-lg border border-border p-3 text-sm">
+      <div className="font-medium">
+        {result.dryRun ? 'Dry-run' : 'Imported'} — {result.mode} / {result.conflict}
+      </div>
+      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+        {result.log.map((l, i) => (
+          <li key={i}>{l}</li>
+        ))}
+        {result.skipped.map((s, i) => (
+          <li key={`sk-${i}`} className="text-amber-600">
+            skipped {s.name}: {s.reason}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }
 
 export default function DataTransferPage() {
@@ -42,9 +92,14 @@ export default function DataTransferPage() {
   const [mode, setMode] = useState('preserve')
   const [conflict, setConflict] = useState('overwrite')
   const [file, setFile] = useState<File | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [report, setReport] = useState<ImportResult | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [dryReport, setDryReport] = useState<ImportResult | null>(null)
+  const [importJobId, setImportJobId] = useState<string | null>(null)
+  const [exportJobId, setExportJobId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const importJob = useTransferJob(importJobId).data
+  const exportJob = useTransferJob(exportJobId).data
 
   useEffect(() => {
     apiFetch<{ sections: Section[] }>('/api/admin/data-transfer/manifest')
@@ -53,6 +108,24 @@ export default function DataTransferPage() {
         setSelected(new Set(r.sections.map((s) => s.name)))
       })
       .catch(() => setError('Could not load the section list.'))
+  }, [])
+
+  // Re-attach to an in-flight (or freshly finished) job after a reload, so the
+  // progress animation / download link survive a refresh instead of vanishing.
+  useEffect(() => {
+    for (const kind of ['import', 'export'] as const) {
+      apiFetch<{ job: TransferJobDto | null }>(`/api/admin/data-transfer/latest/${kind}`)
+        .then(({ job }) => {
+          if (!job) return
+          const active = job.state === 'queued' || job.state === 'running'
+          const resumable =
+            active || (kind === 'export' && job.state === 'succeeded' && job.downloadReady)
+          if (!resumable) return
+          if (kind === 'import') setImportJobId(job.id)
+          else setExportJobId(job.id)
+        })
+        .catch(() => {})
+    }
   }, [])
 
   const allSelected = sections.length > 0 && selected.size === sections.length
@@ -67,34 +140,35 @@ export default function DataTransferPage() {
     })
   }
 
+  async function post(url: string, body: BodyInit, json: boolean) {
+    const res = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'X-XSRF-TOKEN': csrfToken(),
+        ...(json ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body,
+    })
+    const data = (await res.json().catch(() => null)) as Record<string, unknown> | null
+    if (!res.ok) throw new Error((data?.message as string) ?? `Request failed (${res.status})`)
+    return data ?? {}
+  }
+
   async function doExport() {
-    setBusy(true)
+    setSubmitting(true)
     setError(null)
     try {
-      const res = await fetch('/api/admin/data-transfer/export', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': csrfToken() },
-        body: JSON.stringify({ only: onlyList, mode }),
-      })
-      if (!res.ok) {
-        // The server returns { message } on a handled failure — surface it.
-        const body = (await res.json().catch(() => null)) as { message?: string } | null
-        throw new Error(
-          body?.message ? `Export failed: ${body.message}` : `Export failed (${res.status})`
-        )
-      }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `site-${new Date().toISOString().slice(0, 10)}.driftless`
-      a.click()
-      URL.revokeObjectURL(url)
+      const data = await post(
+        '/api/admin/data-transfer/export',
+        JSON.stringify({ only: onlyList, mode }),
+        true
+      )
+      setExportJobId(data.jobId as string)
     } catch (e) {
       setError((e as Error).message)
     } finally {
-      setBusy(false)
+      setSubmitting(false)
     }
   }
 
@@ -103,9 +177,10 @@ export default function DataTransferPage() {
       setError('Choose an archive first.')
       return
     }
-    setBusy(true)
+    setSubmitting(true)
     setError(null)
-    setReport(null)
+    setDryReport(null)
+    if (!dryRun) setImportJobId(null)
     try {
       const fd = new FormData()
       fd.append('archive', file)
@@ -113,21 +188,20 @@ export default function DataTransferPage() {
       fd.append('conflict', conflict)
       fd.append('dryRun', String(dryRun))
       if (onlyList) fd.append('only', onlyList.join(','))
-      const res = await fetch('/api/admin/data-transfer/import', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'X-XSRF-TOKEN': csrfToken() },
-        body: fd,
-      })
-      const data = (await res.json()) as ImportResult & { message?: string }
-      if (!res.ok) throw new Error(data.message ?? `Import failed (${res.status})`)
-      setReport(data)
+      const data = await post('/api/admin/data-transfer/import', fd, false)
+      if (dryRun) setDryReport(data.result as ImportResult)
+      else setImportJobId(data.jobId as string)
     } catch (e) {
       setError((e as Error).message)
     } finally {
-      setBusy(false)
+      setSubmitting(false)
     }
   }
+
+  const importActive = isActive(importJob)
+  const exportActive = isActive(exportJob)
+  const importResult: ImportResult | null =
+    dryReport ?? (importJob?.state === 'succeeded' ? (importJob.result as ImportResult) : null)
 
   return (
     <div className="space-y-6">
@@ -193,12 +267,37 @@ export default function DataTransferPage() {
       <Card>
         <CardHeader>
           <CardTitle>Export</CardTitle>
-          <CardDescription>Download a .driftless archive of the selected sections.</CardDescription>
+          <CardDescription>Build a .driftless archive of the selected sections.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button type="button" onClick={doExport} disabled={busy}>
-            Download archive
+        <CardContent className="space-y-3">
+          <Button type="button" onClick={doExport} disabled={submitting || exportActive}>
+            {exportActive ? 'Building…' : 'Build archive'}
           </Button>
+          {exportActive && exportJob ? <ProgressPanel job={exportJob} /> : null}
+          {exportJob?.state === 'succeeded' && exportJob.downloadReady ? (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
+              <div className="flex min-w-0 items-center gap-2 text-sm">
+                <FileArchive className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="truncate font-mono text-xs">
+                  {exportJob.downloadName ?? 'archive.driftless'}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 gap-2"
+                render={
+                  <a href={`/api/admin/data-transfer/exports/${exportJob.id}/download`} download />
+                }
+              >
+                <Download className="size-4" />
+                Download
+              </Button>
+            </div>
+          ) : null}
+          {exportJob?.state === 'failed' ? (
+            <p className="text-sm text-destructive">Export failed: {exportJob.errorMessage}</p>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -214,7 +313,8 @@ export default function DataTransferPage() {
             accept=".driftless"
             onFile={(f) => {
               setFile(f)
-              setReport(null)
+              setDryReport(null)
+              setImportJobId(null)
               setError(null)
             }}
           >
@@ -241,31 +341,23 @@ export default function DataTransferPage() {
               type="button"
               variant="outline"
               onClick={() => doImport(true)}
-              disabled={busy || !file}
+              disabled={submitting || importActive || !file}
             >
               Preview (dry-run)
             </Button>
-            <Button type="button" onClick={() => doImport(false)} disabled={busy || !file}>
-              Import
+            <Button
+              type="button"
+              onClick={() => doImport(false)}
+              disabled={submitting || importActive || !file}
+            >
+              {importActive ? 'Importing…' : 'Import'}
             </Button>
           </div>
-          {report ? (
-            <div className="rounded-lg border border-border p-3 text-sm">
-              <div className="font-medium">
-                {report.dryRun ? 'Dry-run' : 'Imported'} — {report.mode} / {report.conflict}
-              </div>
-              <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                {report.log.map((l, i) => (
-                  <li key={i}>{l}</li>
-                ))}
-                {report.skipped.map((s, i) => (
-                  <li key={`sk-${i}`} className="text-amber-600">
-                    skipped {s.name}: {s.reason}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {importActive && importJob ? <ProgressPanel job={importJob} /> : null}
+          {importJob?.state === 'failed' ? (
+            <p className="text-sm text-destructive">Import failed: {importJob.errorMessage}</p>
           ) : null}
+          {importResult ? <ReportPanel result={importResult} /> : null}
         </CardContent>
       </Card>
     </div>
