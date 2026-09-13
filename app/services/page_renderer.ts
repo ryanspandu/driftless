@@ -289,43 +289,36 @@ export default class PageRenderer {
     })
     const seo = { ...baseSeo, canonical, ...(jsonLd ? { jsonLd } : {}) }
 
-    const result = await renderPage(
-      inertia,
-      component,
-      {
-        page: {
-          title: options.seoOverride?.title ?? page.title,
-          path: page.path,
-          // The slug the custom renderer looks up; absent for builder pages.
-          component: isCode ? (page.component ?? '') : undefined,
-          content: page.content,
-          seo,
-          // Render-critical block stylesheets, linked in the initial <head> to
-          // prevent a FOUC (the Vite @vite tag omits dynamic-chunk CSS).
-          blockCss: publicBlockCss(),
-          layout: layoutContent,
-          header: headerContent ?? undefined,
-          footer: footerContent ?? undefined,
-          codeHeader: page.codeHeader ?? undefined,
-          codeFooter: page.codeFooter ?? undefined,
-          codeLayout: page.codeLayout ?? undefined,
-          templates,
-          collections,
-          blockData,
-          globalCode,
-          globalMeta,
-          breakpoints,
-          preview,
-          // Echoed to the client so a block can inherit the binding there too.
-          bindings: options.bindings?.params,
-          // The server-resolved record (e.g. product) for a CODE template page.
-          record: options.record ?? undefined,
-        },
+    const result = await renderPage(inertia, component, {
+      page: {
+        title: options.seoOverride?.title ?? page.title,
+        path: page.path,
+        // The slug the custom renderer looks up; absent for builder pages.
+        component: isCode ? (page.component ?? '') : undefined,
+        content: page.content,
+        seo,
+        // Render-critical block stylesheets, linked in the initial <head> to
+        // prevent a FOUC (the Vite @vite tag omits dynamic-chunk CSS).
+        blockCss: publicBlockCss(),
+        layout: layoutContent,
+        header: headerContent ?? undefined,
+        footer: footerContent ?? undefined,
+        codeHeader: page.codeHeader ?? undefined,
+        codeFooter: page.codeFooter ?? undefined,
+        codeLayout: page.codeLayout ?? undefined,
+        templates,
+        collections,
+        blockData,
+        globalCode,
+        globalMeta,
+        breakpoints,
+        preview,
+        // Echoed to the client so a block can inherit the binding there too.
+        bindings: options.bindings?.params,
+        // The server-resolved record (e.g. product) for a CODE template page.
+        record: options.record ?? undefined,
       },
-      // View local (not an Inertia prop) — the favicon <link> in the shell
-      // needs to be right in the initial HTML, before any React code runs.
-      { faviconUrl: appearance.faviconUrl }
-    )
+    })
 
     /**
      * Snapshot the rendered HTML for subsequent requests (full loads only).
