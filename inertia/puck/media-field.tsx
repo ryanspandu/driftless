@@ -325,11 +325,11 @@ export function MediaField({
     <div className="space-y-2">
       {value ? (
         <div className="space-y-2">
-          <div className="overflow-hidden rounded-lg border bg-muted/50">
+          <div className="h-32 w-48 overflow-hidden rounded-lg border bg-muted/50">
             {isVideoMime2(value) ? (
-              <video src={value} muted preload="metadata" className="h-32 w-full object-cover" />
+              <video src={value} muted preload="metadata" className="size-full object-cover" />
             ) : (
-              <img src={value} alt="Selected media" className="h-32 w-full object-cover" />
+              <img src={value} alt="Selected media" className="size-full object-cover" />
             )}
           </div>
           <div className="flex gap-2">
@@ -403,15 +403,15 @@ export function MediaIdField({
     <div className="space-y-2">
       {value ? (
         <div className="space-y-2">
-          <div className="overflow-hidden rounded-lg border bg-muted/50">
+          <div className="h-32 w-48 overflow-hidden rounded-lg border bg-muted/50">
             {mediaQuery.isLoading ? (
-              <div className="flex h-32 items-center justify-center text-muted-foreground">
+              <div className="flex size-full items-center justify-center text-muted-foreground">
                 <Loader2 className="size-5 animate-spin" />
               </div>
             ) : item ? (
-              <MediaThumb item={item} className="h-32 w-full" />
+              <MediaThumb item={item} className="size-full" />
             ) : (
-              <div className="flex h-32 flex-col items-center justify-center gap-1 text-center text-muted-foreground">
+              <div className="flex size-full flex-col items-center justify-center gap-1 text-center text-muted-foreground">
                 <span className="text-xs">Media not found</span>
                 <span className="max-w-full truncate px-2 text-[10px]">{value}</span>
               </div>
