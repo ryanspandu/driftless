@@ -309,6 +309,12 @@ export const PAGE_ROLE_SLOTS: readonly PageRoleSlot[] = [
     label: 'Blog index',
     hint: 'Replaces the built-in /blog listing (supports ?q= search)',
   },
+  {
+    section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
+    key: 'post_detail_page_id',
+    label: 'Post detail',
+    hint: 'Replaces the built-in /posts/:slug post page',
+  },
 ] as const
 
 export interface WebsiteSettingsDto {

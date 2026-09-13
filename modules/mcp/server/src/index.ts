@@ -1223,7 +1223,7 @@ server.tool(
 )
 server.tool(
   'use_page_as_role',
-  'Assign a PUBLISHED page (a builder page OR a custom-code/kit page) to a site page-role slot ("use as page"): the home front page, the sign-in/sign-up/forgot/reset auth screens, the 404/500 error screens, and the content category/tag/posts archives. pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED (a draft resolves to the built-in screen). For a `categoryArchive`/`tagArchive` page, put a Collection List bound to the `posts` collection on it — it auto-lists that category/tag. `postsArchive` (`/blog`) is the site\'s blog index (server-rendered ?q= search); a CODE/kit page there gets the resolved + searched post list as `props.record` — a builder page there is not search-aware (Collection List does not read the ?q=) and just shows its own configured content.',
+  'Assign a PUBLISHED page (a builder page OR a custom-code/kit page) to a site page-role slot ("use as page"): the home front page, the sign-in/sign-up/forgot/reset auth screens, the 404/500 error screens, and the content category/tag/posts archives (+ single post detail). pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED (a draft resolves to the built-in screen). For a `categoryArchive`/`tagArchive` page, put a Collection List bound to the `posts` collection on it — it auto-lists that category/tag. `postsArchive` (`/blog`) is the site\'s blog index (server-rendered ?q= search); a CODE/kit page there gets the resolved + searched post list as `props.record` — a builder page there is not search-aware (Collection List does not read the ?q=) and just shows its own configured content. `postDetail` (`/posts/:slug`) is the single-post page; a CODE/kit page there gets the resolved post (+ lock state) as `props.record`, SSR\'d per slug (real canonical/SEO, no client fetch) — there is no per-post builder block yet, so a builder page there renders the same content for every post; use a CODE/kit page for genuine per-post rendering.',
   {
     role: z.enum([
       'home',
@@ -1236,6 +1236,7 @@ server.tool(
       'categoryArchive',
       'tagArchive',
       'postsArchive',
+      'postDetail',
     ]),
     pageId: z
       .string()
