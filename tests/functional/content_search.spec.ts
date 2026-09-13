@@ -79,6 +79,9 @@ test.group('Content search — /blog, /category/:slug, /tag/:slug ?q=', (group) 
     )
     assert.equal(res.body().props.total, 2)
     assert.equal(res.body().props.query, '')
+    // The built-in listing (no postsArchive override configured) previously
+    // shipped no canonical at all — now server-computed from the request.
+    assert.match(res.body().props.canonicalUrl, /\/blog$/)
   })
 
   test('/blog?q= filters by title, server-side', async ({ client, assert }) => {
@@ -140,6 +143,8 @@ test.group('Content search — /blog, /category/:slug, /tag/:slug ?q=', (group) 
       ['big-news']
     )
     assert.equal(res.body().props.query, 'update')
+    // Canonical drops the `?q=` — it points at the bare category URL.
+    assert.match(res.body().props.canonicalUrl, /\/category\/news$/)
   })
 
   test('/tag/:slug?q= filters within that tag only', async ({ client, assert }) => {
@@ -156,6 +161,7 @@ test.group('Content search — /blog, /category/:slug, /tag/:slug ?q=', (group) 
       posts.map((p) => p.slug),
       ['featured-launch']
     )
+    assert.match(res.body().props.canonicalUrl, /\/tag\/featured$/)
   })
 
   test('a designated page replaces the built-in /blog listing (postsArchive role)', async ({
@@ -175,6 +181,9 @@ test.group('Content search — /blog, /category/:slug, /tag/:slug ?q=', (group) 
     const after = await inertia(client, '/blog')
     after.assertStatus(200)
     assert.equal(after.body().component, 'public/page_ssr')
+    // The override page's own `path` column is `custom-blog-index` — the
+    // canonical must reflect the URL actually served (`/blog`), not that.
+    assert.match(after.body().props.page.seo.canonical, /\/blog$/)
   })
 
   test('a draft postsArchive override falls back to the built-in /blog listing', async ({

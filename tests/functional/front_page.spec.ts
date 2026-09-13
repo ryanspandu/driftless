@@ -29,6 +29,10 @@ test.group('Front page override', (group) => {
     const res = await inertia(client, '/')
     res.assertStatus(200)
     assert.equal(res.body().component, 'public/page_ssr')
+    // The seeded page's own `path` column is `home` — the canonical must
+    // reflect the URL actually served (`/`), not that internal slug.
+    assert.match(res.body().props.page.seo.canonical, /\/$/)
+    assert.notInclude(res.body().props.page.seo.canonical, '/home')
   })
 
   test('with no front page set, the built-in static landing renders', async ({ client, assert }) => {
@@ -36,6 +40,7 @@ test.group('Front page override', (group) => {
     const res = await inertia(client, '/')
     res.assertStatus(200)
     assert.equal(res.body().component, 'home')
+    assert.match(res.body().props.canonicalUrl, /\/$/)
   })
 
   test('a draft front page falls back to the built-in landing', async ({ client, assert }) => {

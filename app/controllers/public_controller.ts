@@ -9,6 +9,7 @@ import ModulesService from '#services/modules_service'
 import PageRenderer from '#services/page_renderer'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
 import { renderPage } from '#helpers/inertia_render'
+import { absoluteUrl } from '#helpers/site_url'
 
 const contentService = new ContentService()
 const contentCategoryService = new ContentCategoryService()
@@ -28,9 +29,20 @@ function readUnlockedIds(request: HttpContext['request']): string[] {
   return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : []
 }
 
+/**
+ * View locals (not Inertia props) for the built-in pages below — the favicon
+ * `<link>` in the shell needs to be right in the initial HTML, before any
+ * React code runs (see `PageRenderer.render`, which does the same for
+ * builder/CODE pages).
+ */
+async function faviconViewProps(): Promise<{ faviconUrl: string }> {
+  const { faviconUrl } = await webSettingsService.getPublicAppearance()
+  return { faviconUrl }
+}
+
 export default class PublicController {
   async home(ctx: HttpContext) {
-    const { inertia, response, auth } = ctx
+    const { inertia, response, auth, request } = ctx
     const { landingEnabled } = await webSettingsService.getAppConfig()
     if (!landingEnabled) {
       return response.redirect(auth.user ? '/admin/dashboard' : '/login')
@@ -47,11 +59,16 @@ export default class PublicController {
     }
     const posts = await contentService.findPublishedList()
     const authConfig = await integrationService.getAuthPublicConfig()
-    return renderPage(inertia, 'home', { posts, authConfig })
+    return renderPage(
+      inertia,
+      'home',
+      { posts, authConfig, canonicalUrl: absoluteUrl(request.url()) },
+      await faviconViewProps()
+    )
   }
 
   async post(ctx: HttpContext) {
-    const { params, inertia, response, auth } = ctx
+    const { params, inertia, response, auth, request } = ctx
     const { landingEnabled } = await webSettingsService.getAppConfig()
     if (!landingEnabled) {
       return response.redirect(auth.user ? '/admin/dashboard' : '/login')
@@ -65,7 +82,12 @@ export default class PublicController {
     // `locked` flag the page turns into a password form / members-only panel.
     const locked = await this.lockFor(ctx, meta)
     const post = await contentService.findPublishedBySlug(params.slug, locked === null)
-    return renderPage(inertia, 'posts/show', { post, locked })
+    return renderPage(
+      inertia,
+      'posts/show',
+      { post, locked, canonicalUrl: absoluteUrl(request.url()) },
+      await faviconViewProps()
+    )
   }
 
   /**
@@ -160,7 +182,12 @@ export default class PublicController {
       featuredImage: p.featuredImage ?? null,
       updatedAt: p.updatedAt.toISO(),
     }))
-    return renderPage(inertia, 'posts/category', { category, posts, query: q })
+    return renderPage(
+      inertia,
+      'posts/category',
+      { category, posts, query: q, canonicalUrl: absoluteUrl(request.url()) },
+      await faviconViewProps()
+    )
   }
 
   async tag(ctx: HttpContext) {
@@ -196,7 +223,12 @@ export default class PublicController {
       featuredImage: p.featuredImage ?? null,
       updatedAt: p.updatedAt.toISO(),
     }))
-    return renderPage(inertia, 'posts/tag', { tag, posts, query: q })
+    return renderPage(
+      inertia,
+      'posts/tag',
+      { tag, posts, query: q, canonicalUrl: absoluteUrl(request.url()) },
+      await faviconViewProps()
+    )
   }
 
   /**
@@ -248,7 +280,12 @@ export default class PublicController {
       featuredImage: p.featuredImage,
       updatedAt: p.updatedAt,
     }))
-    return renderPage(inertia, 'posts/index', { posts, total: result.total, query: q })
+    return renderPage(
+      inertia,
+      'posts/index',
+      { posts, total: result.total, query: q, canonicalUrl: absoluteUrl(request.url()) },
+      await faviconViewProps()
+    )
   }
 
   async offline({ inertia }: HttpContext) {

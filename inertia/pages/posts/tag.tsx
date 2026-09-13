@@ -21,9 +21,11 @@ interface TagShowProps {
   posts: TagPost[]
   /** The `?q=` search term this listing was filtered by, if any. */
   query?: string
+  /** Absolute canonical URL for this listing, computed server-side from the request. */
+  canonicalUrl: string
 }
 
-const TagShow: FC<TagShowProps> = ({ tag, posts, query = '' }) => {
+const TagShow: FC<TagShowProps> = ({ tag, posts, query = '', canonicalUrl }) => {
   const { data: authConfig } = useAuthPublicConfig()
   const siteTitle = authConfig?.web?.siteTitle?.trim() || 'Driftless'
   const pageTitle = `#${tag.name} · ${siteTitle}`
@@ -33,6 +35,7 @@ const TagShow: FC<TagShowProps> = ({ tag, posts, query = '' }) => {
       <Head>
         <title>{pageTitle}</title>
         <meta name="description" content={`Posts tagged ${tag.name}`} />
+        <link rel="canonical" href={canonicalUrl} />
       </Head>
       <div className="cms-shell mx-auto max-w-3xl flex-1 px-8 pb-8 pt-24">
         <Link href="/" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'mb-6')}>

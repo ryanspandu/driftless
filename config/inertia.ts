@@ -13,15 +13,31 @@ const inertiaConfig = defineConfig({
     enabled: true,
 
     /**
-     * The two public render wrappers — builder documents and hand-written code
-     * pages. Pages whose render mode is CSR use `public/page` / `public/code`
-     * (not listed) and stay client-rendered.
+     * The public render wrappers — builder documents and hand-written code
+     * pages — plus the built-in (non-override) public listing/detail pages.
+     * Pages whose render mode is CSR use `public/page` / `public/code` (not
+     * listed) and stay client-rendered.
      *
-     * This is matched with `Array.includes`, so it holds wrapper names only. A
-     * code page's own component is resolved inside `CodePageView`, which is
-     * what keeps this list from growing a line per custom page.
+     * The built-in pages are here so their `<Head>` (title/canonical) reaches
+     * the initial HTML instead of only appearing after client hydration —
+     * without it a crawler that doesn't execute JS sees no canonical at all
+     * for `/`, `/blog`, `/category/:slug`, `/tag/:slug` or a post when no
+     * operator override page is configured for that role.
+     *
+     * This is matched with `Array.includes`, so it holds wrapper/component
+     * names only. A code page's own component is resolved inside
+     * `CodePageView`, which is what keeps this list from growing a line per
+     * custom page.
      */
-    pages: ['public/page_ssr', 'public/code_ssr'],
+    pages: [
+      'public/page_ssr',
+      'public/code_ssr',
+      'home',
+      'posts/index',
+      'posts/category',
+      'posts/tag',
+      'posts/show',
+    ],
 
     /**
      * Entry file used by the SSR server build.

@@ -11,6 +11,8 @@ interface PostShowProps {
   post: PublicContentDto
   /** Set when access is gated: the body is withheld and this drives the prompt. */
   locked?: { type: 'password' | 'member' } | null
+  /** Absolute canonical URL for this post, computed server-side from the request. */
+  canonicalUrl: string
 }
 
 function stripHtml(html: string): string {
@@ -96,7 +98,7 @@ const MemberGate: FC = () => (
   </div>
 )
 
-const PostShow: FC<PostShowProps> = ({ post, locked }) => {
+const PostShow: FC<PostShowProps> = ({ post, locked, canonicalUrl }) => {
   const { data: authConfig } = useAuthPublicConfig()
   const siteTitle = authConfig?.web?.siteTitle?.trim() || 'Driftless'
   const description =
@@ -113,9 +115,11 @@ const PostShow: FC<PostShowProps> = ({ post, locked }) => {
       <Head>
         <title>{pageTitle}</title>
         <meta name="description" content={description} />
+        <link rel="canonical" href={canonicalUrl} />
         <meta property="og:title" content={post.title} />
         <meta property="og:description" content={description} />
         <meta property="og:type" content="article" />
+        <meta property="og:url" content={canonicalUrl} />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content={post.title} />
         <meta name="twitter:description" content={description} />

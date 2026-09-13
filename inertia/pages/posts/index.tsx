@@ -22,6 +22,8 @@ interface BlogIndexProps {
   total: number
   /** The `?q=` search term this listing was filtered by, if any. */
   query?: string
+  /** Absolute canonical URL for this listing, computed server-side from the request. */
+  canonicalUrl: string
 }
 
 /**
@@ -31,7 +33,7 @@ interface BlogIndexProps {
  * PublicController#blog); an operator can replace this with a builder or
  * CODE/kit page from Pages → "Use as page → Blog index".
  */
-const BlogIndex: FC<BlogIndexProps> = ({ posts, total, query = '' }) => {
+const BlogIndex: FC<BlogIndexProps> = ({ posts, total, query = '', canonicalUrl }) => {
   const { data: authConfig } = useAuthPublicConfig()
   const siteTitle = authConfig?.web?.siteTitle?.trim() || 'Driftless'
   const pageTitle = query ? `“${query}” · Blog · ${siteTitle}` : `Blog · ${siteTitle}`
@@ -41,6 +43,7 @@ const BlogIndex: FC<BlogIndexProps> = ({ posts, total, query = '' }) => {
       <Head>
         <title>{pageTitle}</title>
         <meta name="description" content="Latest posts" />
+        <link rel="canonical" href={canonicalUrl} />
       </Head>
       <div className="cms-shell mx-auto max-w-3xl flex-1 px-8 pb-8 pt-24">
         <Link href="/" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'mb-6')}>

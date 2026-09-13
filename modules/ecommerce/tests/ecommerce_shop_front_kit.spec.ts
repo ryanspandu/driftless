@@ -73,6 +73,9 @@ test.group('E-commerce | shop front — kit override', (group) => {
     res.assertStatus(200)
     // The CODE/kit template renders, not the built-in shop front component.
     assert.equal(res.body().component, 'public/code_ssr')
+    // The page's own `path` column is `kit-shop-front-<id>` — the canonical
+    // must reflect the URL actually served (`/shop`), not that internal slug.
+    assert.match(res.body().props.page.seo.canonical, /\/shop$/)
   })
 
   test('falls back to a clean 404 (not a broken panel) once the kit is deactivated', async ({
