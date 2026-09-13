@@ -8,6 +8,7 @@ import { withCustomBlocks } from '~/puck/custom-blocks'
 import { RichTextView } from '~/puck/rich-text-view'
 import { styleFields, Box, mergeLayout } from '~/puck/style-fields'
 import { normalizeImageValue, buildSrcset } from '~/puck/image-source'
+import { isImageMime, isVideoMime } from '~/puck/media-mime'
 import { useBoundString, useBoundField, FieldOrText, type Binding } from '~/puck/record-binding'
 import { LottieAnimationView, SplineSceneView, RiveView } from '~/puck/media-embeds'
 import {
@@ -928,6 +929,9 @@ export const baseConfig: Config = {
                       srcset: buildSrcset(item.variants),
                     } as never)
                   }
+                  mimeFilter={isImageMime}
+                  accept="image/*"
+                  kindLabel="image"
                 />
               </Suspense>
             )
@@ -956,8 +960,38 @@ export const baseConfig: Config = {
     Video: {
       label: 'Video',
       fields: {
-        src: { type: 'text', label: 'Video URL (.mp4 / .webm)' },
-        poster: { type: 'text', label: 'Poster image URL' },
+        src: {
+          type: 'custom',
+          label: 'Video',
+          render: ({ value, onChange }) => (
+            <Suspense fallback={<FieldLoading />}>
+              <MediaField
+                value={typeof value === 'string' ? value : ''}
+                onChange={(url) => onChange((url || '') as never)}
+                onPick={(item) => onChange((item.url || '') as never)}
+                mimeFilter={isVideoMime}
+                accept="video/*"
+                kindLabel="video"
+              />
+            </Suspense>
+          ),
+        },
+        poster: {
+          type: 'custom',
+          label: 'Poster image',
+          render: ({ value, onChange }) => (
+            <Suspense fallback={<FieldLoading />}>
+              <MediaField
+                value={typeof value === 'string' ? value : ''}
+                onChange={(url) => onChange((url || '') as never)}
+                onPick={(item) => onChange((item.url || '') as never)}
+                mimeFilter={isImageMime}
+                accept="image/*"
+                kindLabel="image"
+              />
+            </Suspense>
+          ),
+        },
         autoplay: {
           type: 'radio',
           label: 'Autoplay',
@@ -1755,8 +1789,38 @@ export const baseConfig: Config = {
     BackgroundVideo: {
       label: 'Background Video',
       fields: {
-        src: { type: 'text', label: 'Video URL (.mp4 / .webm)' },
-        poster: { type: 'text', label: 'Poster URL' },
+        src: {
+          type: 'custom',
+          label: 'Video',
+          render: ({ value, onChange }) => (
+            <Suspense fallback={<FieldLoading />}>
+              <MediaField
+                value={typeof value === 'string' ? value : ''}
+                onChange={(url) => onChange((url || '') as never)}
+                onPick={(item) => onChange((item.url || '') as never)}
+                mimeFilter={isVideoMime}
+                accept="video/*"
+                kindLabel="video"
+              />
+            </Suspense>
+          ),
+        },
+        poster: {
+          type: 'custom',
+          label: 'Poster image',
+          render: ({ value, onChange }) => (
+            <Suspense fallback={<FieldLoading />}>
+              <MediaField
+                value={typeof value === 'string' ? value : ''}
+                onChange={(url) => onChange((url || '') as never)}
+                onPick={(item) => onChange((item.url || '') as never)}
+                mimeFilter={isImageMime}
+                accept="image/*"
+                kindLabel="image"
+              />
+            </Suspense>
+          ),
+        },
         content: { type: 'slot' },
         ...styleFields,
       },
@@ -2161,6 +2225,9 @@ export const baseConfig: Config = {
                 value={typeof value === 'string' ? value : ''}
                 onChange={(url) => onChange((url || '') as never)}
                 onPick={(item) => onChange((item.url || '') as never)}
+                mimeFilter={isImageMime}
+                accept="image/*"
+                kindLabel="image"
               />
             </Suspense>
           ),

@@ -27,8 +27,24 @@ export default class MediaAudit extends BaseCommand {
     const legacy = this.app.publicPath('uploads')
     const quarantine = this.app.makePath('storage/media-quarantine')
     const allowed = new Set([
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf',
-      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      // Kept in step with MediaService's UPLOAD_ALLOWED_MIMES — this is a
+      // separate, hand-maintained copy, so a type added there has to be added
+      // here too, or a legitimately-uploaded file gets quarantined. Fonts were
+      // already missing here (pre-existing gap); added alongside video now
+      // that this list is being touched anyway.
+      'video/mp4',
+      'video/webm',
+      'font/woff',
+      'font/woff2',
+      'font/ttf',
+      'font/otf',
     ])
     let safe = 0
     let unsafe = 0
@@ -45,7 +61,8 @@ export default class MediaAudit extends BaseCommand {
       }
       let sanitizedSvg: string | null | undefined
       const prefix = (await readFile(source)).subarray(0, 1024).toString('utf8')
-      if (/^\s*<svg(?:\s|>)/i.test(prefix)) sanitizedSvg = sanitizeSvg(await readFile(source, 'utf8'))
+      if (/^\s*<svg(?:\s|>)/i.test(prefix))
+        sanitizedSvg = sanitizeSvg(await readFile(source, 'utf8'))
       const detected = sanitizedSvg === undefined ? await fileTypeFromFile(source) : undefined
       const valid = Boolean(sanitizedSvg || (detected && allowed.has(detected.mime)))
       if (!valid) {
@@ -67,6 +84,8 @@ export default class MediaAudit extends BaseCommand {
         await writeFile(source, sanitizedSvg)
       }
     }
-    this.logger.success(`${this.apply ? 'Applied' : 'Dry-run'}: ${safe} safe, ${unsafe} quarantined, ${missing} missing`)
+    this.logger.success(
+      `${this.apply ? 'Applied' : 'Dry-run'}: ${safe} safe, ${unsafe} quarantined, ${missing} missing`
+    )
   }
 }

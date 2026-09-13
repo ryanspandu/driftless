@@ -11,7 +11,7 @@ import { useCodeTemplates } from '~/hooks/api/use-pages'
 import { MetaTagsEditor, type MetaTag } from '~/components/admin/meta-tags-editor'
 import type { ContentStatus, PageRenderMode, TemplateSummaryDto } from '~/types/api'
 import { cn } from '~/lib/utils'
-import { MediaField } from './media-field'
+import { MediaField, isImageMime } from './media-field'
 import { readSnippets, type CodeSnippet } from './custom-code'
 import { SnippetManager } from './snippet-manager'
 import { GlobalCodePanel } from './global-code-panel'
@@ -434,7 +434,13 @@ function SeoSection({ meta, onChange }: { meta: PageMeta; onChange: (m: PageMeta
         />
       </Row>
       <Row label="Open Graph image">
-        <MediaField value={str('ogImage')} onChange={(url) => patchSeo({ ogImage: url })} />
+        <MediaField
+          value={str('ogImage')}
+          onChange={(url) => patchSeo({ ogImage: url })}
+          mimeFilter={isImageMime}
+          accept="image/*"
+          kindLabel="image"
+        />
       </Row>
       <Row label="Canonical URL" htmlFor="seo-canonical">
         <Input

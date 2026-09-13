@@ -14,6 +14,7 @@ import {
   type ComponentSubField,
 } from '~/components/cms/component-schema-editor'
 import { RichTextEditor } from './rich-text-editor'
+import { MediaIdField } from '~/puck/media-field'
 
 interface FieldRendererProps {
   field: CmsFieldDto
@@ -243,15 +244,11 @@ export function FieldRenderer({ field, value, onChange, disabled }: FieldRendere
       return (
         <div className="space-y-1">
           {label}
-          <Input
-            value={stringOr(value, '')}
-            onChange={(e) => onChange(e.target.value.trim() === '' ? null : e.target.value)}
+          <MediaIdField
+            value={typeof value === 'string' ? value : null}
+            onChange={(id) => onChange(id)}
             disabled={disabled}
-            placeholder="media-id"
           />
-          <p className="text-xs text-muted-foreground">
-            Paste a Media id. A picker component arrives with the Media UI.
-          </p>
         </div>
       )
     case 'RELATION':
@@ -516,7 +513,6 @@ function ComponentField({
         </p>
       ) : (
         items.map((item, idx) => (
-          // eslint-disable-next-line react/no-array-index-key -- positional items
           <div key={idx} className="space-y-4 rounded-lg border bg-muted/20 p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">Item {idx + 1}</span>

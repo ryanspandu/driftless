@@ -43,6 +43,19 @@ export function useMediaList(params: MediaListParams = {}) {
   })
 }
 
+/** One media item by id — used to resolve a stored id back to a preview (e.g. a CMS Media field's value). */
+export function useMedia(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ['media', 'item', id] as const,
+    queryFn: async () => {
+      const res = await api.get<MediaDto>(`/api/admin/media/${id}`)
+      return res.data
+    },
+    enabled: !!id,
+    staleTime: 30_000,
+  })
+}
+
 export function useUpdateMediaMeta() {
   const qc = useQueryClient()
   return useMutation({

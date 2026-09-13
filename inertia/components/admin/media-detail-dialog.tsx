@@ -87,6 +87,7 @@ function MediaDetailInner({
   onClose: () => void
 }) {
   const isImage = item.mimeType.startsWith('image/')
+  const isVideo = item.mimeType.startsWith('video/')
   const editable = isImage && isEditableImage(item.mimeType) && canWrite
   const [mode, setMode] = useState<'info' | 'edit'>('info')
 
@@ -247,7 +248,9 @@ function MediaDetailInner({
           className="flex min-h-[280px] items-center justify-center overflow-auto border-b p-4 md:border-b-0 md:border-r"
           style={CHECKER_STYLE}
         >
-          {!isImage ? (
+          {isVideo ? (
+            <video src={previewSrc} controls className="max-h-[70vh] w-auto" />
+          ) : !isImage ? (
             <div className="flex flex-col items-center gap-2 text-muted-foreground">
               <FileText className="size-12" />
               <span className="text-xs">No preview available</span>

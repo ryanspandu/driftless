@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
-import { Download, FileText, ImageOff, Loader2, Search, Trash2, Upload, X } from 'lucide-react'
+import {
+  Download,
+  FileText,
+  ImageOff,
+  Loader2,
+  Play,
+  Search,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { MediaDto } from '~/types/api'
@@ -37,6 +47,10 @@ const DEFAULT_PAGE_SIZE = 40
 
 function isImageMime(mime: string): boolean {
   return mime.startsWith('image/')
+}
+
+function isVideoMime(mime: string): boolean {
+  return mime.startsWith('video/')
 }
 
 function extLabel(item: MediaDto): string {
@@ -226,9 +240,9 @@ export default function MediaPage() {
           <CardContent>
             <DragDropImageUpload
               onFile={onUpload}
-              accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,application/pdf,.doc,.docx"
+              accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,video/mp4,video/webm,application/pdf,.doc,.docx"
               disabled={uploadMut.isPending}
-              hint="Images, PDF, or Word documents up to 10 MB."
+              hint="Images, video (MP4/WebM), PDF, or Word documents up to 100 MB."
             />
             {uploadError ? <p className="mt-2 text-sm text-destructive">{uploadError}</p> : null}
           </CardContent>
@@ -314,6 +328,22 @@ export default function MediaPage() {
                         loading="lazy"
                         className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
                       />
+                    ) : isVideoMime(item.mimeType) ? (
+                      <div className="relative size-full">
+                        {/* `preload="metadata"` is enough to show the first frame as a
+                            thumbnail with no server-side poster generation. */}
+                        <video
+                          src={item.url}
+                          muted
+                          preload="metadata"
+                          className="size-full object-cover"
+                        />
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                          <div className="flex size-9 items-center justify-center rounded-full bg-black/55 text-white">
+                            <Play className="size-4 fill-current" />
+                          </div>
+                        </div>
+                      </div>
                     ) : (
                       <div className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground">
                         <FileText className="size-10" />

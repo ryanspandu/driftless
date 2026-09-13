@@ -396,7 +396,12 @@ hex values you could take from a token.
   under the CSP. Reach for it only for what Tailwind cannot express.
 - **Assets must be imported** (`import hero from './assets/hero.jpg'`) so Vite fingerprints them
   into `/assets`. Never reference a raw path — it would need a static route and breaks SSG's
-  hashed-URL snapshots. Large media belongs in the media library.
+  hashed-URL snapshots. Large media belongs in the media library — it accepts images, **video**
+  (`.mp4`/`.webm`, up to 100 MB), PDF, Word, and font files (`upload_media`, or the admin Media
+  Library's upload/drag-drop); a CMS `MEDIA` collection field also picks from the same library and
+  stores an id that resolves to the file's URL on public reads (see `useCollectionRecords` above).
+  Embed a picked/uploaded video with a plain `<video src={url} controls />` — there is no dedicated
+  video component to import.
 
 ### CSP — do's and don'ts
 
