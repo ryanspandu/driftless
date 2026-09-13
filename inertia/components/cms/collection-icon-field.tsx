@@ -190,7 +190,7 @@ export function CollectionIconField({
             className="size-12 rounded object-contain"
           />
           <p className="text-xs text-muted-foreground">
-            Custom image is stored with this collection (JPEG, resized for size).
+            Custom image is stored with this collection (resized for size).
           </p>
         </div>
       ) : null}
