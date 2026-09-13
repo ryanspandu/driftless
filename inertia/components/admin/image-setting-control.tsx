@@ -74,7 +74,7 @@ export function ImageSettingControl({
         id={inputId}
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp"
+        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
         className="sr-only"
         disabled={disabled || busy}
         onChange={(e) => {

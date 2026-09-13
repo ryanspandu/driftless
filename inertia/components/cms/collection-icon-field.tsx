@@ -22,7 +22,8 @@ type Props = {
 };
 
 /**
- * Preset Lucide icons + optional JPEG data URL for custom sidebar icons.
+ * Preset Lucide icons + an optional custom data-URL icon (PNG when the
+ * source may carry transparency, JPEG only when it came from a JPEG).
  */
 export function CollectionIconField({
   id,
