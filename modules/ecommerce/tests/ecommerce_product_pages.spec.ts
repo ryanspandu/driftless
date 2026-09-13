@@ -204,6 +204,17 @@ test.group('E-commerce | product template route', (group) => {
     assert.match(page.seo.canonical, /\/shop\/p\/blue-widget$/)
     // A Product JSON-LD node is emitted for rich results.
     assert.include(page.seo.jsonLd, '"@type":"Product"')
+    // The JSON-LD graph's own WebPage/breadcrumb URLs must also reflect the
+    // real served URL, not the template page's own `path` column
+    // (`product-template`) — a second, independent instance of the same bug.
+    const graph = JSON.parse(page.seo.jsonLd) as Array<Record<string, unknown>>
+    const webPage = graph.find((n) => n['@type'] === 'WebPage') as { url: string }
+    assert.match(webPage.url, /\/shop\/p\/blue-widget$/)
+    const breadcrumb = graph.find((n) => n['@type'] === 'BreadcrumbList') as {
+      itemListElement: Array<{ item: string }>
+    }
+    assert.isTrue(breadcrumb.itemListElement.every((i) => !i.item.includes('product-template')))
+    assert.isTrue(breadcrumb.itemListElement.some((i) => i.item.endsWith('/shop/p/blue-widget')))
   })
 
   test('the route echoes its binding to the client', async ({ client, assert }) => {

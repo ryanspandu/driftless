@@ -157,6 +157,7 @@ test.group('Content visibility — public gate', (group) => {
     assert.equal(res.body().component, 'posts/show')
     assert.include(res.body().props.post.body, SECRET)
     assert.isNull(res.body().props.locked)
+    assert.match(res.body().props.canonicalUrl, /\/posts\/post$/)
   })
 
   test('a PROTECTED post withholds the body and asks for a password', async ({

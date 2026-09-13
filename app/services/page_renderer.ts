@@ -254,64 +254,78 @@ export default class PageRenderer {
       ? { ...(page.seo ?? {}), ...mappedOverride }
       : (page.seo ?? {})
 
+    const isHome = request.url() === '/'
+    /**
+     * Canonical URL as a SYSTEM default, not an operator-only field: an
+     * operator-set `seo.canonical` still wins, otherwise the URL actually being
+     * served. A role-slot override (home/blog/shop-front/cart/...) renders a
+     * single stored Page at a fixed URL that has nothing to do with that page's
+     * own `path` column — falling back to `page.path` there shipped the wrong
+     * canonical (e.g. `/` advertising itself as `/home`). The request's own
+     * path is right for that case AND for a normal page (whose `path` column IS
+     * the URL it's served at), so there's no need to special-case either one.
+     * The head component (`public-page-head`) reads `seo.canonical`.
+     */
+    const requestPath = request.url()
+    const canonical =
+      (typeof baseSeo.canonical === 'string' && baseSeo.canonical) || absoluteUrl(requestPath)
+
     /**
      * Structured data (JSON-LD). Serialised here and carried on the seo bag as a
      * ready-to-embed string, so the shared head component emits it inside the
      * SSR-rendered `<head>` — captured in both live responses and the SSG
      * snapshot with no extra plumbing.
      */
-    const isHome = request.url() === '/'
     const jsonLd = buildJsonLd({
-      url: absoluteUrl(page.path),
+      url: canonical,
       title: (typeof baseSeo.title === 'string' && baseSeo.title) || ov?.title || page.title,
       description: typeof baseSeo.description === 'string' ? baseSeo.description : undefined,
       siteName: appearance.siteTitle,
       logoUrl: appearance.faviconUrl,
       isHome,
-      path: page.path,
+      path: requestPath,
       extra: ov?.jsonLd,
       custom: typeof baseSeo.jsonLdCustom === 'string' ? baseSeo.jsonLdCustom : null,
     })
-    /**
-     * Canonical URL as a SYSTEM default, not an operator-only field: an
-     * operator-set `seo.canonical` still wins, otherwise the page's own absolute
-     * URL. Without this a plain builder page shipped no `<link rel="canonical">`
-     * at all. The head component (`public-page-head`) reads `seo.canonical`.
-     */
-    const canonical =
-      (typeof baseSeo.canonical === 'string' && baseSeo.canonical) || absoluteUrl(page.path)
     const seo = { ...baseSeo, canonical, ...(jsonLd ? { jsonLd } : {}) }
 
-    const result = await renderPage(inertia, component, {
-      page: {
-        title: options.seoOverride?.title ?? page.title,
-        path: page.path,
-        // The slug the custom renderer looks up; absent for builder pages.
-        component: isCode ? (page.component ?? '') : undefined,
-        content: page.content,
-        seo,
-        // Render-critical block stylesheets, linked in the initial <head> to
-        // prevent a FOUC (the Vite @vite tag omits dynamic-chunk CSS).
-        blockCss: publicBlockCss(),
-        layout: layoutContent,
-        header: headerContent ?? undefined,
-        footer: footerContent ?? undefined,
-        codeHeader: page.codeHeader ?? undefined,
-        codeFooter: page.codeFooter ?? undefined,
-        codeLayout: page.codeLayout ?? undefined,
-        templates,
-        collections,
-        blockData,
-        globalCode,
-        globalMeta,
-        breakpoints,
-        preview,
-        // Echoed to the client so a block can inherit the binding there too.
-        bindings: options.bindings?.params,
-        // The server-resolved record (e.g. product) for a CODE template page.
-        record: options.record ?? undefined,
+    const result = await renderPage(
+      inertia,
+      component,
+      {
+        page: {
+          title: options.seoOverride?.title ?? page.title,
+          path: page.path,
+          // The slug the custom renderer looks up; absent for builder pages.
+          component: isCode ? (page.component ?? '') : undefined,
+          content: page.content,
+          seo,
+          // Render-critical block stylesheets, linked in the initial <head> to
+          // prevent a FOUC (the Vite @vite tag omits dynamic-chunk CSS).
+          blockCss: publicBlockCss(),
+          layout: layoutContent,
+          header: headerContent ?? undefined,
+          footer: footerContent ?? undefined,
+          codeHeader: page.codeHeader ?? undefined,
+          codeFooter: page.codeFooter ?? undefined,
+          codeLayout: page.codeLayout ?? undefined,
+          templates,
+          collections,
+          blockData,
+          globalCode,
+          globalMeta,
+          breakpoints,
+          preview,
+          // Echoed to the client so a block can inherit the binding there too.
+          bindings: options.bindings?.params,
+          // The server-resolved record (e.g. product) for a CODE template page.
+          record: options.record ?? undefined,
+        },
       },
-    })
+      // View local (not an Inertia prop) — the favicon <link> in the shell
+      // needs to be right in the initial HTML, before any React code runs.
+      { faviconUrl: appearance.faviconUrl }
+    )
 
     /**
      * Snapshot the rendered HTML for subsequent requests (full loads only).

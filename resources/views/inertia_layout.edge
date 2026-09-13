@@ -21,8 +21,13 @@
         cache reads it so its injected <style> elements are not blocked). --}}
     <meta name="csp-nonce" content="{{ cspNonce ?? '' }}" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/logo.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/logo.svg" />
+    {{-- `faviconUrl` is a view local (not an Inertia prop) passed by public
+         renders via `renderPage`'s third argument, so the icon is right in the
+         initial HTML — no client JS swap needed. Admin/auth/error pages don't
+         pass it, so they keep the static default. No hardcoded `type`: the
+         operator can upload png/jpg/svg/webp, not just svg. --}}
+    <link rel="icon" href="{{ faviconUrl ?? '/logo.svg' }}" />
+    <link rel="apple-touch-icon" href="{{ faviconUrl ?? '/logo.svg' }}" />
     <meta name="theme-color" content="#111827" />
     {{-- No hardcoded <title> here: Inertia's <Head title> (via @inertiaHead)
          owns it. A static title in the shell rendered a SECOND <title> on SSR

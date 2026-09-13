@@ -20,6 +20,8 @@ import { cn } from '~/lib/utils'
 
 interface HomeProps {
   posts?: PublicContentDto[]
+  /** Absolute canonical URL for `/`, computed server-side from the request. */
+  canonicalUrl: string
 }
 
 const FEATURES = [
@@ -98,7 +100,7 @@ const TESTIMONIALS = [
   },
 ]
 
-const Home: FC<HomeProps> = ({ posts = [] }) => {
+const Home: FC<HomeProps> = ({ posts = [], canonicalUrl }) => {
   const { props } = usePage<{ user?: { id?: number } }>()
   const primaryCta = props.user
     ? { href: '/admin/dashboard', label: 'Go to dashboard' }
@@ -106,7 +108,9 @@ const Home: FC<HomeProps> = ({ posts = [] }) => {
 
   return (
     <div className="flex flex-col">
-      <Head title="Driftless — Simplify content management" />
+      <Head title="Driftless — Simplify content management">
+        <link rel="canonical" href={canonicalUrl} />
+      </Head>
 
       {/* Hero */}
       <section className="relative overflow-hidden">
