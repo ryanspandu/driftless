@@ -98,8 +98,13 @@ export class MemoryLocalStore implements LocalStore {
     }
     for (const [key, row] of m) {
       const d = row.data as { id?: string } | null;
-      if (!d || typeof d.id !== "string") continue;
-      if (key !== d.id && serverIds.has(d.id)) {
+      if (d && typeof d.id === "string" && key !== d.id && serverIds.has(d.id)) {
+        m.delete(key);
+        continue;
+      }
+      // See dexie-store.ts's putServerRows for why pending rows are left
+      // untouched here (the outbox push surfaces the "gone" conflict itself).
+      if (!serverIds.has(key) && !row._sync.pendingSince) {
         m.delete(key);
       }
     }

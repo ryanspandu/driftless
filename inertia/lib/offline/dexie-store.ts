@@ -149,8 +149,21 @@ export class DexieLocalStore implements LocalStore {
           .toArray();
         for (const row of all) {
           const d = row.data as { id?: string } | null;
-          if (!d || typeof d.id !== "string") continue;
-          if (row.id !== d.id && serverIds.has(d.id)) {
+          if (d && typeof d.id === "string" && row.id !== d.id && serverIds.has(d.id)) {
+            await this.db.cmsRecords.delete([entity, row.id]);
+            continue;
+          }
+          /**
+           * The server no longer has this row — it was deleted elsewhere.
+           * Only remove it locally when there's no in-flight local change: a
+           * pending create/update/delete is left untouched so the outbox
+           * push discovers the same "gone" condition on its own and reports
+           * it as a conflict (`SyncEngine.markGoneConflict`) instead of this
+           * pull silently discarding unsent local work. Without this, a row
+           * the server deleted stayed cached forever, still showing as
+           * "Published" with a green synced checkmark.
+           */
+          if (!serverIds.has(row.id) && !row._sync.pendingSince) {
             await this.db.cmsRecords.delete([entity, row.id]);
           }
         }
@@ -188,8 +201,12 @@ export class DexieLocalStore implements LocalStore {
       const all = await table.toArray();
       for (const row of all) {
         const d = row.data as { id?: string } | null;
-        if (!d || typeof d.id !== "string") continue;
-        if (row.id !== d.id && serverIds.has(d.id)) {
+        if (d && typeof d.id === "string" && row.id !== d.id && serverIds.has(d.id)) {
+          await table.delete(row.id);
+          continue;
+        }
+        // See the CMS branch above for why pending rows are left untouched.
+        if (!serverIds.has(row.id) && !row._sync.pendingSince) {
           await table.delete(row.id);
         }
       }
