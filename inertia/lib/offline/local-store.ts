@@ -29,7 +29,15 @@ export interface LocalStore {
   getAll<TData>(entity: EntityName): Promise<LocalRow<TData>[]>;
   getById<TData>(entity: EntityName, id: string): Promise<LocalRow<TData> | null>;
 
-  /** Bulk replace rows coming from the server. Does not touch pending rows. */
+  /**
+   * Bulk replace rows coming from the server: upserts every row in `rows`
+   * and removes any locally-cached row for this `entity` that `rows` no
+   * longer includes (e.g. deleted server-side since the last sync) — unless
+   * that row has an in-flight local change (`_sync.pendingSince`), which is
+   * left alone for the outbox push to resolve as a "gone" conflict instead.
+   * `rows` must be the FULL current set for `entity`, not a page of it, or
+   * this will delete rows that are merely on a page the caller didn't fetch.
+   */
   putServerRows<TData>(
     entity: EntityName,
     rows: Array<{ id: string; data: TData; serverUpdatedAt: string }>,
