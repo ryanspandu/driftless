@@ -39,6 +39,7 @@ test.group('Page role slots — server/client mirror', () => {
         'categoryArchive',
         'tagArchive',
         'postsArchive',
+        'postDetail',
       ]
     )
   })

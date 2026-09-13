@@ -70,6 +70,30 @@ export default class PublicController {
     // `locked` flag the page turns into a password form / members-only panel.
     const locked = await this.lockFor(ctx, meta)
     const post = await contentService.findPublishedBySlug(params.slug, locked === null)
+
+    // An operator can assign a builder OR CODE/kit page as the post template
+    // ("Use as page → Post detail"); otherwise the built-in Inertia post view
+    // shows. A CODE/kit override gets the resolved post (+ lock state) as
+    // `props.record`, SSR'd per slug — same mechanism as the product/shop
+    // templates — so a themed detail page doesn't need to client-fetch by
+    // `?slug=` the way a plain kit file-page would.
+    const override = await overrides.resolve('postDetail')
+    if (override) {
+      return renderer.render(override, ctx, {
+        bindings: { params: { slug: params.slug } },
+        record: { post, locked } as unknown as Record<string, unknown>,
+        seoOverride: {
+          title: post.title,
+          imageUrl: post.featuredImage,
+          canonicalPath: `/posts/${post.slug}`,
+        },
+        // Never snapshot — the cache is keyed on the page, so caching one
+        // post's HTML would serve it back for every other post on the same
+        // template.
+        skipSnapshot: true,
+      })
+    }
+
     return renderPage(inertia, 'posts/show', {
       post,
       locked,

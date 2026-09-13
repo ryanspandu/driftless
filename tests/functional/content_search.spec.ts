@@ -237,4 +237,65 @@ test.group('Content search — /blog, /category/:slug, /tag/:slug ?q=', (group) 
     assert.property(record.items[0], 'categories')
     assert.property(record.items[0], 'tags')
   })
+
+  test('a designated page replaces the built-in /posts/:slug view (postDetail role)', async ({
+    client,
+    assert,
+  }) => {
+    await post('Hello world', 'hello-world', { body: '<p>the full body, not trimmed</p>' })
+
+    const page = await Page.create({
+      id: newUlid(),
+      title: 'Kit post detail',
+      path: 'kit-post-detail',
+      status: 'PUBLISHED',
+      renderMode: 'SSR',
+      kind: 'CODE',
+      component: 'x',
+      content: { root: {}, content: [] },
+      seo: {},
+    } as never)
+    await webSettings.applyPatches([
+      { section: 'content_pages', key: 'post_detail_page_id', value: page.id },
+    ])
+
+    const res = await inertia(client, '/posts/hello-world')
+    res.assertStatus(200)
+    assert.equal(res.body().component, 'public/code_ssr')
+
+    const record = res.body().props.page.record as {
+      post: Record<string, unknown>
+      locked: unknown
+    }
+    assert.equal(record.post.title, 'Hello world')
+    assert.equal(record.post.body, '<p>the full body, not trimmed</p>')
+    assert.isNull(record.locked)
+    assert.match(res.body().props.page.seo.canonical, /\/posts\/hello-world$/)
+  })
+
+  test('a draft postDetail override falls back to the built-in /posts/:slug view', async ({
+    client,
+    assert,
+  }) => {
+    await post('Hello world', 'hello-world')
+
+    const page = await Page.create({
+      id: newUlid(),
+      title: 'Kit post detail',
+      path: 'kit-post-detail-draft',
+      status: 'DRAFT',
+      renderMode: 'SSR',
+      kind: 'CODE',
+      component: 'x',
+      content: { root: {}, content: [] },
+      seo: {},
+    } as never)
+    await webSettings.applyPatches([
+      { section: 'content_pages', key: 'post_detail_page_id', value: page.id },
+    ])
+
+    const res = await inertia(client, '/posts/hello-world')
+    res.assertStatus(200)
+    assert.equal(res.body().component, 'posts/show')
+  })
 })
