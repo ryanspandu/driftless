@@ -26,7 +26,20 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
     const error = session?.flashMessages.get('error') as string
     const success = session?.flashMessages.get('success') as string
 
-    const siteTheme = await webSettings.getPublicTheme()
+    const sections = await webSettings.getMergedSections()
+    const siteTheme = webSettings.mapPublicTheme(sections)
+
+    /**
+     * The favicon `<link>` lives in the root edge shell itself, not in an
+     * Inertia prop, so it's in the initial HTML for every page — including
+     * admin/auth, which never render a React `<Head>` for it. Mirrors how
+     * Shield shares `cspNonce` the same way (`ctx.view.share`), one request
+     * ahead of any render. `'view' in ctx` guards the rare pre-session/auth
+     * render (see the comment below) where it may not exist yet.
+     */
+    if ('view' in ctx) {
+      ctx.view.share({ faviconUrl: webSettings.mapPublicAppearance(sections).faviconUrl })
+    }
 
     /**
      * Data shared with all Inertia pages. Make sure you are using
