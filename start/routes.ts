@@ -1094,6 +1094,10 @@ router
           () => import('#controllers/admin/media_controller'),
           'store',
         ])
+        router.get('/api/admin/media/:id', [
+          () => import('#controllers/admin/media_controller'),
+          'show',
+        ])
         router.get('/api/admin/media/:id/export', [
           () => import('#controllers/admin/media_controller'),
           'exportOne',

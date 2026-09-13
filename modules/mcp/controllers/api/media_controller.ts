@@ -19,7 +19,8 @@ export default class BuilderMediaController {
   async store({ request, auth, response }: HttpContext) {
     const user = auth.user as User
     const file = request.file('file', {
-      size: '25mb',
+      // Bumped from 25mb: video needs real headroom.
+      size: '100mb',
       extnames: [
         'jpg',
         'jpeg',
@@ -27,6 +28,8 @@ export default class BuilderMediaController {
         'gif',
         'webp',
         'svg',
+        'mp4',
+        'webm',
         'pdf',
         'doc',
         'docx',
@@ -67,7 +70,8 @@ export default class BuilderMediaController {
       y: num(request.input('y')),
       width: num(request.input('width')),
       height: num(request.input('height')),
-      targetWidth: request.input('targetWidth') !== undefined ? num(request.input('targetWidth')) : undefined,
+      targetWidth:
+        request.input('targetWidth') !== undefined ? num(request.input('targetWidth')) : undefined,
     }
     try {
       const dto = await media.cropToNew(String(params.id), rect, user.id, {

@@ -1269,7 +1269,7 @@ export function registerTools(
   )
   server.tool(
     'upload_media',
-    'Upload an image/file from a local path or a URL — the returned `url` is what you put in image blocks / product images. NEVER upload random stock or placeholder photos (picsum, loremflickr, unsplash-source, placehold.co, …) as brand/hero/product imagery — those hosts are rejected unless you pass purpose:"placeholder". To reuse a design\'s OWN photos, upload the reference image with purpose:"reference" then cut regions out with crop_media.',
+    'Upload an image, video (mp4/webm), PDF, Word doc, or font from a local path or a URL — the returned `url` is what you put in image/video blocks or product images. NEVER upload random stock or placeholder photos (picsum, loremflickr, unsplash-source, placehold.co, …) as brand/hero/product imagery — those hosts are rejected unless you pass purpose:"placeholder". To reuse a design\'s OWN photos, upload the reference image with purpose:"reference" then cut regions out with crop_media (crop is image-only).',
     {
       path: z.string().optional().describe('A local file path (server-side).'),
       url: z.string().optional().describe('A remote image URL to fetch and self-host.'),

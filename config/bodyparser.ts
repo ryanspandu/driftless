@@ -65,8 +65,13 @@ const bodyParserConfig = defineConfig({
 
     /**
      * Maximum accepted payload size for multipart requests.
+     *
+     * The hard ceiling for the whole request body — a per-field `size` option
+     * passed to `request.file(...)` (media uploads: 100mb, to fit a short video)
+     * is checked AFTER this, so it can never actually apply if this global limit
+     * is lower. Keep this at or above the largest per-field size used anywhere.
      */
-    limit: '20mb',
+    limit: '100mb',
 
     /**
      * Content types handled by the multipart parser.

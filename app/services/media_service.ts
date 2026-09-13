@@ -26,6 +26,12 @@ const UPLOAD_ALLOWED_MIMES = new Set([
   'image/gif',
   'image/webp',
   'image/svg+xml',
+  // Video — served inline (see `serve()`) so it plays in a <video> tag rather
+  // than downloading. No poster/thumbnail is generated (that needs decoding a
+  // frame, which sharp cannot do); the client shows the browser's own first
+  // frame via <video preload="metadata">.
+  'video/mp4',
+  'video/webm',
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -663,7 +669,16 @@ export default class MediaService {
   }
 
   async serve(response: HttpContext['response'], path: string, media: Media) {
-    const inline = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'])
+    const inline = new Set([
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/svg+xml',
+      // Video needs to stream/play in a <video> tag, not force-download.
+      'video/mp4',
+      'video/webm',
+    ])
     response.header('Cache-Control', 'public, max-age=31536000, immutable')
     response.header('X-Content-Type-Options', 'nosniff')
     response.header('Content-Security-Policy', "default-src 'none'; sandbox")

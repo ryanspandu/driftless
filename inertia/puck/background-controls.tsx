@@ -21,7 +21,7 @@ import {
   SegmentedControl,
   stepNumericValue,
 } from '~/puck/style-controls'
-import { MediaPickerDialog } from '~/puck/media-field'
+import { MediaPickerDialog, isImageMime } from '~/puck/media-field'
 import { PanelSelect } from '~/puck/panel-select'
 import type { AppSelectOption } from '~/components/ui/app-select'
 import {
@@ -394,6 +394,9 @@ function ImageLayerEditor({
             fileSize: item.size,
           })
         }
+        mimeFilter={isImageMime}
+        accept="image/*"
+        kindLabel="image"
       />
     </>
   )

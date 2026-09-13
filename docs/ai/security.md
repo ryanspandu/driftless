@@ -119,7 +119,9 @@ SVG has no reliable magic number, so its XML is passed through a strict static
 SVG sanitizer before it is persisted. It removes or rejects scripts, event
 attributes, links/references, `foreignObject`, animation, styles, and external
 or data URLs. SVG is re-sanitized when served as defense in depth. Documents
-are sent as downloads; only known safe image types are rendered inline.
+(PDF, Word, fonts) are sent as downloads; only known safe image types AND
+`video/mp4`/`video/webm` are rendered inline (video needs `Content-Disposition:
+inline` to play in a `<video>` tag rather than force-downloading).
 
 ### Existing media rollout
 

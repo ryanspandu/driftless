@@ -54,7 +54,9 @@ export default class MediaController {
 
   async store({ request, auth, response }: HttpContext) {
     const file = request.file('file', {
-      size: '10mb',
+      // Bumped from 10mb: video needs real headroom (a short clip easily runs
+      // past 10mb even compressed).
+      size: '100mb',
       extnames: [
         'jpg',
         'jpeg',
@@ -62,6 +64,8 @@ export default class MediaController {
         'gif',
         'webp',
         'svg',
+        'mp4',
+        'webm',
         'pdf',
         'doc',
         'docx',

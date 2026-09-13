@@ -61,4 +61,33 @@ test.group('CMS | resolveMedia swaps MEDIA ids for URLs', (group) => {
     assert.equal(byId.data.photo, '/uploads/example.jpg')
     assert.equal(byUrl.data.photo, 'https://cdn.example.com/y.jpg')
   })
+
+  test('a MEDIA field holding a video id resolves the same way', async ({ assert }) => {
+    const cms = new CmsService()
+    await cms.createCollection({
+      key: 'gallery_video',
+      label: 'Gallery Video',
+      draftsOn: false,
+      fields: [
+        { key: 'title', label: 'Title', type: 'TEXT', required: true },
+        { key: 'clip', label: 'Clip', type: 'MEDIA' },
+      ],
+    })
+
+    const media = await Media.create({
+      id: newUlid(),
+      filename: `${newUlid()}.mp4`,
+      mimeType: 'video/mp4',
+      size: 5678,
+      url: '/uploads/example.mp4',
+    })
+
+    await cms.createRecord('gallery_video', null, {
+      data: { title: 'Demo clip', clip: media.id },
+      status: 'PUBLISHED',
+    })
+
+    const resolved = await cms.listRecords('gallery_video', {}, { resolveMedia: true })
+    assert.equal(resolved.items[0]!.data.clip, '/uploads/example.mp4')
+  })
 })
