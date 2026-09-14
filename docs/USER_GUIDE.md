@@ -155,6 +155,20 @@ leaving Driftless. Adding a kit needs a rebuild/deploy;
 after that it works like any other page. The developer reference is
 [`docs/ai/custom-templates.md`](./ai/custom-templates.md).
 
+A kit page's row menu has an **Edit content region** action — what it opens depends on how much of
+that page the developer left editable:
+
+- **Nothing to edit** — the action is greyed out. The page is entirely fixed by its code (or, for a
+  page tied to a database record like an article or a product, by that record — edit the record
+  instead, in Content or your store).
+- **A few fields** — a simple form opens beside a live preview of the real page: just the text,
+  image/video, and small settings the developer chose to expose (a headline, a photo, a toggle…).
+  There is no drag-and-drop canvas here, because there is nothing to drag — everything else on the
+  page is fixed. Edits autosave as a draft; **Publish** makes them live, and **Discard draft** throws
+  unpublished edits away.
+- **A full editable area** — the normal visual builder opens, scoped to just the one region the
+  developer left open; the rest of the page (and its component palette) is unaffected.
+
 ## Email
 
 *Settings → Email*, three tabs.

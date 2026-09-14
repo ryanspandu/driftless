@@ -1,7 +1,8 @@
 # Changelog — SEO, favicon, offline-sync & theme-scoping batch (`develop`)
 
 A summary of the fixes/features shipped this session, with pointers to the full docs.
-Commits: `5fac128`, `9ca9025`, `4d807b5`, `d930eb9`, `e644439`, `ab320c3`, `f624e72`, `10e7f10`.
+Commits: `5fac128`, `9ca9025`, `4d807b5`, `d930eb9`, `e644439`, `ab320c3`, `f624e72`, `10e7f10`,
+`3f19799`.
 
 ## 1. Canonical URL fixed on role-slot pages + built-in pages SSR'd — `5fac128`
 
@@ -79,3 +80,29 @@ Commits: `5fac128`, `9ca9025`, `4d807b5`, `d930eb9`, `e644439`, `ab320c3`, `f624
   same way `LayoutShell.tsx` already does client-side and applies `.theme-light` to
   `<body>` itself, server-side, so the two can't drift.
 - Docs: [frontend.md](./frontend.md#theme-scoping-important).
+
+## 8. Simplified content editor for kit pages with no block content — `3f19799`
+
+- **Root problem:** a kit page's **Edit content region** always opened the full Puck
+  builder — empty canvas, full component palette — even when the resolved template has
+  nothing block-composable (a record-bound page like an article detail, or one branch of
+  a router-style kit that dispatches many sub-templates by `path`). `editableRegion` is
+  one flag for the whole kit, so it can't say "this branch has nothing, that one does."
+- A kit can now export `resolveCapability(ctx): KitCapability`, resolved **per Page row**
+  (`path` + core role slot) instead of per kit: a real block region (unchanged), a small
+  kit-declared set of fields (text/richtext/url/toggle/select/image/video — new
+  `pages.content_fields`/`draft_content_fields`, staged/published exactly like
+  `content`/`seo`), or nothing. The admin now shows, respectively: the normal builder
+  scoped to the region; a plain schema-driven form (`KitFieldsEditor`) beside a live
+  preview of the real page, autosaving to a draft; or a disabled action (no more empty
+  canvas). Optional and back-compatible — a kit with no `resolveCapability` behaves
+  exactly as the plain `editableRegion` flag already did.
+- Also fixed along the way: the admin preview route (`/admin/pages/:id/preview`, used by
+  the new editor's live iframe) never showed staged draft content, and was blocked from
+  being framed at all by the site-wide `frame-ancestors 'none'` / `X-Frame-Options: DENY`
+  default — relaxed to `'self'`/`SAMEORIGIN` for that one auth-gated route. The Pages
+  list's "Edit content region" menu gate was also still reading the old kit-wide flag
+  instead of the new per-page capability.
+- Docs: [code-pages.md](./code-pages.md#editable-fields-no-region),
+  [custom-templates.md](./custom-templates.md#editable-fields-optional-per-sub-template),
+  [USER_GUIDE.md](../USER_GUIDE.md#custom-code-templates-kits).
