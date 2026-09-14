@@ -1,15 +1,34 @@
 import { BuilderRegion } from '~/custom/builder-region'
 import { SiteChrome } from '~/custom/site-chrome'
-import type { CodePageProps } from '~/custom/types'
+import type { CodePageProps, KitCapability, KitCapabilityContext } from '~/custom/types'
 import { Hero } from './components/hero'
+import { ContentFieldsDemo, capability as contentFieldsDemoCapability } from './components/content_fields_demo'
 import './style/style.css'
 
+/** The one path in this kit that resolves to the simplified fields editor —
+ *  see `resolveCapability` below and `components/content_fields_demo.tsx`. */
+const CONTENT_FIELDS_DEMO_PATH = 'content-fields-demo'
+
 /**
- * Opt into a builder-editable region — read by the admin so it opens the page
- * builder instead of the "built in code" notice. Remove it to be fully
- * code-owned.
+ * Back-compat only: read when a kit has no `resolveCapability` export (see
+ * `registry.ts`). This kit DOES export one below, so `resolveCapability`
+ * always wins — kept here as a visible reminder of the flag it replaces for
+ * the region path.
  */
 export const editableRegion = true
+
+/**
+ * Which of this kit's Page rows get a real block region, which get the
+ * simplified fields editor, and which get neither — resolved per row from its
+ * `path`, mirroring this same file's page-picking `if` you'd write for a
+ * multi-template kit. Everything BUT the one demo path below keeps this kit's
+ * original behaviour (a real `<BuilderRegion/>`, same as the plain
+ * `editableRegion = true` flag already gave it).
+ */
+export function resolveCapability(ctx: KitCapabilityContext): KitCapability {
+  if (ctx.path === CONTENT_FIELDS_DEMO_PATH) return contentFieldsDemoCapability
+  return { kind: 'region' }
+}
 
 /**
  * Reference custom-template kit.
@@ -19,7 +38,10 @@ export const editableRegion = true
  * in `inertia/custom/kits/` for the full contract. Adding or renaming a kit
  * needs a front-end rebuild, because the lookup is a build-time glob.
  */
-export default function ExampleKit({ title, path, header, footer }: CodePageProps) {
+export default function ExampleKit(props: CodePageProps) {
+  const { title, path, header, footer } = props
+  if (path === CONTENT_FIELDS_DEMO_PATH) return <ContentFieldsDemo {...props} />
+
   return (
     <SiteChrome header={header} footer={footer}>
       <main className="mx-auto max-w-3xl px-6 py-20">
