@@ -13,7 +13,7 @@ import { PAGE_ROLE_SLOTS } from '#services/page_role_slots'
  * making a Pages-dashboard role write to a key nothing reads.
  */
 test.group('Page role slots — server/client mirror', () => {
-  test('every server slot section+key appears in the client mirror', async ({ assert }) => {
+  test('every server slot section+key+id appears in the client mirror', async ({ assert }) => {
     const client = await readFile(join(process.cwd(), 'inertia/types/api.ts'), 'utf-8')
     for (const slot of PAGE_ROLE_SLOTS) {
       assert.include(client, `'${slot.key}'`, `client mirror is missing key '${slot.key}'`)
@@ -22,6 +22,11 @@ test.group('Page role slots — server/client mirror', () => {
         `'${slot.section}'`,
         `client mirror is missing section '${slot.section}'`
       )
+      // The client's own `slot` id — what a kit's `resolveCapability` branches
+      // on (`KitCapabilityContext.roleSlot`) — must match the server's
+      // `OverrideSlot`, or a kit author's `ctx.roleSlot === 'postDetail'` check
+      // would silently never match anything.
+      assert.include(client, `slot: '${slot.slot}'`, `client mirror is missing slot: '${slot.slot}'`)
     }
   })
 

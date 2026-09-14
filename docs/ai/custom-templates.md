@@ -83,6 +83,19 @@ content is the page's own `content` column, resolved exactly as for a builder pa
 per kit; the flag is required (the admin cannot infer it, and shows the "built in code" notice
 without it).
 
+### Editable fields (optional, per sub-template)
+
+`editableRegion` is one flag for the whole kit — wrong for a router-style kit whose sub-templates
+mix record-bound pages (nothing to edit) with a few author-exposed values (no real block region).
+Export `resolveCapability(ctx: KitCapabilityContext): KitCapability` from `index.tsx` to answer
+**per Page row** instead — `{ kind: 'region' }`, `{ kind: 'fields', fields: [...] }` (a small
+schema of text/richtext/url/toggle/select/image/video values), or `{ kind: 'none' }` — co-located
+with the kit's existing `path`-based routing `if` chain, one line per branch. Optional: a kit with
+no `resolveCapability` keeps behaving exactly as the plain `editableRegion` flag says. `{ kind:
+'fields' }` opens a schema-driven form (`KitFieldsEditor`) instead of the Puck canvas — see
+[code-pages.md § Editable fields (no region)](code-pages.md) for the full mechanism, storage
+shape, and an example.
+
 ## File-pages — a folder of routes, no database rows
 
 A kit's `index.tsx` is *one* template a database page points at. A kit can instead (or also)

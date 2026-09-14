@@ -106,6 +106,61 @@ empty).
 - An empty region renders **nothing** for a visitor; the placeholder hint appears in the admin
   preview only.
 
+### Editable fields (no region)
+
+Some code pages have nothing block-composable at all — a template that is 100% bound to a
+`record` (an article detail page rendering `record.post.title/body`), or one branch of a
+router-style kit that dispatches between many sub-templates by `path`. `editableRegion` is a
+kit-wide flag, so it can't express "this one sub-template has nothing to edit, that one does" —
+every branch inherits the same answer.
+
+`resolveCapability` answers the question **per Page row** instead, and can expose a small set of
+kit-author-declared fields (text, rich text, a URL, a toggle, a select, an image, a video)
+instead of a block region:
+
+```tsx
+// components/article-detail.tsx — record-bound, nothing to edit
+export const capability: KitCapability = { kind: 'none' }
+
+// components/landing.tsx — a few author-exposed fields, not a region
+export const capability: KitCapability = {
+  kind: 'fields',
+  fields: [
+    { key: 'headline', label: 'Headline', type: 'text' },
+    { key: 'photo', label: 'Photo', type: 'image' },
+    { key: 'featured', label: 'Featured', type: 'toggle' },
+  ],
+}
+
+// index.tsx — co-locate with the existing routing `if` chain, one line per branch
+export function resolveCapability(ctx: KitCapabilityContext): KitCapability {
+  if (ctx.path === ARTICLE_DETAIL_PATH) return ArticleDetail.capability ?? { kind: 'none' }
+  if (ctx.path === LANDING_PATH) return Landing.capability ?? { kind: 'none' }
+  return { kind: 'none' }
+}
+```
+
+- **Optional.** A kit with no `resolveCapability` export falls back to the plain
+  `editableRegion` flag unchanged — nothing to adopt for a single-template kit.
+- **Mix freely per Page row.** One kit can resolve `region` for one branch, `fields` for
+  another, `none` for a third — each Page row gets its own answer, resolved from its `path` and
+  its core role slot (`ctx.roleSlot` — `home`, `login`, `postDetail`, … — `null` if the page
+  isn't assigned to one; module-contributed slots like ecommerce's `shop`/`cart` aren't covered,
+  key on `path` for those, same as before).
+  A throwing `resolveCapability` fails open to `{ kind: 'none' }`.
+- **Storage is already render-ready.** Field values live in `pages.content_fields`
+  (`{ [fieldKey]: value }`), staged in `pages.draft_content_fields` exactly like
+  `content`/`draftContent`, and reach the page as `CodePageProps.contentFields`. `image`/`video`
+  values are the resolved **public URL** (like `Content.featuredImage`), not a media id — so
+  `PageRenderer` forwards them unchanged, with no per-field resolution step.
+- **The admin UI is a plain form, not the block canvas.** `{ kind: 'fields' }` opens
+  `inertia/pages/admin/pages/kit-fields-editor.tsx` — a live preview (the same
+  `/admin/pages/:id/preview` route) beside one input per `KitFieldDef`, autosaved to the draft
+  and promoted on Publish, exactly like the builder's own draft/publish contract.
+- This does **not** replace `<BuilderRegion />`/`editableRegion` — use a region when there is
+  real block-composable content, fields when there's a fixed handful of values, and `none` when
+  there's nothing an editor should touch here at all (edit the underlying record instead).
+
 ### Render modes
 
 All three work exactly as for a builder page. SSR/SSG render through `public/code_ssr`

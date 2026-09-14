@@ -242,6 +242,10 @@ export const WEBSITE_SETTING_SECTIONS = {
  * both surfaces write the same rows and stay consistent.
  */
 export interface PageRoleSlot {
+  /** Stable identifier matching the server's `OverrideSlot`
+   *  (`app/services/page_role_slots.ts`) — what a kit's `resolveCapability`
+   *  branches on, not the storage (section, key) pair below. */
+  slot: string
   section: string
   key: string
   label: string
@@ -250,66 +254,77 @@ export interface PageRoleSlot {
 
 export const PAGE_ROLE_SLOTS: readonly PageRoleSlot[] = [
   {
+    slot: 'home',
     section: WEBSITE_SETTING_SECTIONS.HOME_PAGE,
     key: 'front_page_id',
     label: 'Front page',
     hint: 'The public home page at /',
   },
   {
+    slot: 'login',
     section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
     key: 'login_page_id',
     label: 'Sign in',
     hint: '/login',
   },
   {
+    slot: 'register',
     section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
     key: 'register_page_id',
     label: 'Sign up',
     hint: '/register',
   },
   {
+    slot: 'forgotPassword',
     section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
     key: 'forgot_password_page_id',
     label: 'Forgot password',
     hint: '/forgot-password',
   },
   {
+    slot: 'resetPassword',
     section: WEBSITE_SETTING_SECTIONS.AUTH_PAGES,
     key: 'reset_password_page_id',
     label: 'Reset password',
     hint: '/reset-password/…',
   },
   {
+    slot: 'notFound',
     section: WEBSITE_SETTING_SECTIONS.ERROR_PAGES,
     key: 'not_found_page_id',
     label: 'Not found (404)',
     hint: 'Public 404 only — the admin 404 keeps its sidebar',
   },
   {
+    slot: 'serverError',
     section: WEBSITE_SETTING_SECTIONS.ERROR_PAGES,
     key: 'server_error_page_id',
     label: 'Server error (500)',
     hint: 'Falls back to the built-in page if this one cannot render',
   },
   {
+    slot: 'categoryArchive',
     section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
     key: 'category_archive_page_id',
     label: 'Category archive',
     hint: 'Replaces the built-in /category/:slug archive',
   },
   {
+    slot: 'tagArchive',
     section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
     key: 'tag_archive_page_id',
     label: 'Tag archive',
     hint: 'Replaces the built-in /tag/:slug archive',
   },
   {
+    slot: 'postsArchive',
     section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
     key: 'posts_archive_page_id',
     label: 'Blog index',
     hint: 'Replaces the built-in /blog listing (supports ?q= search)',
   },
   {
+    slot: 'postDetail',
     section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
     key: 'post_detail_page_id',
     label: 'Post detail',
@@ -497,6 +512,9 @@ export interface PageDto extends PageSummaryDto {
   seo: Record<string, unknown>
   draftContent: Record<string, unknown> | null
   draftSeo: Record<string, unknown> | null
+  /** Kit-author-declared field values (null when none are set). */
+  contentFields: Record<string, unknown> | null
+  draftContentFields: Record<string, unknown> | null
 }
 
 export interface CreatePageRequest {
@@ -516,6 +534,7 @@ export interface CreatePageRequest {
   hideFooter?: boolean
   content?: Record<string, unknown>
   seo?: Record<string, unknown>
+  contentFields?: Record<string, unknown> | null
 }
 
 export interface UpdatePageRequest {
@@ -535,6 +554,7 @@ export interface UpdatePageRequest {
   hideFooter?: boolean
   content?: Record<string, unknown>
   seo?: Record<string, unknown>
+  contentFields?: Record<string, unknown> | null
   scheduledPublishAt?: string | null
   scheduledUnpublishAt?: string | null
 }

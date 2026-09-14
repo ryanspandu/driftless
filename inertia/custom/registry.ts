@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
-import type { CodePageProps } from '~/custom/types'
+import type { CodePageProps, KitCapability, KitCapabilityContext } from '~/custom/types'
 
 /**
  * The hand-written pages this build knows about.
@@ -23,8 +23,22 @@ export interface CustomPageModule {
    * knows to open the page builder instead of the "this page is built in code"
    * notice. A flag rather than inspection: whether a component renders a region
    * is only knowable by rendering it, and the admin would have to guess.
+   *
+   * Coarse for a router-style kit (one `index.tsx` picking between many
+   * sub-templates by `path`/`record`): it's declared once for the whole
+   * module, so it's wrong for every branch that doesn't actually render
+   * `<BuilderRegion/>`. A kit like that should export `resolveCapability`
+   * instead, which is checked first — this flag stays as the back-compat
+   * fallback for every kit/page that hasn't adopted it.
    */
   editableRegion?: boolean
+  /**
+   * Per-Page-row capability: does the template this Page would actually
+   * render have a real block region, a small set of kit-declared fields, or
+   * nothing editable? Takes precedence over `editableRegion` when present.
+   * See `KitCapability`/`KitCapabilityContext` (`~/custom/types`).
+   */
+  resolveCapability?: (ctx: KitCapabilityContext) => KitCapability
 }
 
 const CUSTOM_PAGES = import.meta.glob<CustomPageModule>('./pages/*.tsx', { eager: true })
@@ -154,6 +168,30 @@ export function getCustomPage(pointer: string): ComponentType<CodePageProps> | n
 /** Does this page/kit render a builder-editable region? */
 export function customPageHasRegion(pointer: string): boolean {
   return moduleFor(pointer)?.editableRegion === true
+}
+
+/**
+ * Resolve what the admin builder should show for this specific Page row:
+ * a real block region, a kit-declared set of simple fields, or nothing.
+ *
+ * A throwing `resolveCapability` fails open to `{kind:'none'}` — same
+ * fail-open posture as `AuthPageOverrideService.resolve` — so a bug in one
+ * kit's resolver can't crash the whole Pages admin.
+ */
+export function resolveCustomPageCapability(
+  pointer: string,
+  ctx: KitCapabilityContext
+): KitCapability {
+  const mod = moduleFor(pointer)
+  if (!mod) return { kind: 'none' }
+  if (typeof mod.resolveCapability === 'function') {
+    try {
+      return mod.resolveCapability(ctx)
+    } catch {
+      return { kind: 'none' }
+    }
+  }
+  return mod.editableRegion === true ? { kind: 'region' } : { kind: 'none' }
 }
 
 /** Every page slug and `kit:<id>` in this build, sorted — shown when a lookup misses. */

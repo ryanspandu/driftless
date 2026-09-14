@@ -39,7 +39,54 @@ export interface CodePageProps {
   record?: Record<string, unknown> | null
   /** True when rendered through the admin preview route. */
   preview?: boolean
+  /**
+   * Kit-author-declared field values for this page's resolved template (see
+   * `KitCapability`'s `fields` case below) — already render-ready (an
+   * `image`/`video` field is a plain URL). Undefined for a BUILDER page, or a
+   * CODE page/template with nothing declared.
+   */
+  contentFields?: Record<string, unknown>
 }
+
+/** The kind of control a declared content field renders as in the admin. */
+export type KitFieldType = 'text' | 'richtext' | 'url' | 'toggle' | 'select' | 'image' | 'video'
+
+export interface KitFieldDef {
+  key: string
+  label: string
+  type: KitFieldType
+  /** For `type: 'select'`. */
+  options?: { value: string; label: string }[]
+  helpText?: string
+}
+
+/**
+ * What the admin knows about a Page row without live-rendering it — enough
+ * for a router-style kit to say which of its sub-templates would apply.
+ */
+export interface KitCapabilityContext {
+  /** The Page row's own `path` column (no leading slash) — the discriminator
+   *  a kit's router already keys on today, even for a role-slot page whose
+   *  *served* URL is something else entirely. */
+  path: string
+  /** The core role slot (`page_role_slots.ts` / `PAGE_ROLE_SLOTS`) this Page
+   *  is currently assigned to, if any. Core slots only in this phase — a
+   *  module-contributed slot (e.g. ecommerce's shop/cart/checkout) isn't
+   *  included; key those branches on `path` instead. */
+  roleSlot: string | null
+}
+
+/**
+ * What a specific rendered page/template offers the admin builder:
+ * - `region`: a real `<BuilderRegion/>` — the existing full Puck builder.
+ * - `fields`: a kit-declared set of simple text/image/video/setting fields —
+ *   the simplified editor.
+ * - `none`: nothing editable here — the "built in code" notice.
+ */
+export type KitCapability =
+  | { kind: 'region' }
+  | { kind: 'fields'; fields: KitFieldDef[] }
+  | { kind: 'none' }
 
 /**
  * What the server hands the wrapper page.
