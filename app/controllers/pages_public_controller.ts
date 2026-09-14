@@ -130,11 +130,30 @@ export default class PagesPublicController {
    * always fresh (no SSG cache). Auth-gated via the `/admin/*` route group.
    */
   async preview(ctx: HttpContext) {
-    const { params } = ctx
+    const { params, response } = ctx
     const id = String((params as Record<string, unknown>).id ?? '')
     const page = await Page.query().where('id', id).whereNull('deleted_at').first()
     if (!page) {
       pageNotFound()
+    }
+    // Show staged edits when there are any, so the Preview link (and the
+    // simplified content-fields editor's live iframe) reflects what's on
+    // screen, not just what was last published — mirrors `previewByToken`.
+    if (page.draftContent != null) {
+      page.content = page.draftContent
+      if (page.draftSeo != null) page.seo = page.draftSeo
+    }
+    if (page.draftContentFields != null) {
+      page.contentFields = page.draftContentFields
+    }
+    // Shield denies ALL framing by default (clickjacking hardening, config/shield.ts).
+    // This route is auth-gated (the `/admin/*` group) and only ever framed by our
+    // own admin UI (the content-fields editor's live preview) — relax just enough
+    // for that same-origin case, not third-party embedding.
+    response.header('X-Frame-Options', 'SAMEORIGIN')
+    const csp = response.getHeader('Content-Security-Policy')
+    if (typeof csp === 'string') {
+      response.header('Content-Security-Policy', csp.replace("frame-ancestors 'none'", "frame-ancestors 'self'"))
     }
     return this.composeAndRender(page, ctx, true)
   }

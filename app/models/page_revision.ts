@@ -6,6 +6,12 @@ const jsonColumn = {
   consume: (v: unknown) => (typeof v === 'string' ? JSON.parse(v) : (v ?? {})),
 }
 
+/** Like `jsonColumn` but keeps `null` as `null` — mirrors `page.contentFields`. */
+const nullableJsonColumn = {
+  prepare: (v: unknown) => (v == null ? null : JSON.stringify(v)),
+  consume: (v: unknown) => (v == null ? null : typeof v === 'string' ? JSON.parse(v) : v),
+}
+
 export default class PageRevision extends BaseModel {
   static table = 'page_revisions'
   static selfAssignPrimaryKey = true
@@ -21,6 +27,10 @@ export default class PageRevision extends BaseModel {
 
   @column(jsonColumn)
   declare seo: Record<string, unknown>
+
+  /** Snapshot of `page.contentFields` at the time of this revision. */
+  @column(nullableJsonColumn)
+  declare contentFields: Record<string, unknown> | null
 
   @column()
   declare status: 'DRAFT' | 'PUBLISHED'

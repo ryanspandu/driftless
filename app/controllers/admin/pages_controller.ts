@@ -85,7 +85,7 @@ export default class PagesController {
 
   async store({ request, auth, response }: HttpContext) {
     const body = request.all()
-    const { title, path, status, renderMode, kind, component, content, seo } = body
+    const { title, path, status, renderMode, kind, component, content, seo, contentFields } = body
     if (!(await this.canManageExecutableContent(auth.user as User, body))) {
       return response
         .status(403)
@@ -101,6 +101,7 @@ export default class PagesController {
         component,
         content,
         seo,
+        contentFields,
         ...this.composition(body),
       })
       return response.status(201).json(item)
@@ -120,7 +121,7 @@ export default class PagesController {
 
   async update({ params, request, auth, response }: HttpContext) {
     const body = request.all()
-    const { title, path, status, renderMode, kind, component, content, seo } = body
+    const { title, path, status, renderMode, kind, component, content, seo, contentFields } = body
     try {
       const current = await pagesService.findOne(params.id)
       if (!(await this.canManageExecutableContent(auth.user as User, body, current.kind))) {
@@ -137,6 +138,7 @@ export default class PagesController {
         component,
         content,
         seo,
+        contentFields,
         ...this.composition(body),
         ...this.schedule(body),
       })
@@ -152,6 +154,7 @@ export default class PagesController {
       const item = await pagesService.saveDraft(params.id, {
         content: request.input('content'),
         seo: request.input('seo'),
+        contentFields: request.input('contentFields'),
       })
       return response.json(item)
     } catch (e) {
@@ -162,7 +165,7 @@ export default class PagesController {
   /** Promote the editor's state to live and clear the draft. */
   async publish({ params, request, auth, response }: HttpContext) {
     const body = request.all()
-    const { title, path, renderMode, kind, component, content, seo } = body
+    const { title, path, renderMode, kind, component, content, seo, contentFields } = body
     try {
       const current = await pagesService.findOne(params.id)
       if (!(await this.canManageExecutableContent(auth.user as User, body, current.kind))) {
@@ -178,6 +181,7 @@ export default class PagesController {
         component,
         content,
         seo,
+        contentFields,
         ...this.composition(body),
         ...this.schedule(body),
       })

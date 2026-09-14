@@ -127,6 +127,19 @@ export default class Page extends BaseModel {
   @column(nullableJsonColumn)
   declare draftSeo: Record<string, unknown> | null
 
+  /**
+   * Kit-author-declared "content field" values (`{ [fieldKey]: value }`) for a
+   * CODE page whose resolved template has no real `<BuilderRegion/>` — text,
+   * image/video source (already a resolved URL), toggle, etc. Null means
+   * nothing has been set (the overwhelming majority of pages). See
+   * `KitCapability`/`resolveCustomPageCapability` (`inertia/custom/`).
+   */
+  @column(nullableJsonColumn)
+  declare contentFields: Record<string, unknown> | null
+
+  @column(nullableJsonColumn)
+  declare draftContentFields: Record<string, unknown> | null
+
   @column.dateTime()
   declare draftUpdatedAt: DateTime | null
 

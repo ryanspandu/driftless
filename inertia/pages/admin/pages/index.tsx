@@ -18,7 +18,8 @@ import {
 } from 'lucide-react'
 import { PAGE_ROLE_SLOTS, type PageSummaryDto } from '~/types/api'
 import { modulePageRoles } from '~/lib/module-page-roles'
-import { customPageHasRegion } from '~/custom/registry'
+import { resolveCustomPageCapability } from '~/custom/registry'
+import { resolveCoreRoleSlot } from '~/lib/page-role-slot'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
@@ -63,12 +64,17 @@ type DialogMode = { kind: 'create' } | { kind: 'edit'; row: PageSummaryDto }
 /**
  * How a CODE page is authored, for the list badge and the "Open builder" gate.
  * A kit is a folder (`component = "kit:<id>"`); a single-file code page is a bare
- * slug. `canBuild` is false for a coded page with no editable region — the
+ * slug. `canBuild` is false for a coded page with no editable content — the
  * builder has nothing to show it, so that action is disabled rather than opening
  * the "built in code" notice. Returns null for a visual-builder page.
+ *
+ * `canBuild` is resolved per Page row (not per kit): a router-style kit can mix
+ * a real block region, declared simple fields, and "nothing" across its own
+ * sub-templates — see `resolveCustomPageCapability`/`KitCapability`.
  */
 function codePageInfo(
-  page: PageSummaryDto
+  page: PageSummaryDto,
+  roleSlot: string | null
 ): { label: string; hint: string; canBuild: boolean } | null {
   if (page.kind !== 'CODE') return null
   const component = page.component ?? ''
@@ -81,12 +87,13 @@ function codePageInfo(
     }
   }
   const isKit = component.startsWith('kit:')
+  const capability = resolveCustomPageCapability(component, { path: page.path, roleSlot })
   return {
     label: isKit ? 'Custom template' : 'Code',
     hint: isKit
       ? `Custom template kit: ${component.slice('kit:'.length)}`
       : `Code component: ${component || '(none)'}`,
-    canBuild: customPageHasRegion(component),
+    canBuild: capability.kind !== 'none',
   }
 }
 
@@ -108,6 +115,8 @@ export default function PagesPage() {
   const confirmDelete = useConfirmDelete()
   const listQuery = usePagesList()
   const rows = useMemo(() => listQuery.data ?? [], [listQuery.data])
+  const { data: websiteSettings } = useWebsiteSettings()
+  const sections = websiteSettings?.sections
   const createMut = useCreatePage()
   const updateMut = useUpdatePage()
   const deleteMut = useDeletePage()
@@ -201,7 +210,7 @@ export default function PagesPage() {
         // Primary cell: title with the page path as muted secondary text beneath
         // it, plus a badge marking a coded page (single-file or custom template).
         cell: ({ row }) => {
-          const code = codePageInfo(row.original)
+          const code = codePageInfo(row.original, resolveCoreRoleSlot(row.original.id, sections))
           return (
             <div className="flex w-[360px] max-w-[360px] flex-col leading-tight">
               <span className="flex min-w-0 items-center gap-1.5 font-medium">
@@ -340,7 +349,10 @@ export default function PagesPage() {
           // .tsx file, so every DB-backed action (build, settings, delete, …) is
           // omitted; only "View" (a separate column) applies.
           if (row.original.source === 'file') {
-            const code = codePageInfo(row.original)
+            const code = codePageInfo(
+              row.original,
+              resolveCoreRoleSlot(row.original.id, sections)
+            )
             return (
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -362,7 +374,7 @@ export default function PagesPage() {
           // coded page that exposes one (labelled to say so). A fully code-owned
           // page has nothing to show, so the action is disabled rather than
           // opening the "built in code" notice.
-          const code = codePageInfo(row.original)
+          const code = codePageInfo(row.original, resolveCoreRoleSlot(row.original.id, sections))
           const canBuild = code?.canBuild ?? true
           const builderLabel = code ? 'Edit content region' : 'Open builder'
           return (
@@ -448,7 +460,7 @@ export default function PagesPage() {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [confirmDelete, deleteMut]
+    [confirmDelete, deleteMut, sections]
   )
 
   const trashColumns = useMemo<ColumnDef<PageSummaryDto, unknown>[]>(

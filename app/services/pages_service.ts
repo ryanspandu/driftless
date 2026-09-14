@@ -58,6 +58,9 @@ export interface PageDto extends PageSummaryDto {
   draftSeo: Record<string, unknown> | null
   /** The structured design brief the AI recorded (null until set). */
   designBrief: Record<string, unknown> | null
+  /** Kit-author-declared field values (null when none are set). */
+  contentFields: Record<string, unknown> | null
+  draftContentFields: Record<string, unknown> | null
 }
 
 export interface PageRevisionDto {
@@ -87,6 +90,7 @@ interface CreatePageInput {
   scheduledUnpublishAt?: string | null
   content?: Record<string, unknown>
   seo?: Record<string, unknown>
+  contentFields?: Record<string, unknown> | null
 }
 
 interface UpdatePageInput {
@@ -106,6 +110,7 @@ interface UpdatePageInput {
   hideFooter?: boolean
   content?: Record<string, unknown>
   seo?: Record<string, unknown>
+  contentFields?: Record<string, unknown> | null
   /** ISO strings or null to clear; applied verbatim to the schedule columns. */
   scheduledPublishAt?: string | null
   scheduledUnpublishAt?: string | null
@@ -153,6 +158,7 @@ export default class PagesService {
       component: kind === 'CODE' ? component : null,
       content: sanitizePuckDocument(dto.content ?? EMPTY_DOC),
       seo: dto.seo ?? {},
+      contentFields: dto.contentFields ?? null,
       layoutId: dto.layoutId ?? null,
       headerTemplateId: dto.headerTemplateId ?? null,
       footerTemplateId: dto.footerTemplateId ?? null,
@@ -197,6 +203,7 @@ export default class PagesService {
       component: src.component,
       content: src.content,
       seo: src.seo,
+      contentFields: src.contentFields,
       layoutId: src.layoutId,
       headerTemplateId: src.headerTemplateId,
       footerTemplateId: src.footerTemplateId,
@@ -313,6 +320,7 @@ export default class PagesService {
     if (dto.hideFooter !== undefined) row.hideFooter = dto.hideFooter
     if (dto.content !== undefined) row.content = sanitizePuckDocument(dto.content)
     if (dto.seo !== undefined) row.seo = dto.seo
+    if (dto.contentFields !== undefined) row.contentFields = dto.contentFields
     if (dto.scheduledPublishAt !== undefined) {
       row.scheduledPublishAt = dto.scheduledPublishAt
         ? DateTime.fromISO(dto.scheduledPublishAt)
@@ -339,9 +347,14 @@ export default class PagesService {
           row.seo = row.draftSeo
           draftPromoted = true
         }
+        if (dto.contentFields === undefined && row.draftContentFields) {
+          row.contentFields = row.draftContentFields
+          draftPromoted = true
+        }
         if (draftPromoted) {
           row.draftContent = null
           row.draftSeo = null
+          row.draftContentFields = null
           row.draftUpdatedAt = null
         }
         // The scheduled publish (if any) has now happened; clear it so a stale
@@ -362,9 +375,14 @@ export default class PagesService {
       await new RedirectsService().capturePathChange(previousPath, row.path).catch(() => {})
     }
 
-    // Snapshot a revision whenever the page's design (content/seo) changes —
-    // including a draft promoted to live by publishing.
-    if (dto.content !== undefined || dto.seo !== undefined || draftPromoted) {
+    // Snapshot a revision whenever the page's design (content/seo/fields)
+    // changes — including a draft promoted to live by publishing.
+    if (
+      dto.content !== undefined ||
+      dto.seo !== undefined ||
+      dto.contentFields !== undefined ||
+      draftPromoted
+    ) {
       await this.snapshotRevision(row, authorId)
     }
 
@@ -378,7 +396,11 @@ export default class PagesService {
    */
   async saveDraft(
     id: string,
-    dto: { content?: Record<string, unknown>; seo?: Record<string, unknown> }
+    dto: {
+      content?: Record<string, unknown>
+      seo?: Record<string, unknown>
+      contentFields?: Record<string, unknown> | null
+    }
   ): Promise<PageDto> {
     const row = await Page.query().where('id', id).whereNull('deleted_at').firstOrFail()
     // `updated_at` has `autoUpdate`, so a model save bumps it — but autosave is
@@ -388,6 +410,7 @@ export default class PagesService {
     const before = await db.from('pages').where('id', id).select('updated_at').first()
     if (dto.content !== undefined) row.draftContent = sanitizePuckDocument(dto.content)
     if (dto.seo !== undefined) row.draftSeo = dto.seo
+    if (dto.contentFields !== undefined) row.draftContentFields = dto.contentFields
     row.draftUpdatedAt = DateTime.now()
     await row.save()
     if (before && before.updated_at !== undefined && before.updated_at !== null) {
@@ -408,20 +431,27 @@ export default class PagesService {
     // so fall back to promoting whatever was staged as a draft.
     const content = dto.content !== undefined ? dto.content : (row.draftContent ?? undefined)
     const seo = dto.seo !== undefined ? dto.seo : (row.draftSeo ?? undefined)
-    await this.update(id, authorId, { ...dto, content, seo, status: 'PUBLISHED' })
+    const contentFields =
+      dto.contentFields !== undefined ? dto.contentFields : (row.draftContentFields ?? undefined)
+    await this.update(id, authorId, { ...dto, content, seo, contentFields, status: 'PUBLISHED' })
     // Draft has been promoted; drop it so the editor reopens on the live design.
-    await Page.query()
-      .where('id', id)
-      .update({ draft_content: null, draft_seo: null, draft_updated_at: null })
+    await Page.query().where('id', id).update({
+      draft_content: null,
+      draft_seo: null,
+      draft_content_fields: null,
+      draft_updated_at: null,
+    })
     return this.findOne(id)
   }
 
   /** Throw away staged edits; the editor falls back to the live design. */
   async discardDraft(id: string): Promise<PageDto> {
-    await Page.query()
-      .where('id', id)
-      .whereNull('deleted_at')
-      .update({ draft_content: null, draft_seo: null, draft_updated_at: null })
+    await Page.query().where('id', id).whereNull('deleted_at').update({
+      draft_content: null,
+      draft_seo: null,
+      draft_content_fields: null,
+      draft_updated_at: null,
+    })
     return this.findOne(id)
   }
 
@@ -505,6 +535,7 @@ export default class PagesService {
 
     row.content = sanitizePuckDocument(revision.content)
     row.seo = revision.seo
+    row.contentFields = revision.contentFields ?? null
     if (revision.status === 'PUBLISHED' && row.status !== 'PUBLISHED') {
       row.publishedAt = DateTime.now()
     }
@@ -588,6 +619,7 @@ export default class PagesService {
       pageId: row.id,
       content: row.content,
       seo: row.seo,
+      contentFields: row.contentFields,
       status: row.status,
       authorId,
     })
@@ -720,6 +752,8 @@ export default class PagesService {
       draftContent: row.draftContent ?? null,
       draftSeo: row.draftSeo ?? null,
       designBrief: row.designBrief ?? null,
+      contentFields: row.contentFields ?? null,
+      draftContentFields: row.draftContentFields ?? null,
     }
   }
 

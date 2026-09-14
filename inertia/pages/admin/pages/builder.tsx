@@ -9,7 +9,9 @@ import { builderViewports } from '~/puck/style-fields'
 import { puckOverrides } from '~/puck/overrides'
 import { BuilderShell } from '~/puck/builder-shell'
 import { BuilderLoadState } from '~/puck/builder-load-state'
-import { customPageHasRegion } from '~/custom/registry'
+import { resolveCustomPageCapability } from '~/custom/registry'
+import { resolveCoreRoleSlot } from '~/lib/page-role-slot'
+import { KitFieldsEditor } from '~/pages/admin/pages/kit-fields-editor'
 import type { PageMeta } from '~/puck/settings-dialog'
 import {
   usePage as usePageRecord,
@@ -39,6 +41,7 @@ const PUCK_VIEWPORTS = [...builderViewports]
 export default function PageBuilder({ id }: { id: string }) {
   const pageQuery = usePageRecord(id)
   const page = pageQuery.data
+  const settingsQuery = useWebsiteSettings()
 
   if (!page) {
     return (
@@ -52,21 +55,38 @@ export default function PageBuilder({ id }: { id: string }) {
   }
 
   /**
-   * A code page opens the builder only if it declares an editable region.
+   * A code page's builder experience depends on what its RESOLVED template
+   * (the specific sub-template this Page row would actually render — a
+   * router-style kit picks one of several by `path`/role slot) declares:
    *
-   * Without one there is no block tree to edit: Puck would show an empty canvas
-   * and Publish would save that empty document over a page whose markup lives
-   * in a file. With one, the builder edits exactly that region — the same
-   * `content` column a builder page uses — so nothing here needs to change
-   * except the decision to open it.
+   * - `region`: a real `<BuilderRegion/>` — the full Puck builder below,
+   *   exactly as for a BUILDER page.
+   * - `fields`: a small kit-declared set of text/image/video/setting values —
+   *   the simplified `KitFieldsEditor`, not the block canvas.
+   * - `none`: nothing editable here — the "built in code" notice. Without
+   *   this, Puck would show a permanently empty canvas and Publish would save
+   *   that empty document over a page whose markup lives in a file.
    */
   const isCode = page.kind === 'CODE'
-  const hasRegion = isCode && customPageHasRegion(page.component ?? '')
-  if (isCode && !hasRegion) {
+  const roleSlot = resolveCoreRoleSlot(page.id, settingsQuery.data?.sections)
+  const capability = isCode
+    ? resolveCustomPageCapability(page.component ?? '', { path: page.path, roleSlot })
+    : ({ kind: 'region' } as const)
+
+  if (isCode && capability.kind === 'none') {
     return <CodePageNotice page={page} />
   }
+  if (isCode && capability.kind === 'fields') {
+    return <KitFieldsEditor id={id} page={page} fields={capability.fields} />
+  }
 
-  return <BuilderInner id={id} page={page} regionOf={hasRegion ? page.component : null} />
+  return (
+    <BuilderInner
+      id={id}
+      page={page}
+      regionOf={isCode && capability.kind === 'region' ? page.component : null}
+    />
+  )
 }
 
 function CodePageNotice({ page }: { page: PageDto }) {

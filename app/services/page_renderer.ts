@@ -317,6 +317,9 @@ export default class PageRenderer {
         bindings: options.bindings?.params,
         // The server-resolved record (e.g. product) for a CODE template page.
         record: options.record ?? undefined,
+        // Kit-author-declared field values for a CODE page's resolved template
+        // (see KitCapability) — already render-ready (image/video is a URL).
+        contentFields: page.contentFields ?? undefined,
       },
     })
 
