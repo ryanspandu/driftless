@@ -9,7 +9,7 @@ import { builderViewports } from '~/puck/style-fields'
 import { puckOverrides } from '~/puck/overrides'
 import { BuilderShell } from '~/puck/builder-shell'
 import { BuilderLoadState } from '~/puck/builder-load-state'
-import { resolveCustomPageCapability } from '~/custom/registry'
+import { resolveCustomPageCapability, sourcePathOf } from '~/custom/registry'
 import { resolveCoreRoleSlot } from '~/lib/page-role-slot'
 import { KitFieldsEditor } from '~/pages/admin/pages/kit-fields-editor'
 import type { PageMeta } from '~/puck/settings-dialog'
@@ -96,7 +96,7 @@ function CodePageNotice({ page }: { page: PageDto }) {
       <p className="text-sm font-medium">This page is built in code</p>
       <p className="max-w-md text-sm text-muted-foreground">
         Its markup comes from{' '}
-        <code className="font-mono text-xs">inertia/custom/pages/{page.component}.tsx</code>, not
+        <code className="font-mono text-xs">{sourcePathOf(page.component ?? '')}</code>, not
         from the visual builder. Edit that file to change the page; use the Pages list for its path,
         status and SEO.
       </p>
@@ -308,7 +308,7 @@ function BuilderInner({
             */}
             {regionOf ? (
               <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                Editable region of <code className="font-mono">custom/pages/{regionOf}.tsx</code>
+                Editable region of <code className="font-mono">{sourcePathOf(regionOf)}</code>
               </span>
             ) : null}
           </>

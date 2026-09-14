@@ -111,6 +111,26 @@ export function kitIdOf(pointer: string): string | null {
 }
 
 /**
+ * The on-disk file a `component` pointer's markup lives in — for display only
+ * (the admin's "built in code" notice and editable-region breadcrumb), never
+ * for resolution. A plain page and a kit live in different folders
+ * (`custom/pages/<slug>.tsx` vs `custom/kits/<id>/index.tsx`), so this can't
+ * be one hardcoded template string the way both call sites used to build it.
+ */
+export function sourcePathOf(component: string): string {
+  if (component.startsWith(KITPAGE_PREFIX)) {
+    const rest = component.slice(KITPAGE_PREFIX.length) // "<kit>/<file>"
+    const slash = rest.indexOf('/')
+    if (slash < 0) return `inertia/custom/kits/${rest}/pages/*.tsx`
+    return `inertia/custom/kits/${rest.slice(0, slash)}/pages/${rest.slice(slash + 1)}.tsx`
+  }
+  if (component.startsWith(KIT_PREFIX)) {
+    return `inertia/custom/kits/${component.slice(KIT_PREFIX.length)}/index.tsx`
+  }
+  return `inertia/custom/pages/${component}.tsx`
+}
+
+/**
  * Whether a kit declared `"isolate": true` in its `kit.json`. Such a kit's CSS
  * is build-time scoped (see `scopeIsolatedKitCss` in `vite.config.ts`) and its
  * body must be wrapped in `<div class="kit-<id>">` so the `@scope` matches.
