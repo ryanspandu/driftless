@@ -39,7 +39,22 @@
     @stack('dumper')
   </head>
 
-  <body>
+  {{--
+    `.theme-light` pins the admin dark/light toggle out for every non-admin
+    page (see `@custom-variant dark` and `.theme-light` in app.css) — but only
+    on a DESCENDANT wrapper that LayoutShell renders client-side. <body> itself
+    sits above that wrapper and still gets its own `bg-background`/`color` from
+    `body { @apply bg-background text-foreground }` in app.css, which DOES react
+    to the admin's `.dark` class on <html> — so the page's own gutters (behind
+    a narrower card, or during overscroll) briefly showed the admin's dark
+    background on an otherwise light public/storefront page. Mirrors
+    LayoutShell's own classification (`inertia/components/layout-shell.tsx`) so
+    the two never drift: everything except admin/auth pages is `.theme-light`.
+  --}}
+  @let(pageComponent = page.component ?? '')
+  @let(componentSegments = pageComponent.split('/'))
+  @let(isAdminOrAuthPage = pageComponent.startsWith('admin/') || pageComponent.startsWith('auth/') || (componentSegments[0] === 'modules' && componentSegments[2] === 'admin'))
+  <body class="{{ isAdminOrAuthPage ? '' : 'theme-light' }}">
     @inertia()
   </body>
 </html>
