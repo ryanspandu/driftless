@@ -3,11 +3,15 @@ import { SiteChrome } from '~/custom/site-chrome'
 import type { CodePageProps, KitCapability, KitCapabilityContext } from '~/custom/types'
 import { Hero } from './components/hero'
 import { ContentFieldsDemo, capability as contentFieldsDemoCapability } from './components/content_fields_demo'
+import { RecordBoundDemo, capability as recordBoundDemoCapability } from './components/record_bound_demo'
 import './style/style.css'
 
 /** The one path in this kit that resolves to the simplified fields editor —
  *  see `resolveCapability` below and `components/content_fields_demo.tsx`. */
 const CONTENT_FIELDS_DEMO_PATH = 'content-fields-demo'
+/** The one path that resolves to nothing editable at all — see
+ *  `resolveCapability` below and `components/record_bound_demo.tsx`. */
+const RECORD_BOUND_DEMO_PATH = 'record-bound-demo'
 
 /**
  * Back-compat only: read when a kit has no `resolveCapability` export (see
@@ -27,6 +31,7 @@ export const editableRegion = true
  */
 export function resolveCapability(ctx: KitCapabilityContext): KitCapability {
   if (ctx.path === CONTENT_FIELDS_DEMO_PATH) return contentFieldsDemoCapability
+  if (ctx.path === RECORD_BOUND_DEMO_PATH) return recordBoundDemoCapability
   return { kind: 'region' }
 }
 
@@ -41,6 +46,7 @@ export function resolveCapability(ctx: KitCapabilityContext): KitCapability {
 export default function ExampleKit(props: CodePageProps) {
   const { title, path, header, footer } = props
   if (path === CONTENT_FIELDS_DEMO_PATH) return <ContentFieldsDemo {...props} />
+  if (path === RECORD_BOUND_DEMO_PATH) return <RecordBoundDemo {...props} />
 
   return (
     <SiteChrome header={header} footer={footer}>
