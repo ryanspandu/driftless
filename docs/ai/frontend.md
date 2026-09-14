@@ -203,11 +203,29 @@ NOT the public/FE site. The public shell is forced light:
 - The dark variant is `@custom-variant dark (&:is(.dark *):not(.theme-light *))`, and light vars
   live on `:root, .theme-light`. `.theme-light` **also re-sets `color`/`background-color`**
   (inherited `color` from `<body>` would otherwise leak white text into un-coloured headings).
-- FE roots carry `.theme-light` (`PublicLayout`, and the `public/page*` wrappers in
-  `layout-shell.tsx`). `PublicLayout` additionally strips `.dark` from `<html>` while mounted (a
-  `MutationObserver`, restored via `useTheme().resolvedTheme`).
+- FE roots carry `.theme-light` (`PublicLayout`, and the `public/page*`/`public/code*`/
+  `modules/*/storefront/*` wrappers in `layout-shell.tsx`). `PublicLayout` **additionally** strips
+  `.dark` from `<html>` while mounted (a `MutationObserver`, restored via
+  `useTheme().resolvedTheme`) — but that stripping is a client-side effect specific to
+  `PublicLayout`'s own branch (the built-in landing/posts pages). It does **not** run for
+  `public/page*`/`public/code*`/storefront pages, which render standalone with no
+  `PublicLayout` wrapper at all, and it never runs before hydration either way.
+- **`<body>` itself also needs `.theme-light`, server-side.** `.theme-light` scopes CSS vars to
+  whatever element carries the class — but that was only ever a *descendant* wrapper deep inside
+  the React tree, never `<body>`. `<body>` has its own `bg-background`/`color` (`app.css`'s
+  `@layer base { body { @apply bg-background text-foreground } }`), which still reacted to
+  `.dark` on `<html>` regardless of any inner `.theme-light` div — visible wherever the inner
+  wrapper doesn't cover the full viewport (page gutters, overscroll, a narrower card). Fixed at
+  the root: [inertia_layout.edge](../../resources/views/inertia_layout.edge) now classifies
+  `page.component` the same way `LayoutShell` does (`admin/*` / `auth/*` / `modules/*/admin/*` →
+  no `.theme-light`; everything else → `.theme-light`) and puts the class on `<body>` itself,
+  server-side, before hydration — so the two classifications can't drift, and there's no flash
+  of the admin's dark background on any public page regardless of which LayoutShell branch it
+  takes.
 - **When adding a public/FE page:** route it through `PublicLayout` or wrap its root in
-  `.theme-light`; never wrap admin/auth pages in it.
+  `.theme-light`; never wrap admin/auth pages in it. You do not need to do anything extra for
+  `<body>` — the edge-template classification above already covers any new page automatically,
+  as long as its Inertia component name isn't under `admin/`/`auth/`/`modules/*/admin/`.
 
 ## Client libraries
 

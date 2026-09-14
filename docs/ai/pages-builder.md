@@ -94,6 +94,50 @@ a builder page.
 The e-commerce module's `/shop/p/:slug` is the worked example — see
 [ecommerce.md](../../modules/ecommerce/README.md#product-pages-one-template-every-product).
 
+### Canonical URL — the default when `seoOverride` isn't passed
+
+`page_renderer.ts`'s canonical fallback chain, in order: (1) an operator-set
+`seo.canonical` on the page itself, (2) `seoOverride.canonicalPath` if the
+caller passed one, (3) **the request's own URL** (`absoluteUrl(request.url())`).
+That third step matters specifically for a **role-slot override** — a single
+stored Page rendered at a fixed built-in route (home, `/blog`, `/shop`, cart,
+checkout, an auth screen, …) via `overrides.resolve(...)`/`renderer.render()`
+with no `seoOverride`. Before this was fixed, step 3 used `absoluteUrl(page.path)`
+instead — the Page row's **own stored `path` column**, an arbitrary slug that
+has nothing to do with the URL actually being served (the seeded front page's
+`path` is literally `'home'`, so `/` shipped `canonical = ".../home"`). The
+same bug independently corrupted `structured_data_service.ts`'s JSON-LD
+(`WebPage.url` and the `BreadcrumbList`, built from `page.path`) — that one
+still used `page.path` unconditionally even on routes that *did* pass a
+correct `seoOverride.canonicalPath`.
+
+Switching the default to the request URL is safe for an **ordinary**
+(non-override) page too: `PagesPublicController.show` (the ordinary catch-all)
+looks a page up by `where('path', path)` where `path` is the request URL's own
+segment — for a normal page, `page.path` and the request path are, modulo the
+leading slash `absoluteUrl` already strips, the same string. So the fix only
+changes behavior for role-slot overrides (where request path ≠ `page.path` by
+design), which is exactly the bug.
+
+**If you add a new route that renders a page via `PageRenderer.render()`**,
+you do not need to pass `seoOverride.canonicalPath` for the canonical to be
+correct anymore — the default now does the right thing on its own. Still pass
+it when the *served* URL differs from the literal request path for some
+reason (e.g. a template rendering a specific record's own canonical slug, as
+`seoOverride` is designed for), or when you want a title/image override too.
+
+### Built-in fallback pages are SSR'd for the same reason
+
+The built-in Inertia views a role slot falls back to when no override page is
+assigned — `home`, `posts/index` (`/blog`), `posts/category`, `posts/tag`,
+`posts/show` — are in `config/inertia.ts`'s `ssr.pages` allowlist (alongside
+`public/page_ssr` / `public/code_ssr`) so their `<Head>` (title, canonical)
+reaches the initial HTML instead of only appearing after client hydration.
+Each is given a server-computed `canonicalUrl` prop (`absoluteUrl(request.url())`,
+computed in `public_controller.ts`) and renders `<link rel="canonical">`
+itself — these are plain Inertia props read by the page component, not
+`page.seo` (that shape only exists for a `PageRenderer`-rendered page).
+
 ## Entrance animations ("Interactions")
 
 A Webflow-style scroll/load reveal any block can opt into via a single

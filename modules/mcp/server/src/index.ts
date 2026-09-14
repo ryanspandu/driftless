@@ -625,7 +625,7 @@ const SeoSchema = z
     jsonLdCustom: z.string().optional(),
   })
   .describe(
-    'SEO / <head> fields — set these on EVERY public page. `description` is the search-result snippet and `ogImage` the social-share image (both strongly recommended for SEO). `title` overrides the tab/SERP title (falls back to the page title). `canonical` is auto-derived from the path when unset; set `noindex:true` to keep a page out of search. `meta` adds extra <meta> tags ({ name|property, content }); `jsonLdCustom` is raw JSON-LD.'
+    'SEO / <head> fields — set these on EVERY public page. `description` is the search-result snippet and `ogImage` the social-share image (both strongly recommended for SEO). `title` overrides the tab/SERP title (falls back to the page title). `canonical` is auto-derived when unset from the URL the page is actually served at — its own path normally, or the role-slot route (e.g. `/blog`, `/posts/:slug`) when assigned via `use_page_as_role`/`set_storefront_page` — so you rarely need to set it by hand; set `noindex:true` to keep a page out of search. `meta` adds extra <meta> tags ({ name|property, content }); `jsonLdCustom` is raw JSON-LD.'
   )
 
 const PageMeta = {

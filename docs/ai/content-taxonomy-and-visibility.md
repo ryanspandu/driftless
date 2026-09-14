@@ -230,6 +230,59 @@ See [settings-ia.md](./settings-ia.md) for the `web_settings` key map and
 
 ---
 
+## 4. Blog index & post detail overrides ("Use as page")
+
+Two more `content_pages` role slots, alongside the category/tag archives above —
+the same override mechanism, applied to the `/blog` listing and to a single
+post's `/posts/:slug` page.
+
+- **Slots.** `page_role_slots.ts` adds **`postsArchive`** (`posts_archive_page_id`)
+  and **`postDetail`** (`post_detail_page_id`), both under `web_settings` section
+  `content_pages` — same section as `categoryArchive`/`tagArchive`, empty string
+  resets to the built-in screen. Mirrored in `inertia/types/api.ts`.
+- **`postsArchive` — `/blog`.** `public_controller.blog()` resolves the search
+  query (`?q=`, server-side title/body match) **before** checking the override, so
+  both branches share one result set. With an override assigned, the page
+  renders via `PageRenderer` with the **full** searched result — `record: {
+  items, total, query }` — where `items` is the **untrimmed** `PublicContentDto[]`
+  (body, categories, tags, custom `data`), not the built-in listing's trimmed
+  shape (id/title/slug/visibility/featuredImage/updatedAt). A CODE/kit page reads
+  this to render an excerpt/category-chip/tag SSR instead of client-fetching; a
+  builder page ignores `record` and shows its own configured content (same
+  split as `ProductList` on `/shop`). `skipSnapshot: Boolean(q)` — caching the
+  plain listing's HTML under the page id would otherwise serve stale results for
+  every search. No `record` shape exists for a builder page today — there is no
+  per-post block yet, so a builder blog index cannot show real post data (only a
+  CODE/kit page can).
+- **`postDetail` — `/posts/:slug`.** `public_controller.post()` resolves the
+  visibility gate first (`lockFor()` / `findPublishedBySlug`) so the override and
+  the built-in view share identical access control, **then** checks the
+  override. With one assigned: `bindings.params = { slug }` (for a future
+  per-post builder block), `record: { post, locked }` (the resolved,
+  already-gated `PublicContentDto` **plus** the same `locked` flag the built-in
+  view turns into a password/members prompt — a themed detail page never needs
+  to re-check access or client-fetch by `?slug=`), and `seoOverride: { title:
+  post.title, imageUrl: post.featuredImage, canonicalPath: '/posts/' + post.slug
+  }` so every post gets its own `<title>`/canonical instead of sharing the
+  template page's. `skipSnapshot: true` always — the page renders a different
+  post per slug, so its SSG snapshot (keyed on the page id) must never cache
+  under this route. Same caveat as the blog index: no per-post builder block
+  exists yet, so a builder page here renders identically for every post — use a
+  CODE/kit page for genuine per-post rendering.
+- **A locked post stays locked behind an override.** The gate runs before the
+  override check in both `blog()` (the listing withholds a gated post's
+  body/excerpt via `toRecord`, same as an unfiltered `/blog`) and `post()` (a
+  Protected/Member post's `record.post` carries the same blanked `body`/`data`
+  and `record.locked` flag the built-in view uses) — assigning an override page
+  never bypasses visibility.
+
+### Assigning via MCP
+
+Same tool as the category/tag archives — `PUT /api/mcp/v1/page-roles` /
+`use_page_as_role` with `role: "postsArchive" | "postDetail"`.
+
+---
+
 ## Data transfer
 
 Categories, tags, their pivots, and post visibility all round-trip through
@@ -243,6 +296,11 @@ import/export (`app/services/data_transfer/sections/content.ts`).
 - Switching a post's visibility away from `PROTECTED` **wipes** the password.
 - Category archives are **not** recursive — assigning a parent doesn't surface
   children's posts on the parent archive.
+- A builder page assigned to `postsArchive`/`postDetail` cannot show real post
+  data yet — there is no per-post builder block, so it just renders whatever is
+  configured on it, identically for every post. Only a CODE/kit page reads
+  `props.record`. Don't recommend a builder page for either slot if the operator
+  wants actual post content on it.
 - Reserved Content field keys now include `visibility` and `password` — a Content
   collection field can't shadow them (see [cms.md](./cms.md)).
 
