@@ -154,6 +154,34 @@ lightweight, Vite/SSR-friendly, easy to lazy-load.
   `PublicPageView` `<head>`; client-side on landing/posts via
   [public-web-meta.tsx](../../inertia/components/public-web-meta.tsx) (reads
   `web.metaTags` from `/api/auth/config`).
+- **Favicon** — server-side, for **every** page (admin included), via
+  `InertiaMiddleware.share()`: it computes `site_meta.favicon_url` once per
+  request and calls `ctx.view.share({ faviconUrl })` (mirrors how Shield shares
+  `cspNonce` the same way) — the root edge shell
+  ([inertia_layout.edge](../../resources/views/inertia_layout.edge)) reads it
+  as a **view local**, not an Inertia prop, so `<link rel="icon">` is right in
+  the initial HTML before any React code runs, on admin/auth pages too. Before
+  this, the favicon was set only by a client-only `useEffect` in
+  `public-web-meta.tsx` — which only ever ran on landing/posts (not builder/
+  CODE pages, not admin) and, being client-only, still shipped the static
+  `/logo.svg` default in the initial HTML everywhere. That `useEffect` is still
+  in `public-web-meta.tsx` (harmless — it just re-sets the same value the
+  server already set, on the pages it runs on), but it's no longer what makes
+  the favicon correct.
+- **Uploading a favicon (or the admin logo, or a CMS collection icon)** goes
+  through [`ImageSettingControl`](../../inertia/components/admin/image-setting-control.tsx)
+  → [`imageFileToResizedDataUrl`](../../inertia/lib/image-data-url.ts), which
+  resizes the file **in-browser** on a `<canvas>` and stores the result as a
+  data URL — no `MediaService`/upload endpoint involved for these three fields.
+  It always re-encoded the result as **JPEG**, which has no alpha channel — a
+  transparent PNG/WebP/SVG source got its transparent pixels flattened onto an
+  opaque black backdrop by the canvas before encoding, so a transparent
+  favicon/logo/icon silently gained a solid dark background. Fixed to output
+  **PNG** instead whenever the source isn't already JPEG (a JPEG source never
+  had alpha to begin with, so it stays JPEG). PNG has no quality knob to
+  shrink with if the result exceeds the caller's `maxDataUrlChars`, so that
+  path shrinks the canvas dimensions and re-encodes instead of lowering
+  quality.
 
 > **Scope boundary:** global **meta tags** apply to *all* public pages (builder pages
 > + landing/posts). Global **custom code** currently applies to **builder Pages only**
@@ -210,7 +238,9 @@ public page (no chrome).
 | `inertia/hooks/api/use-page-code.ts` | `useGlobalCode` / `useUpdateGlobalCode` |
 | `inertia/components/admin/meta-tags-editor.tsx` | Shared free-form meta-tag rows (per-page SEO + global) |
 | `inertia/pages/admin/website-settings.tsx` | Website settings page (Site & SEO + Custom code) |
-| `inertia/components/public-web-meta.tsx` | Site-wide title/favicon/meta on landing/posts |
+| `inertia/components/public-web-meta.tsx` | Site-wide title/meta tags on landing/posts (client-side); also re-sets favicon there, redundantly — see Favicon above |
+| `app/middleware/inertia_middleware.ts` | Shares `faviconUrl` (+ `cspNonce`, `siteTheme`) to every request's view/props |
+| `resources/views/inertia_layout.edge` | Root HTML shell — reads `faviconUrl` as a view local, `page.component` to scope `.theme-light` to `<body>` on non-admin/auth pages |
 | `inertia/puck/public-page-view.tsx` | Public render: per-page + global code/meta |
 | `app/services/settings_service.ts` | Global code + meta storage/appearance |
 | `app/controllers/admin/settings_controller.ts` | `page-code` API + website-settings page |

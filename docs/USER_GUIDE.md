@@ -109,6 +109,13 @@ command — see [docs/ai/modules.md](./ai/modules.md).
 - **Pages / Templates** is the visual page builder (layouts, headers, footers, components). In the
   builder, the **gear** opens *Page settings* — page SEO/meta tags and per-page custom CSS/JS that
   runs only on that page.
+- **Use a page you built instead of the default one**: on the **Pages** list, a page's **⋯** menu
+  has **Use as page**, which swaps it in for a built-in screen — the blog index (`/blog`), a
+  single post's page, a category or tag archive, the home page, or the sign-in/sign-up screens.
+  The page must be **Published** first. Clicking the same slot again unassigns it, back to the
+  built-in version. This is also how every canonical/SEO link for that screen stays correct
+  automatically — it's computed from the real URL your visitors see, not anything on the page
+  itself.
 - **Website settings** (UI → Website settings) sets your site title, favicon, site-wide meta tags,
   and global custom CSS/JS applied across your published pages.
 - Tables everywhere share the same toolbar (search + filters), tinted status badges, and
