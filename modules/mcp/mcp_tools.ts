@@ -41,7 +41,7 @@ export interface ToolDeps {
  */
 export const SERVER_INSTRUCTIONS = `Driftless page builder. To reproduce a design reference (a screenshot/mockup) faithfully, follow this loop — structure is easy to get right; palette, imagery and icons are what make or break fidelity:
 
-0. PAGE TYPE FIRST — ask the operator whether they want a **page-builder page** (you compose Puck blocks: the default, and everything below) or a **custom template** (a coded template the operator supplied, which you only point a page at). For a custom template: call list_custom_templates, then create_page with kind:"CODE" and component:"kit:<id>", and STOP — do not build blocks or run the rest of this loop. Otherwise build with the page builder:
+0. PAGE TYPE FIRST — ask the operator whether they want a **page-builder page** (you compose Puck blocks: the default, and everything below) or a **custom template** (a coded template the operator supplied, which you only point a page at). For a custom template: call list_custom_templates, then create_page with kind:"CODE" and component:"kit:<id>". Some templates expose a small set of author fields (headline/image/toggle/…) instead of Puck blocks — there is no tool to discover their keys/types yet, so ask the operator (or read the kit's source) which fields exist, then pass them as \`contentFields\` on create_page/update_page/set_page_content/publish_page. Either way, STOP after that — do not build blocks or run the rest of this loop. Otherwise build with the page builder:
 
 1. get_block_catalog — read the blocks, recipes, and the live \`theme\` (what variant:"primary" renders as).
 2. If you have a reference image, upload_media(purpose:"reference") so you can crop real photos out of it.
@@ -738,6 +738,12 @@ export function registerTools(
       .optional()
       .describe('ISO timestamp to auto-unpublish the page (null = none).'),
     seo: SeoSchema.optional(),
+    contentFields: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe(
+        'Values for a CODE/kit page whose resolved template exposes a small set of author fields instead of a real block region (the admin\'s simplified "Edit content region" editor) — a flat { fieldKey: value } map. There is no tool to discover a kit\'s field keys/types yet; get them from the kit\'s source or the operator. An image/video value is the final public URL (upload_media / crop_media it first), not a media id. Irrelevant for a BUILDER page or a CODE page with a real block region (use `content` for those).'
+      ),
     ...autoResponsiveField,
   }
   server.tool(
@@ -780,10 +786,18 @@ export function registerTools(
   )
   server.tool(
     'set_page_content',
-    "Stage a Puck document as the page's draft (like the builder's autosave). Mobile/tablet responsive is added automatically (see autoResponsive). Publish to make it live.",
-    { id: z.string(), content: PuckDoc, seo: SeoSchema.optional(), ...autoResponsiveField },
-    ({ id, content, seo, autoResponsive }) =>
-      run(() => call('PUT', `/api/mcp/v1/pages/${id}/content`, { content, seo, autoResponsive }))
+    "Stage a Puck document and/or content-field values as the page's draft (like the builder's/simplified editor's autosave). `content` is for a BUILDER page or a CODE page with a real block region; `contentFields` is for a CODE/kit page whose template exposes a small set of author fields instead (see create_page's `contentFields`) — pass whichever applies, or both. Mobile/tablet responsive is added automatically for `content` (see autoResponsive). Publish to make it live.",
+    {
+      id: z.string(),
+      content: PuckDoc.optional(),
+      contentFields: z.record(z.string(), z.unknown()).optional(),
+      seo: SeoSchema.optional(),
+      ...autoResponsiveField,
+    },
+    ({ id, content, contentFields, seo, autoResponsive }) =>
+      run(() =>
+        call('PUT', `/api/mcp/v1/pages/${id}/content`, { content, contentFields, seo, autoResponsive })
+      )
   )
   server.tool(
     'validate_page_content',
@@ -920,10 +934,11 @@ export function registerTools(
   )
   server.tool(
     'publish_page',
-    'Publish a page: promotes the staged draft, or the explicit `content` if given (which is auto-made-responsive, see autoResponsive).',
+    'Publish a page: promotes the staged draft, or the explicit `content`/`contentFields` if given (`content` is auto-made-responsive, see autoResponsive).',
     {
       id: z.string(),
       content: PuckDoc.optional(),
+      contentFields: z.record(z.string(), z.unknown()).optional(),
       seo: SeoSchema.optional(),
       ...autoResponsiveField,
     },

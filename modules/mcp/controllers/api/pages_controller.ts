@@ -223,6 +223,7 @@ export default class BuilderPagesController {
       'scheduledPublishAt',
       'scheduledUnpublishAt',
       'content',
+      'contentFields',
       'seo',
     ]) as Parameters<PagesService['create']>[1]
 
@@ -269,6 +270,7 @@ export default class BuilderPagesController {
       'hideHeader',
       'hideFooter',
       'content',
+      'contentFields',
       'seo',
       'scheduledPublishAt',
       'scheduledUnpublishAt',
@@ -314,6 +316,7 @@ export default class BuilderPagesController {
   async setContent({ params, request, response }: HttpContext) {
     const content = request.input('content')
     const seo = request.input('seo')
+    const contentFields = request.input('contentFields')
     if (content !== undefined) {
       const check = await validatePuckDocument(content, 'page')
       if (!check.valid)
@@ -322,7 +325,7 @@ export default class BuilderPagesController {
       try {
         return response.json(
           withAdvisories(
-            await pages.saveDraft(params.id, { content: check.normalized, seo }),
+            await pages.saveDraft(params.id, { content: check.normalized, seo, contentFields }),
             check,
             resp
           )
@@ -332,7 +335,7 @@ export default class BuilderPagesController {
       }
     }
     try {
-      return response.json(await pages.saveDraft(params.id, { seo }))
+      return response.json(await pages.saveDraft(params.id, { seo, contentFields }))
     } catch (e) {
       return response.status(404).json({ message: (e as Error).message })
     }
@@ -343,6 +346,7 @@ export default class BuilderPagesController {
     const user = auth.user as User
     const content = request.input('content')
     const seo = request.input('seo')
+    const contentFields = request.input('contentFields')
     const dto: Parameters<PagesService['publish']>[2] = {}
     let check: ValidationResult | undefined
     let resp: ReturnType<typeof autoResponsive>
@@ -354,6 +358,7 @@ export default class BuilderPagesController {
       resp = autoResponsive(dto.content, request.input('autoResponsive'))
     }
     if (seo !== undefined) dto.seo = seo
+    if (contentFields !== undefined) dto.contentFields = contentFields
     try {
       return response.json(
         withAdvisories(await pages.publish(params.id, user.id, dto), check, resp)

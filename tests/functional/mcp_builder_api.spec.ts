@@ -324,4 +324,45 @@ test.group('MCP builder-API | custom templates (kits)', (group) => {
       .json({ title: 'Ghost', path: '/ghost-kit', kind: 'CODE', component: 'kit:does-not-exist' })
     res.assertStatus(422)
   })
+
+  test('contentFields flow through create, set_page_content (draft) and publish', async ({
+    client,
+    assert,
+  }) => {
+    await enableMcp()
+    const t = await token(['builder:read', 'builder:pages'])
+
+    // create_page: set at creation.
+    const created = await client
+      .post('/api/mcp/v1/pages')
+      .header('Authorization', bearer(t))
+      .json({
+        title: 'Kit Fields Page',
+        path: '/kit-fields-page',
+        kind: 'CODE',
+        component: 'kit:example',
+        contentFields: { headline: 'Created headline' },
+      })
+    created.assertStatus(201)
+    assert.deepEqual(created.body().contentFields, { headline: 'Created headline' })
+    const id = created.body().id
+
+    // set_page_content: stage a draft with ONLY contentFields, no Puck content.
+    const staged = await client
+      .put(`/api/mcp/v1/pages/${id}/content`)
+      .header('Authorization', bearer(t))
+      .json({ contentFields: { headline: 'Drafted headline' } })
+    staged.assertStatus(200)
+    assert.deepEqual(staged.body().draftContentFields, { headline: 'Drafted headline' })
+    assert.deepEqual(staged.body().contentFields, { headline: 'Created headline' })
+
+    // publish_page: explicit contentFields wins over the staged draft.
+    const published = await client
+      .post(`/api/mcp/v1/pages/${id}/publish`)
+      .header('Authorization', bearer(t))
+      .json({ contentFields: { headline: 'Published headline' } })
+    published.assertStatus(200)
+    assert.deepEqual(published.body().contentFields, { headline: 'Published headline' })
+    assert.isNull(published.body().draftContentFields)
+  })
 })
