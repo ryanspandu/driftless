@@ -2,7 +2,7 @@
 
 A summary of the fixes/features shipped this session, with pointers to the full docs.
 Commits: `5fac128`, `9ca9025`, `4d807b5`, `d930eb9`, `e644439`, `ab320c3`, `f624e72`, `10e7f10`,
-`3f19799`.
+`3f19799`, `d5e8519`.
 
 ## 1. Canonical URL fixed on role-slot pages + built-in pages SSR'd — `5fac128`
 
@@ -106,3 +106,39 @@ Commits: `5fac128`, `9ca9025`, `4d807b5`, `d930eb9`, `e644439`, `ab320c3`, `f624
 - Docs: [code-pages.md](./code-pages.md#editable-fields-no-region),
   [custom-templates.md](./custom-templates.md#editable-fields-optional-per-sub-template),
   [USER_GUIDE.md](../USER_GUIDE.md#custom-code-templates-kits).
+
+## 9. Pluggable S3-compatible storage driver — `d5e8519`
+
+- **Root problem:** media uploads and paid digital downloads only ever supported local
+  disk. On a deployment where the web process and the BullMQ `worker` (which runs the
+  site export/import job) can't share a persistent disk — a container platform where a
+  volume attaches to only one service, for instance — the worker silently produced
+  export bundles missing every media file, and the web service was capped at zero
+  replicas.
+- New `STORAGE_DRIVER=local|s3` (`local` stays default, byte-for-byte unchanged
+  behaviour). `s3` points media and digital-download storage at any S3-compatible
+  bucket (Cloudflare R2, AWS S3, ...) via new `app/services/storage/` (a driver
+  interface + local/S3 implementations on `@aws-sdk/client-s3` +
+  `@aws-sdk/s3-request-presigner`). Every filesystem call site in `MediaService`
+  branches on `isS3()` — the `local` branch **is** the original, untouched code, not a
+  call into the new driver; `s3` mode treats `uploadDir` as ephemeral local scratch
+  space (existing `sharp`/`file.move` code runs unchanged against it, then the result
+  is pushed to the bucket and the scratch copy deleted; a pre-existing file is
+  downloaded into scratch first when something needs to read it back). Digital
+  downloads redirect to a ~10-minute presigned URL in `s3` mode instead of streaming
+  through the server, layered under the existing `DownloadGrant` quota/expiry model
+  with no schema change (`DigitalAsset.storagePath` just means "bucket key" instead of
+  "local path" in that mode).
+- Also fixed along the way: `MediaService.remove()` (soft-delete/"Move to trash")
+  assigned a plain JS `Date` to `Media.deletedAt` instead of a Luxon `DateTime`, so it
+  always 500'd — unrelated to storage, found while smoke-testing.
+- Smoke-tested end-to-end against a real Cloudflare R2 bucket: driver round-trip,
+  full upload/serve/delete through the admin UI, and a site export running on a
+  genuinely separate worker process correctly pulling media bytes into the archive
+  (the motivating scenario).
+- Docs: [storage-driver.md](./storage-driver.md) (new),
+  [security.md](./security.md#media-uploads-and-svg),
+  [dev-workflow.md](./dev-workflow.md#environment-variables),
+  [DEPLOYMENT.md](../DEPLOYMENT.md), [SELF_HOSTING.md](../SELF_HOSTING.md#backups),
+  [RAILWAY_DEPLOYMENT.md](../RAILWAY_DEPLOYMENT.md) (new — the full Railway deployment guide
+  this driver makes possible).

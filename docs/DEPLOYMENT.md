@@ -1,5 +1,21 @@
 # Deploying Driftless
 
+Two supported paths, picked by what you're deploying onto:
+
+| | Self-hosted (this page) | [Railway](./RAILWAY_DEPLOYMENT.md) |
+|---|---|---|
+| Where | A VPS you control (or Docker Compose on one) | Railway's managed platform |
+| Shape | One persistent checkout, mutated in place by each release | A fresh image built and deployed per release |
+| Processes | PM2/systemd/Docker Compose, one supervisor for all three | Three separate Railway services |
+| Media storage | Local disk (`shared/uploads`, `shared/storage`) | S3-compatible bucket (recommended) or a Railway Volume |
+| Best for | Full control, predictable cost, you manage the box | No server to manage, usage-based billing |
+
+Pick **self-hosted** if you have (or want) a VPS and are comfortable running a supervisor
+yourself. Pick **[Railway](./RAILWAY_DEPLOYMENT.md)** if you'd rather not manage a server at all —
+it needs the [pluggable storage driver](./ai/storage-driver.md) (`STORAGE_DRIVER=s3`), because
+Railway can't give every process the same persistent disk the self-hosted model assumes.
+The rest of this page is the self-hosted path.
+
 Driftless is **self-hosted from a source checkout**, not from a slim build artifact. That is
 a deliberate constraint, and the reason for it decides everything else on this page.
 
@@ -33,6 +49,13 @@ inside the build tree, which meant **every rebuild deleted them**. Each release 
 paths back out, so `app.publicPath('uploads')` resolves through the link and writes land
 somewhere a build cannot reach. The source checkout is linked to the same directories, so
 development and production share one dataset rather than quietly diverging.
+
+This whole `shared/` arrangement is specific to the self-hosted, single-checkout model on this
+page. On a platform where the web process, the worker and the maintenance job don't share a
+persistent disk (a container platform without a volume shareable across services, for example),
+set `STORAGE_DRIVER=s3` instead and point media/digital-download storage at an S3-compatible
+bucket — every process reaches the same bucket regardless of disk. See
+[storage-driver.md](./ai/storage-driver.md).
 
 ## First install
 

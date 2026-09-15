@@ -2,7 +2,8 @@
 
 For operators running Driftless on their own server. If you are deploying it as a developer,
 [DEPLOYMENT.md](./DEPLOYMENT.md) has the mechanics; this page is the shorter version plus the
-things that are easy to get wrong.
+things that are easy to get wrong. Deploying to a managed platform instead, with no server to
+run yourself? See [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md).
 
 ## What you need
 
@@ -153,6 +154,11 @@ Two things, and both matter:
    holds your media library, `.env` holds your keys.
 
 `releases/` and `node_modules/` do not need backing up; they rebuild from the checkout.
+
+If you'd rather not back up a growing pile of uploaded files at all, set `STORAGE_DRIVER=s3` and
+point it at an S3-compatible bucket (Cloudflare R2, AWS S3, ...) — the bucket becomes the backup
+target instead of `shared/storage`/`shared/uploads`, and most providers already replicate it for
+you. See [storage-driver.md](./ai/storage-driver.md).
 
 ## When something breaks
 

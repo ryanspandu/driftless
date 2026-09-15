@@ -75,6 +75,7 @@ See `.env.example`. Important:
 | `FORCE_SEED_PASSWORD=1`                    | Dev only — reset seeded admin password                                                            |
 | `DISABLE_OFFLINE=1`                        | Disables offline/PWA client features when set                                                     |
 | `MEDIA_STORAGE_PATH`                       | Local media files (default `./storage/media`); directory is created automatically on first upload |
+| `STORAGE_DRIVER`                           | `local` (default) or `s3` — see [storage-driver.md](./storage-driver.md) for the S3/R2 vars      |
 | `GOOGLE_*`                                 | OAuth; can also be configured in Admin → Integrations                                             |
 | `TURNSTILE_*`, `HCAPTCHA_*`, `RECAPTCHA_*` | CAPTCHA providers                                                                                 |
 
