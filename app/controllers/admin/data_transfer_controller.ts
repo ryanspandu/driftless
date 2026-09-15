@@ -37,11 +37,14 @@ export default class DataTransferController {
 
   async exportArchive({ request, auth, response }: HttpContext) {
     try {
-      const job = await this.jobs.startExport({
-        mode: this.parseMode(request.input('mode')),
-        only: this.parseOnly(request.input('only')),
-        authorId: auth.user?.id ?? null,
-      })
+      const job = await this.jobs.startExport(
+        {
+          mode: this.parseMode(request.input('mode')),
+          only: this.parseOnly(request.input('only')),
+          authorId: auth.user?.id ?? null,
+        },
+        { background: true }
+      )
       return response.status(202).json({ jobId: job.id })
     } catch (e) {
       return response.status(this.statusOf(e)).json({ message: (e as Error).message })
@@ -82,13 +85,16 @@ export default class DataTransferController {
       const archivePath = join(dir, `${newUlid()}.driftless`)
       await file.move(dir, { name: archivePath.split('/').pop()!, overwrite: true })
 
-      const job = await this.jobs.startImport({
-        archivePath,
-        mode: this.parseMode(request.input('mode')),
-        conflict: this.parseConflict(request.input('conflict')),
-        only: this.parseOnly(request.input('only')),
-        authorId: auth.user?.id ?? null,
-      })
+      const job = await this.jobs.startImport(
+        {
+          archivePath,
+          mode: this.parseMode(request.input('mode')),
+          conflict: this.parseConflict(request.input('conflict')),
+          only: this.parseOnly(request.input('only')),
+          authorId: auth.user?.id ?? null,
+        },
+        { background: true }
+      )
       return response.status(202).json({ jobId: job.id })
     } catch (e) {
       return response.status(this.statusOf(e)).json({ message: (e as Error).message })

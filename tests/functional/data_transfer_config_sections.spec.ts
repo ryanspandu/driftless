@@ -8,7 +8,7 @@ import { registerCoreDataSections } from '#services/data_transfer/core_sections'
 import MenusService from '#services/menus_service'
 import CmsService from '#services/cms_service'
 import Form from '#models/form'
-import { IntegrationSettingsService } from '#services/settings_service'
+import { IntegrationSettingsService, WebSettingsService } from '#services/settings_service'
 import MailEventSetting from '#models/mail_event_setting'
 
 /**
@@ -131,10 +131,36 @@ test.group('Data transfer | config sections', (group) => {
     assert.isTrue(restored!.enabled)
   })
 
+  test('"use as page" pointers (home/blog/404) round-trip via settings', async ({ assert }) => {
+    const web = new WebSettingsService()
+    await web.applyPatches([
+      { section: 'content_pages', key: 'posts_archive_page_id', value: 'page-blog-123' },
+      { section: 'home_page', key: 'front_page_id', value: 'page-home-456' },
+    ])
+
+    const archive = await new SiteExportService().export({ only: ['settings'] })
+    // Reset so the import has to restore them.
+    await web.applyPatches([
+      { section: 'content_pages', key: 'posts_archive_page_id', value: '' },
+      { section: 'home_page', key: 'front_page_id', value: '' },
+    ])
+
+    await new SiteImportService().import(archive, { authorId: null })
+
+    const sections = await web.getMergedSections()
+    assert.equal(sections['content_pages']?.['posts_archive_page_id'], 'page-blog-123')
+    assert.equal(sections['home_page']?.['front_page_id'], 'page-home-456')
+  })
+
   test('dynamic collections + records + relations fully round-trip (no post-import setup)', async ({
     assert,
   }) => {
     const cms = new CmsService()
+    // Truncate clears cms_collections rows but not the dynamic cms_<key> tables,
+    // so drop any leftovers from a previous run to keep this test idempotent.
+    for (const t of ['cms_books', 'cms_authors']) {
+      await db.connection().schema.dropTableIfExists(t)
+    }
     // Target collection with a record, then a source collection that RELATES to it.
     await cms.createCollection({
       key: 'authors',

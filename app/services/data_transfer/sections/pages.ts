@@ -17,7 +17,7 @@ import { rewriteRefs } from '../rewrite_refs.js'
  * `codeLayout`, the `codetpl:<kit>` pointers) and their author `contentFields` —
  * without these a kit page renders as an empty shell. A kit page whose kit is not
  * in the target build is imported as a DRAFT (so it never 404s publicly) with a
- * warning telling the operator to redeploy the target with that kit committed.
+ * warning telling the operator to deploy the target with that kit in its build.
  */
 const KIT_IDS = new Set<string>(CUSTOM_TEMPLATES.map((k) => k.id))
 const CODE_TPL_KITS = new Set<string>(CODE_TEMPLATES.map((k) => k.kit))
@@ -101,7 +101,7 @@ export const pagesSection: DataSection = {
         const k = codeTplKit(chrome)
         if (k && !CODE_TPL_KITS.has(k)) {
           report.warnings.push(
-            `page "${String(p.path ?? '')}": code template kit "${k}" is not built on the target — chrome will be inert until you redeploy with that kit committed`
+            `page "${String(p.path ?? '')}": code template kit "${k}" is not built on the target — chrome will be inert until the target is deployed with that kit in its build`
           )
         }
       }
@@ -110,7 +110,7 @@ export const pagesSection: DataSection = {
       if (missingKit) {
         status = 'DRAFT'
         report.warnings.push(
-          `page "${String(p.path ?? '')}": kit "${pageKit}" is not built on the target — imported as DRAFT; redeploy the target with this kit committed to activate it`
+          `page "${String(p.path ?? '')}": kit "${pageKit}" is not built on the target — imported as DRAFT; deploy the target with this kit in its build (e.g. \`railway up --no-gitignore\`), then publish it`
         )
       }
 

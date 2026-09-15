@@ -44,7 +44,10 @@ export default class TransferJobService {
 
   // ── Public: start (from the controller) ────────────────────────────────────
 
-  async startImport(input: StartImportInput): Promise<DataTransferJob> {
+  async startImport(
+    input: StartImportInput,
+    opts: { background?: boolean } = {}
+  ): Promise<DataTransferJob> {
     const job = await this.create('import', {
       archivePath: input.archivePath,
       mode: input.mode ?? null,
@@ -57,11 +60,14 @@ export default class TransferJobService {
     // Only hand off to the queue when a worker is actually listening — otherwise
     // the job would sit `queued` forever (e.g. `npm run worker` not running).
     const queued = (await hasWorker()) && (await enqueue(SITE_IMPORT_JOB, { jobId: job.id }))
-    if (!queued) await this.runImport(job.id)
+    if (!queued) await this.runInline(() => this.runImport(job.id), opts.background)
     return job.refresh().then(() => job)
   }
 
-  async startExport(input: StartExportInput): Promise<DataTransferJob> {
+  async startExport(
+    input: StartExportInput,
+    opts: { background?: boolean } = {}
+  ): Promise<DataTransferJob> {
     // Keep only the latest export archive on disk.
     await this.clearDir(this.exportsDir())
 
@@ -74,8 +80,25 @@ export default class TransferJobService {
     // Same worker guard as startImport: without a live worker the enqueued job
     // would sit `queued` forever, so fall back to running inline.
     const queued = (await hasWorker()) && (await enqueue(SITE_EXPORT_JOB, { jobId: job.id }))
-    if (!queued) await this.runExport(job.id)
+    if (!queued) await this.runInline(() => this.runExport(job.id), opts.background)
     return job.refresh().then(() => job)
+  }
+
+  /**
+   * Run the job in THIS process (no worker). When `background`, return
+   * immediately and let it run without blocking the HTTP response, so the admin
+   * UI can poll the job row and show a live progress bar; the job's own
+   * try/catch records success/failure on the row. Otherwise (tests, scripts)
+   * await it so the caller sees the finished state.
+   */
+  private async runInline(run: () => Promise<void>, background?: boolean): Promise<void> {
+    if (background) {
+      void run().catch(() => {
+        /* runImport/runExport already record failure on the job row */
+      })
+      return
+    }
+    await run()
   }
 
   // ── Public: run (from the worker handler, or inline fallback) ───────────────

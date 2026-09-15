@@ -275,9 +275,70 @@ improvise a code change on your own — that needs a small, deliberate addition 
   downtime window per redeploy, and leaves the worker's export/import job unable to see media —
   all three go away by switching to `STORAGE_DRIVER=s3`.
 
+## Deploying without GitHub (manual upload via CLI)
+
+Use this path if the site depends on **custom template kits** (`inertia/custom/kits/<id>/`).
+Kits are gitignored on purpose (they're operator payloads, not repo source), and a kit is React
+code compiled at **build** time. A GitHub-connected Railway service builds from a fresh checkout
+of the repo, so a gitignored kit is never in the image — any page built on it fails with
+`Unknown custom template "kit:<id>"`. Redeploying doesn't help: every deploy rebuilds from the
+source, and files an import staged onto the running container's disk are thrown away with it.
+(A Volume doesn't help either — volumes are mounted at runtime, not during the build.)
+
+`railway up` instead uploads your **local project folder** and builds that. With
+`--no-gitignore` the CLI stops applying `.gitignore`, so the kits on your disk are uploaded and
+compiled — without changing `.gitignore`.
+
+**Everything else `.gitignore` excludes must still stay out**, which is what the committed
+[`.railwayignore`](../.railwayignore) is for: `node_modules`, `build`, `public/assets`, local
+`.env` files and `shared/` (secrets), `releases/`, `storage/`, and regenerated codegen. It mirrors
+`.gitignore` minus the kits. **Keep the two in sync** — if you add something to `.gitignore` that
+must not reach Railway (especially anything holding a secret), add it to `.railwayignore` too.
+
+### One-time setup
+
+1. **Disconnect GitHub**: service **Settings → Source → Disconnect**. Otherwise the next `git push`
+   triggers a GitHub build *without* your kits and replaces the manual deploy.
+2. Install the CLI and log in: `railway login`.
+3. From the project root, link the directory to the service:
+   ```bash
+   railway link
+   ```
+   (pick the project, the `production` environment, and the `driftless` service).
+
+Build Command, Start Command, Pre-Deploy Command, variables and the Node pin all stay exactly as
+configured above — only the *source* of the build changes.
+
+### Every deploy
+
+From the project root:
+
+```bash
+railway up --no-gitignore --service driftless
+```
+
+Add `--detach` to return immediately instead of streaming the build log.
+
+### Things to know
+
+- **What deploys is your working tree at that moment**, including uncommitted changes. Commit (or
+  at least review `git status`) before uploading so you know what's live.
+- **Verify the first upload.** Watch the build log and confirm the upload isn't hundreds of MB
+  (that would mean `node_modules` or `releases/` slipped through). Railway still injects its own
+  variables, so a missing local `.env` is expected and correct.
+- The generated kit manifests (`app/services/custom_templates.generated.ts`, etc.) are rebuilt by
+  the `prebuild` hook from whatever kits were uploaded, so a kit you delete locally disappears from
+  the next deploy.
+- No auto-deploy: every release is a manual `railway up`. To go back to GitHub deploys later:
+  `railway service source connect --repo <owner>/<repo> --branch main --service driftless` (and
+  accept that gitignored kits won't be in that build).
+- The export/import archive still carries the DB side of kit pages (page rows + kit activation).
+  Once the target is deployed this way *with* the same kits, a re-import renders those pages.
+
 ## Redeploying
 
-Push to the connected branch, or trigger a redeploy from the Railway dashboard/CLI — that's the
+GitHub-connected: push to the connected branch, or trigger a redeploy from the Railway dashboard.
+Manual upload: run `railway up --no-gitignore --service driftless` again. Either way that's the
 whole release process; there's no separate "cut a release" step the way the self-hosted model has
 one. The Pre-Deploy Command (migrations + seed) runs again automatically before traffic switches
 over.
