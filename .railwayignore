@@ -26,11 +26,16 @@ public/assets
 .env.*
 !.env.example
 
-# Self-hosted release layout + local runtime data
+# Self-hosted release layout + local runtime data. `public/uploads` is a
+# symlink to `shared/uploads` created by scripts/build-release.mjs for VPS-style
+# deploys — Railway needs neither, and if `shared/uploads` doesn't exist locally
+# (a fresh clone that never ran a self-hosted release) the CLI's upload fails
+# trying to read the broken symlink. Excluded outright.
 releases/
 shared/
 current
 current.next
+public/uploads
 storage/
 tmp/*
 !tmp/.gitkeep
