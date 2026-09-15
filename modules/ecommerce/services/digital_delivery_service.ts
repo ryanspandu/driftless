@@ -12,6 +12,7 @@ import env from '#start/env'
 import { DateTime } from 'luxon'
 import { publicError } from '#exceptions/public_error'
 import { newUlid } from '#services/ulid_service'
+import { getStorageDriver, isS3 } from '#services/storage/index'
 import DigitalAsset from '#modules/ecommerce/models/digital_asset'
 import DownloadGrant from '#modules/ecommerce/models/download_grant'
 import OrderItem from '#modules/ecommerce/models/order_item'
@@ -75,12 +76,19 @@ export interface DownloadGrantDto {
   live: boolean
 }
 
-export interface ResolvedDownload {
-  stream: Readable
-  filename: string
-  mimeType: string
-  sizeBytes: number
-}
+/**
+ * `local`: stream the bytes through our own server, as always.
+ * `s3`: redirect to a short-lived presigned bucket URL instead — the grant's
+ * own `expires_at`/`max_downloads` (checked before either branch is reached)
+ * remain the real, longer-lived authorization; this TTL is a second, tighter
+ * layer with no conflict.
+ */
+export type ResolvedDownload =
+  | { mode: 'stream'; stream: Readable; filename: string; mimeType: string; sizeBytes: number }
+  | { mode: 'redirect'; url: string; filename: string; mimeType: string }
+
+/** How long a presigned download URL stays valid (s3 mode only). */
+const PRESIGNED_DOWNLOAD_TTL_SECONDS = 600
 
 export default class DigitalDeliveryService {
   // ── Assets (admin side) ──────────────────────────────────────────────────
@@ -128,13 +136,24 @@ export default class DigitalDeliveryService {
     const ext = extname(original).slice(0, 16)
     const storedName = `${id}${ext}`
 
+    // `root` doubles as local scratch space in s3 mode — see media_service.ts's
+    // `ensureLocalCopy`/`pushToS3` for the same pattern with a longer rationale.
     await file.move(root, { name: storedName, overwrite: false })
+    const scratchPath = join(root, storedName)
+
+    let storagePath = scratchPath
+    if (isS3()) {
+      const key = `ecommerce/${storedName}`
+      await getStorageDriver().putFile(key, scratchPath, file.type && `${file.type}/${file.subtype}`)
+      await unlink(scratchPath).catch(() => {})
+      storagePath = key
+    }
 
     const asset = await DigitalAsset.create({
       id,
       variantId,
       filename: original,
-      storagePath: join(root, storedName),
+      storagePath,
       mimeType: file.type ? `${file.type}/${file.subtype}` : 'application/octet-stream',
       sizeBytes: file.size ?? 0,
       maxDownloads: Math.max(0, Math.trunc(options.maxDownloads ?? 0)),
@@ -186,11 +205,16 @@ export default class DigitalDeliveryService {
     asset.deletedAt = DateTime.now()
     await asset.save()
 
-    if (total === 0 && existsSync(asset.storagePath)) {
-      await unlink(asset.storagePath).catch(() => {
-        // The row is already soft-deleted; a stray file is a housekeeping
-        // problem, not a reason to fail the request.
-      })
+    if (total === 0) {
+      // The row is already soft-deleted either way; a stray file left behind
+      // is a housekeeping problem, not a reason to fail the request.
+      if (isS3()) {
+        await getStorageDriver()
+          .delete(asset.storagePath)
+          .catch(() => {})
+      } else if (existsSync(asset.storagePath)) {
+        await unlink(asset.storagePath).catch(() => {})
+      }
     }
   }
 
@@ -376,6 +400,21 @@ export default class DigitalDeliveryService {
     const asset = await DigitalAsset.find(grant.assetId)
     if (!asset) throw denied()
 
+    const filename = safeFilename(asset.filename)
+    const mimeType = asset.mimeType ?? 'application/octet-stream'
+
+    if (isS3()) {
+      // `storagePath` holds the bucket key in this mode (see `attach`) — came
+      // from our own insert, but assert the shape anyway before signing a URL
+      // for it, same posture as the local traversal check below.
+      if (!/^ecommerce\/[A-Za-z0-9._-]+$/.test(asset.storagePath)) throw denied()
+      const url = await getStorageDriver().getPresignedGetUrl(
+        asset.storagePath,
+        PRESIGNED_DOWNLOAD_TTL_SECONDS
+      )
+      return { mode: 'redirect', url, filename, mimeType }
+    }
+
     /**
      * The path came from our own insert, but assert the invariant anyway: a
      * stored path that escaped the protected root would mean something has gone
@@ -389,9 +428,10 @@ export default class DigitalDeliveryService {
     const stat = statSync(asset.storagePath)
 
     return {
+      mode: 'stream',
       stream: createReadStream(asset.storagePath),
-      filename: safeFilename(asset.filename),
-      mimeType: asset.mimeType ?? 'application/octet-stream',
+      filename,
+      mimeType,
       sizeBytes: stat.size,
     }
   }

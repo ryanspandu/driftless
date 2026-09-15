@@ -107,11 +107,7 @@ export default class MediaController {
     const segments: string[] = Array.isArray(params['*']) ? params['*'] : []
     const filename = segments.length ? segments.join('/') : null
     const media = filename ? await mediaService.findByFilename(filename) : null
-    if (media) {
-      const path = mediaService.resolveFilePath(media.filename)
-      if (!path) return response.notFound({ message: 'Not found' })
-      return mediaService.serve(response, path, media)
-    }
+    if (media && (await mediaService.serve(response, media))) return
     // Not an original — it may be a responsive webp derivative.
     if (filename && (await mediaService.serveVariant(response, filename))) return
     return response.notFound({ message: 'Not found' })

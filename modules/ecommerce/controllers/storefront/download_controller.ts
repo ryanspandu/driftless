@@ -25,6 +25,14 @@ export default class DownloadController {
         ctx
       )
 
+      // A download link is per-buyer and quota-limited; nothing may cache it.
+      response.header('Cache-Control', 'private, no-store')
+      if (file.mode === 'redirect') {
+        // S3 mode: hand the browser straight to a short-lived bucket URL
+        // instead of proxying bytes through this server.
+        return response.redirect(file.url)
+      }
+
       /**
        * `attachment` rather than `inline`: a file the store did not author must
        * never be rendered in the shop's own origin. An HTML or SVG "asset"
@@ -35,8 +43,6 @@ export default class DownloadController {
       response.header('Content-Disposition', `attachment; filename="${file.filename}"`)
       // Belt and braces if a proxy ever ignores the disposition.
       response.header('X-Content-Type-Options', 'nosniff')
-      // A download link is per-buyer and quota-limited; nothing may cache it.
-      response.header('Cache-Control', 'private, no-store')
 
       return response.stream(file.stream)
     } catch (error) {
