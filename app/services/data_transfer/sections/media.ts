@@ -85,51 +85,60 @@ export const mediaSection: DataSection = {
       const ext = filename.includes('.') ? filename.slice(filename.lastIndexOf('.')) : ''
       const newId = regen ? newUlid() : id || newUlid()
       const newFilename = regen ? `${newId}${ext}` : filename
-      const newUrl = regen && oldUrl ? oldUrl.replace(filename, newFilename) : oldUrl
+      // Derive the new URL by swapping just the final path segment, so a URL that
+      // doesn't contain the old filename literally (e.g. a proxied host) is still
+      // rebased correctly.
+      const newUrl = regen && oldUrl ? oldUrl.replace(/[^/]+$/, newFilename) : oldUrl
       if (regen) {
         if (id) ctx.idMap.set(id, newId)
         if (oldUrl) ctx.idMap.set(oldUrl, newUrl)
       }
 
-      const existing = regen ? null : id ? await Media.query().where('id', id).first() : null
+      try {
+        const existing = regen ? null : id ? await Media.query().where('id', id).first() : null
 
-      if (existing && ctx.conflict === 'skip') {
-        report.skipped++
-        continue
-      }
-
-      if (bytes) {
-        const scratch = join(dir, newFilename)
-        await writeFile(scratch, bytes)
-        if (isS3()) {
-          await getStorageDriver().putFile(newFilename, scratch)
-          await (await import('node:fs/promises')).rm(scratch, { force: true })
+        if (existing && ctx.conflict === 'skip') {
+          report.skipped++
+          continue
         }
-      }
 
-      const values = {
-        filename: newFilename,
-        mimeType: String(m.mimeType ?? 'application/octet-stream'),
-        size: Number(m.size ?? bytes?.length ?? 0),
-        url: newUrl,
-        title: (m.title as string) ?? null,
-        description: (m.description as string) ?? null,
-        alt: (m.alt as string) ?? null,
-        width: (m.width as number) ?? null,
-        height: (m.height as number) ?? null,
-        origin: String(m.origin ?? 'upload'),
-        sourceUrl: (m.sourceUrl as string) ?? null,
-        sourceMediaId: (m.sourceMediaId as string) ?? null,
-        authorId: ctx.authorId,
-      }
+        if (bytes) {
+          const scratch = join(dir, newFilename)
+          await writeFile(scratch, bytes)
+          if (isS3()) {
+            await getStorageDriver().putFile(newFilename, scratch)
+            await (await import('node:fs/promises')).rm(scratch, { force: true })
+          }
+        }
 
-      if (existing) {
-        existing.merge(values)
-        await existing.save()
-        report.updated++
-      } else {
-        await Media.create({ id: newId, ...values })
-        report.created++
+        const rawSource = m.sourceMediaId ? String(m.sourceMediaId) : null
+        const values = {
+          filename: newFilename,
+          mimeType: String(m.mimeType ?? 'application/octet-stream'),
+          size: Number(m.size ?? bytes?.length ?? 0),
+          url: newUrl,
+          title: (m.title as string) ?? null,
+          description: (m.description as string) ?? null,
+          alt: (m.alt as string) ?? null,
+          width: (m.width as number) ?? null,
+          height: (m.height as number) ?? null,
+          origin: String(m.origin ?? 'upload'),
+          sourceUrl: (m.sourceUrl as string) ?? null,
+          // Self-reference: remap through the id map in regenerate mode.
+          sourceMediaId: rawSource ? (regen ? (ctx.idMap.get(rawSource) ?? null) : rawSource) : null,
+          authorId: ctx.authorId,
+        }
+
+        if (existing) {
+          existing.merge(values)
+          await existing.save()
+          report.updated++
+        } else {
+          await Media.create({ id: newId, ...values })
+          report.created++
+        }
+      } catch (e) {
+        report.warnings.push(`media "${filename}": ${(e as Error).message}`)
       }
     }
     return report

@@ -65,7 +65,12 @@ const DROP = new Set(['createdAt', 'updatedAt', 'deletedAt', 'createdByUserId'])
 // customer logins survive a round-trip. Shared by both ecommerce sections.
 const SECRET_SUFFIX = /(?:Enc|Secret|Token)$/
 const SECRET_KEYS = new Set(['accessTokenHash', 'unsubscribeToken'])
-const isSecretKey = (k: string) => SECRET_SUFFIX.test(k) || SECRET_KEYS.has(k)
+// `passwordHash` is a one-way scrypt digest kept on purpose so customer logins
+// survive; every OTHER *Hash column (cart.tokenHash, download_grant.lastDownloadIpHash)
+// is a capability/PII hash that must never travel.
+const KEEP_HASH = new Set(['passwordHash'])
+const isSecretKey = (k: string) =>
+  SECRET_SUFFIX.test(k) || (k.endsWith('Hash') && !KEEP_HASH.has(k)) || SECRET_KEYS.has(k)
 
 function dumpRows(rows: LucidRow[], extraDrop: string[] = []): Row[] {
   const drop = new Set([...DROP, ...extraDrop])
@@ -77,38 +82,54 @@ function dumpRows(rows: LucidRow[], extraDrop: string[] = []): Row[] {
   })
 }
 
+/** ULIDs are 26 chars; a natural key like 'default' or a currency code isn't.
+ *  Only ULID-shaped ids may enter the id map, or a value like 'default' would
+ *  poison rewriteRefs (which rewrites any string equal to a map key). */
+const isUlidLike = (id: string | undefined): id is string => !!id && id.length === 26
+
 async function restoreRows(
   Model: LucidModel,
   rows: Row[],
   report: SectionReport,
-  ctx: ImportCtx
+  ctx: ImportCtx,
+  opts?: { preserveId?: boolean }
 ): Promise<void> {
   const regen = ctx.mode === 'regenerate'
+  const preserveId = !!opts?.preserveId
   for (const row of rows) {
     const oldId = row.id as string | undefined
-    if (regen) {
-      // Fresh id, and rewrite every FK field (targets were remapped earlier by
-      // the dependency order) through the id map.
-      const newId = newUlid()
-      if (oldId) ctx.idMap.set(oldId, newId)
-      const rewritten = rewriteRefs(row, ctx.idMap)
-      rewritten.id = newId
-      await Model.create(rewritten as never)
-      report.created++
-      continue
-    }
-    const existing = oldId ? await Model.query().where('id', oldId).first() : null
-    if (existing && ctx.conflict === 'skip') {
-      report.skipped++
-      continue
-    }
-    if (existing) {
-      existing.merge(row as never)
-      await existing.save()
-      report.updated++
-    } else {
-      await Model.create(row as never)
-      report.created++
+    try {
+      if (regen && !preserveId) {
+        // Fresh id, and rewrite every FK field (targets were remapped earlier by
+        // the dependency order) through the id map.
+        const newId = newUlid()
+        if (isUlidLike(oldId)) ctx.idMap.set(oldId, newId)
+        const rewritten = rewriteRefs(row, ctx.idMap)
+        rewritten.id = newId
+        await Model.create(rewritten as never)
+        report.created++
+        continue
+      }
+      // Preserve mode, or a fixed natural-key row (a singleton like EcommerceSetting
+      // whose id must stay 'default'): keep the id, still rewrite FKs in regen.
+      const rowData = (regen ? rewriteRefs(row, ctx.idMap) : row) as Row
+      const existing = oldId ? await Model.query().where('id', oldId).first() : null
+      if (existing && ctx.conflict === 'skip') {
+        report.skipped++
+        continue
+      }
+      if (existing) {
+        existing.merge(rowData as never)
+        await existing.save()
+        report.updated++
+      } else {
+        await Model.create(rowData as never)
+        report.created++
+      }
+    } catch (e) {
+      // One bad/orphaned row (e.g. a download grant whose digital asset isn't
+      // bundled) must not abort the whole section.
+      report.warnings.push(`${Model.table} ${String(oldId ?? '?')}: ${(e as Error).message}`)
     }
   }
 }
@@ -178,7 +199,9 @@ export const ecommerceSection: DataSection = {
       )
     }
 
-    await restoreRows(EcommerceSetting, p.settings ?? [], report, ctx)
+    // The store settings singleton has the fixed natural key id='default' —
+    // never regenerate it (StoreSettingsService reads it by that id).
+    await restoreRows(EcommerceSetting, p.settings ?? [], report, ctx, { preserveId: true })
     await restoreRows(StoreCurrency, p.currencies ?? [], report, ctx)
 
     // Categories self-reference by parentId → two-pass (create without a parent,

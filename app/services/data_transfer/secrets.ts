@@ -25,6 +25,10 @@ const EXCLUDED_TABLES = new Set<string>([
   'ecommerce_account_sessions',
   'analytics_events',
   'mcp_audit_logs',
+  // Live operational/log tables — never part of a portable site snapshot.
+  'audit_logs',
+  'mail_deliveries',
+  'password_reset_tokens',
 ])
 
 /** Exact secret column names that don't match a suffix rule below. */
@@ -60,7 +64,7 @@ export function stripSecrets<T extends Record<string, unknown>>(row: T): Partial
  * also refused defensively.
  */
 export function isSecretSettingKey(key: string): boolean {
-  return key.endsWith('_enc') || key.toLowerCase().includes('secret')
+  return key.endsWith('_enc') || key.endsWith('_token') || key.toLowerCase().includes('secret')
 }
 
 /** Assert a serialized payload carries no denylisted key (used by the export test). */

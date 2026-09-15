@@ -71,7 +71,9 @@ export default class TransferJobService {
       authorId: input.authorId ?? null,
     })
 
-    const queued = await enqueue(SITE_EXPORT_JOB, { jobId: job.id })
+    // Same worker guard as startImport: without a live worker the enqueued job
+    // would sit `queued` forever, so fall back to running inline.
+    const queued = (await hasWorker()) && (await enqueue(SITE_EXPORT_JOB, { jobId: job.id }))
     if (!queued) await this.runExport(job.id)
     return job.refresh().then(() => job)
   }
@@ -119,7 +121,7 @@ export default class TransferJobService {
         onProgress: (p) => this.onProgress(job, p),
       })
       await mkdir(this.exportsDir(), { recursive: true })
-      const filename = `site-${DateTime.now().toFormat('yyyy-LL-dd')}-${job.id.slice(-6)}.driftless`
+      const filename = `${await this.sitePrefix()}-${DateTime.now().toFormat('yyyy-LL-dd')}-${job.id.slice(-6)}.driftless`
       const path = join(this.exportsDir(), filename)
       await writeFile(path, buffer)
       job.downloadPath = path
@@ -232,6 +234,23 @@ export default class TransferJobService {
     job.activeLock = null
     job.finishedAt = DateTime.now()
     await job.save()
+  }
+
+  /** Slugified site title for the export filename prefix (falls back to `site`). */
+  private async sitePrefix(): Promise<string> {
+    try {
+      const { WebSettingsService } = await import('#services/settings_service')
+      const sections = await new WebSettingsService().getMergedSections()
+      const title = sections['site_meta']?.['site_title'] ?? ''
+      const slug = title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40)
+      return slug || 'site'
+    } catch {
+      return 'site'
+    }
   }
 
   /** Best-effort: remove every file in a dir (keep-latest for exports). */

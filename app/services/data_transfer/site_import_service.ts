@@ -51,7 +51,14 @@ export default class SiteImportService {
     const mode: IdMode = opts.mode ?? manifest.idMode ?? 'preserve'
     const conflict: ConflictMode = opts.conflict ?? 'overwrite'
     const only = opts.only && opts.only.length > 0 ? new Set(opts.only) : null
-    const enabled = await new ModulesService().enabledMap()
+    // Re-read after the `modules` section runs (it can enable a module whose
+    // own section imports later in this same run).
+    let enabled = await new ModulesService().enabledMap()
+    // The archive carrying a `modules` section means module enable-state will be
+    // applied mid-run, so a module-owned section may become runnable even though
+    // it's disabled right now — count it toward progress and let it run.
+    const archiveEnablesModules = manifest.sections.some((s) => s.name === 'modules')
+    const ownerMayRun = (owner: string) => enabled.get(owner) || archiveEnablesModules
 
     const log: string[] = []
     const pushLog = (line: string) => {
@@ -74,7 +81,7 @@ export default class SiteImportService {
     const willRun = (section: DataSection) =>
       present.has(section.name) &&
       (!only || only.has(section.name)) &&
-      (section.owner === 'core' || !!enabled.get(section.owner))
+      (section.owner === 'core' || ownerMayRun(section.owner))
 
     // Denominator for progress: sections that will actually import (present +
     // selected + enabled + carry a payload). Dry-run does no work, so 0.
@@ -92,6 +99,10 @@ export default class SiteImportService {
       const runList = registeredDataSections().filter(willRun)
       for (const section of [...runList].reverse()) {
         for (const table of [...(section.tables ?? [])].reverse()) {
+          // Never wipe `users`: it holds the admin performing this import (the
+          // author FK stamped on incoming content). The users section upserts by
+          // email, so a replace still reconciles it without orphaning the admin.
+          if (table === 'users') continue
           try {
             await db.from(table).delete()
           } catch {
@@ -104,6 +115,8 @@ export default class SiteImportService {
     for (const section of registeredDataSections()) {
       if (!present.has(section.name)) continue
       if (only && !only.has(section.name)) continue
+      // Gate module-owned sections on the CURRENT enable-state (the `modules`
+      // section, order 5, may have flipped it earlier in this loop).
       if (section.owner !== 'core' && !enabled.get(section.owner)) {
         skipped.push({ name: section.name, reason: `module "${section.owner}" is not enabled` })
         continue
@@ -132,11 +145,27 @@ export default class SiteImportService {
         getFile: (name) => files.get(name),
         log: (line) => pushLog(line),
       }
-      const report = await section.import(ctx, data)
-      reports.push(report)
-      pushLog(
-        `${section.name}: +${report.created} created, ~${report.updated} updated, ${report.skipped} skipped`
-      )
+      // Isolate each section: one section's failure (a bad row, an unexpected FK)
+      // must not abort the rest of the migration — record it and carry on, so a
+      // late section (e.g. settings, order 70) always runs.
+      try {
+        const report = await section.import(ctx, data)
+        reports.push(report)
+        pushLog(
+          `${section.name}: +${report.created} created, ~${report.updated} updated, ${report.skipped} skipped`
+        )
+      } catch (e) {
+        const msg = (e as Error).message
+        reports.push({ name: section.name, created: 0, updated: 0, skipped: 0, warnings: [msg] })
+        pushLog(`✗ ${section.name} failed: ${msg} — continuing with the remaining sections`)
+      }
+
+      // The `modules` section (order 5) restores which modules are enabled; pick
+      // that up so module-owned sections later in this loop are gated correctly.
+      if (section.name === 'modules') {
+        enabled = await new ModulesService().enabledMap()
+      }
+
       completed++
       await opts.onProgress?.({ completed, total, section: label, phase: 'done' })
     }

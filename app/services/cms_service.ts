@@ -1953,7 +1953,7 @@ export default class CmsService {
   async createRecord(
     collectionKey: string,
     authorId: number | null,
-    dto: { data: Record<string, unknown>; status?: string }
+    dto: { data: Record<string, unknown>; status?: string; id?: string }
   ): Promise<CmsRecordDto> {
     const collection = await CmsCollection.query()
       .where('key', collectionKey)
@@ -1981,7 +1981,9 @@ export default class CmsService {
       if (total > 0) throw new Error('This is a single type — it can only have one entry')
     }
 
-    const id = collectionKey === 'user' ? undefined : newUlid()
+    // A caller (the data-transfer importer in preserve mode) may supply the id so
+    // records keep a stable identity across a migration and a re-import dedupes.
+    const id = collectionKey === 'user' ? undefined : (dto.id ?? newUlid())
     const data = this.prepareRecordData(collection, dto.data)
     const status =
       (typeof dto.status === 'string' && dto.status) ||

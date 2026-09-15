@@ -40,13 +40,17 @@ export const componentsSection: DataSection = {
         report.skipped++
         continue
       }
-      await cms.createComponent({
-        key: c.key,
-        label: c.label,
-        icon: c.icon ?? null,
-        fields: (c.fields ?? []) as never,
-      })
-      report.created++
+      try {
+        await cms.createComponent({
+          key: c.key,
+          label: c.label,
+          icon: c.icon ?? null,
+          fields: (c.fields ?? []) as never,
+        })
+        report.created++
+      } catch (e) {
+        report.warnings.push(`component "${c.key}": ${(e as Error).message}`)
+      }
     }
     return report
   },
