@@ -450,11 +450,12 @@ export default class StorefrontAccountController {
 
     try {
       const file = await delivery.redeemForCustomer(String(params.grantId ?? ''), account.id, ctx)
+      response.header('Cache-Control', 'private, no-store')
+      if (file.mode === 'redirect') return response.redirect(file.url)
       response.header('Content-Type', file.mimeType)
       response.header('Content-Length', String(file.sizeBytes))
       response.header('Content-Disposition', `attachment; filename="${file.filename}"`)
       response.header('X-Content-Type-Options', 'nosniff')
-      response.header('Cache-Control', 'private, no-store')
       return response.stream(file.stream)
     } catch (error) {
       return fail(response, error)

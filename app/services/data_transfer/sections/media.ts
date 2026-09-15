@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import Media from '#models/media'
 import MediaService from '#services/media_service'
 import { newUlid } from '#services/ulid_service'
+import { getStorageDriver, isS3 } from '#services/storage/index'
 import { emptyReport, type DataSection } from '../registry.js'
 
 /**
@@ -30,10 +31,17 @@ export const mediaSection: DataSection = {
     const rows = await Media.query().whereNull('deleted_at').orderBy('created_at', 'asc')
     const meta: Array<Record<string, unknown>> = []
     for (const m of rows) {
-      const path = service.resolveFilePath(m.filename)
-      if (!path) continue // file missing on disk — skip the orphan row
-      const { readFile } = await import('node:fs/promises')
-      ctx.addFile(m.filename, await readFile(path))
+      let bytes: Buffer | null
+      if (isS3()) {
+        bytes = await getStorageDriver()
+          .readToBuffer(m.filename)
+          .catch(() => null)
+      } else {
+        const path = service.resolveFilePath(m.filename)
+        bytes = path ? await (await import('node:fs/promises')).readFile(path) : null
+      }
+      if (!bytes) continue // file missing — skip the orphan row
+      ctx.addFile(m.filename, bytes)
       meta.push({
         id: m.id,
         filename: m.filename,
@@ -90,7 +98,14 @@ export const mediaSection: DataSection = {
         continue
       }
 
-      if (bytes) await writeFile(join(dir, newFilename), bytes)
+      if (bytes) {
+        const scratch = join(dir, newFilename)
+        await writeFile(scratch, bytes)
+        if (isS3()) {
+          await getStorageDriver().putFile(newFilename, scratch)
+          await (await import('node:fs/promises')).rm(scratch, { force: true })
+        }
+      }
 
       const values = {
         filename: newFilename,

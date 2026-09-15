@@ -13,6 +13,7 @@ import MediaVariant from '#models/media_variant'
 import { mediaUrlPrefix } from '#services/media_url'
 import { newUlid } from '#services/ulid_service'
 import { sanitizeSvg } from '#services/html_sanitizer_service'
+import { getStorageDriver, isS3 } from '#services/storage/index'
 
 /** Widths (px) generated for responsive `srcset`; never upscales past the original. */
 const VARIANT_WIDTHS = [480, 960, 1440]
@@ -156,6 +157,45 @@ export default class MediaService {
   }
 
   /**
+   * `STORAGE_DRIVER=s3` support — see `app/services/storage/`.
+   *
+   * `uploadDir` doubles as local scratch space in this mode: every write
+   * method's existing `sharp`/`file.move`/`writeFile` code is untouched (it
+   * still reads/writes real paths under `uploadDir`), and these two helpers
+   * bracket that unchanged logic — materialize a pre-existing file into
+   * `uploadDir` before reading it, push newly-written files to the bucket and
+   * wipe the local scratch copy afterwards. `local` mode never calls either.
+   */
+  private async ensureLocalCopy(name: string): Promise<void> {
+    const full = join(this.uploadDir, name)
+    if (existsSync(full)) return
+    if (!existsSync(this.uploadDir)) mkdirSync(this.uploadDir, { recursive: true })
+    await getStorageDriver().readToFile(name, full)
+  }
+
+  /** Upload freshly-written scratch files to the bucket, then delete them locally. */
+  private async pushToS3(names: string[]): Promise<void> {
+    const driver = getStorageDriver()
+    for (const name of names) {
+      const full = join(this.uploadDir, name)
+      if (!existsSync(full)) continue
+      await driver.putFile(name, full)
+      rmSync(full, { force: true })
+    }
+  }
+
+  /** Every filename this media row currently owns: the source + its variants. */
+  private async ownedFilenames(media: Media): Promise<string[]> {
+    await media.load('variants')
+    const names = [media.filename]
+    for (const v of media.variants ?? []) {
+      const name = v.url.split('/').pop()
+      if (name) names.push(name)
+    }
+    return names
+  }
+
+  /**
    * Read a raster media (JPEG/PNG/WebP) as a base64 PNG, downscaled to `maxWidth`
    * — for handing an image to an AI client (e.g. a design reference to place next
    * to a screenshot in compare_to_reference). Returns null if the media is
@@ -167,6 +207,7 @@ export default class MediaService {
   ): Promise<{ base64: string; mimeType: 'image/png'; width: number; height: number } | null> {
     const media = await Media.query().where('id', id).whereNull('deleted_at').first()
     if (!media || !RASTER_MIMES.has(media.mimeType)) return null
+    if (isS3()) await this.ensureLocalCopy(media.filename)
     const srcPath = this.resolveFilePath(media.filename)
     if (!srcPath) return null
     const maxWidth = opts.maxWidth ?? 1000
@@ -190,6 +231,7 @@ export default class MediaService {
   async rasterPath(id: string): Promise<string | null> {
     const media = await Media.query().where('id', id).whereNull('deleted_at').first()
     if (!media || !RASTER_MIMES.has(media.mimeType)) return null
+    if (isS3()) await this.ensureLocalCopy(media.filename)
     return this.resolveFilePath(media.filename)
   }
 
@@ -311,8 +353,15 @@ export default class MediaService {
       const old = await MediaVariant.query().where('media_id', media.id)
       for (const v of old) {
         const name = v.url.split('/').pop()
-        const p = name ? this.resolveFilePath(name) : null
-        if (p) rmSync(p, { force: true })
+        if (!name) continue
+        // s3 mode never leaves a lingering local copy between requests (see
+        // `pushToS3`), so the old derivative only exists in the bucket.
+        if (isS3()) {
+          await getStorageDriver().delete(name)
+        } else {
+          const p = this.resolveFilePath(name)
+          if (p) rmSync(p, { force: true })
+        }
       }
       await MediaVariant.query().where('media_id', media.id).delete()
 
@@ -356,14 +405,26 @@ export default class MediaService {
   async serveVariant(response: HttpContext['response'], filename: string): Promise<boolean> {
     const variant = await MediaVariant.query().where('url', `${this.urlPrefix}/${filename}`).first()
     if (!variant) return false
-    const path = this.resolveFilePath(filename)
-    if (!path) return false
+
+    let bytes: Buffer
+    try {
+      if (isS3()) {
+        bytes = await getStorageDriver().readToBuffer(filename)
+      } else {
+        const path = this.resolveFilePath(filename)
+        if (!path) return false
+        bytes = await readFile(path)
+      }
+    } catch {
+      return false
+    }
+
     response.header('Cache-Control', 'public, max-age=31536000, immutable')
     response.header('X-Content-Type-Options', 'nosniff')
     response.header('Content-Security-Policy', "default-src 'none'; sandbox")
     response.header('Content-Type', 'image/webp')
     response.header('Content-Disposition', `inline; filename="${filename}"`)
-    response.send(await readFile(path))
+    response.send(bytes)
     return true
   }
 
@@ -409,7 +470,8 @@ export default class MediaService {
     if (RASTER_MIMES.has(inspected.mimeType)) {
       await this.generateVariants(media, join(this.uploadDir, filename))
     }
-    await media.load('variants')
+    if (isS3()) await this.pushToS3(await this.ownedFilenames(media))
+    else await media.load('variants')
 
     return this.toDto(media)
   }
@@ -428,9 +490,14 @@ export default class MediaService {
     file: { base64: string; encoding: 'base64' }
   }> {
     const media = await Media.query().where('id', id).whereNull('deleted_at').firstOrFail()
-    const path = this.resolveFilePath(media.filename)
-    if (!path) throw new Error('The media file is missing on disk and cannot be exported.')
-    const bytes = await readFile(path)
+    let bytes: Buffer
+    if (isS3()) {
+      bytes = await getStorageDriver().readToBuffer(media.filename)
+    } else {
+      const path = this.resolveFilePath(media.filename)
+      if (!path) throw new Error('The media file is missing on disk and cannot be exported.')
+      bytes = await readFile(path)
+    }
     return {
       _type: MEDIA_EXPORT_TYPE,
       version: 1,
@@ -503,7 +570,8 @@ export default class MediaService {
     if (RASTER_MIMES.has(inspected.mimeType)) {
       await this.generateVariants(media, abs)
     }
-    await media.load('variants')
+    if (isS3()) await this.pushToS3(await this.ownedFilenames(media))
+    else await media.load('variants')
     return this.toDto(media)
   }
 
@@ -559,7 +627,8 @@ export default class MediaService {
     if (RASTER_MIMES.has(media.mimeType)) {
       await this.generateVariants(media, join(this.uploadDir, media.filename))
     }
-    await media.load('variants')
+    if (isS3()) await this.pushToS3(await this.ownedFilenames(media))
+    else await media.load('variants')
     return this.toDto(media)
   }
 
@@ -582,6 +651,7 @@ export default class MediaService {
     if (!RASTER_MIMES.has(source.mimeType)) {
       throw new Error('Can only crop a JPEG, PNG or WebP image')
     }
+    if (isS3()) await this.ensureLocalCopy(source.filename)
     const srcPath = this.resolveFilePath(source.filename)
     if (!srcPath) throw new Error('Source image file is missing')
 
@@ -626,13 +696,19 @@ export default class MediaService {
       alt: normalizeText(meta?.alt),
     })
     await this.generateVariants(media, join(this.uploadDir, filename))
-    await media.load('variants')
+    if (isS3()) {
+      await this.pushToS3(await this.ownedFilenames(media))
+      // The source image was only materialized locally to crop from.
+      rmSync(join(this.uploadDir, source.filename), { force: true })
+    } else {
+      await media.load('variants')
+    }
     return this.toDto(media)
   }
 
   async remove(id: string): Promise<void> {
     const media = await Media.query().where('id', id).whereNull('deleted_at').firstOrFail()
-    media.deletedAt = new Date() as any
+    media.deletedAt = DateTime.now()
     await media.save()
   }
 
@@ -656,19 +732,39 @@ export default class MediaService {
       .whereNotNull('deleted_at')
       .preload('variants')
       .firstOrFail()
-    const filePath = join(this.uploadDir, media.filename)
-    if (existsSync(filePath)) {
-      rmSync(filePath, { force: true })
-    }
-    for (const v of media.variants ?? []) {
-      const name = v.url.split('/').pop()
-      const p = name ? this.resolveFilePath(name) : null
-      if (p) rmSync(p, { force: true })
+    const names = [media.filename, ...(media.variants ?? []).map((v) => v.url.split('/').pop())]
+    if (isS3()) {
+      const driver = getStorageDriver()
+      for (const name of names) if (name) await driver.delete(name)
+    } else {
+      for (const name of names) {
+        const p = name ? this.resolveFilePath(name) : null
+        if (p) rmSync(p, { force: true })
+      }
     }
     await media.delete() // media_variants rows cascade via FK
   }
 
-  async serve(response: HttpContext['response'], path: string, media: Media) {
+  /**
+   * Serve a stored original. Returns false when the bytes can't be found (the
+   * caller responds 404) rather than throwing, since a dangling DB row with a
+   * file that never made it to disk/bucket is a data-integrity issue, not a
+   * server error.
+   */
+  async serve(response: HttpContext['response'], media: Media): Promise<boolean> {
+    let bytes: Buffer
+    try {
+      bytes = isS3()
+        ? await getStorageDriver().readToBuffer(media.filename)
+        : await (async () => {
+            const path = this.resolveFilePath(media.filename)
+            if (!path) throw new Error('missing')
+            return readFile(path)
+          })()
+    } catch {
+      return false
+    }
+
     const inline = new Set([
       'image/jpeg',
       'image/png',
@@ -688,11 +784,13 @@ export default class MediaService {
       `${inline.has(media.mimeType) ? 'inline' : 'attachment'}; filename=\"${media.filename}\"`
     )
     if (media.mimeType === 'image/svg+xml') {
-      const safe = sanitizeSvg(await readFile(path, 'utf8'))
-      if (!safe) return response.notFound({ message: 'Not found' })
-      return response.send(safe)
+      const safe = sanitizeSvg(bytes.toString('utf8'))
+      if (!safe) return false
+      response.send(safe)
+      return true
     }
-    return response.send(await readFile(path))
+    response.send(bytes)
+    return true
   }
 
   private toDto(media: Media): MediaDto {

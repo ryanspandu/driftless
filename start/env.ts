@@ -46,6 +46,26 @@ export default await Env.create(new URL('../', import.meta.url), {
   MEDIA_STORAGE_PATH: Env.schema.string.optional(),
   MEDIA_URL_PREFIX: Env.schema.string.optional(),
 
+  /*
+  |----------------------------------------------------------
+  | Media/digital-download storage backend
+  |----------------------------------------------------------
+  | `local` (default) keeps writing to MEDIA_STORAGE_PATH / storage/protected
+  | on disk, unchanged. `s3` stores the same bytes in an S3-compatible bucket
+  | (Cloudflare R2, AWS S3, etc.) instead — useful wherever the deployment
+  | can't give every process that touches media the same local disk (e.g. a
+  | platform where only one service can hold a persistent volume).
+  */
+  STORAGE_DRIVER: Env.schema.enum.optional(['local', 's3'] as const),
+  S3_ENDPOINT: Env.schema.string.optional(),
+  S3_BUCKET: Env.schema.string.optional(),
+  S3_ACCESS_KEY_ID: Env.schema.string.optional(),
+  S3_SECRET_ACCESS_KEY: Env.schema.string.optional(),
+  /** `auto` is Cloudflare R2's required value; a real AWS region elsewhere. */
+  S3_REGION: Env.schema.string.optional(),
+  /** Path-style bucket addressing — some S3-compatible providers need it; R2 doesn't. */
+  S3_FORCE_PATH_STYLE: Env.schema.string.optional(),
+
   SEED_ADMIN_EMAIL: Env.schema.string.optional(),
   SEED_ADMIN_PASSWORD: Env.schema.string.optional(),
   SEED_ADMIN_USERNAME: Env.schema.string.optional(),
