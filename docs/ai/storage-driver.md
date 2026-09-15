@@ -33,8 +33,13 @@ local_driver.ts fs-backed. NOT used by local-mode call sites (see below) — exi
                  implementation if a call site is ever migrated onto the interface directly.
 s3_driver.ts     @aws-sdk/client-s3 + @aws-sdk/s3-request-presigner. Constructor-injectable
                  S3Client so tests can stub it.
-index.ts         isS3() reads STORAGE_DRIVER; getStorageDriver() builds/caches the S3 driver
-                 from env (throws if s3 mode is missing S3_BUCKET/keys).
+driver.ts        isS3() reads STORAGE_DRIVER; getStorageDriver() builds/caches the S3 driver
+                 from env (throws if s3 mode is missing S3_BUCKET/keys). Deliberately not named
+                 index.ts — Node's ESM loader (via @poppinss/ts-exec, this project's dev/ace
+                 runtime) doesn't fall back from a mapped `.js` path to the matching `.ts` source
+                 for a file named "index" the way it does for any other filename, which broke
+                 `node ace build` on Railway (worked in `npm run dev` regardless — that path never
+                 exercises this specific resolution).
 ```
 
 **`local` mode is provably unchanged**: `media_service.ts`/`digital_delivery_service.ts` keep
