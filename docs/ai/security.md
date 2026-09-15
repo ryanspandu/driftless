@@ -109,6 +109,12 @@ outside `public/`; startup rejects an unsafe path. Set `MEDIA_URL_PREFIX=/media`
 for new installations (the legacy `/uploads` route remains available for old
 database rows).
 
+`STORAGE_DRIVER=s3` moves the bytes into an S3-compatible bucket instead — the
+same controlled route still fronts every request (a public `Media.url` is
+always the site's own relative path, never a bucket URL), so this changes
+nothing about the access-control posture above. See
+[storage-driver.md](./storage-driver.md).
+
 Every upload is checked in two stages:
 
 1. Adonis multipart size/extension validation must pass (`file.isValid`).
