@@ -38,20 +38,28 @@ monorepo, so no per-service root directory is needed.
 **Build Command**, identical on all three app services:
 
 ```
-npm_config_production=false npm ci && npm run build
+npm_config_production=false npm install && npm run build
 ```
+
+**Use `npm install`, not `npm ci`.** Railpack caches `node_modules` (including Vite's
+`node_modules/.vite` pre-bundle cache) across builds via a mount, and `npm ci` begins by
+`rm -rf`-ing the whole `node_modules` — which fails on that mounted cache dir with
+`npm error EBUSY: resource busy or locked, rmdir '/app/node_modules/.vite'` and aborts the
+build. `npm install` reconciles `node_modules` in place instead of wiping it first, so it
+coexists with the cache. The lockfile is still respected (an existing `package-lock.json` makes
+`npm install` install the locked versions); reproducibility is effectively the same here.
 
 `npm run build` runs AdonisJS's own `prebuild` first via the npm lifecycle — clean, then the
 `generate-module-sources.mjs` / `generate-code-pages.mjs` / `generate-custom-templates.mjs`
 generators, then `node ace mcp:catalog`, then `node ace build` itself (compiles TypeScript, runs
 Vite, produces `build/` including `build/public/assets/.vite/manifest.json`). **Never**
-`npm ci --omit=dev` — Vite/TypeScript/Tailwind are devDependencies needed at build time, and
+`--omit=dev` — Vite/TypeScript/Tailwind are devDependencies needed at build time, and
 Railway's build layer carries the whole `node_modules` straight into the running container (no
 separate "prune for production" stage), so the self-hosted guide's objection to `--omit=dev`
 doesn't apply here — there's no second install step to strip anything from.
 
 **`npm_config_production=false` is required, not optional**, even though the command is otherwise
-plain `npm ci`: `NODE_ENV=production` is a required runtime env var on every service (see the
+plain `npm install`: `NODE_ENV=production` is a required runtime env var on every service (see the
 table below), and it's present during the build step too — npm reads it and silently skips
 installing devDependencies whenever `NODE_ENV=production` is set, for both `npm install` and
 `npm ci` alike (this is still true on modern npm; it was not removed in npm 7 as commonly
@@ -138,7 +146,7 @@ produce incomplete bundles in this mode. If that limitation matters to you, use 
 ## 4. Create the `web` service
 
 1. New service from the same GitHub repo/branch.
-2. **Settings → Build:** Build Command `npm_config_production=false npm ci && npm run build`.
+2. **Settings → Build:** Build Command `npm_config_production=false npm install && npm run build`.
 3. **Settings → Deploy:** Start Command `node build/bin/server.js`. Healthcheck Path `/health`.
 4. If using local storage, attach a Volume now (mount path `/app/storage`).
 5. Set every env var from the table below **except** `APP_URL` and the Redis vars — both need
