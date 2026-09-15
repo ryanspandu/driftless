@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { readFile, mkdir } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { readFile, mkdir, stat } from 'node:fs/promises'
+import { existsSync, createReadStream } from 'node:fs'
 import { join } from 'node:path'
 import app from '@adonisjs/core/services/app'
 import ModulesService from '#services/modules_service'
@@ -116,7 +116,15 @@ export default class DataTransferController {
     if (job.state !== 'succeeded' || !job.downloadPath || !existsSync(job.downloadPath)) {
       return response.status(409).json({ message: 'Export is not ready' })
     }
-    return response.download(job.downloadPath)
+    // Stream with explicit headers: `.driftless` is an unknown extension, so
+    // `response.download` would send `Content-Type: false` and no
+    // `Content-Disposition`, making the browser save the archive as "download.txt".
+    const filename = (job.result?.filename as string | undefined) ?? 'site.driftless'
+    const { size } = await stat(job.downloadPath)
+    response.header('Content-Type', 'application/gzip')
+    response.header('Content-Disposition', `attachment; filename="${filename.replace(/"/g, '')}"`)
+    response.header('Content-Length', String(size))
+    return response.stream(createReadStream(job.downloadPath))
   }
 
   // ── helpers ─────────────────────────────────────────────────────────────────

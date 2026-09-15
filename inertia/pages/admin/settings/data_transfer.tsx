@@ -287,7 +287,10 @@ export default function DataTransferPage() {
                 size="sm"
                 className="shrink-0 gap-2"
                 render={
-                  <a href={`/api/admin/data-transfer/exports/${exportJob.id}/download`} download />
+                  <a
+                    href={`/api/admin/data-transfer/exports/${exportJob.id}/download`}
+                    download={exportJob.downloadName ?? 'site.driftless'}
+                  />
                 }
               >
                 <Download className="size-4" />

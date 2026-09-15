@@ -86,6 +86,7 @@ export const collectionRecordsSection: DataSection = {
     // Pass 1: create every record without relations; record old→new ids.
     const deferredRelations: Array<{ key: string; newId: string; data: Record<string, unknown> }> =
       []
+    const regen = ctx.mode === 'regenerate'
     for (const [key, rows] of Object.entries(byCollection)) {
       if (!relationKeys.has(key)) continue
       const relKeys = relationKeys.get(key)!
@@ -98,17 +99,37 @@ export const collectionRecordsSection: DataSection = {
         }
         // In regenerate mode, MEDIA field values (media ids) and nested
         // COMPONENT media ids changed → rewrite them through the id map.
-        const recordData =
-          ctx.mode === 'regenerate' ? rewriteRefs(nonRelation, ctx.idMap) : nonRelation
+        const recordData = regen ? rewriteRefs(nonRelation, ctx.idMap) : nonRelation
         try {
-          const created = await cms.createRecord(key, ctx.authorId, {
-            data: recordData,
-            status: row.status,
-          })
-          ctx.idMap.set(row.id, created.id)
-          report.created++
+          let recordId: string
+          // Preserve mode: keep the record's id so cross-section references stay
+          // stable and a re-import updates in place rather than duplicating.
+          const existing =
+            !regen && row.id ? await cms.findRecord(key, row.id).catch(() => null) : null
+          if (existing) {
+            ctx.idMap.set(row.id, existing.id)
+            if (ctx.conflict === 'skip') {
+              report.skipped++
+              continue
+            }
+            await cms.updateRecord(key, existing.id, ctx.authorId, {
+              data: recordData,
+              status: row.status,
+            })
+            recordId = existing.id
+            report.updated++
+          } else {
+            const created = await cms.createRecord(key, ctx.authorId, {
+              data: recordData,
+              status: row.status,
+              id: regen ? undefined : row.id,
+            })
+            recordId = created.id
+            report.created++
+          }
+          ctx.idMap.set(row.id, recordId)
           if (Object.keys(relation).length > 0) {
-            deferredRelations.push({ key, newId: created.id, data: relation })
+            deferredRelations.push({ key, newId: recordId, data: relation })
           }
         } catch (e) {
           report.warnings.push(`record ${key}/${row.id}: ${(e as Error).message}`)

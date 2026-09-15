@@ -75,7 +75,9 @@ export const templatesSection: DataSection = {
         isDefault: !!t.isDefault,
         collectionKey: t.collectionKey ?? null,
         content: sanitizePuckDocument(regen ? rewriteRefs(rawContent, ctx.idMap) : rawContent),
-        renderedHtml: t.renderedHtml ?? null,
+        // In regenerate mode the cached HTML still embeds the source's ids/URLs;
+        // null it so the target re-renders from the rewritten `content`.
+        renderedHtml: regen ? null : (t.renderedHtml ?? null),
       }
       try {
         if (existing) {

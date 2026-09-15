@@ -59,7 +59,11 @@ async function importPosts(
       data: rawData
         ? ((regen ? rewriteRefs(rawData, ctx.idMap) : rawData) as Record<string, unknown>)
         : null,
-      featuredImage: (row.featuredImage as string) ?? null,
+      // A whole-string media URL: remap through idMap (media records oldUrl→newUrl
+      // in regenerate mode; identity in preserve).
+      featuredImage: row.featuredImage
+        ? (ctx.idMap.get(String(row.featuredImage)) ?? String(row.featuredImage))
+        : null,
       authorId: ctx.authorId,
     }
     if (regen) {
