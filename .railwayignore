@@ -1,0 +1,46 @@
+# What `railway up` must NOT upload. Used with `railway up --no-gitignore`, which
+# stops the CLI from applying .gitignore so gitignored custom template kits
+# (inertia/custom/kits/*) are uploaded and compiled into the image. Everything
+# else .gitignore excludes is re-excluded here. Keep the two in sync: anything
+# added to .gitignore that must not reach Railway needs a line here too.
+# See docs/RAILWAY_DEPLOYMENT.md → "Deploying without GitHub".
+
+# VCS / tooling
+.git
+.claude
+.fleet
+.idea
+.vscode
+.DS_Store
+npm-debug.log
+yarn-error.log
+
+# Dependencies + build output (Railway installs and builds from scratch)
+node_modules
+build
+public/assets
+.vite
+
+# Secrets — never ship local env files; Railway injects its own variables
+.env
+.env.*
+!.env.example
+
+# Self-hosted release layout + local runtime data
+releases/
+shared/
+current
+current.next
+storage/
+tmp/*
+!tmp/.gitkeep
+
+# Codegen regenerated during the build (the Tuyau registry is the exception —
+# the build needs it and never regenerates it)
+/.adonisjs/*
+!/.adonisjs/client/
+/.adonisjs/client/*
+!/.adonisjs/client/registry/
+app/services/*.generated.ts
+inertia/css/*.generated.css
+database/schema.ts

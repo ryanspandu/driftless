@@ -80,9 +80,10 @@ export const kitsSection: DataSection = {
       // into the running bundle nor kept across the next deploy. The pages that
       // reference these kits were imported as drafts (see the pages section).
       const msg =
-        `${installed} kit(s) staged to disk. They are NOT live yet: kit code is build-time, ` +
-        `so you must COMMIT these kit files to the target's repo and redeploy for their pages/` +
-        `templates to render. A running server cannot rebuild itself.`
+        `${installed} kit(s) staged to disk. They are NOT live yet: kit code is build-time and a ` +
+        `running server cannot rebuild itself. Deploy the target with these kits in its build ` +
+        `input (e.g. \`railway up --no-gitignore\` from a folder that has them) so their pages/` +
+        `templates render.`
       ctx.log(msg)
       report.warnings.push(msg)
     }

@@ -119,7 +119,11 @@ export default function DataTransferPage() {
           if (!job) return
           const active = job.state === 'queued' || job.state === 'running'
           const resumable =
-            active || (kind === 'export' && job.state === 'succeeded' && job.downloadReady)
+            active ||
+            // Keep the download link after a finished export, and the
+            // success/failure report after a finished import, across a refresh.
+            (kind === 'export' && job.state === 'succeeded' && job.downloadReady) ||
+            (kind === 'import' && (job.state === 'succeeded' || job.state === 'failed'))
           if (!resumable) return
           if (kind === 'import') setImportJobId(job.id)
           else setExportJobId(job.id)

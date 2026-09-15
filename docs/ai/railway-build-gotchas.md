@@ -1,6 +1,6 @@
 # Railway / fresh-clone build gotchas
 
-Four things break a Railway (Railpack) build that a **macOS working-tree `npm run build`
+Five things break a Railway (Railpack) build that a **macOS working-tree `npm run build`
 never reproduces**, so they were missed until a real deploy. If you touch the build, deploy
 config, Node version, or `.adonisjs` codegen, read this. Human-facing walkthrough:
 [../RAILWAY_DEPLOYMENT.md](../RAILWAY_DEPLOYMENT.md).
@@ -61,3 +61,19 @@ place and coexists with the cache. Lockfile still respected.
 skips devDependencies (the whole TS/Vite/Tailwind toolchain) for both `npm install` and `npm ci`.
 Without the prefix the build fails with an obscure `Cannot find module '.../@poppinss/ts-exec/...'`.
 So the full Build Command is `npm_config_production=false npm install && npm run build`.
+
+## 5. Gitignored custom kits never reach a GitHub-built image
+
+`inertia/custom/kits/*` is gitignored on purpose (operator payloads). Kits are compiled at build
+time, and a GitHub-connected Railway service builds a fresh checkout — so any kit other than the
+committed `example/` is absent and pages on it fail with `Unknown custom template "kit:<id>"`.
+Redeploying doesn't fix it (rebuilds from source; files the importer staged on the running
+container are discarded) and a Volume doesn't either (runtime-only, not mounted during build).
+
+Supported path: deploy from the local folder with **`railway up --no-gitignore --service
+driftless`** (GitHub source disconnected). `.gitignore` is untouched; the committed
+`.railwayignore` re-excludes everything else (node_modules, build, local `.env`/`shared/`
+secrets, releases, storage, regenerated codegen). **When you add a secret-bearing path to
+`.gitignore`, add it to `.railwayignore` too** — with `--no-gitignore` only `.railwayignore`
+stands between it and the image. The importer drafts kit pages whose kit isn't in the target
+build and warns; after deploying with the kit, publish (or re-import) them.
