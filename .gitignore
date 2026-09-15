@@ -18,11 +18,16 @@ build
 # (dev/build/test/typecheck). Local-only, never committed.
 .vite
 
-# Release layout — see scripts/build-release.mjs
+# Release layout — see scripts/build-release.mjs. public/uploads is a symlink to
+# shared/uploads that build-release.mjs's adopt()/link() create fresh on every
+# self-hosted release; it must not be committed as a tracked symlink — a fresh
+# clone would get a dangling link to a shared/ that doesn't exist yet, which
+# breaks a plain `railway up --no-gitignore` upload (BuildKit can't read it).
 releases/
 shared/
 current
 current.next
+public/uploads
 tmp/*
 !tmp/.gitkeep
 

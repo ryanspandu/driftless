@@ -3,7 +3,9 @@ import { join } from 'node:path'
 import Media from '#models/media'
 import MediaService from '#services/media_service'
 import { newUlid } from '#services/ulid_service'
-import { getStorageDriver, isS3 } from '#services/storage/driver'
+// Relative, not '#services/storage/driver' — see the comment on the same import
+// in app/services/media_service.ts.
+import { getStorageDriver, isS3 } from '../../storage/driver.js'
 import { emptyReport, type DataSection } from '../registry.js'
 
 /**
