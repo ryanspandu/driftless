@@ -13,7 +13,7 @@ import MediaVariant from '#models/media_variant'
 import { mediaUrlPrefix } from '#services/media_url'
 import { newUlid } from '#services/ulid_service'
 import { sanitizeSvg } from '#services/html_sanitizer_service'
-import { getStorageDriver, isS3 } from '#services/storage/index'
+import { getStorageDriver, isS3 } from '#services/storage/driver'
 
 /** Widths (px) generated for responsive `srcset`; never upscales past the original. */
 const VARIANT_WIDTHS = [480, 960, 1440]
