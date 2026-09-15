@@ -64,6 +64,31 @@ them regardless of `NODE_ENV`; it has no effect on the running app once built.
 at the self-hosted `current` symlink, which won't exist. Each service's Start Command is set
 directly in its Railway settings (or `railway.json`), pointing at `build/` instead.
 
+### Node version is pinned to 24.19.0 — do not let the builder pick "latest 24"
+
+`.nvmrc` and `.node-version` both pin **24.19.0**, and you should also set
+`RAILPACK_NODE_VERSION=24.19.0` as a service variable (the builder's most authoritative source)
+so the pin can't be missed. This is not cosmetic: **Node 24.20.0 and 24.21.0 ship an `ada`-url
+regression that breaks AdonisJS ace's command-metadata validation.** Every `node ace` invocation
+(`mcp:catalog` during the build, `migration:run` in the Pre-Deploy Command, and `queue:work` /
+`modules:maintenance` at runtime on the worker and cron services) boots the ace kernel, which
+validates every command through the `jsonschema` library. On 24.20/24.21 that validation throws a
+bare `RuntimeException: Invalid command exported from "analytics_prune.js" file. Invalid URL`
+(the first command scanned takes the blame; the real cause is `new URL()` rejecting an
+opaque-base reference that older/newer Node accepted). Railpack otherwise installs the newest
+Node 24 LTS — which is currently in the broken range — so the pin is mandatory. Node 24.19.0,
+Node 22.x, and Node 25.9+ are all unaffected; 24.19.0 is the newest 24-line release that works.
+
+### `.adonisjs/client/registry/` is committed on purpose
+
+The build resolves `@generated/registry` (the Tuyau typed-API-client registry) from
+`.adonisjs/client/registry/`. That directory is generated **only** by the dev server's route
+scanner — `node ace build` never regenerates it — so it is committed to git even though the rest
+of `.adonisjs/` is ignored. A fresh clone (which is exactly what Railway builds) would otherwise
+fail the Vite step with `Could not load .../.adonisjs/client//registry`. When you add or change
+routes, run `npm run dev` once to regenerate it and commit the result, or the deployed typed
+client goes stale (it won't break the build — the files just describe older routes).
+
 ## 1. Prerequisites
 
 - A Railway account with the repo's GitHub connected (or the CLI logged in).
