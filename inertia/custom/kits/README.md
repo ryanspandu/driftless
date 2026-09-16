@@ -155,6 +155,14 @@ customer accounts are a separate login from the admin users (`GET /api/shop/me` 
 `example/pages/shop-demo.tsx` + `example/pages/account-demo.tsx` + `example/components/shop_api.ts`,
 and the full section in [`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md).
 
+## CAPTCHA on a custom form
+
+Bot protection is a small, module-agnostic API, not just a login/register/checkout thing — fetch
+`GET /api/captcha/config`, or just use the `useCaptcha(flow)` hook + `<CaptchaWidget>` and let the
+server (`CaptchaService.verifyToken`) be the real gate. The builder `FormBlock` already wires this
+up automatically for contact forms; reach for the hook yourself only for a fully custom
+form/action. Full reference: [`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md#captcha-for-a-custom-form).
+
 ## Rules
 
 - **Use app libraries only.** Import anything already in the root `package.json`

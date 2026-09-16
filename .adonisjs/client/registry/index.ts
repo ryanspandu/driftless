@@ -96,6 +96,12 @@ const routes = {
     tokens: [{"old":"/api/public/cms/:key/records/:id","type":0,"val":"api","end":""},{"old":"/api/public/cms/:key/records/:id","type":0,"val":"public","end":""},{"old":"/api/public/cms/:key/records/:id","type":0,"val":"cms","end":""},{"old":"/api/public/cms/:key/records/:id","type":1,"val":"key","end":""},{"old":"/api/public/cms/:key/records/:id","type":0,"val":"records","end":""},{"old":"/api/public/cms/:key/records/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['public_cms.record']['types'],
   },
+  'captcha.config': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/captcha/config',
+    tokens: [{"old":"/api/captcha/config","type":0,"val":"api","end":""},{"old":"/api/captcha/config","type":0,"val":"captcha","end":""},{"old":"/api/captcha/config","type":0,"val":"config","end":""}],
+    types: placeholder as Registry['captcha.config']['types'],
+  },
   'public_forms.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/public/forms/:slug',

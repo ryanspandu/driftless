@@ -1464,9 +1464,11 @@ export const baseConfig: Config = {
          * a mistyped `name` is a form that fails with no message. The names are
          * listed here rather than only in the docs for that reason.
          *
-         * Note this path cannot satisfy CAPTCHA: the `Recaptcha` block is a
-         * placeholder that produces no token, so with CAPTCHA enabled only the
-         * turnkey Login/Sign-up blocks can submit successfully.
+         * `handler:'collect'` (posting to `/api/forms/submit`) automatically
+         * renders a CAPTCHA widget and blocks submit until it's solved when
+         * "Require on contact forms" is on in Admin → Integrations → CAPTCHA —
+         * no extra setup needed. The static `Recaptcha` block below is a
+         * separate, purely decorative placeholder, unrelated to this.
          */
         handler: {
           type: 'select',
@@ -1725,8 +1727,9 @@ export const baseConfig: Config = {
       },
     },
 
-    // reCAPTCHA — visual placeholder; a live widget needs a provider site key
-    // (Integrations) + a form-submission backend, which is a separate feature.
+    // reCAPTCHA — visual placeholder only, for mocking up a design. The Form
+    // Block's `handler:'collect'` already renders a real, working CAPTCHA
+    // widget automatically when required — see its field comment above.
     Recaptcha: {
       label: 'reCAPTCHA',
       fields: { ...styleFields },

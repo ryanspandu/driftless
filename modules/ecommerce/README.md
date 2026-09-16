@@ -56,12 +56,18 @@ callers that reach it ([`webhook_service.handlePaid`](../../modules/ecommerce/se
 
 The storefront is an unauthenticated, money-touching surface, so it is defended in depth:
 
-- **CAPTCHA** covers shopper **login, register and checkout** (not just admin auth). It is wired
-  through the shared, fail-closed [`CaptchaService`](../../app/services/captcha_service.ts) and
-  toggled per flow in *Admin → Integrations*. Checkout uses an **invisible** provider only
-  (Turnstile) so the buy path shows no puzzle; other providers fall back to the checkout rate
-  limit. The server re-verifies every token — the client flags in `GET /api/shop/config` only
-  decide whether to render a widget.
+- **CAPTCHA** covers shopper **login, register, checkout, and applying/checking a discount
+  code** (not just admin auth). It is wired through the shared, fail-closed
+  [`CaptchaService`](../../app/services/captcha_service.ts) and toggled per flow in
+  *Admin → Integrations*. Checkout uses an **invisible** provider only (Turnstile) so the buy
+  path shows no puzzle; other providers fall back to the checkout rate limit. The discount flow
+  has no such restriction — a visible challenge there is fine. The server re-verifies every
+  token — the client flags in `GET /api/shop/config` (or the module-agnostic `GET
+  /api/captcha/config`, the same shape used by non-ecommerce forms — see
+  [docs/ai/custom-templates.md](../../docs/ai/custom-templates.md#captcha-for-a-custom-form))
+  only decide whether to render a widget. `CartController#applyDiscount` and
+  `ReferralController#checkDiscount` both gate on `captchaOnDiscount`; a kit's own coupon UI
+  gets this via `useCaptcha('discount')`.
 - **Rate limits** ([`throttles.ts`](../../modules/ecommerce/throttles.ts)) key on more than the
   IP: login/register add a **per-email** bucket (a single account can't be brute-forced from
   rotating IPs), checkout adds a **per-cart-cookie** bucket (IP rotation alone can't multiply
@@ -451,6 +457,9 @@ to be recorded.)
 | `POST /api/shop/availability`                     | 120/min  | Live stock for SSG-rendered pages                   |
 | `GET /api/shop/cart`                              | 120/min  | Does not create a cart — a crawler cannot mint rows |
 | `POST/PUT/DELETE /api/shop/cart/items`            | 60/min   | Cart-flooding is the cheapest table filler          |
+| `POST /api/shop/cart/discount`                    | 60/min   | Applies a code; optional CAPTCHA (`captchaOnDiscount`)         |
+| `DELETE /api/shop/cart/discount`                  | 60/min   | Removes the applied code; not CAPTCHA-gated (nothing to guess) |
+| `POST /api/shop/discount/check`                   | 10/min   | Preview-only validation; the tighter brute-force-guessing limit, also CAPTCHA-gated |
 | `POST /api/shop/checkout`                         | 8/min    | Creates an order, reserves stock, opens a session   |
 | `POST /api/shop/account/{login,register}`         | 10/15min | Each attempt costs a scrypt hash                    |
 

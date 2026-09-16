@@ -187,6 +187,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/public_cms_controller').default['record']>>>
     }
   }
+  'captcha.config': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/captcha/config'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/captcha_controller').default['config']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/captcha_controller').default['config']>>>
+    }
+  }
   'public_forms.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/public/forms/:slug'

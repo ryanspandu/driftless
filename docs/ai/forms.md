@@ -90,6 +90,14 @@ form, [`validateSubmission(fields, raw)`](../../app/services/form_schema.ts):
 
 - **Honeypot** `_hp_url` filled → stored as `status: spam`, notifications skipped, and the response
   is a normal 200 (a bot must never learn the schema — so a honeypot hit never 422s).
+- **CAPTCHA** (optional) — when "Require on contact forms" is on in Admin → Integrations →
+  CAPTCHA, the controller calls the same provider-agnostic
+  [`CaptchaService`](../../app/services/captcha_service.ts) login/register/checkout already use:
+  no `captchaToken` (or a token that fails `verifyToken`) → **422 `{ ok: false, errors: { captcha }
+  }`**. Unlike the honeypot this is a real, visible error — the widget is required UX, not a spam
+  trap. See "CAPTCHA for a custom form" in
+  [`custom-templates.md`](./custom-templates.md#captcha-for-a-custom-form) for how a template-kit
+  form gets this automatically via `FormBlockView`, or opts in itself via `useCaptcha('forms')`.
 - **Rate limit** — per-IP 20 / 10 min (`formsSubmitThrottle`, [`start/limiter.ts`](../../start/limiter.ts)).
 - **CSRF** — the form sends `X-XSRF-TOKEN`.
 - **Always 200 on infra failure** — a broken store must never read as a broken page; only a

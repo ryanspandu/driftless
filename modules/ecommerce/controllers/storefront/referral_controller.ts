@@ -5,6 +5,8 @@ import AffiliateService from '#modules/ecommerce/services/affiliate_service'
 import CartService from '#modules/ecommerce/services/cart_service'
 import DiscountService from '#modules/ecommerce/services/discount_service'
 import PricingService from '#modules/ecommerce/services/pricing_service'
+import CaptchaService from '#services/captcha_service'
+import { IntegrationSettingsService } from '#services/settings_service'
 
 const discountCheckValidator = vine.compile(
   vine.object({
@@ -17,6 +19,8 @@ const affiliates = new AffiliateService()
 const discounts = new DiscountService()
 const carts = new CartService()
 const pricing = new PricingService()
+const integrations = new IntegrationSettingsService()
+const captcha = new CaptchaService()
 
 const fail = (response: HttpContext['response'], error: unknown) =>
   apiFail(response, error, 'ecommerce/referral')
@@ -63,6 +67,22 @@ export default class ReferralController {
    */
   async checkDiscount(ctx: HttpContext) {
     const { request, response } = ctx
+
+    const captchaRow = await integrations.getOrCreate()
+    if (captcha.isCaptchaEffective(captchaRow) && captchaRow.captchaOnDiscount) {
+      const token = request.input('captchaToken')
+      const ok = await captcha.verifyToken(
+        captchaRow,
+        typeof token === 'string' ? token : undefined,
+        request.ip()
+      )
+      if (!ok) {
+        return response
+          .status(400)
+          .json({ message: 'CAPTCHA verification failed.', reason: 'captcha_failed' })
+      }
+    }
+
     try {
       const { code, email } = await request.validateUsing(discountCheckValidator)
 

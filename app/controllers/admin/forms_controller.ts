@@ -1,18 +1,40 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import FormSubmissionService, { FormValidationError } from '#services/form_submission_service'
 import FormUploadService, { FormUploadError } from '#services/form_upload_service'
+import CaptchaService from '#services/captcha_service'
+import { IntegrationSettingsService } from '#services/settings_service'
 
 const service = new FormSubmissionService()
 const uploads = new FormUploadService()
+const integrations = new IntegrationSettingsService()
+const captcha = new CaptchaService()
 
 export default class FormsController {
   /**
    * Public: receive a builder-form submission. CSRF-protected (the form sends
    * the XSRF token) and rate-limited. Always answers 200 so a broken store
-   * never surfaces to a visitor.
+   * never surfaces to a visitor — except a CAPTCHA failure, which is a real,
+   * visible error: the widget is required UX, not a spam trap like the
+   * honeypot, so a legitimate visitor needs to see it and retry.
    */
   async submit(ctx: HttpContext) {
     const { request, response } = ctx
+
+    const captchaRow = await integrations.getOrCreate()
+    if (captcha.isCaptchaEffective(captchaRow) && captchaRow.captchaOnForms) {
+      const token = request.input('captchaToken')
+      const ok = await captcha.verifyToken(
+        captchaRow,
+        typeof token === 'string' ? token : undefined,
+        request.ip()
+      )
+      if (!ok) {
+        return response
+          .status(422)
+          .json({ ok: false, errors: { captcha: 'CAPTCHA verification failed.' } })
+      }
+    }
+
     try {
       await service.record(ctx, {
         form: request.input('form') ? String(request.input('form')) : undefined,

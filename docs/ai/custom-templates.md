@@ -360,6 +360,43 @@ A kit can build a full storefront experience, but **only through the store's pub
   profile + order history), with a copy-paste client at
   `inertia/custom/kits/example/components/shop_api.ts`.
 
+## CAPTCHA for a custom form
+
+Bot protection (Turnstile / hCaptcha / reCAPTCHA) is a small, module-agnostic API any kit form can
+opt into — it isn't limited to the built-in login/register/checkout screens.
+
+- **`GET /api/captcha/config`** (public, no auth) — the one neutral place any page fetches
+  `{ enabled, provider, siteKey, onForms, onDiscount, onLogin, onRegister, onCheckout }` from,
+  regardless of which module it renders in. The server is always the authority: it re-verifies
+  whatever token it receives and fails closed — this config only decides whether to *show* a
+  widget.
+- **`useCaptcha(flow)`** ([`inertia/hooks/use_captcha.ts`](../../inertia/hooks/use_captcha.ts)) —
+  fetches that config via plain `fetch` (never the admin `apiFetch` — same rule as `/api/shop/*`
+  above) and returns `{ required, provider, siteKey, token, setToken }`. `flow` is `'forms'` or
+  `'discount'` today; pass the matching flow key from the config above.
+- **`<CaptchaWidget provider siteKey onToken>`**
+  ([`inertia/components/auth/captcha-widget.tsx`](../../inertia/components/auth/captcha-widget.tsx))
+  — renders the right script/widget for whichever provider is configured. Render it only when
+  `required` is true, disable your submit button until `token` is set, and send `captchaToken:
+  token` on the actual POST.
+- **You almost never need to do this yourself.** The builder `FormBlock`'s `handler:'collect'` path
+  (posting to `POST /api/forms/submit`, the generic contact-form endpoint any kit's own contact
+  form should post to) already wires this up automatically — see
+  [forms.md](./forms.md#the-submit-path--validation--security). Reach for `useCaptcha` directly
+  only when you're building a fully custom form/action against `/api/shop/cart/discount` or some
+  other endpoint that supports it.
+
+```tsx
+const captcha = useCaptcha('forms')
+// ...
+{captcha.required && captcha.provider && captcha.siteKey ? (
+  <CaptchaWidget provider={captcha.provider} siteKey={captcha.siteKey} onToken={captcha.setToken} />
+) : null}
+<button disabled={captcha.required && !captcha.token}>Submit</button>
+// on submit: fetch('/api/forms/submit', { ..., body: JSON.stringify({ ...fields,
+//   ...(captcha.required && captcha.token ? { captchaToken: captcha.token } : {}) }) })
+```
+
 ## What you can build with
 
 ### Available libraries (root `package.json` only)
@@ -515,6 +552,8 @@ page leave room to add both without reworking this design.
 | `inertia/custom/email_kit.tsx` | Email-safe primitives (`EmailRoot`, `EmailBody`, …) for `emails/*.tsx` |
 | `app/services/custom_email_templates.generated.ts` | Generated: each email flattened to send-ready HTML (do not edit) |
 | `inertia/hooks/cms/use-collection-records.ts` | Kit-facing hooks — read published collection records / one record |
+| `inertia/hooks/use_captcha.ts` | `useCaptcha(flow)` — CAPTCHA config + widget token for any kit form |
+| `app/controllers/captcha_controller.ts` | `GET /api/captcha/config` — the public, module-agnostic CAPTCHA config |
 | `inertia/custom/kits/example/components/shop_api.ts` | Copy-paste decoupled client for the `/api/shop/*` storefront API |
 | `inertia/custom/kits/example/pages/collection-demo.tsx` | Runnable `useCollectionRecords` demo |
 | `inertia/custom/kits/example/pages/shop-demo.tsx` | Runnable full storefront demo (catalogue → checkout) |

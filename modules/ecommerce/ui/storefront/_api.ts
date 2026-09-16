@@ -199,10 +199,10 @@ export const shopApi = {
   removeLine: (variantId: string) =>
     shopFetch<CartDto>(`/api/shop/cart/items/${variantId}`, { method: 'DELETE' }),
 
-  applyDiscount: (code: string) =>
+  applyDiscount: (code: string, captchaToken?: string | null) =>
     shopFetch<CartDto>('/api/shop/cart/discount', {
       method: 'POST',
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, ...(captchaToken ? { captchaToken } : {}) }),
     }),
 
   removeDiscount: () => shopFetch<CartDto>('/api/shop/cart/discount', { method: 'DELETE' }),

@@ -140,6 +140,9 @@ Collect messages from visitors — contact forms, sign-up lists, applications �
   public link.
 - Spam is caught automatically (a hidden honeypot + rate limiting), and a flagged message lands in
   **Spam** rather than being lost, so a false positive is recoverable.
+- For heavier spam, turn on **Require on contact forms** under *Settings → Integrations →
+  CAPTCHA* — every Form Block that submits to *Collect* (including one on a custom code
+  template) then shows a challenge and rejects a submission without it.
 
 Developer detail (field validation, the submit API, secure uploads): [`docs/ai/forms.md`](./ai/forms.md).
 
@@ -152,7 +155,9 @@ not the builder). Beyond static markup, a kit can **read your collections' publi
 **use your store** — showing products and driving cart, checkout and customer accounts (sign in /
 register / order history) — so you can build a fully custom storefront or landing experience without
 leaving Driftless. Adding a kit needs a rebuild/deploy;
-after that it works like any other page. The developer reference is
+after that it works like any other page. A kit can also use the same CAPTCHA protection as the
+built-in forms on any custom form it builds — there's nothing to configure beyond the usual
+toggles under *Settings → Integrations → CAPTCHA*. The developer reference is
 [`docs/ai/custom-templates.md`](./ai/custom-templates.md).
 
 A kit page's row menu has an **Edit content region** action — what it opens depends on how much of

@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import User from '#models/user'
 import FormSubmission from '#models/form_submission'
+import { IntegrationSettingsService } from '#services/settings_service'
 
 async function resetDatabase() {
   const cleanup = await testUtils.db().truncate()
@@ -10,6 +11,28 @@ async function resetDatabase() {
 }
 
 const admin = () => User.query().where('email', 'admin@driftless.local').firstOrFail()
+
+/** Turns on CAPTCHA + "Require on contact forms" with a fake Turnstile config. */
+async function enableFormsCaptcha() {
+  const integrations = new IntegrationSettingsService()
+  await integrations.update({
+    captchaEnabled: true,
+    captchaProvider: 'turnstile',
+    captchaSiteKey: 'test-site-key',
+    captchaSecret: 'test-secret-key',
+    captchaOnForms: true,
+  })
+}
+
+/** Stubs `fetch` so `CaptchaService.verifyToken`'s siteverify POST resolves without a network call. */
+function stubCaptchaVerify(success: boolean) {
+  const real = globalThis.fetch
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ success }), { status: 200 })) as typeof fetch
+  return () => {
+    globalThis.fetch = real
+  }
+}
 
 test.group('Forms | public submit', (group) => {
   group.each.setup(async () => resetDatabase())
@@ -57,6 +80,39 @@ test.group('Forms | public submit', (group) => {
     const row = await FormSubmission.query().firstOrFail()
     assert.isNull(row.email)
     assert.equal(row.data.q, 'hi')
+  })
+
+  test('rejects a submission with no CAPTCHA token when required', async ({ client, assert }) => {
+    await enableFormsCaptcha()
+    const res = await client
+      .post('/api/forms/submit')
+      .json({ form: 'Contact', fields: { email: 'ada@example.com' } })
+    res.assertStatus(422)
+    res.assertBodyContains({ ok: false, errors: { captcha: 'CAPTCHA verification failed.' } })
+    assert.equal(
+      await FormSubmission.query()
+        .count('* as t')
+        .firstOrFail()
+        .then((r) => Number(r.$extras.t)),
+      0
+    )
+  })
+
+  test('accepts a submission once CAPTCHA verifies', async ({ client, assert }) => {
+    await enableFormsCaptcha()
+    const restore = stubCaptchaVerify(true)
+    try {
+      const res = await client.post('/api/forms/submit').json({
+        form: 'Contact',
+        fields: { email: 'ada@example.com' },
+        captchaToken: 'a-valid-looking-token',
+      })
+      res.assertStatus(200)
+      const row = await FormSubmission.query().firstOrFail()
+      assert.equal(row.email, 'ada@example.com')
+    } finally {
+      restore()
+    }
   })
 })
 

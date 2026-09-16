@@ -163,6 +163,10 @@ export interface PublicCaptchaConfig {
   onRegister: boolean
   /** True only when checkout CAPTCHA is on AND the provider is invisible (Turnstile). */
   onCheckout: boolean
+  /** The generic builder Forms pipeline (`POST /api/forms/submit`). */
+  onForms: boolean
+  /** The storefront cart discount-code apply/check endpoints. */
+  onDiscount: boolean
 }
 
 export interface AuthPublicConfig {
@@ -195,6 +199,8 @@ export interface IntegrationSettingsAdmin {
   captchaOnLogin: boolean
   captchaOnRegister: boolean
   captchaOnCheckout: boolean
+  captchaOnForms: boolean
+  captchaOnDiscount: boolean
   envCaptchaFallback: boolean
   ga4Enabled: boolean
   ga4MeasurementId: string | null
@@ -216,6 +222,8 @@ export interface UpdateIntegrationSettingsRequest {
   captchaOnLogin?: boolean
   captchaOnRegister?: boolean
   captchaOnCheckout?: boolean
+  captchaOnForms?: boolean
+  captchaOnDiscount?: boolean
   ga4Enabled?: boolean
   ga4MeasurementId?: string | null
   clarityEnabled?: boolean
