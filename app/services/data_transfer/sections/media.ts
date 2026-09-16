@@ -34,7 +34,7 @@ export const mediaSection: DataSection = {
     for (const m of rows) {
       let bytes: Buffer | null
       if (isS3()) {
-        bytes = await getStorageDriver()
+        bytes = await (await getStorageDriver())
           .readToBuffer(m.filename)
           .catch(() => null)
       } else {
@@ -107,7 +107,7 @@ export const mediaSection: DataSection = {
           const scratch = join(dir, newFilename)
           await writeFile(scratch, bytes)
           if (isS3()) {
-            await getStorageDriver().putFile(newFilename, scratch)
+            await (await getStorageDriver()).putFile(newFilename, scratch)
             await (await import('node:fs/promises')).rm(scratch, { force: true })
           }
         }

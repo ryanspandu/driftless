@@ -13,27 +13,41 @@ import MediaVariant from '#models/media_variant'
 import { mediaUrlPrefix } from '#services/media_url'
 import { newUlid } from '#services/ulid_service'
 import { sanitizeSvg } from '#services/html_sanitizer_service'
-// Literal .ts extension (tsconfig has rewriteRelativeImportExtensions: true, via
-// @adonisjs/tsconfig) — resolves in one shot with no .js->.ts fallback probe.
-//
-// This is deliberately the ONLY direct importer of storage/driver.ts in the
-// whole app. sections/media.ts and digital_delivery_service.ts get
-// getStorageDriver/isS3 re-exported from here instead of importing the driver
-// module directly themselves (see the re-export at the bottom of this file).
-// Root cause: Node's `--import`-registered loader hooks run in a separate
-// worker thread (module.register(), not the newer synchronous
-// module.registerHooks()) and have a known race — nodejs/node#59666, and the
-// same symptom reported against Node 24 elsewhere (nrwl/nx#34028) — that can
-// spuriously report a file as unresolvable when several *concurrent* resolve()
-// calls target it. storage/driver.ts was independently imported from 3 files,
-// all reached in the same parallel pass while `node ace mcp:catalog` loads the
-// Puck block graph — reproducible 100% of the time on Railway's build infra,
-// never once on 3 separate clean-room local rebuilds (Docker, Railpack
-// native, Railpack under amd64 emulation matching Railway's architecture).
-// Routing every consumer through one already-resolved, commonly-imported
-// module removes the concurrent-resolution pattern that triggers it.
-import { getStorageDriver, isS3 } from './storage/driver.ts'
-export { getStorageDriver, isS3 }
+import type { StorageDriver } from '#services/storage/types'
+
+/**
+ * `isS3()` is duplicated from storage/driver.ts (not imported) — it's a
+ * trivial env-var check, and duplicating it means it needs no module
+ * resolution of its own at all.
+ */
+export function isS3(): boolean {
+  return env.get('STORAGE_DRIVER', 'local') === 's3'
+}
+
+/**
+ * `getStorageDriver` is deliberately LAZY: storage/driver.ts (the real S3
+ * client factory, which pulls in the AWS SDK) is dynamically imported on
+ * first actual USE, never at this module's own load time.
+ *
+ * Why: a static top-level import of storage/driver.ts here got eagerly
+ * resolved as part of `node ace mcp:catalog`'s app boot — a command that
+ * never touches media/S3 storage at all — and that resolution reproducibly
+ * failed on Railway's build infra (`Cannot find module '.../storage/
+ * driver.ts'`, via @poppinss/ts-exec's loader, which registers its hooks
+ * through Node's async, worker-thread-based module.register() — a
+ * known-buggy API, see nodejs/node#59666) despite succeeding on every local
+ * reproduction tried (direct host run, Docker, Railpack native, Railpack
+ * under amd64 emulation), including after consolidating every other importer
+ * to go through this one file. Making the resolution lazy means storage/
+ * driver.ts is never touched at all while mcp:catalog runs — only when a
+ * real media/S3 operation actually executes, well after mcp:catalog's own
+ * heavy parallel Vite-based loading (the suspected trigger window) is done.
+ */
+let driverModule: Promise<typeof import('./storage/driver.ts')> | null = null
+export async function getStorageDriver(): Promise<StorageDriver> {
+  if (!driverModule) driverModule = import('./storage/driver.ts')
+  return (await driverModule).getStorageDriver()
+}
 
 /** Widths (px) generated for responsive `srcset`; never upscales past the original. */
 const VARIANT_WIDTHS = [480, 960, 1440]
@@ -190,12 +204,12 @@ export default class MediaService {
     const full = join(this.uploadDir, name)
     if (existsSync(full)) return
     if (!existsSync(this.uploadDir)) mkdirSync(this.uploadDir, { recursive: true })
-    await getStorageDriver().readToFile(name, full)
+    await (await getStorageDriver()).readToFile(name, full)
   }
 
   /** Upload freshly-written scratch files to the bucket, then delete them locally. */
   private async pushToS3(names: string[]): Promise<void> {
-    const driver = getStorageDriver()
+    const driver = await getStorageDriver()
     for (const name of names) {
       const full = join(this.uploadDir, name)
       if (!existsSync(full)) continue
@@ -377,7 +391,7 @@ export default class MediaService {
         // s3 mode never leaves a lingering local copy between requests (see
         // `pushToS3`), so the old derivative only exists in the bucket.
         if (isS3()) {
-          await getStorageDriver().delete(name)
+          await (await getStorageDriver()).delete(name)
         } else {
           const p = this.resolveFilePath(name)
           if (p) rmSync(p, { force: true })
@@ -429,7 +443,7 @@ export default class MediaService {
     let bytes: Buffer
     try {
       if (isS3()) {
-        bytes = await getStorageDriver().readToBuffer(filename)
+        bytes = await (await getStorageDriver()).readToBuffer(filename)
       } else {
         const path = this.resolveFilePath(filename)
         if (!path) return false
@@ -512,7 +526,7 @@ export default class MediaService {
     const media = await Media.query().where('id', id).whereNull('deleted_at').firstOrFail()
     let bytes: Buffer
     if (isS3()) {
-      bytes = await getStorageDriver().readToBuffer(media.filename)
+      bytes = await (await getStorageDriver()).readToBuffer(media.filename)
     } else {
       const path = this.resolveFilePath(media.filename)
       if (!path) throw new Error('The media file is missing on disk and cannot be exported.')
@@ -754,7 +768,7 @@ export default class MediaService {
       .firstOrFail()
     const names = [media.filename, ...(media.variants ?? []).map((v) => v.url.split('/').pop())]
     if (isS3()) {
-      const driver = getStorageDriver()
+      const driver = await getStorageDriver()
       for (const name of names) if (name) await driver.delete(name)
     } else {
       for (const name of names) {
@@ -775,7 +789,7 @@ export default class MediaService {
     let bytes: Buffer
     try {
       bytes = isS3()
-        ? await getStorageDriver().readToBuffer(media.filename)
+        ? await (await getStorageDriver()).readToBuffer(media.filename)
         : await (async () => {
             const path = this.resolveFilePath(media.filename)
             if (!path) throw new Error('missing')
