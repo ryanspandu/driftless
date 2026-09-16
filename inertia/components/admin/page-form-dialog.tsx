@@ -473,15 +473,21 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
                 <p className="text-xs text-muted-foreground">Loading…</p>
               ) : (
                 <>
-                  <SeoPreview
-                    title={seoStr('title') || title || 'Untitled page'}
-                    description={seoStr('description')}
-                    url={`${typeof window !== 'undefined' ? window.location.origin : ''}/${path.replace(/^\/+/, '')}`.replace(
-                      /\/$/,
-                      ''
-                    )}
-                    image={seoStr('ogImage')}
-                  />
+                  {/* Capped narrower than the dialog: SeoPreview's 1.91:1 image box
+                      scales to its container's full width, which looks right in the
+                      wide Puck settings panel it was built for but towers over this
+                      compact modal at the dialog's own width. */}
+                  <div className="max-w-xs">
+                    <SeoPreview
+                      title={seoStr('title') || title || 'Untitled page'}
+                      description={seoStr('description')}
+                      url={`${typeof window !== 'undefined' ? window.location.origin : ''}/${path.replace(/^\/+/, '')}`.replace(
+                        /\/$/,
+                        ''
+                      )}
+                      image={seoStr('ogImage')}
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="page-seo-title">Meta title</Label>
                     <Input
