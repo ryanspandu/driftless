@@ -122,5 +122,12 @@ createInertiaApp({
   },
   progress: {
     color: '#4B5563',
+    // Inertia injects its bar's CSS as an un-nonced runtime <style> element,
+    // which the production CSP's nonce-based style-src silently drops — the
+    // bar's *logic* still runs (start/finish on every visit), it's just
+    // invisible. Supply the equivalent rules as a real stylesheet instead
+    // (inertia/css/app.css) so it needs no nonce at all. See the comment
+    // there for the exact rules this must stay in sync with.
+    includeCSS: false,
   },
 })
