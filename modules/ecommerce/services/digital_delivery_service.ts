@@ -147,7 +147,9 @@ export default class DigitalDeliveryService {
     let storagePath = scratchPath
     if (isS3()) {
       const key = `ecommerce/${storedName}`
-      await getStorageDriver().putFile(key, scratchPath, file.type && `${file.type}/${file.subtype}`)
+      await (
+        await getStorageDriver()
+      ).putFile(key, scratchPath, file.type && `${file.type}/${file.subtype}`)
       await unlink(scratchPath).catch(() => {})
       storagePath = key
     }
@@ -212,7 +214,7 @@ export default class DigitalDeliveryService {
       // The row is already soft-deleted either way; a stray file left behind
       // is a housekeeping problem, not a reason to fail the request.
       if (isS3()) {
-        await getStorageDriver()
+        await (await getStorageDriver())
           .delete(asset.storagePath)
           .catch(() => {})
       } else if (existsSync(asset.storagePath)) {
@@ -411,10 +413,9 @@ export default class DigitalDeliveryService {
       // from our own insert, but assert the shape anyway before signing a URL
       // for it, same posture as the local traversal check below.
       if (!/^ecommerce\/[A-Za-z0-9._-]+$/.test(asset.storagePath)) throw denied()
-      const url = await getStorageDriver().getPresignedGetUrl(
-        asset.storagePath,
-        PRESIGNED_DOWNLOAD_TTL_SECONDS
-      )
+      const url = await (
+        await getStorageDriver()
+      ).getPresignedGetUrl(asset.storagePath, PRESIGNED_DOWNLOAD_TTL_SECONDS)
       return { mode: 'redirect', url, filename, mimeType }
     }
 
