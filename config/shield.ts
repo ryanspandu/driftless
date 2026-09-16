@@ -32,6 +32,9 @@ const scriptSrc = isDev
       'https://www.google.com',
       'https://hcaptcha.com',
       'https://js.hcaptcha.com',
+      // Admin → Integrations → Google Analytics / Microsoft Clarity.
+      'https://www.googletagmanager.com',
+      'https://www.clarity.ms',
     ]
 
 // `fonts.googleapis.com` lets the operator-selected Google Font stylesheet load
@@ -51,7 +54,16 @@ const connectSrc = isDev
       // Scalar UI (dev-only `/api/docs`) fetches its lazy chunks from jsDelivr.
       'https://cdn.jsdelivr.net',
     ]
-  : ["'self'", 'https://accounts.google.com', 'https://www.google.com']
+  : [
+      "'self'",
+      'https://accounts.google.com',
+      'https://www.google.com',
+      // gtag.js's own hit-collection calls, routed through a regional subdomain.
+      'https://www.google-analytics.com',
+      'https://*.google-analytics.com',
+      // Clarity's own data calls, same domain as its script above.
+      'https://www.clarity.ms',
+    ]
 
 const shieldConfig = defineConfig({
   /**

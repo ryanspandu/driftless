@@ -11,6 +11,7 @@ import PublicLayout from '~/layouts/public'
 import { AbilityProvider } from '~/components/providers/ability-provider'
 import { OfflineProvider } from '~/components/providers/offline-provider'
 import { AnalyticsBeacon } from '~/components/analytics-beacon'
+import { AnalyticsScripts } from '~/components/analytics-scripts'
 
 type PageComponent = ComponentType<Record<string, unknown>>
 
@@ -64,7 +65,8 @@ function SiteThemeStyle() {
     ['shadow', '--shadow-'],
     ['container', '--container-'],
   ] as const) {
-    for (const [slug, value] of Object.entries(tokens[family] ?? {})) decls.push(`${prefix}${slug}:${value}`)
+    for (const [slug, value] of Object.entries(tokens[family] ?? {}))
+      decls.push(`${prefix}${slug}:${value}`)
   }
   if (theme.fontFamily) decls.push(`font-family:'${theme.fontFamily}',var(--font-sans)`)
 
@@ -139,6 +141,7 @@ export function LayoutShell({
       <div className="contents theme-light">
         <SiteThemeStyle />
         <AnalyticsBeacon />
+        <AnalyticsScripts />
         {page}
       </div>
     )
@@ -160,6 +163,7 @@ export function LayoutShell({
       <div className="contents theme-light">
         <SiteThemeStyle />
         <AnalyticsBeacon />
+        <AnalyticsScripts />
         {page}
       </div>
     )
@@ -191,6 +195,7 @@ export function LayoutShell({
     <PublicLayout>
       <SiteThemeStyle />
       <AnalyticsBeacon />
+      <AnalyticsScripts />
       {page}
     </PublicLayout>
   )
