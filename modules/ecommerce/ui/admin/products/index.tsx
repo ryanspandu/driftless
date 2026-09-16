@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, router } from '@inertiajs/react'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import {
   AlertTriangle,
   Download,
@@ -26,8 +26,15 @@ import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { useUrlState } from '~/hooks/use-url-state'
+import { apiErrorMessage } from '~/lib/api-client'
 import { cn } from '~/lib/utils'
-import { useDeleteProduct, useProducts, type ProductDto, type ProductStatus } from '../_api'
+import {
+  useBulkDeleteProducts,
+  useDeleteProduct,
+  useProducts,
+  type ProductDto,
+  type ProductStatus,
+} from '../_api'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 import { ImportProductsDialog } from './import-dialog'
 
@@ -110,11 +117,34 @@ export default function ProductsPage() {
 
   const query = useProducts({ page, pageSize, search, status })
   const deleteProduct = useDeleteProduct()
+  const bulkDelete = useBulkDeleteProducts()
   const confirmDelete = useConfirmDelete()
   const [importOpen, setImportOpen] = useState(false)
+  const [selection, setSelection] = useState<RowSelectionState>({})
+  const [bulkError, setBulkError] = useState<string | null>(null)
 
   const products = query.data?.items ?? []
   const total = query.data?.total ?? 0
+  const selectedIds = useMemo(
+    () => Object.keys(selection).filter((id) => selection[id]),
+    [selection]
+  )
+
+  async function onBulkDelete() {
+    setBulkError(null)
+    const confirmed = await confirmDelete({
+      title: `Delete ${selectedIds.length} product${selectedIds.length === 1 ? '' : 's'}?`,
+      description:
+        'Deleted products are archived and hidden from the storefront. Existing orders keep their record of what was sold.',
+    })
+    if (!confirmed) return
+    try {
+      await bulkDelete.mutateAsync(selectedIds)
+      setSelection({})
+    } catch (err) {
+      setBulkError(apiErrorMessage(err))
+    }
+  }
 
   const columns = useMemo<ColumnDef<ProductDto>[]>(
     () => [
@@ -315,6 +345,31 @@ export default function ProductsPage() {
         }
       />
 
+      {selectedIds.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
+          <p className="text-sm">
+            <span className="font-medium">{selectedIds.length}</span>{' '}
+            {selectedIds.length === 1 ? 'product' : 'products'} selected
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2 text-destructive"
+              disabled={bulkDelete.isPending}
+              onClick={() => void onBulkDelete()}
+            >
+              <Trash2 className="size-4" aria-hidden />
+              {bulkDelete.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {bulkError ? <p className="text-sm text-destructive">{bulkError}</p> : null}
+
       <DataTable
         columns={columns}
         data={products}
@@ -322,7 +377,8 @@ export default function ProductsPage() {
         // Products do not take part in offline sync, so the injected Sync
         // column would be permanently empty.
         hideSyncColumn
-        enableBulkSelect={false}
+        rowSelection={selection}
+        onRowSelectionChange={setSelection}
         searchPlaceholder="Search products…"
         searchValue={search}
         onSearchChange={(value) => url.set({ q: value, page: undefined })}

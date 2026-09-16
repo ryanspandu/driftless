@@ -410,6 +410,7 @@ export interface ApiDefinition {
         show: typeof routes['ecommerce.api.orders.show']
         status: typeof routes['ecommerce.api.orders.status']
         cancel: typeof routes['ecommerce.api.orders.cancel']
+        bulkCancel: typeof routes['ecommerce.api.orders.bulkCancel']
         ship: typeof routes['ecommerce.api.orders.ship']
         note: typeof routes['ecommerce.api.orders.note']
         store: typeof routes['ecommerce.api.orders.store']
@@ -432,6 +433,7 @@ export interface ApiDefinition {
         index: typeof routes['ecommerce.api.customers.index']
         store: typeof routes['ecommerce.api.customers.store']
         status: typeof routes['ecommerce.api.customers.status']
+        bulkStatus: typeof routes['ecommerce.api.customers.bulkStatus']
       }
       exports: {
         orders: typeof routes['ecommerce.api.exports.orders']
@@ -455,6 +457,7 @@ export interface ApiDefinition {
         import: typeof routes['ecommerce.api.products.import']
         update: typeof routes['ecommerce.api.products.update']
         destroy: typeof routes['ecommerce.api.products.destroy']
+        bulkDestroy: typeof routes['ecommerce.api.products.bulkDestroy']
       }
       variants: {
         store: typeof routes['ecommerce.api.variants.store']
@@ -496,6 +499,7 @@ export interface ApiDefinition {
         store: typeof routes['ecommerce.api.discounts.store']
         update: typeof routes['ecommerce.api.discounts.update']
         destroy: typeof routes['ecommerce.api.discounts.destroy']
+        bulkDestroy: typeof routes['ecommerce.api.discounts.bulkDestroy']
       }
       affiliates: {
         index: typeof routes['ecommerce.api.affiliates.index']
@@ -504,6 +508,8 @@ export interface ApiDefinition {
         approve: typeof routes['ecommerce.api.affiliates.approve']
         reject: typeof routes['ecommerce.api.affiliates.reject']
         update: typeof routes['ecommerce.api.affiliates.update']
+        bulkApprove: typeof routes['ecommerce.api.affiliates.bulkApprove']
+        bulkReject: typeof routes['ecommerce.api.affiliates.bulkReject']
       }
       commissions: {
         index: typeof routes['ecommerce.api.commissions.index']
@@ -513,6 +519,7 @@ export interface ApiDefinition {
       withdrawals: {
         index: typeof routes['ecommerce.api.withdrawals.index']
         process: typeof routes['ecommerce.api.withdrawals.process']
+        bulkProcess: typeof routes['ecommerce.api.withdrawals.bulkProcess']
       }
       stats: typeof routes['ecommerce.api.stats']
     }

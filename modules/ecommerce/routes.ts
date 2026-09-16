@@ -476,6 +476,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
         .post('/api/admin/ecommerce/orders/:id/cancel', [OrdersCtrl, 'cancel'])
         .as('ecommerce.api.orders.cancel')
       router
+        .post('/api/admin/ecommerce/orders/bulk-cancel', [OrdersCtrl, 'bulkCancel'])
+        .as('ecommerce.api.orders.bulkCancel')
+      router
         .post('/api/admin/ecommerce/orders/:id/ship', [OrdersCtrl, 'markShipped'])
         .as('ecommerce.api.orders.ship')
       router
@@ -566,6 +569,13 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
   router
     .put('/api/admin/ecommerce/customers/:id/status', [CustomersCtrl, 'updateStatus'])
     .as('ecommerce.api.customers.status')
+    .use(middleware.auth())
+    .use(middleware.permission({ permission: 'ecommerce:customers:manage' }))
+    .use(moduleEnabled)
+
+  router
+    .put('/api/admin/ecommerce/customers/bulk-status', [CustomersCtrl, 'bulkUpdateStatus'])
+    .as('ecommerce.api.customers.bulkStatus')
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:customers:manage' }))
     .use(moduleEnabled)
@@ -678,6 +688,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .delete('/api/admin/ecommerce/products/:id', [ProductsCtrl, 'destroy'])
         .as('ecommerce.api.products.destroy')
+      router
+        .post('/api/admin/ecommerce/products/bulk-delete', [ProductsCtrl, 'bulkDestroy'])
+        .as('ecommerce.api.products.bulkDestroy')
 
       router
         .post('/api/admin/ecommerce/products/:id/variants', [ProductsCtrl, 'storeVariant'])
@@ -848,6 +861,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .delete('/api/admin/ecommerce/discounts/:id', [MarketingCtrl, 'destroyDiscount'])
         .as('ecommerce.api.discounts.destroy')
+      router
+        .post('/api/admin/ecommerce/discounts/bulk-delete', [MarketingCtrl, 'bulkDestroyDiscounts'])
+        .as('ecommerce.api.discounts.bulkDestroy')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:discounts:manage' }))
@@ -880,6 +896,15 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .put('/api/admin/ecommerce/affiliates/:id', [MarketingCtrl, 'updateAffiliate'])
         .as('ecommerce.api.affiliates.update')
+      router
+        .post('/api/admin/ecommerce/affiliates/bulk-approve', [
+          MarketingCtrl,
+          'bulkApproveAffiliates',
+        ])
+        .as('ecommerce.api.affiliates.bulkApprove')
+      router
+        .post('/api/admin/ecommerce/affiliates/bulk-reject', [MarketingCtrl, 'bulkRejectAffiliates'])
+        .as('ecommerce.api.affiliates.bulkReject')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:affiliates:manage' }))
@@ -913,6 +938,12 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .post('/api/admin/ecommerce/withdrawals/:id/process', [MarketingCtrl, 'processWithdrawal'])
         .as('ecommerce.api.withdrawals.process')
+      router
+        .post('/api/admin/ecommerce/withdrawals/bulk-process', [
+          MarketingCtrl,
+          'bulkProcessWithdrawals',
+        ])
+        .as('ecommerce.api.withdrawals.bulkProcess')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:commissions:approve' }))

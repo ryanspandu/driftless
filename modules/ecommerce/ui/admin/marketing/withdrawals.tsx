@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from '@inertiajs/react'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { Banknote, Check, X } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -9,7 +9,12 @@ import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { Can } from '~/components/providers/ability-provider'
 import { useUrlState } from '~/hooks/use-url-state'
 import { apiErrorMessage } from '~/lib/api-client'
-import { useWithdrawals, useProcessWithdrawal, type WithdrawalDto } from '../_api'
+import {
+  useWithdrawals,
+  useProcessWithdrawal,
+  useBulkProcessWithdrawals,
+  type WithdrawalDto,
+} from '../_api'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 type StatusFilter = 'all' | WithdrawalDto['status']
@@ -34,11 +39,29 @@ export default function WithdrawalsPage() {
   const filter = url.one('status', STATUS_VALUES, DEFAULT_FILTER)
   const query = useWithdrawals(filter === 'all' ? undefined : filter)
   const process = useProcessWithdrawal()
+  const bulkProcess = useBulkProcessWithdrawals()
   const [error, setError] = useState<string | null>(null)
+  const [selection, setSelection] = useState<RowSelectionState>({})
 
   function act(id: string, action: 'paid' | 'reject') {
     setError(null)
     process.mutate({ id, action }, { onError: (err) => setError(apiErrorMessage(err)) })
+  }
+
+  const withdrawals = query.data ?? []
+  const selectedIds = useMemo(
+    () => Object.keys(selection).filter((id) => selection[id]),
+    [selection]
+  )
+
+  async function onBulkAct(action: 'paid' | 'reject') {
+    setError(null)
+    try {
+      await bulkProcess.mutateAsync({ ids: selectedIds, action })
+      setSelection({})
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    }
   }
 
   const columns = useMemo<ColumnDef<WithdrawalDto>[]>(
@@ -138,14 +161,52 @@ export default function WithdrawalsPage() {
         }
       />
 
+      {selectedIds.length > 0 ? (
+        <Can permission="ecommerce:commissions:approve">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
+            <p className="text-sm">
+              <span className="font-medium">{selectedIds.length}</span>{' '}
+              {selectedIds.length === 1 ? 'withdrawal' : 'withdrawals'} selected
+            </p>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
+                Clear
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                disabled={bulkProcess.isPending}
+                onClick={() => void onBulkAct('paid')}
+              >
+                <Check className="size-4" aria-hidden />
+                Mark paid
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 text-destructive"
+                disabled={bulkProcess.isPending}
+                onClick={() => void onBulkAct('reject')}
+              >
+                <X className="size-4" aria-hidden />
+                Reject
+              </Button>
+            </div>
+          </div>
+        </Can>
+      ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <DataTable
         columns={columns}
-        data={query.data ?? []}
+        data={withdrawals}
         getRowId={(row) => row.id}
         hideSyncColumn
-        enableBulkSelect={false}
+        rowSelection={selection}
+        onRowSelectionChange={setSelection}
+        // Only a requested withdrawal can be paid or rejected.
+        getRowCanSelect={(row) => row.status === 'requested'}
         filters={
           <TableFilterTabs
             value={filter}

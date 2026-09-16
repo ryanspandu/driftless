@@ -16,6 +16,13 @@ const statusValidator = vine.compile(
   })
 )
 
+const bulkStatusValidator = vine.compile(
+  vine.object({
+    ids: vine.array(vine.string().trim().maxLength(40)).minLength(1).maxLength(500),
+    status: vine.enum(['active', 'blocked'] as const),
+  })
+)
+
 const createValidator = vine.compile(
   vine.object({
     email: vine.string().trim().email().maxLength(254),
@@ -164,6 +171,40 @@ export default class CustomersController {
 
       const store = await settings.getOrCreate()
       return response.json(toDto(customer, store.currency, store.locale))
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /** Block or unblock several buyers at once. Same session-revoke rule as one. */
+  async bulkUpdateStatus(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const { ids, status } = await request.validateUsing(bulkStatusValidator)
+      let count = 0
+      for (const id of ids) {
+        const customer = await Account.query().where('id', id).whereNull('deleted_at').first()
+        if (!customer) continue
+
+        customer.status = status
+        await customer.save()
+
+        if (status === 'blocked') {
+          await customerAuth.revokeAllSessions(customer.id)
+        }
+        count++
+      }
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'customer.status_changed',
+        subjectType: 'customer',
+        subjectId: ids.join(','),
+        changes: { status, count },
+        ctx,
+      })
+
+      return response.json({ count })
     } catch (error) {
       return fail(response, error)
     }

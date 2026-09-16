@@ -95,6 +95,13 @@ const cancelValidator = vine.compile(
   })
 )
 
+const bulkCancelValidator = vine.compile(
+  vine.object({
+    ids: vine.array(vine.string().trim().maxLength(40)).minLength(1).maxLength(500),
+    reason: vine.string().trim().maxLength(255).nullable().optional(),
+  })
+)
+
 const noteValidator = vine.compile(
   vine.object({
     internalNote: vine.string().trim().maxLength(5_000).nullable(),
@@ -238,6 +245,30 @@ export default class OrdersController {
       const { reason } = await request.validateUsing(cancelValidator)
       await orders.cancel(String(params.id), reason ?? null, actorFrom(auth))
       return response.json(await query.find(String(params.id)))
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /**
+   * Cancel several orders at once. Skips any that can't legally be cancelled
+   * (e.g. already completed) rather than failing the whole batch.
+   */
+  async bulkCancel(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const { ids, reason } = await request.validateUsing(bulkCancelValidator)
+      const actor = actorFrom(auth)
+      let count = 0
+      for (const id of ids) {
+        try {
+          await orders.cancel(id, reason ?? null, actor)
+          count++
+        } catch {
+          // Skip an order that can't be cancelled (already closed, etc).
+        }
+      }
+      return response.json({ count })
     } catch (error) {
       return fail(response, error)
     }

@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from '@inertiajs/react'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { Check, Copy, MessageSquare, MoreHorizontal, Pencil, Plus, Users, X } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -31,6 +31,8 @@ import {
   useAffiliates,
   useAddAffiliate,
   useApproveAffiliate,
+  useBulkApproveAffiliates,
+  useBulkRejectAffiliates,
   useRejectAffiliate,
   useUpdateAffiliate,
   searchAffiliateAccounts,
@@ -85,6 +87,10 @@ export default function AffiliatesPage() {
   const approve = useApproveAffiliate()
   const reject = useRejectAffiliate()
   const update = useUpdateAffiliate()
+  const bulkApprove = useBulkApproveAffiliates()
+  const bulkReject = useBulkRejectAffiliates()
+  const [selection, setSelection] = useState<RowSelectionState>({})
+  const [bulkError, setBulkError] = useState<string | null>(null)
 
   const url = useUrlState()
   const search = url.get('q')
@@ -120,6 +126,31 @@ export default function AffiliatesPage() {
   }, [query.data, search, filter])
 
   const pendingCount = (query.data ?? []).filter((a) => a.status === 'pending').length
+
+  const selectedIds = useMemo(
+    () => Object.keys(selection).filter((id) => selection[id]),
+    [selection]
+  )
+
+  async function onBulkApprove() {
+    setBulkError(null)
+    try {
+      await bulkApprove.mutateAsync(selectedIds)
+      setSelection({})
+    } catch (err) {
+      setBulkError(apiErrorMessage(err))
+    }
+  }
+
+  async function onBulkReject() {
+    setBulkError(null)
+    try {
+      await bulkReject.mutateAsync({ ids: selectedIds })
+      setSelection({})
+    } catch (err) {
+      setBulkError(apiErrorMessage(err))
+    }
+  }
 
   async function copyLink(code: string) {
     try {
@@ -366,12 +397,52 @@ export default function AffiliatesPage() {
         </button>
       ) : null}
 
+      {selectedIds.length > 0 ? (
+        <Can permission="ecommerce:affiliates:manage">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
+            <p className="text-sm">
+              <span className="font-medium">{selectedIds.length}</span>{' '}
+              {selectedIds.length === 1 ? 'application' : 'applications'} selected
+            </p>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
+                Clear
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                disabled={bulkApprove.isPending}
+                onClick={() => void onBulkApprove()}
+              >
+                <Check className="size-4" aria-hidden />
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 text-destructive"
+                disabled={bulkReject.isPending}
+                onClick={() => void onBulkReject()}
+              >
+                <X className="size-4" aria-hidden />
+                Reject
+              </Button>
+            </div>
+          </div>
+        </Can>
+      ) : null}
+      {bulkError ? <p className="text-sm text-destructive">{bulkError}</p> : null}
+
       <DataTable
         columns={columns}
         data={rows}
         getRowId={(row) => row.id}
         hideSyncColumn
-        enableBulkSelect={false}
+        rowSelection={selection}
+        onRowSelectionChange={setSelection}
+        // Approve/reject only make sense for a pending application.
+        getRowCanSelect={(row) => row.status === 'pending'}
         searchPlaceholder="Search affiliates…"
         searchValue={search}
         onSearchChange={setSearch}

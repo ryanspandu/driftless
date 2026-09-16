@@ -4267,6 +4267,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['cancel']>>>
     }
   }
+  'ecommerce.api.orders.bulkCancel': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/orders/bulk-cancel'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['bulkCancel']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/orders_controller').default['bulkCancel']>>>
+    }
+  }
   'ecommerce.api.orders.ship': {
     methods: ["POST"]
     pattern: '/api/admin/ecommerce/orders/:id/ship'
@@ -4421,6 +4433,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['updateStatus']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['updateStatus']>>>
+    }
+  }
+  'ecommerce.api.customers.bulkStatus': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/customers/bulk-status'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['bulkUpdateStatus']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/customers_controller').default['bulkUpdateStatus']>>>
     }
   }
   'ecommerce.api.exports.orders': {
@@ -4613,6 +4637,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['destroy']>>>
+    }
+  }
+  'ecommerce.api.products.bulkDestroy': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/products/bulk-delete'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['bulkDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['bulkDestroy']>>>
     }
   }
   'ecommerce.api.variants.store': {
@@ -4963,6 +4999,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['destroyDiscount']>>>
     }
   }
+  'ecommerce.api.discounts.bulkDestroy': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/discounts/bulk-delete'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['bulkDestroyDiscounts']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['bulkDestroyDiscounts']>>>
+    }
+  }
   'ecommerce.api.affiliates.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/ecommerce/affiliates'
@@ -5035,6 +5083,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['updateAffiliate']>>>
     }
   }
+  'ecommerce.api.affiliates.bulkApprove': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/affiliates/bulk-approve'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['bulkApproveAffiliates']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['bulkApproveAffiliates']>>>
+    }
+  }
+  'ecommerce.api.affiliates.bulkReject': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/affiliates/bulk-reject'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['bulkRejectAffiliates']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['bulkRejectAffiliates']>>>
+    }
+  }
   'ecommerce.api.commissions.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/ecommerce/commissions'
@@ -5093,6 +5165,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['processWithdrawal']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['processWithdrawal']>>>
+    }
+  }
+  'ecommerce.api.withdrawals.bulkProcess': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/withdrawals/bulk-process'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['bulkProcessWithdrawals']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['bulkProcessWithdrawals']>>>
     }
   }
   'ecommerce.api.stats': {

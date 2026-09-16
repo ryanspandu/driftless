@@ -84,6 +84,27 @@ const payoutValidator = vine.compile(
   })
 )
 
+const bulkIdsValidator = vine.compile(
+  vine.object({
+    ids: vine.array(vine.string().trim().maxLength(40)).minLength(1).maxLength(500),
+  })
+)
+
+const bulkAffiliateRejectValidator = vine.compile(
+  vine.object({
+    ids: vine.array(vine.string().trim().maxLength(40)).minLength(1).maxLength(500),
+    reason: vine.string().trim().maxLength(500).nullable().optional(),
+  })
+)
+
+const bulkWithdrawalProcessValidator = vine.compile(
+  vine.object({
+    ids: vine.array(vine.string().trim().maxLength(40)).minLength(1).maxLength(500),
+    action: vine.enum(['paid', 'reject'] as const),
+    reason: vine.string().trim().maxLength(500).nullable().optional(),
+  })
+)
+
 const discounts = new DiscountService()
 const affiliates = new AffiliateService()
 const audit = new AuditLogService()
@@ -176,6 +197,36 @@ export default class MarketingController {
       })
 
       return response.status(204).send('')
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /** Delete several discount codes at once. Skips any id that can't be removed. */
+  async bulkDestroyDiscounts(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const { ids } = await request.validateUsing(bulkIdsValidator)
+      let count = 0
+      for (const id of ids) {
+        try {
+          await discounts.remove(id)
+          count++
+        } catch {
+          // Skip a code that can't be removed (already gone, etc).
+        }
+      }
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'discount.deleted',
+        subjectType: 'discount',
+        subjectId: ids.join(','),
+        changes: { count },
+        ctx,
+      })
+
+      return response.json({ count })
     } catch (error) {
       return fail(response, error)
     }
@@ -283,6 +334,66 @@ export default class MarketingController {
     }
   }
 
+  /** Approve several pending applications at once. Skips any id that fails. */
+  async bulkApproveAffiliates(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const { ids } = await request.validateUsing(bulkIdsValidator)
+      let count = 0
+      for (const id of ids) {
+        try {
+          await affiliates.approve(id)
+          count++
+        } catch {
+          // Skip an id that can't be approved (already gone, etc).
+        }
+      }
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'affiliate.updated',
+        subjectType: 'affiliate',
+        subjectId: ids.join(','),
+        changes: { status: 'active', count },
+        ctx,
+      })
+
+      return response.json({ count })
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /** Reject several pending applications at once. Skips any id that fails. */
+  async bulkRejectAffiliates(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const { ids, reason } = await request.validateUsing(bulkAffiliateRejectValidator)
+      let count = 0
+      for (const id of ids) {
+        try {
+          await affiliates.reject(id, reason)
+          count++
+        } catch {
+          // Skip an id that can't be rejected (already gone, etc).
+        }
+      }
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'affiliate.updated',
+        subjectType: 'affiliate',
+        subjectId: ids.join(','),
+        changes: { status: 'rejected', count },
+        ctx,
+      })
+
+      return response.json({ count })
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
   async updateAffiliate(ctx: HttpContext) {
     const { params, request, response, auth } = ctx
     try {
@@ -328,6 +439,39 @@ export default class MarketingController {
       })
 
       return response.json({ ok: true })
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /**
+   * Mark several withdrawals paid, or reject several, at once. Skips any that
+   * have already been processed (each is its own row-locked transaction).
+   */
+  async bulkProcessWithdrawals(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const { ids, action, reason } = await request.validateUsing(bulkWithdrawalProcessValidator)
+      let count = 0
+      for (const id of ids) {
+        try {
+          await affiliates.processWithdrawal(id, (auth.user as User).id, action, reason)
+          count++
+        } catch {
+          // Skip a withdrawal that's already been processed.
+        }
+      }
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: action === 'paid' ? 'commission.paid' : 'affiliate.updated',
+        subjectType: 'affiliate_withdrawal',
+        subjectId: ids.join(','),
+        changes: { action, count },
+        ctx,
+      })
+
+      return response.json({ count })
     } catch (error) {
       return fail(response, error)
     }
