@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '~/lib/utils'
 
 interface DialogProps {
@@ -26,9 +27,16 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
     return () => window.clearTimeout(t)
   }, [open])
 
-  if (!mounted) return null
+  if (!mounted || typeof document === 'undefined') return null
 
-  return (
+  // Portalled to <body>: a Dialog nested inside another Dialog's DialogContent
+  // (e.g. the media picker opened from a field inside an "Edit settings" modal)
+  // would otherwise render inside it in the DOM — and since DialogContent
+  // animates with a CSS `transform` (scale), that transform makes it the
+  // containing block for this dialog's `fixed` positioning, trapping it inside
+  // the outer modal's bounds instead of covering the viewport. Portalling to
+  // `document.body` sidesteps that regardless of where a Dialog is mounted.
+  return createPortal(
     <div
       data-state={visible ? 'open' : 'closed'}
       className="group/dialog fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4"
@@ -38,7 +46,8 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
         onClick={() => onOpenChange(false)}
       />
       {children}
-    </div>
+    </div>,
+    document.body
   )
 }
 
