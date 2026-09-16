@@ -9,8 +9,6 @@ import { QueryProvider } from '~/components/providers/query-provider'
 import { DeleteConfirmProvider } from '~/components/providers/delete-confirm-provider'
 import { LayoutShell } from '~/components/layout-shell'
 
-const appName = import.meta.env.VITE_APP_NAME || 'Driftless'
-
 // Mirrors inertia/app.tsx (providers + LayoutShell) so server output matches the
 // client tree and hydration is clean. Only pages allowlisted in config/inertia.ts
 // `ssr.pages` are ever rendered through here.
@@ -19,6 +17,10 @@ export default function render(page: any) {
   // next-themes emits a no-FOUC inline <script> + a transition-off <style>; both
   // need this nonce or strict prod CSP blocks them.
   const nonce: string | undefined = page?.props?.cspNonce
+  // Same value app.tsx reads from the <meta name="app-name"> tag — there's no
+  // DOM here, so SSR reads it off the shared Inertia prop instead (both are
+  // set by inertia_middleware.ts).
+  const appName: string = page?.props?.appName || 'Driftless'
   return createInertiaApp({
     page,
     // Mirror app.tsx's title template so the SSR <title> matches the client and

@@ -20,6 +20,11 @@
     {{-- Exposes the per-request CSP nonce to client JS (react-select's emotion
         cache reads it so its injected <style> elements are not blocked). --}}
     <meta name="csp-nonce" content="{{ cspNonce ?? '' }}" />
+    {{-- `appName` is a view local shared by `inertia_middleware.ts` (site_meta.site_title
+         on public pages, admin_branding.project_name on /admin) — read by `inertia/app.tsx`
+         before Inertia's own title template runs, so " - {siteName}" reflects the
+         operator's actual settings instead of a hardcoded fallback. --}}
+    <meta name="app-name" content="{{ appName ?? 'Driftless' }}" />
     <link rel="manifest" href="/manifest.webmanifest" />
     {{-- `faviconUrl` is a view local (not an Inertia prop) passed by public
          renders via `renderPage`'s third argument, so the icon is right in the

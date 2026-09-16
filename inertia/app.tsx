@@ -10,7 +10,12 @@ import { QueryProvider } from '~/components/providers/query-provider'
 import { DeleteConfirmProvider } from '~/components/providers/delete-confirm-provider'
 import { LayoutShell } from '~/components/layout-shell'
 
-const appName = import.meta.env.VITE_APP_NAME || 'Driftless'
+// Set per-request by `inertia_middleware.ts` (site_meta.site_title on public
+// pages, admin_branding.project_name on /admin) — read from a <meta> tag,
+// like `cspNonce` below, since Inertia's `title` callback has no access to
+// page props.
+const appName =
+  document.querySelector('meta[name="app-name"]')?.getAttribute('content') || 'Driftless'
 
 // The per-request CSP nonce, published by the server in <meta name="csp-nonce">.
 // next-themes needs it or its no-FOUC inline <script>/<style> are CSP-blocked.
