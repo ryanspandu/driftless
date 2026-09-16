@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { MoreHorizontal, Pencil, Plus, Tag, Trash2 } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -31,6 +31,7 @@ import { Can } from '~/components/providers/ability-provider'
 import { apiErrorMessage } from '~/lib/api-client'
 import { cn } from '~/lib/utils'
 import {
+  useBulkDeleteDiscounts,
   useDeleteDiscount,
   useDiscounts,
   useSaveDiscount,
@@ -141,8 +142,11 @@ export default function DiscountsPage() {
   const query = useDiscounts()
   const save = useSaveDiscount()
   const remove = useDeleteDiscount()
+  const bulkRemove = useBulkDeleteDiscounts()
   const settings = useStoreSettings()
   const confirmDelete = useConfirmDelete()
+  const [selection, setSelection] = useState<RowSelectionState>({})
+  const [bulkError, setBulkError] = useState<string | null>(null)
 
   const currency = settings.data?.currency ?? 'USD'
 
@@ -188,6 +192,27 @@ export default function DiscountsPage() {
       )
     })
   }, [query.data, search, filter])
+
+  const selectedIds = useMemo(
+    () => Object.keys(selection).filter((id) => selection[id]),
+    [selection]
+  )
+
+  async function onBulkDelete() {
+    setBulkError(null)
+    const confirmed = await confirmDelete({
+      title: `Delete ${selectedIds.length} discount${selectedIds.length === 1 ? '' : 's'}?`,
+      description:
+        'The codes stop working immediately. Orders that already used one keep their discount.',
+    })
+    if (!confirmed) return
+    try {
+      await bulkRemove.mutateAsync(selectedIds)
+      setSelection({})
+    } catch (err) {
+      setBulkError(apiErrorMessage(err))
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -378,12 +403,38 @@ export default function DiscountsPage() {
         }
       />
 
+      {selectedIds.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
+          <p className="text-sm">
+            <span className="font-medium">{selectedIds.length}</span>{' '}
+            {selectedIds.length === 1 ? 'discount' : 'discounts'} selected
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2 text-destructive"
+              disabled={bulkRemove.isPending}
+              onClick={() => void onBulkDelete()}
+            >
+              <Trash2 className="size-4" aria-hidden />
+              {bulkRemove.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {bulkError ? <p className="text-sm text-destructive">{bulkError}</p> : null}
+
       <DataTable
         columns={columns}
         data={discounts}
         getRowId={(row) => row.id}
         hideSyncColumn
-        enableBulkSelect={false}
+        rowSelection={selection}
+        onRowSelectionChange={setSelection}
         searchPlaceholder="Search codes…"
         searchValue={search}
         onSearchChange={setSearch}

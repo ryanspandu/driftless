@@ -2136,6 +2136,12 @@ const routes = {
     tokens: [{"old":"/api/admin/ecommerce/orders/:id/cancel","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/orders/:id/cancel","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/orders/:id/cancel","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/orders/:id/cancel","type":0,"val":"orders","end":""},{"old":"/api/admin/ecommerce/orders/:id/cancel","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/orders/:id/cancel","type":0,"val":"cancel","end":""}],
     types: placeholder as Registry['ecommerce.api.orders.cancel']['types'],
   },
+  'ecommerce.api.orders.bulkCancel': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/orders/bulk-cancel',
+    tokens: [{"old":"/api/admin/ecommerce/orders/bulk-cancel","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/orders/bulk-cancel","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/orders/bulk-cancel","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/orders/bulk-cancel","type":0,"val":"orders","end":""},{"old":"/api/admin/ecommerce/orders/bulk-cancel","type":0,"val":"bulk-cancel","end":""}],
+    types: placeholder as Registry['ecommerce.api.orders.bulkCancel']['types'],
+  },
   'ecommerce.api.orders.ship': {
     methods: ["POST"],
     pattern: '/api/admin/ecommerce/orders/:id/ship',
@@ -2213,6 +2219,12 @@ const routes = {
     pattern: '/api/admin/ecommerce/customers/:id/status',
     tokens: [{"old":"/api/admin/ecommerce/customers/:id/status","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/customers/:id/status","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/customers/:id/status","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/customers/:id/status","type":0,"val":"customers","end":""},{"old":"/api/admin/ecommerce/customers/:id/status","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/customers/:id/status","type":0,"val":"status","end":""}],
     types: placeholder as Registry['ecommerce.api.customers.status']['types'],
+  },
+  'ecommerce.api.customers.bulkStatus': {
+    methods: ["PUT"],
+    pattern: '/api/admin/ecommerce/customers/bulk-status',
+    tokens: [{"old":"/api/admin/ecommerce/customers/bulk-status","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/customers/bulk-status","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/customers/bulk-status","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/customers/bulk-status","type":0,"val":"customers","end":""},{"old":"/api/admin/ecommerce/customers/bulk-status","type":0,"val":"bulk-status","end":""}],
+    types: placeholder as Registry['ecommerce.api.customers.bulkStatus']['types'],
   },
   'ecommerce.api.exports.orders': {
     methods: ["GET","HEAD"],
@@ -2309,6 +2321,12 @@ const routes = {
     pattern: '/api/admin/ecommerce/products/:id',
     tokens: [{"old":"/api/admin/ecommerce/products/:id","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products/:id","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products/:id","type":0,"val":"products","end":""},{"old":"/api/admin/ecommerce/products/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['ecommerce.api.products.destroy']['types'],
+  },
+  'ecommerce.api.products.bulkDestroy': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/products/bulk-delete',
+    tokens: [{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"products","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"bulk-delete","end":""}],
+    types: placeholder as Registry['ecommerce.api.products.bulkDestroy']['types'],
   },
   'ecommerce.api.variants.store': {
     methods: ["POST"],
@@ -2484,6 +2502,12 @@ const routes = {
     tokens: [{"old":"/api/admin/ecommerce/discounts/:id","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/discounts/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/discounts/:id","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/discounts/:id","type":0,"val":"discounts","end":""},{"old":"/api/admin/ecommerce/discounts/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['ecommerce.api.discounts.destroy']['types'],
   },
+  'ecommerce.api.discounts.bulkDestroy': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/discounts/bulk-delete',
+    tokens: [{"old":"/api/admin/ecommerce/discounts/bulk-delete","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/discounts/bulk-delete","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/discounts/bulk-delete","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/discounts/bulk-delete","type":0,"val":"discounts","end":""},{"old":"/api/admin/ecommerce/discounts/bulk-delete","type":0,"val":"bulk-delete","end":""}],
+    types: placeholder as Registry['ecommerce.api.discounts.bulkDestroy']['types'],
+  },
   'ecommerce.api.affiliates.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/ecommerce/affiliates',
@@ -2520,6 +2544,18 @@ const routes = {
     tokens: [{"old":"/api/admin/ecommerce/affiliates/:id","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/affiliates/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/affiliates/:id","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/affiliates/:id","type":0,"val":"affiliates","end":""},{"old":"/api/admin/ecommerce/affiliates/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['ecommerce.api.affiliates.update']['types'],
   },
+  'ecommerce.api.affiliates.bulkApprove': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/affiliates/bulk-approve',
+    tokens: [{"old":"/api/admin/ecommerce/affiliates/bulk-approve","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/affiliates/bulk-approve","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/affiliates/bulk-approve","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/affiliates/bulk-approve","type":0,"val":"affiliates","end":""},{"old":"/api/admin/ecommerce/affiliates/bulk-approve","type":0,"val":"bulk-approve","end":""}],
+    types: placeholder as Registry['ecommerce.api.affiliates.bulkApprove']['types'],
+  },
+  'ecommerce.api.affiliates.bulkReject': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/affiliates/bulk-reject',
+    tokens: [{"old":"/api/admin/ecommerce/affiliates/bulk-reject","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/affiliates/bulk-reject","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/affiliates/bulk-reject","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/affiliates/bulk-reject","type":0,"val":"affiliates","end":""},{"old":"/api/admin/ecommerce/affiliates/bulk-reject","type":0,"val":"bulk-reject","end":""}],
+    types: placeholder as Registry['ecommerce.api.affiliates.bulkReject']['types'],
+  },
   'ecommerce.api.commissions.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/ecommerce/commissions',
@@ -2549,6 +2585,12 @@ const routes = {
     pattern: '/api/admin/ecommerce/withdrawals/:id/process',
     tokens: [{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":0,"val":"withdrawals","end":""},{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/withdrawals/:id/process","type":0,"val":"process","end":""}],
     types: placeholder as Registry['ecommerce.api.withdrawals.process']['types'],
+  },
+  'ecommerce.api.withdrawals.bulkProcess': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/withdrawals/bulk-process',
+    tokens: [{"old":"/api/admin/ecommerce/withdrawals/bulk-process","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/withdrawals/bulk-process","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/withdrawals/bulk-process","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/withdrawals/bulk-process","type":0,"val":"withdrawals","end":""},{"old":"/api/admin/ecommerce/withdrawals/bulk-process","type":0,"val":"bulk-process","end":""}],
+    types: placeholder as Registry['ecommerce.api.withdrawals.bulkProcess']['types'],
   },
   'ecommerce.api.stats': {
     methods: ["GET","HEAD"],

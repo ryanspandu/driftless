@@ -1,16 +1,27 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from '@inertiajs/react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Download, Plus, Receipt } from 'lucide-react'
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
+import { Ban, Download, Plus, Receipt } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { PageHeader } from '~/components/admin/page-header'
 import { Can } from '~/components/providers/ability-provider'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
+import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { useUrlState } from '~/hooks/use-url-state'
+import { apiErrorMessage } from '~/lib/api-client'
 import { cn, formatAdminTableDateTime } from '~/lib/utils'
-import { useOrders, type OrderListItemDto, type OrderStage, type PaymentStatus } from '../_api'
+import {
+  useBulkCancelOrders,
+  useOrders,
+  type OrderListItemDto,
+  type OrderStage,
+  type PaymentStatus,
+} from '../_api'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
+
+/** Terminal states — an order here can never be cancelled. */
+const CANCELLABLE_STATUSES = new Set(['draft', 'pending', 'confirmed', 'fulfilled'])
 
 /**
  * Tabs are cut by **stage**, not by payment status.
@@ -96,6 +107,32 @@ export default function OrdersPage() {
   const query = useOrders({ page, pageSize, search, stage })
   const orders = query.data?.items ?? []
   const total = query.data?.total ?? 0
+
+  const bulkCancel = useBulkCancelOrders()
+  const confirmDelete = useConfirmDelete()
+  const [selection, setSelection] = useState<RowSelectionState>({})
+  const [bulkError, setBulkError] = useState<string | null>(null)
+  const selectedIds = useMemo(
+    () => Object.keys(selection).filter((id) => selection[id]),
+    [selection]
+  )
+
+  async function onBulkCancel() {
+    setBulkError(null)
+    const confirmed = await confirmDelete({
+      title: `Cancel ${selectedIds.length} order${selectedIds.length === 1 ? '' : 's'}?`,
+      description:
+        'Stock is restocked or released and the buyer keeps their record of the order. Orders already completed or cancelled are skipped.',
+      confirmLabel: 'Cancel orders',
+    })
+    if (!confirmed) return
+    try {
+      await bulkCancel.mutateAsync({ ids: selectedIds })
+      setSelection({})
+    } catch (err) {
+      setBulkError(apiErrorMessage(err))
+    }
+  }
 
   const columns = useMemo<ColumnDef<OrderListItemDto>[]>(
     () => [
@@ -219,12 +256,41 @@ export default function OrdersPage() {
         }
       />
 
+      {selectedIds.length > 0 ? (
+        <Can permission="ecommerce:orders:manage">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
+            <p className="text-sm">
+              <span className="font-medium">{selectedIds.length}</span>{' '}
+              {selectedIds.length === 1 ? 'order' : 'orders'} selected
+            </p>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
+                Clear
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 text-destructive"
+                disabled={bulkCancel.isPending}
+                onClick={() => void onBulkCancel()}
+              >
+                <Ban className="size-4" aria-hidden />
+                {bulkCancel.isPending ? 'Cancelling…' : 'Cancel'}
+              </Button>
+            </div>
+          </div>
+        </Can>
+      ) : null}
+      {bulkError ? <p className="text-sm text-destructive">{bulkError}</p> : null}
+
       <DataTable
         columns={columns}
         data={orders}
         getRowId={(row) => row.id}
         hideSyncColumn
-        enableBulkSelect={false}
+        rowSelection={selection}
+        onRowSelectionChange={setSelection}
+        getRowCanSelect={(row) => CANCELLABLE_STATUSES.has(row.status)}
         searchPlaceholder="Search by order number or email…"
         searchValue={search}
         onSearchChange={(value) => url.set({ q: value, page: undefined })}

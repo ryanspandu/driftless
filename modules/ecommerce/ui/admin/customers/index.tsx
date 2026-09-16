@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { Download, MoreHorizontal, Plus, ShieldOff, ShieldCheck, Users } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -13,8 +13,14 @@ import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { Can } from '~/components/providers/ability-provider'
 import { useUrlState } from '~/hooks/use-url-state'
+import { apiErrorMessage } from '~/lib/api-client'
 import { formatAdminTableDateTime } from '~/lib/utils'
-import { useCustomers, useSetCustomerStatus, type AccountDto } from '../_api'
+import {
+  useBulkSetCustomerStatus,
+  useCustomers,
+  useSetCustomerStatus,
+  type AccountDto,
+} from '../_api'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 import { CreateCustomerDialog } from './create-dialog'
 
@@ -43,10 +49,27 @@ export default function CustomersPage() {
 
   const query = useCustomers({ page, pageSize, search, status })
   const setStatusMutation = useSetCustomerStatus()
+  const bulkSetStatus = useBulkSetCustomerStatus()
   const [createOpen, setCreateOpen] = useState(false)
+  const [selection, setSelection] = useState<RowSelectionState>({})
+  const [bulkError, setBulkError] = useState<string | null>(null)
 
   const customers = query.data?.items ?? []
   const total = query.data?.total ?? 0
+  const selectedIds = useMemo(
+    () => Object.keys(selection).filter((id) => selection[id]),
+    [selection]
+  )
+
+  async function onBulkStatus(status: 'active' | 'blocked') {
+    setBulkError(null)
+    try {
+      await bulkSetStatus.mutateAsync({ ids: selectedIds, status })
+      setSelection({})
+    } catch (err) {
+      setBulkError(apiErrorMessage(err))
+    }
+  }
 
   const columns = useMemo<ColumnDef<AccountDto>[]>(
     () => [
@@ -213,12 +236,50 @@ export default function CustomersPage() {
         }
       />
 
+      {selectedIds.length > 0 ? (
+        <Can permission="ecommerce:customers:manage">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
+            <p className="text-sm">
+              <span className="font-medium">{selectedIds.length}</span>{' '}
+              {selectedIds.length === 1 ? 'customer' : 'customers'} selected
+            </p>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
+                Clear
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                disabled={bulkSetStatus.isPending}
+                onClick={() => void onBulkStatus('active')}
+              >
+                <ShieldCheck className="size-4" aria-hidden />
+                Unblock
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 text-destructive"
+                disabled={bulkSetStatus.isPending}
+                onClick={() => void onBulkStatus('blocked')}
+              >
+                <ShieldOff className="size-4" aria-hidden />
+                Block
+              </Button>
+            </div>
+          </div>
+        </Can>
+      ) : null}
+      {bulkError ? <p className="text-sm text-destructive">{bulkError}</p> : null}
+
       <DataTable
         columns={columns}
         data={customers}
         getRowId={(row) => row.id}
         hideSyncColumn
-        enableBulkSelect={false}
+        rowSelection={selection}
+        onRowSelectionChange={setSelection}
         searchPlaceholder="Search by name or email…"
         searchValue={search}
         onSearchChange={(value) => url.set({ q: value, page: undefined })}

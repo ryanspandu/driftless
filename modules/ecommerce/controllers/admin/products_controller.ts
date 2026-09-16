@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import vine from '@vinejs/vine'
 import { newUlid } from '#services/ulid_service'
 import { publicError } from '#exceptions/public_error'
 import VariantPrice from '#modules/ecommerce/models/variant_price'
@@ -23,6 +24,12 @@ const audit = new AuditLogService()
 
 const fail = (response: HttpContext['response'], error: unknown) =>
   apiFail(response, error, 'ecommerce/products')
+
+const bulkIdsValidator = vine.compile(
+  vine.object({
+    ids: vine.array(vine.string().trim().maxLength(40)).minLength(1).maxLength(500),
+  })
+)
 
 export default class ProductsController {
   /** The category management screen. */
@@ -168,6 +175,36 @@ export default class ProductsController {
       })
 
       return response.status(204).send('')
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /** Delete several products at once. Skips any id that can't be removed. */
+  async bulkDestroy(ctx: HttpContext) {
+    const { request, response, auth } = ctx
+    try {
+      const { ids } = await request.validateUsing(bulkIdsValidator)
+      let count = 0
+      for (const id of ids) {
+        try {
+          await catalog.remove(id)
+          count++
+        } catch {
+          // Skip a product that can't be removed (already gone, etc).
+        }
+      }
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'product.deleted',
+        subjectType: 'product',
+        subjectId: ids.join(','),
+        changes: { count },
+        ctx,
+      })
+
+      return response.json({ count })
     } catch (error) {
       return fail(response, error)
     }

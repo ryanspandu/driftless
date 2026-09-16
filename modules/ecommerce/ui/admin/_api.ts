@@ -460,6 +460,18 @@ export function useDeleteProduct() {
   })
 }
 
+export function useBulkDeleteProducts() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      apiFetch<{ count: number }>(`${BASE}/products/bulk-delete`, {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      }),
+    onSuccess: () => invalidateProducts(qc),
+  })
+}
+
 /** The per-row outcome of a CSV import (mirrors `ProductImportService.ImportResult`). */
 export interface ProductImportResult {
   created: number
@@ -721,6 +733,21 @@ export function useCancelOrder() {
   )
 }
 
+export function useBulkCancelOrders() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ids, reason }: { ids: string[]; reason?: string | null }) =>
+      apiFetch<{ count: number }>(`${BASE}/orders/bulk-cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ ids, reason }),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'orders'] })
+      void qc.invalidateQueries({ queryKey: ecommerceKeys.stats })
+    },
+  })
+}
+
 export function useUpdateOrderNote() {
   return useOrderMutation<{ internalNote: string | null }>((orderId, input) =>
     apiFetch<OrderDetailDto>(`${BASE}/orders/${orderId}/note`, {
@@ -884,6 +911,18 @@ export function useDeleteDiscount() {
   })
 }
 
+export function useBulkDeleteDiscounts() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      apiFetch<{ count: number }>(`${BASE}/discounts/bulk-delete`, {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'discounts'] }),
+  })
+}
+
 export function useAffiliates(status?: string) {
   const path = status ? `${BASE}/affiliates?status=${status}` : `${BASE}/affiliates`
   return useQuery({
@@ -937,6 +976,30 @@ export function useRejectAffiliate() {
   })
 }
 
+export function useBulkApproveAffiliates() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      apiFetch<{ count: number }>(`${BASE}/affiliates/bulk-approve`, {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'affiliates'] }),
+  })
+}
+
+export function useBulkRejectAffiliates() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ids, reason }: { ids: string[]; reason?: string }) =>
+      apiFetch<{ count: number }>(`${BASE}/affiliates/bulk-reject`, {
+        method: 'POST',
+        body: JSON.stringify({ ids, reason }),
+      }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'affiliates'] }),
+  })
+}
+
 /** Edit an affiliate's rate / status / notes. */
 export function useUpdateAffiliate() {
   const qc = useQueryClient()
@@ -973,6 +1036,29 @@ export function useProcessWithdrawal() {
       apiFetch<{ ok: true }>(`${BASE}/withdrawals/${id}/process`, {
         method: 'POST',
         body: JSON.stringify({ action, reason }),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'withdrawals'] })
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'affiliates'] })
+    },
+  })
+}
+
+export function useBulkProcessWithdrawals() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      ids,
+      action,
+      reason,
+    }: {
+      ids: string[]
+      action: 'paid' | 'reject'
+      reason?: string
+    }) =>
+      apiFetch<{ count: number }>(`${BASE}/withdrawals/bulk-process`, {
+        method: 'POST',
+        body: JSON.stringify({ ids, action, reason }),
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['ecommerce', 'withdrawals'] })
@@ -1218,6 +1304,18 @@ export function useSetCustomerStatus() {
       apiFetch<AccountDto>(`${BASE}/customers/${id}/status`, {
         method: 'PUT',
         body: JSON.stringify({ status }),
+      }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'customers'] }),
+  })
+}
+
+export function useBulkSetCustomerStatus() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ids, status }: { ids: string[]; status: 'active' | 'blocked' }) =>
+      apiFetch<{ count: number }>(`${BASE}/customers/bulk-status`, {
+        method: 'PUT',
+        body: JSON.stringify({ ids, status }),
       }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'customers'] }),
   })
