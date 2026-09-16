@@ -12,9 +12,10 @@ import env from '#start/env'
 import { DateTime } from 'luxon'
 import { publicError } from '#exceptions/public_error'
 import { newUlid } from '#services/ulid_service'
-// Literal .ts extension — see the comment on the same import in
+// getStorageDriver/isS3 come via MediaService's re-export, not a direct import
+// of storage/driver.ts — see the comment on that re-export in
 // app/services/media_service.ts.
-import { getStorageDriver, isS3 } from '../../../app/services/storage/driver.ts'
+import { getStorageDriver, isS3 } from '#services/media_service'
 import DigitalAsset from '#modules/ecommerce/models/digital_asset'
 import DownloadGrant from '#modules/ecommerce/models/download_grant'
 import OrderItem from '#modules/ecommerce/models/order_item'
