@@ -5,9 +5,51 @@ import { siteUrl } from '#helpers/site_url'
 import { collectSitemapEntries } from '#services/sitemap_registry'
 import { WebSettingsService } from '#services/settings_service'
 import { renderAiCrawlerBlock, type AiCrawlerGroup } from '#services/ai_crawlers'
+import { PAGE_ROLE_SLOTS } from '#services/page_role_slots'
+import ModulesService from '#services/modules_service'
 
 const contentService = new ContentService()
 const webSettingsService = new WebSettingsService()
+const modulesService = new ModulesService()
+
+/**
+ * Every page id currently standing in for a built-in screen (home, login,
+ * post detail, cart, checkout, ...) — core role slots plus the ecommerce
+ * module's own. A role page is a TEMPLATE served at a fixed URL that has
+ * nothing to do with its own `path` column (see `page_renderer.ts`'s
+ * canonical-URL comment for the same distinction); listing it a second time
+ * at its raw slug in the sitemap is duplicate/junk content, not a real page.
+ */
+async function rolePageIds(sections: Record<string, Record<string, string>>): Promise<Set<string>> {
+  const ids = new Set<string>()
+  for (const { section, key } of PAGE_ROLE_SLOTS) {
+    const id = sections[section]?.[key]?.trim()
+    if (id) ids.add(id)
+  }
+
+  if (await modulesService.isEnabled('ecommerce')) {
+    const { default: EcommerceSetting } = await import('#modules/ecommerce/models/setting')
+    const store = await EcommerceSetting.find('default')
+    if (store) {
+      for (const id of [
+        store.productPageId,
+        store.shopPageId,
+        store.cartPageId,
+        store.checkoutPageId,
+        store.orderPageId,
+        store.accountPageId,
+        store.loginPageId,
+        store.registerPageId,
+        store.categoryPageId,
+        store.tagPageId,
+      ]) {
+        if (id) ids.add(id)
+      }
+    }
+  }
+
+  return ids
+}
 
 export default class SeoController {
   async robots({ response }: HttpContext) {
@@ -48,15 +90,18 @@ Host: ${base}
     const base = siteUrl()
     const now = new Date().toISOString()
 
+    const sections = await webSettingsService.getMergedSections()
+
     // No point listing pages the operator is telling search engines not to
     // index — an empty sitemap is a less contradictory signal, and it skips
     // the DB reads below entirely.
     let entries: { loc: string; lastmod: string }[] = []
-    if (!(await webSettingsService.getDiscourageIndexing())) {
+    if (sections['site_meta']?.['discourage_indexing'] !== '1') {
       const posts = await contentService.findPublishedList()
       const pages = await Page.query().where('status', 'PUBLISHED').whereNull('deleted_at')
       // Module-contributed URLs (e.g. e-commerce product pages).
       const contributed = await collectSitemapEntries()
+      const rolePages = await rolePageIds(sections)
 
       entries = [
         { loc: `${base}/`, lastmod: now },
@@ -64,10 +109,16 @@ Host: ${base}
           loc: `${base}/posts/${encodeURIComponent(p.slug)}`,
           lastmod: p.updatedAt,
         })),
-        // Skip pages the operator asked search engines not to index —
-        // listing a noindex URL in the sitemap is a contradictory signal.
         ...pages
+          // Skip pages the operator asked search engines not to index —
+          // listing a noindex URL in the sitemap is a contradictory signal.
           .filter((p) => (p.seo as { noindex?: unknown } | null)?.noindex !== true)
+          // Skip pages standing in for a built-in screen (home, cart, post
+          // detail, ...) — their raw `path` is a template, not a real URL;
+          // the screen's actual canonical URL (if indexable at all) is
+          // contributed separately (the `/` entry above, or a module's own
+          // `collectSitemapEntries()`).
+          .filter((p) => !rolePages.has(p.id))
           .map((p) => ({
             loc: `${base}/${p.path.split('/').map(encodeURIComponent).join('/')}`,
             lastmod: p.updatedAt.toISO() ?? now,

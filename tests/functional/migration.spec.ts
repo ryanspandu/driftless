@@ -12,6 +12,7 @@ import { collectUserPermissions } from '#services/permission_ability_service'
 import { SELF_REGISTERED_ROLE } from '#database/seeder_constants'
 import { newUlid } from '#services/ulid_service'
 import { currentBuildId } from '#services/release'
+import { absoluteUrl } from '#helpers/site_url'
 
 async function adminUser() {
   return User.query().where('email', 'admin@driftless.local').firstOrFail()
@@ -366,6 +367,45 @@ test.group('Public SEO', (group) => {
     const body = res.text()
     a.include(body, '<urlset')
     a.notInclude(body, '<loc>')
+  })
+
+  test('a page standing in for a role (e.g. the front page) is not ALSO listed at its own raw path', async ({
+    client,
+    assert: a,
+  }) => {
+    const rolePage = await Page.create({
+      id: newUlid(),
+      title: 'Role page',
+      path: 'static-bloom-home',
+      status: 'PUBLISHED',
+      renderMode: 'SSR',
+      kind: 'BUILDER',
+      content: { root: {}, content: [] },
+      seo: {},
+    } as never)
+    const ordinaryPage = await Page.create({
+      id: newUlid(),
+      title: 'Ordinary page',
+      path: 'ordinary-page',
+      status: 'PUBLISHED',
+      renderMode: 'SSR',
+      kind: 'BUILDER',
+      content: { root: {}, content: [] },
+      seo: {},
+    } as never)
+    await new WebSettingsService().applyPatches([
+      { section: 'home_page', key: 'front_page_id', value: rolePage.id },
+    ])
+
+    const res = await client.get('/sitemap.xml')
+    res.assertStatus(200)
+    const body = res.text()
+    // The role's own raw slug must not appear as a second entry — `/` (added
+    // unconditionally) already covers it.
+    a.notInclude(body, `<loc>${absoluteUrl('/')}${rolePage.path}</loc>`)
+    a.notInclude(body, `<loc>${absoluteUrl('/')}static-bloom-home</loc>`)
+    // An unrelated page must still be listed normally.
+    a.include(body, `<loc>${absoluteUrl('/')}${ordinaryPage.path}</loc>`)
   })
 
   test('custom_robots_txt over 20,000 chars is rejected', async ({ client }) => {
