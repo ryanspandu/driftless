@@ -5,8 +5,8 @@ import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
-import { Switch } from '~/components/ui/switch'
 import { BackButton } from '~/components/admin/back-button'
+import { ToggleRow } from '~/components/admin/toggle-row'
 import { Can } from '~/components/providers/ability-provider'
 import {
   useIntegrationSettings,
@@ -92,16 +92,11 @@ export default function ClarityIntegrationPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="clarityEnabled" className="font-normal">
-                    Enable Microsoft Clarity
-                  </Label>
-                  <Switch
-                    id="clarityEnabled"
-                    checked={clarityEnabled}
-                    onCheckedChange={(v) => setClarityEnabled(v)}
-                  />
-                </div>
+                <ToggleRow
+                  title="Enable Microsoft Clarity"
+                  checked={clarityEnabled}
+                  onChange={setClarityEnabled}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="clarityProjectId">Project ID</Label>
                   <Input
@@ -126,14 +121,20 @@ export default function ClarityIntegrationPage() {
               <p className="text-sm text-green-600 dark:text-green-500">Clarity settings saved.</p>
             ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={update.isPending}>
-                {update.isPending ? 'Saving…' : 'Save'}
-              </Button>
-              <Button type="button" variant="outline" render={<Link href="/admin/integrations" />}>
-                Cancel
-              </Button>
-            </div>
+            <Card>
+              <CardContent className="flex flex-wrap items-center gap-2 pt-6">
+                <Button type="submit" disabled={update.isPending}>
+                  {update.isPending ? 'Saving…' : 'Save'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  render={<Link href="/admin/integrations" />}
+                >
+                  Cancel
+                </Button>
+              </CardContent>
+            </Card>
           </form>
         )}
       </div>

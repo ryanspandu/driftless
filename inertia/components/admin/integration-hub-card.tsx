@@ -25,7 +25,7 @@ export function IntegrationHubCard({
     <Link
       href={href}
       className={cn(
-        "group relative flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm transition-all",
+        "group relative flex h-full flex-col rounded-2xl border border-border bg-card p-6 shadow-sm transition-all",
         "hover:border-ring/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
       )}
     >

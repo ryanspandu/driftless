@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Checkbox } from '~/components/ui/checkbox'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
-import { Switch } from '~/components/ui/switch'
 import { BackButton } from '~/components/admin/back-button'
+import { ToggleRow } from '~/components/admin/toggle-row'
 import { Can } from '~/components/providers/ability-provider'
 import {
   useIntegrationSettings,
@@ -98,16 +98,11 @@ export default function GoogleIntegrationPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="googleAuthEnabled" className="font-normal">
-                    Enable &quot;Sign in with Google&quot;
-                  </Label>
-                  <Switch
-                    id="googleAuthEnabled"
-                    checked={googleAuthEnabled}
-                    onCheckedChange={(v) => setGoogleAuthEnabled(v)}
-                  />
-                </div>
+                <ToggleRow
+                  title='Enable "Sign in with Google"'
+                  checked={googleAuthEnabled}
+                  onChange={setGoogleAuthEnabled}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="googleClientId">OAuth 2.0 Client ID</Label>
                   <Input
@@ -176,14 +171,20 @@ export default function GoogleIntegrationPage() {
               <p className="text-sm text-green-600 dark:text-green-500">Google settings saved.</p>
             ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={update.isPending}>
-                {update.isPending ? 'Saving…' : 'Save'}
-              </Button>
-              <Button type="button" variant="outline" render={<Link href="/admin/integrations" />}>
-                Cancel
-              </Button>
-            </div>
+            <Card>
+              <CardContent className="flex flex-wrap items-center gap-2 pt-6">
+                <Button type="submit" disabled={update.isPending}>
+                  {update.isPending ? 'Saving…' : 'Save'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  render={<Link href="/admin/integrations" />}
+                >
+                  Cancel
+                </Button>
+              </CardContent>
+            </Card>
           </form>
         )}
       </div>

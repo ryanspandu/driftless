@@ -12,6 +12,7 @@ import { Separator } from '~/components/ui/separator'
 import { Switch } from '~/components/ui/switch'
 import { AppSelect } from '~/components/ui/app-select'
 import { BackButton } from '~/components/admin/back-button'
+import { ToggleRow } from '~/components/admin/toggle-row'
 import { Can } from '~/components/providers/ability-provider'
 import {
   useIntegrationSettings,
@@ -127,16 +128,11 @@ export default function CaptchaIntegrationPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="captchaEnabled" className="font-normal">
-                    Enable CAPTCHA
-                  </Label>
-                  <Switch
-                    id="captchaEnabled"
-                    checked={captchaEnabled}
-                    onCheckedChange={(v) => setCaptchaEnabled(v)}
-                  />
-                </div>
+                <ToggleRow
+                  title="Enable CAPTCHA"
+                  checked={captchaEnabled}
+                  onChange={setCaptchaEnabled}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="captchaProvider">Provider</Label>
                   <AppSelect
@@ -280,14 +276,20 @@ export default function CaptchaIntegrationPage() {
               <p className="text-sm text-green-600 dark:text-green-500">CAPTCHA settings saved.</p>
             ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={update.isPending}>
-                {update.isPending ? 'Saving…' : 'Save'}
-              </Button>
-              <Button type="button" variant="outline" render={<Link href="/admin/integrations" />}>
-                Cancel
-              </Button>
-            </div>
+            <Card>
+              <CardContent className="flex flex-wrap items-center gap-2 pt-6">
+                <Button type="submit" disabled={update.isPending}>
+                  {update.isPending ? 'Saving…' : 'Save'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  render={<Link href="/admin/integrations" />}
+                >
+                  Cancel
+                </Button>
+              </CardContent>
+            </Card>
           </form>
         )}
       </div>
