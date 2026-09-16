@@ -14,12 +14,26 @@ import { mediaUrlPrefix } from '#services/media_url'
 import { newUlid } from '#services/ulid_service'
 import { sanitizeSvg } from '#services/html_sanitizer_service'
 // Literal .ts extension (tsconfig has rewriteRelativeImportExtensions: true, via
-// @adonisjs/tsconfig), not '#services/storage/driver' or a .js-suffixed relative
-// import: both of those require the ts-exec loader's .js->.ts fallback probe,
-// which reproducibly fails on Railway's build infra (100% reproducible there,
-// never reproduced in any local Docker/Railpack rebuild). Importing the real
-// extension resolves in one shot — no fallback, no probe, nothing to race.
+// @adonisjs/tsconfig) — resolves in one shot with no .js->.ts fallback probe.
+//
+// This is deliberately the ONLY direct importer of storage/driver.ts in the
+// whole app. sections/media.ts and digital_delivery_service.ts get
+// getStorageDriver/isS3 re-exported from here instead of importing the driver
+// module directly themselves (see the re-export at the bottom of this file).
+// Root cause: Node's `--import`-registered loader hooks run in a separate
+// worker thread (module.register(), not the newer synchronous
+// module.registerHooks()) and have a known race — nodejs/node#59666, and the
+// same symptom reported against Node 24 elsewhere (nrwl/nx#34028) — that can
+// spuriously report a file as unresolvable when several *concurrent* resolve()
+// calls target it. storage/driver.ts was independently imported from 3 files,
+// all reached in the same parallel pass while `node ace mcp:catalog` loads the
+// Puck block graph — reproducible 100% of the time on Railway's build infra,
+// never once on 3 separate clean-room local rebuilds (Docker, Railpack
+// native, Railpack under amd64 emulation matching Railway's architecture).
+// Routing every consumer through one already-resolved, commonly-imported
+// module removes the concurrent-resolution pattern that triggers it.
 import { getStorageDriver, isS3 } from './storage/driver.ts'
+export { getStorageDriver, isS3 }
 
 /** Widths (px) generated for responsive `srcset`; never upscales past the original. */
 const VARIANT_WIDTHS = [480, 960, 1440]
