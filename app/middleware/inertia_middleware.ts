@@ -28,17 +28,33 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
 
     const sections = await webSettings.getMergedSections()
     const siteTheme = webSettings.mapPublicTheme(sections)
+    const appearance = webSettings.mapPublicAppearance(sections)
 
     /**
-     * The favicon `<link>` lives in the root edge shell itself, not in an
-     * Inertia prop, so it's in the initial HTML for every page — including
-     * admin/auth, which never render a React `<Head>` for it. Mirrors how
-     * Shield shares `cspNonce` the same way (`ctx.view.share`), one request
-     * ahead of any render. `'view' in ctx` guards the rare pre-session/auth
-     * render (see the comment below) where it may not exist yet.
+     * Two separate identities, by design (see `WEB_DEFAULTS.admin_branding`'s
+     * own comment): the admin shell's name vs. the public site's name — an
+     * install can be "Acme CMS" to its operators and "Acme Store" to its
+     * visitors. Inertia's global title template (`inertia/app.tsx`,
+     * `inertia/ssr.tsx`) has no per-page access to settings, so it reads
+     * whichever one is right for this request from here.
+     */
+    const url = ctx.request.url()
+    const isAdminPath = url === '/admin' || url.startsWith('/admin/')
+    const appName = isAdminPath
+      ? sections['admin_branding']?.['project_name']?.trim() || 'Driftless'
+      : appearance.siteTitle
+
+    /**
+     * The favicon `<link>` and app-name `<meta>` live in the root edge shell
+     * itself, not (only) an Inertia prop, so they're in the initial HTML for
+     * every page — including admin/auth, which never render a React `<Head>`
+     * for them. Mirrors how Shield shares `cspNonce` the same way
+     * (`ctx.view.share`), one request ahead of any render. `'view' in ctx`
+     * guards the rare pre-session/auth render (see the comment below) where
+     * it may not exist yet.
      */
     if ('view' in ctx) {
-      ctx.view.share({ faviconUrl: webSettings.mapPublicAppearance(sections).faviconUrl })
+      ctx.view.share({ faviconUrl: appearance.faviconUrl, appName })
     }
 
     /**
@@ -59,6 +75,10 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
       // Public font/colour theme, injected as a `.theme-light`-scoped <style> in
       // `layout-shell` (public + storefront only).
       siteTheme: ctx.inertia.always({ ...siteTheme }),
+      // Also carried as an Inertia prop (not just the `appName` view local
+      // above) so `inertia/ssr.tsx` — which has no DOM to read a <meta> tag
+      // from — can read it off `page.props` instead, mirroring `cspNonce`.
+      appName: ctx.inertia.always(appName),
     }
   }
 
