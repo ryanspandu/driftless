@@ -6,7 +6,13 @@
     "paths": {
       "~/*": ["./*"],
       "@generated/*": ["../.adonisjs/client/*"]
-    }
+    },
+    // This project transitively type-checks a few server files (e.g.
+    // app/services/media_service.ts) that use a literal .ts import extension —
+    // see the comment there. tsconfig.client.json doesn't extend tsconfig.app.json
+    // (where the app build enables this), so it needs its own opt-in.
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
   },
   "include": [
     "./**/*.ts",
