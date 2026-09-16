@@ -22,6 +22,7 @@ export const integrationsSection: DataSection = {
     return {
       integrations: {
         googleAuthEnabled: row.googleAuthEnabled,
+        googleAuthEnabledForShop: row.googleAuthEnabledForShop,
         googleClientId: row.googleClientId,
         captchaEnabled: row.captchaEnabled,
         captchaProvider: row.captchaProvider,
@@ -45,6 +46,7 @@ export const integrationsSection: DataSection = {
     try {
       await new IntegrationSettingsService().update({
         googleAuthEnabled: !!i.googleAuthEnabled,
+        googleAuthEnabledForShop: !!i.googleAuthEnabledForShop,
         googleClientId: (i.googleClientId as string) ?? null,
         captchaEnabled: !!i.captchaEnabled,
         captchaProvider: (i.captchaProvider as string) ?? null,

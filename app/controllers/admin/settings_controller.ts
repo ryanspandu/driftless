@@ -17,6 +17,7 @@ const pagesService = new PagesService()
 const updateIntegrationValidator = vine.compile(
   vine.object({
     googleAuthEnabled: vine.boolean().optional(),
+    googleAuthEnabledForShop: vine.boolean().optional(),
     googleClientId: vine.string().trim().nullable().optional(),
     googleClientSecret: vine.string().trim().nullable().optional(),
     captchaEnabled: vine.boolean().optional(),

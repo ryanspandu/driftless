@@ -154,6 +154,9 @@ customer accounts are a separate login from the admin users (`GET /api/shop/me` 
 `/shop/*` is reserved, and the API 404s when the store is off (degrade gracefully). See
 `example/pages/shop-demo.tsx` + `example/pages/account-demo.tsx` + `example/components/shop_api.ts`,
 and the full section in [`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md).
+Google sign-in for shoppers works out of the box on the built-in login/register screens and blocks
+(a separate toggle from admin Google sign-in); see "Google sign-in for the storefront" in that same
+doc if you're building a fully custom account page and want to include it.
 
 ## CAPTCHA on a custom form
 

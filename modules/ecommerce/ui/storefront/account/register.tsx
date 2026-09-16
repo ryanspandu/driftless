@@ -3,7 +3,9 @@ import { Head } from '@inertiajs/react'
 import { CaptchaWidget } from '~/components/auth/captcha-widget'
 import { accountApi } from '../_api'
 import { useStorefrontCaptcha } from '../_use_captcha'
+import { useStorefrontGoogleAuth } from '../_use_google_auth'
 import { StorefrontLayout, FIELD_CLASS, SUBMIT_CLASS } from '../_layout'
+import { ShopGoogleSignInButton, OrDivider } from './google-sign-in-button'
 
 /**
  * Create an account.
@@ -27,6 +29,7 @@ export function RegisterScreen({ embedded }: { embedded?: boolean } = {}) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const captcha = useStorefrontCaptcha('onRegister')
+  const google = useStorefrontGoogleAuth()
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -69,6 +72,13 @@ export function RegisterScreen({ embedded }: { embedded?: boolean } = {}) {
               Keeps your order history in one place. Buying works without one.
             </p>
           </div>
+
+          {google.enabled ? (
+            <div className="mb-6 space-y-4">
+              <ShopGoogleSignInButton enabled={google.enabled} />
+              <OrDivider />
+            </div>
+          ) : null}
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">

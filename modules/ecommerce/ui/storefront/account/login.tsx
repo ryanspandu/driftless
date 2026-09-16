@@ -3,7 +3,28 @@ import { Head } from '@inertiajs/react'
 import { CaptchaWidget } from '~/components/auth/captcha-widget'
 import { accountApi } from '../_api'
 import { useStorefrontCaptcha } from '../_use_captcha'
+import { useStorefrontGoogleAuth } from '../_use_google_auth'
 import { StorefrontLayout, FIELD_CLASS, SUBMIT_CLASS } from '../_layout'
+import { ShopGoogleSignInButton, OrDivider } from './google-sign-in-button'
+
+/**
+ * A Google sign-in that hit the 2FA branch redirects back here with these
+ * query params (it's a real browser navigation, not XHR, so it can't return
+ * JSON like the password step does) — pulled once on mount, then stripped
+ * from the URL so the token doesn't linger in the address bar or history.
+ */
+function pendingTokenFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('needs2fa') !== '1') return null
+  const token = params.get('pendingToken')
+  if (!token) return null
+  params.delete('needs2fa')
+  params.delete('pendingToken')
+  const query = params.toString()
+  window.history.replaceState(null, '', window.location.pathname + (query ? `?${query}` : ''))
+  return token
+}
 
 /**
  * Sign in.
@@ -24,9 +45,11 @@ export function LoginScreen({ embedded }: { embedded?: boolean } = {}) {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Set once the password step reports a 2FA account; swaps the form for the code step.
-  const [pendingToken, setPendingToken] = useState<string | null>(null)
+  // Set once the password step reports a 2FA account (or a Google sign-in
+  // redirect carries one straight in); swaps the form for the code step.
+  const [pendingToken, setPendingToken] = useState<string | null>(() => pendingTokenFromUrl())
   const captcha = useStorefrontCaptcha('onLogin')
+  const google = useStorefrontGoogleAuth()
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -84,6 +107,13 @@ export function LoginScreen({ embedded }: { embedded?: boolean } = {}) {
               Sign in to see your orders. You never needed an account to buy.
             </p>
           </div>
+
+          {google.enabled ? (
+            <div className="mb-6 space-y-4">
+              <ShopGoogleSignInButton enabled={google.enabled} />
+              <OrDivider />
+            </div>
+          ) : null}
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1.5">

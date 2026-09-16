@@ -97,6 +97,12 @@ export interface PublicCaptchaConfig {
   onCheckout: boolean
 }
 
+/** Public (no-secret) Google sign-in config for the storefront, from `GET /api/shop/config`. */
+export interface PublicGoogleAuthConfig {
+  enabled: boolean
+  configured: boolean
+}
+
 export interface AccountDto {
   id: string
   email: string
@@ -179,8 +185,9 @@ export function newIdempotencyKey(): string {
 }
 
 export const shopApi = {
-  /** Public storefront config (no-secret CAPTCHA config) for login/register/checkout. */
-  config: () => shopFetch<{ captcha: PublicCaptchaConfig }>('/api/shop/config'),
+  /** Public storefront config (no-secret CAPTCHA + Google config) for login/register/checkout. */
+  config: () =>
+    shopFetch<{ captcha: PublicCaptchaConfig; google: PublicGoogleAuthConfig }>('/api/shop/config'),
 
   cart: () => shopFetch<CartDto>('/api/shop/cart'),
 

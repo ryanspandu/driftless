@@ -536,12 +536,16 @@ function safeFontFaceUrl(value: string | undefined): string {
 
 export interface IntegrationSettingsAdmin {
   googleAuthEnabled: boolean
+  /** Independent toggle for the ecommerce storefront's customer login/register. */
+  googleAuthEnabledForShop: boolean
   googleClientId: string | null
   googleClientSecretMasked: string | null
   hasGoogleClientSecretInDb: boolean
   /** A secret is stored but could not be decrypted (e.g. APP_KEY changed). */
   googleClientSecretUnreadable: boolean
   googleRedirectUriHint: string
+  /** The second redirect URI to register on the same Google Cloud OAuth client, for the storefront flow. */
+  googleRedirectUriHintForShop: string
   envGoogleOAuthFallback: boolean
   captchaEnabled: boolean
   captchaProvider: string | null
@@ -784,7 +788,10 @@ export class WebSettingsService {
         const map = dt[family]
         if (map === undefined) continue
         if (!map || typeof map !== 'object') {
-          issues.push({ field: `designTokens.${family}`, message: 'must be an object of { slug: value }' })
+          issues.push({
+            field: `designTokens.${family}`,
+            message: 'must be an object of { slug: value }',
+          })
           continue
         }
         for (const [slug, value] of Object.entries(map as Record<string, unknown>)) {
@@ -987,13 +994,20 @@ export class IntegrationSettingsService {
     return `${base}/auth/google/callback`
   }
 
-  async resolveGoogleOAuth(): Promise<{
+  /** The storefront's own OAuth callback — same Google Cloud client, second registered redirect URI. */
+  buildGoogleRedirectUriForShop(): string {
+    const port = env.get('PORT', 3333)
+    const base = env.get('APP_URL', `http://localhost:${port}`)
+    return `${base}/shop/auth/google/callback`
+  }
+
+  async resolveGoogleOAuth(opts: { forShop?: boolean } = {}): Promise<{
     clientId: string
     clientSecret: string
     redirectUri: string
   } | null> {
     const row = await this.getOrCreate()
-    if (!row.googleAuthEnabled) return null
+    if (!(opts.forShop ? row.googleAuthEnabledForShop : row.googleAuthEnabled)) return null
 
     const clientId = row.googleClientId?.trim() || env.get('GOOGLE_CLIENT_ID', '')
     let clientSecret: string | null = null
@@ -1004,7 +1018,24 @@ export class IntegrationSettingsService {
       clientSecret = env.get('GOOGLE_CLIENT_SECRET', '') || null
     }
     if (!clientId || !clientSecret) return null
-    return { clientId, clientSecret, redirectUri: this.buildGoogleRedirectUri() }
+    return {
+      clientId,
+      clientSecret,
+      redirectUri: opts.forShop
+        ? this.buildGoogleRedirectUriForShop()
+        : this.buildGoogleRedirectUri(),
+    }
+  }
+
+  /**
+   * The public (no-secret) Google config for the storefront, from
+   * `GET /api/shop/config`. Deliberately separate from {@link getAuthPublicConfig}
+   * (the core admin surface, fetched via the admin API client which storefront
+   * code must never use) even though both ultimately read the same credential.
+   */
+  async getShopAuthPublicConfig(): Promise<{ google: { enabled: boolean; configured: boolean } }> {
+    const google = await this.resolveGoogleOAuth({ forShop: true })
+    return { google: { enabled: !!google, configured: !!google } }
   }
 
   /**
@@ -1078,6 +1109,7 @@ export class IntegrationSettingsService {
 
     return {
       googleAuthEnabled: row.googleAuthEnabled,
+      googleAuthEnabledForShop: row.googleAuthEnabledForShop,
       googleClientId: row.googleClientId,
       googleClientSecretMasked: maskSecret(googleSecretPlain),
       hasGoogleClientSecretInDb: !!googleSecretPlain,
@@ -1085,6 +1117,7 @@ export class IntegrationSettingsService {
       // so the operator knows to re-enter it rather than assuming it is empty.
       googleClientSecretUnreadable: !!row.googleClientSecretEnc && !googleSecretPlain,
       googleRedirectUriHint: this.buildGoogleRedirectUri(),
+      googleRedirectUriHintForShop: this.buildGoogleRedirectUriForShop(),
       envGoogleOAuthFallback: !!(
         env.get('GOOGLE_CLIENT_ID', '') && env.get('GOOGLE_CLIENT_SECRET', '')
       ),
@@ -1117,6 +1150,7 @@ export class IntegrationSettingsService {
   async update(
     dto: Partial<{
       googleAuthEnabled: boolean
+      googleAuthEnabledForShop: boolean
       googleClientId: string | null
       googleClientSecret: string | null
       captchaEnabled: boolean
@@ -1137,6 +1171,8 @@ export class IntegrationSettingsService {
     const row = await this.getOrCreate()
 
     if (dto.googleAuthEnabled !== undefined) row.googleAuthEnabled = dto.googleAuthEnabled
+    if (dto.googleAuthEnabledForShop !== undefined)
+      row.googleAuthEnabledForShop = dto.googleAuthEnabledForShop
     if (dto.googleClientId !== undefined) row.googleClientId = dto.googleClientId?.trim() || null
     if (dto.googleClientSecret !== undefined) {
       row.googleClientSecretEnc = dto.googleClientSecret?.trim()

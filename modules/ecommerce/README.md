@@ -1048,6 +1048,41 @@ Guest checkout is unchanged and remains the default. An account only groups orde
 the per-order access link in the confirmation email still works without one, and orders
 placed as a guest are **not** retroactively linked to an account with the same address.
 
+### Screen-override Puck blocks
+
+`LoginBlock`, `RegisterBlock`, `CartBlock`, `CheckoutBlock`, `OrderStatusBlock`, `AccountBlock`
+and `AffiliateBlock` (`modules/ecommerce/ui/puck/blocks.tsx`, `commerce` category) are thin
+wrappers around the very same components the fixed `/shop/*` screens render
+(`modules/ecommerce/ui/storefront/account/login.tsx` etc., rendered with `embedded`). Dropping
+one onto a builder page and assigning it via the `set_storefront_page` slot mechanism (or admin
+**E-commerce → Store settings → Storefront screens**) swaps in a custom-designed page while
+keeping the real, client-fetched, per-visitor behaviour — nothing about the screen's own logic
+changes.
+
+Because `LoginBlock`/`RegisterBlock` wrap the same components the fixed login/register pages
+use, **Google sign-in appears in both automatically** — see the next section.
+
+### Google sign-in
+
+Shoppers can sign in / sign up with Google, entirely separate from the admin "Sign in with
+Google" (`app/controllers/google_auth_controller.ts`, `users` table): different toggle
+(`googleAuthEnabledForShop`, next to `googleAuthEnabled` in the same Google integration
+settings page), different account table (`ecommerce_accounts.google_sub`), different routes,
+same underlying Google Cloud OAuth client (a second redirect URI, shown in the admin hint once
+the storefront toggle is on).
+
+- `GET /shop/auth/google` — starts the flow (browser redirect, not an API call).
+- `GET /shop/auth/google/callback` — Google's own redirect target
+  (`modules/ecommerce/controllers/storefront/google_auth_controller.ts`). Resolves/creates the
+  `Account` by `google_sub` then by verified email (mirrors the admin flow's linking rule
+  exactly), starts a session via `AccountAuthService.startSession`, and redirects to
+  `/shop/account` — or, if the account has 2FA enabled, to
+  `/shop/account/login?needs2fa=1&pendingToken=…`, reusing the same pending-token challenge the
+  password-login 2FA branch already issues.
+- `GET /api/shop/config` exposes `google: { enabled, configured }` for the frontend to decide
+  whether to show a button — see `modules/ecommerce/ui/storefront/account/google-sign-in-button.tsx`
+  and `_use_google_auth.ts`.
+
 ## Marketing email and consent
 
 Exactly one message in this module is marketing: the **abandoned-basket reminder**. Receipts,

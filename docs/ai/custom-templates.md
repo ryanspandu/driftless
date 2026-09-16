@@ -360,6 +360,33 @@ A kit can build a full storefront experience, but **only through the store's pub
   profile + order history), with a copy-paste client at
   `inertia/custom/kits/example/components/shop_api.ts`.
 
+### Google sign-in for the storefront
+
+Shoppers can sign in with Google, separately from the admin "Sign in with Google" covered in
+[auth-pages.md](./auth-pages.md) — a different toggle, a different credential-free public config,
+and a different account table (`ecommerce_accounts`, never `users`).
+
+- **Using the built-in login/register (the common case): nothing to do.** The fixed
+  `/shop/account/login` / `/shop/account/register` screens, and the `LoginBlock` / `RegisterBlock`
+  page-builder blocks that wrap them, already show a "Continue with Google" button automatically
+  once an operator turns on **Admin → Integrations → Google sign-in → "Enable for storefront
+  customer accounts."** A kit that just uses these blocks (or points `set_storefront_page` at the
+  default screens) gets Google sign-in for free.
+- **Building a fully custom login/register page** (per the override-slot mechanism above): check
+  `GET /api/shop/config`'s `google: { enabled, configured }` field before rendering a button —
+  `enabled` is what to gate on. Link (or `window.location.href =`) it to `GET /shop/auth/google`,
+  the same route the built-in screen uses. That route and its callback are plain browser redirects,
+  not `/api/shop/*` JSON — nothing to POST, nothing to catch. Do **not** import
+  `modules/ecommerce/*` internals for this (see the "never import the module" rule above); the
+  public `/api/shop/config` field and the `/shop/auth/google` link are the entire surface a kit
+  needs.
+- A 2FA-enabled account is not bypassed by Google: on a 2FA account the callback redirects to
+  `/shop/account/login?needs2fa=1&pendingToken=…` instead of signing the shopper straight in. A
+  custom login page that wants to support this should read those two query params on mount (the
+  built-in `LoginScreen` does — see `modules/ecommerce/ui/storefront/account/login.tsx`) and post
+  the token to the existing `POST /api/shop/account/2fa/verify` the same way a password-login 2FA
+  challenge does.
+
 ## CAPTCHA for a custom form
 
 Bot protection (Turnstile / hCaptcha / reCAPTCHA) is a small, module-agnostic API any kit form can

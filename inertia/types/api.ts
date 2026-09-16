@@ -184,11 +184,13 @@ export interface AuthPublicConfig {
 
 export interface IntegrationSettingsAdmin {
   googleAuthEnabled: boolean
+  googleAuthEnabledForShop: boolean
   googleClientId: string | null
   googleClientSecretMasked: string | null
   hasGoogleClientSecretInDb: boolean
   googleClientSecretUnreadable: boolean
   googleRedirectUriHint: string
+  googleRedirectUriHintForShop: string
   envGoogleOAuthFallback: boolean
   captchaEnabled: boolean
   captchaProvider: CaptchaProviderId | null
@@ -213,6 +215,7 @@ export interface IntegrationSettingsAdmin {
 
 export interface UpdateIntegrationSettingsRequest {
   googleAuthEnabled?: boolean
+  googleAuthEnabledForShop?: boolean
   googleClientId?: string | null
   googleClientSecret?: string | null
   captchaEnabled?: boolean
