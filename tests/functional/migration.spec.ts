@@ -4,11 +4,14 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import hash from '@adonisjs/core/services/hash'
 import User from '#models/user'
 import Role from '#models/role'
+import Page from '#models/page'
 import UserAuthService from '#services/user_auth_service'
 import UsersService from '#services/users_service'
 import { WebSettingsService } from '#services/settings_service'
 import { collectUserPermissions } from '#services/permission_ability_service'
 import { SELF_REGISTERED_ROLE } from '#database/seeder_constants'
+import { newUlid } from '#services/ulid_service'
+import { currentBuildId } from '#services/release'
 
 async function adminUser() {
   return User.query().where('email', 'admin@driftless.local').firstOrFail()
@@ -238,6 +241,158 @@ test.group('Public SEO', (group) => {
     sitemap.assertStatus(200)
     sitemap.assertTextIncludes('<urlset')
     sitemap.assertTextIncludes('<loc>')
+  })
+
+  test('robots.txt: each AI-crawler toggle adds its own block', async ({ client, assert: a }) => {
+    await new WebSettingsService().applyPatches([
+      { section: 'site_meta', key: 'block_ai_training', value: '1' },
+    ])
+    let res = await client.get('/robots.txt')
+    let body = res.text()
+    a.include(body, 'User-agent: GPTBot')
+    a.include(body, 'Disallow: /admin') // base rules still present
+    a.notInclude(body, 'OAI-SearchBot')
+
+    await new WebSettingsService().applyPatches([
+      { section: 'site_meta', key: 'block_ai_training', value: '0' },
+      { section: 'site_meta', key: 'block_ai_search', value: '1' },
+    ])
+    res = await client.get('/robots.txt')
+    body = res.text()
+    a.include(body, 'User-agent: OAI-SearchBot')
+    a.notInclude(body, 'GPTBot')
+
+    await new WebSettingsService().applyPatches([
+      { section: 'site_meta', key: 'block_ai_search', value: '0' },
+      { section: 'site_meta', key: 'block_ai_agents', value: '1' },
+    ])
+    res = await client.get('/robots.txt')
+    body = res.text()
+    a.include(body, 'User-agent: ChatGPT-User')
+    a.notInclude(body, 'OAI-SearchBot')
+  })
+
+  test('robots.txt: a raw override is served verbatim and ignores the toggles', async ({
+    client,
+    assert: a,
+  }) => {
+    const override = 'User-agent: *\nDisallow: /secret\n'
+    await new WebSettingsService().applyPatches([
+      { section: 'site_meta', key: 'block_ai_training', value: '1' },
+      { section: 'site_meta', key: 'custom_robots_txt', value: override },
+    ])
+
+    const res = await client.get('/robots.txt')
+    res.assertStatus(200)
+    a.equal(res.text(), override)
+  })
+
+  test('discourage_indexing: noindex meta + X-Robots-Tag on a public page', async ({
+    client,
+    assert: a,
+  }) => {
+    await new WebSettingsService().applyPatches([
+      { section: 'site_meta', key: 'discourage_indexing', value: '1' },
+    ])
+    await Page.create({
+      id: newUlid(),
+      title: 'Discourage test',
+      path: 'discourage-test',
+      status: 'PUBLISHED',
+      renderMode: 'SSR',
+      kind: 'BUILDER',
+      content: { root: {}, content: [] },
+      seo: {},
+    } as never)
+
+    const res = await client.get('/discourage-test')
+    res.assertStatus(200)
+    a.equal(res.header('x-robots-tag'), 'noindex, nofollow')
+    a.include(res.text(), 'name="robots" content="noindex,nofollow"')
+  })
+
+  test('discourage_indexing: X-Robots-Tag also applies to a cached SSG snapshot', async ({
+    client,
+    assert: a,
+  }) => {
+    await Page.create({
+      id: newUlid(),
+      title: 'Discourage SSG test',
+      path: 'discourage-ssg-test',
+      status: 'PUBLISHED',
+      renderMode: 'SSG',
+      kind: 'BUILDER',
+      content: { root: {}, content: [] },
+      seo: {},
+      // Rendered before the flag existed — the header must still show up live
+      // on this cache-hit path even though the baked-in HTML predates it.
+      renderedHtml: '<html><head></head><body>snapshot</body></html>',
+      renderedBuild: currentBuildId(),
+    } as never)
+
+    await new WebSettingsService().applyPatches([
+      { section: 'site_meta', key: 'discourage_indexing', value: '1' },
+    ])
+
+    const res = await client.get('/discourage-ssg-test')
+    res.assertStatus(200)
+    a.equal(res.header('x-robots-tag'), 'noindex, nofollow')
+  })
+
+  test('discourage_indexing: sitemap.xml has no entries', async ({ client, assert: a }) => {
+    await new WebSettingsService().applyPatches([
+      { section: 'site_meta', key: 'discourage_indexing', value: '1' },
+    ])
+    const res = await client.get('/sitemap.xml')
+    res.assertStatus(200)
+    const body = res.text()
+    a.include(body, '<urlset')
+    a.notInclude(body, '<loc>')
+  })
+
+  test('custom_robots_txt over 20,000 chars is rejected', async ({ client }) => {
+    const admin = await adminUser()
+    const res = await asUser(client, admin)
+      .put('/api/admin/settings/web')
+      .json({
+        patches: [
+          { section: 'site_meta', key: 'custom_robots_txt', value: 'x'.repeat(20_001) },
+        ],
+      })
+    res.assertStatus(422)
+  })
+
+  test('toggling discourage_indexing invalidates cached SSG snapshots', async ({
+    client,
+    assert: a,
+  }) => {
+    await Page.create({
+      id: newUlid(),
+      title: 'Stale snapshot test',
+      path: 'stale-snapshot-test',
+      status: 'PUBLISHED',
+      renderMode: 'SSG',
+      kind: 'BUILDER',
+      content: { root: {}, content: [] },
+      seo: {},
+      renderedHtml: '<html><head></head><body>stale</body></html>',
+      renderedBuild: currentBuildId(),
+    } as never)
+
+    const admin = await adminUser()
+    const put = await asUser(client, admin)
+      .put('/api/admin/settings/web')
+      .json({
+        patches: [{ section: 'site_meta', key: 'discourage_indexing', value: '1' }],
+      })
+    put.assertStatus(200)
+
+    // The stale snapshot must have been invalidated and freshly re-rendered
+    // with the noindex tag baked in — not just served with a live header
+    // slapped on top of old HTML.
+    const res = await client.get('/stale-snapshot-test')
+    res.assertStatus(200)
+    a.include(res.text(), 'name="robots" content="noindex,nofollow"')
   })
 })
 

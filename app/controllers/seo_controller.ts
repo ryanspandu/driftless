@@ -3,12 +3,32 @@ import ContentService from '#services/content_service'
 import Page from '#models/page'
 import { siteUrl } from '#helpers/site_url'
 import { collectSitemapEntries } from '#services/sitemap_registry'
+import { WebSettingsService } from '#services/settings_service'
+import { renderAiCrawlerBlock, type AiCrawlerGroup } from '#services/ai_crawlers'
 
 const contentService = new ContentService()
+const webSettingsService = new WebSettingsService()
 
 export default class SeoController {
   async robots({ response }: HttpContext) {
+    const sections = await webSettingsService.getMergedSections()
+    const sm = sections['site_meta'] ?? {}
+
+    // A full raw override wins outright — the AI-crawler toggles below never
+    // apply while a custom robots.txt is set. Only the emptiness check is
+    // trimmed; the served body is the operator's exact stored text.
+    const override = sm['custom_robots_txt'] ?? ''
+    if (override.trim()) {
+      return response.header('Content-Type', 'text/plain; charset=utf-8').send(override)
+    }
+
     const base = siteUrl()
+    const groups: AiCrawlerGroup[] = []
+    if (sm['block_ai_training'] === '1') groups.push('training')
+    if (sm['block_ai_search'] === '1') groups.push('search')
+    if (sm['block_ai_agents'] === '1') groups.push('agents')
+    const aiBlocks = groups.map(renderAiCrawlerBlock).join('\n\n')
+
     const body = `User-agent: *
 Allow: /
 Disallow: /admin
@@ -17,7 +37,7 @@ Disallow: /login
 Disallow: /register
 Disallow: /offline
 Disallow: /api/
-
+${aiBlocks ? `\n${aiBlocks}\n` : ''}
 Sitemap: ${base}/sitemap.xml
 Host: ${base}
 `
@@ -27,27 +47,34 @@ Host: ${base}
   async sitemap({ response }: HttpContext) {
     const base = siteUrl()
     const now = new Date().toISOString()
-    const posts = await contentService.findPublishedList()
-    const pages = await Page.query().where('status', 'PUBLISHED').whereNull('deleted_at')
-    // Module-contributed URLs (e.g. e-commerce product pages).
-    const contributed = await collectSitemapEntries()
 
-    const entries: { loc: string; lastmod: string }[] = [
-      { loc: `${base}/`, lastmod: now },
-      ...posts.map((p) => ({
-        loc: `${base}/posts/${encodeURIComponent(p.slug)}`,
-        lastmod: p.updatedAt,
-      })),
-      // Skip pages the operator asked search engines not to index — listing a
-      // noindex URL in the sitemap is a contradictory signal.
-      ...pages
-        .filter((p) => (p.seo as { noindex?: unknown } | null)?.noindex !== true)
-        .map((p) => ({
-          loc: `${base}/${p.path.split('/').map(encodeURIComponent).join('/')}`,
-          lastmod: p.updatedAt.toISO() ?? now,
+    // No point listing pages the operator is telling search engines not to
+    // index — an empty sitemap is a less contradictory signal, and it skips
+    // the DB reads below entirely.
+    let entries: { loc: string; lastmod: string }[] = []
+    if (!(await webSettingsService.getDiscourageIndexing())) {
+      const posts = await contentService.findPublishedList()
+      const pages = await Page.query().where('status', 'PUBLISHED').whereNull('deleted_at')
+      // Module-contributed URLs (e.g. e-commerce product pages).
+      const contributed = await collectSitemapEntries()
+
+      entries = [
+        { loc: `${base}/`, lastmod: now },
+        ...posts.map((p) => ({
+          loc: `${base}/posts/${encodeURIComponent(p.slug)}`,
+          lastmod: p.updatedAt,
         })),
-      ...contributed.map((e) => ({ loc: e.loc, lastmod: e.lastmod ?? now })),
-    ]
+        // Skip pages the operator asked search engines not to index —
+        // listing a noindex URL in the sitemap is a contradictory signal.
+        ...pages
+          .filter((p) => (p.seo as { noindex?: unknown } | null)?.noindex !== true)
+          .map((p) => ({
+            loc: `${base}/${p.path.split('/').map(encodeURIComponent).join('/')}`,
+            lastmod: p.updatedAt.toISO() ?? now,
+          })),
+        ...contributed.map((e) => ({ loc: e.loc, lastmod: e.lastmod ?? now })),
+      ]
+    }
 
     // De-dupe by loc (a contributed URL may also be a Page); first wins.
     const seen = new Set<string>()

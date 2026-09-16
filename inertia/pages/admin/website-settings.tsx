@@ -5,6 +5,7 @@ import { WEBSITE_SETTING_SECTIONS } from '~/types/api'
 import { BackButton } from '~/components/admin/back-button'
 import { ImageSettingControl } from '~/components/admin/image-setting-control'
 import { MetaTagsEditor, type MetaTag } from '~/components/admin/meta-tags-editor'
+import { ToggleRow } from '~/components/admin/toggle-row'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { Input } from '~/components/ui/input'
@@ -94,6 +95,18 @@ function SiteMetaSection() {
   const [siteDescription, setSiteDescription] = useState(SITE_DEFAULT_DESCRIPTION)
   const [faviconUrl, setFaviconUrl] = useState(SITE_DEFAULT_FAVICON)
   const [metaTags, setMetaTags] = useState<MetaTag[]>([])
+  const [discourageIndexing, setDiscourageIndexing] = useState(false)
+  const [blockAiTraining, setBlockAiTraining] = useState(false)
+  const [blockAiSearch, setBlockAiSearch] = useState(false)
+  const [blockAiAgents, setBlockAiAgents] = useState(false)
+  const [customRobotsTxt, setCustomRobotsTxt] = useState('')
+  const [robotsPreviewLoaded, setRobotsPreviewLoaded] = useState(false)
+  // Distinguishes "the operator actually edited/cleared this field" from the
+  // textarea merely being pre-filled with a generated-file preview — without
+  // this, saving the form for any OTHER reason (e.g. just flipping an
+  // AI-crawler toggle) would silently persist that preview text as a
+  // permanent robots.txt override.
+  const [robotsTxtEdited, setRobotsTxtEdited] = useState(false)
   const [saved, setSaved] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -108,7 +121,29 @@ function SiteMetaSection() {
     } catch {
       setMetaTags([])
     }
+    setDiscourageIndexing(sm.discourage_indexing === '1')
+    setBlockAiTraining(sm.block_ai_training === '1')
+    setBlockAiSearch(sm.block_ai_search === '1')
+    setBlockAiAgents(sm.block_ai_agents === '1')
+    setCustomRobotsTxt(sm.custom_robots_txt ?? '')
+    setRobotsTxtEdited(false)
   }, [sm])
+
+  // Pre-fill the raw-override textarea with the live generated robots.txt as
+  // a starting point — a plain same-origin GET, always byte-accurate to what
+  // the backend actually produces, so there's no need to duplicate the
+  // generation logic client-side. Only when nothing is stored yet.
+  useEffect(() => {
+    if (!sm || robotsPreviewLoaded) return
+    setRobotsPreviewLoaded(true)
+    if ((sm.custom_robots_txt ?? '') !== '') return
+    fetch('/robots.txt')
+      .then((r) => (r.ok ? r.text() : ''))
+      .then((text) => {
+        if (text) setCustomRobotsTxt(text)
+      })
+      .catch(() => {})
+  }, [sm, robotsPreviewLoaded])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -135,6 +170,33 @@ function SiteMetaSection() {
             section: WEBSITE_SETTING_SECTIONS.SITE_META,
             key: 'meta',
             value: JSON.stringify(metaTags),
+          },
+          {
+            section: WEBSITE_SETTING_SECTIONS.SITE_META,
+            key: 'discourage_indexing',
+            value: discourageIndexing ? '1' : '0',
+          },
+          {
+            section: WEBSITE_SETTING_SECTIONS.SITE_META,
+            key: 'block_ai_training',
+            value: blockAiTraining ? '1' : '0',
+          },
+          {
+            section: WEBSITE_SETTING_SECTIONS.SITE_META,
+            key: 'block_ai_search',
+            value: blockAiSearch ? '1' : '0',
+          },
+          {
+            section: WEBSITE_SETTING_SECTIONS.SITE_META,
+            key: 'block_ai_agents',
+            value: blockAiAgents ? '1' : '0',
+          },
+          {
+            section: WEBSITE_SETTING_SECTIONS.SITE_META,
+            key: 'custom_robots_txt',
+            // Only ever persist a value the operator actually chose — an
+            // untouched pre-filled preview must never become a stored override.
+            value: robotsTxtEdited ? customRobotsTxt.trim() : (sm?.custom_robots_txt ?? ''),
           },
         ],
       })
@@ -193,6 +255,97 @@ function SiteMetaSection() {
               Injected into <code>&lt;head&gt;</code> on every published page (e.g.{' '}
               <code>theme-color</code>,<code>twitter:site</code>).
             </p>
+          </div>
+
+          <div className="space-y-3 border-t pt-4">
+            <div>
+              <h3 className="text-sm font-medium">Search engine indexing</h3>
+              <p className="text-xs text-muted-foreground">
+                Controls whether search engines are told to index this site. This is separate
+                from robots.txt below — crawling stays allowed either way, only indexing is
+                discouraged.
+              </p>
+            </div>
+            <ToggleRow
+              title="Discourage search engines from indexing"
+              description="Adds noindex,nofollow to every public page (overriding any page's own SEO setting) and sends the X-Robots-Tag header. robots.txt is left untouched — blocking crawl access there would stop search engines from ever seeing this tag."
+              checked={discourageIndexing}
+              disabled={isPending}
+              onChange={setDiscourageIndexing}
+            />
+          </div>
+
+          <div className="space-y-3 border-t pt-4">
+            <div>
+              <h3 className="text-sm font-medium">AI crawlers</h3>
+              <p className="text-xs text-muted-foreground">
+                Adds Disallow rules to robots.txt for known AI bots, grouped by purpose. Each is
+                independent and off by default. Ignored while the raw override below is active.
+              </p>
+            </div>
+            <ToggleRow
+              title="Block AI training crawlers"
+              description="GPTBot, CCBot, ClaudeBot, Google-Extended, Bytespider, and others that scrape content to train models."
+              checked={blockAiTraining}
+              disabled={isPending}
+              onChange={setBlockAiTraining}
+            />
+            <ToggleRow
+              title="Block AI search/answer crawlers"
+              description="OAI-SearchBot, PerplexityBot, Claude-SearchBot — crawlers that power AI search/answer products. Blocking these removes this site from AI search results/citations."
+              checked={blockAiSearch}
+              disabled={isPending}
+              onChange={setBlockAiSearch}
+            />
+            <ToggleRow
+              title="Block AI user-triggered agents"
+              description="ChatGPT-User, Claude-User, Perplexity-User — fetches made live on behalf of someone's own prompt."
+              checked={blockAiAgents}
+              disabled={isPending}
+              onChange={setBlockAiAgents}
+            />
+          </div>
+
+          <div className="space-y-2 border-t pt-4">
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="customRobotsTxt">robots.txt full raw override</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCustomRobotsTxt('')
+                  setRobotsTxtEdited(true)
+                }}
+                disabled={isPending}
+              >
+                Reset to default
+              </Button>
+            </div>
+            <Textarea
+              id="customRobotsTxt"
+              value={customRobotsTxt}
+              onChange={(e) => {
+                setCustomRobotsTxt(e.target.value)
+                setRobotsTxtEdited(true)
+              }}
+              rows={10}
+              className="font-mono text-xs"
+              disabled={isPending}
+            />
+            {sm?.custom_robots_txt ? (
+              <p className="text-xs text-amber-600 dark:text-amber-500">
+                A raw override is active — /robots.txt is served exactly as written above, and
+                the indexing/AI-crawler toggles no longer take effect. Click "Reset to default"
+                and Save to go back to auto-generated output.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Pre-filled with the current auto-generated robots.txt as a starting point. Leave
+                it as generated to keep using the toggles above; edit and save to take full
+                manual control (save with this field empty to reset).
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2">

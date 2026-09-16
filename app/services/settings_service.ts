@@ -76,6 +76,21 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
     // Site-wide custom <meta> tags (JSON array of SiteMetaTag), applied on every
     // public page.
     meta: '[]',
+    // Site-wide override of every page's robots meta — '1' forces
+    // noindex,nofollow on every public page regardless of that page's own
+    // seo.noindex, plus an X-Robots-Tag header. robots.txt is left untouched;
+    // see the AI-crawler keys below for that (see `getDiscourageIndexing`).
+    discourage_indexing: '0',
+    // AI-crawler blocking (robots.txt Disallow), 3-category model — see
+    // `app/services/ai_crawlers.ts`. Each independent, off by default.
+    block_ai_training: '0',
+    block_ai_search: '0',
+    block_ai_agents: '0',
+    // Full raw robots.txt override. Empty = auto-generated (base rules + the
+    // three toggles above). Non-empty is served verbatim at /robots.txt and
+    // the toggles above stop taking effect. Same empty-deletes-the-row reset
+    // convention the rest of this store already uses (see applyPatches).
+    custom_robots_txt: '',
   },
   // App configuration toggles (managed from Settings → Application).
   app_config: {
@@ -807,9 +822,26 @@ export class WebSettingsService {
     return parseMetaTags(sections['site_meta']?.['meta'])
   }
 
+  /** Site-wide "discourage search engines" flag (site_meta.discourage_indexing). */
+  async getDiscourageIndexing(): Promise<boolean> {
+    const sections = await this.getMergedSections()
+    return sections['site_meta']?.['discourage_indexing'] === '1'
+  }
+
   async applyPatches(
     patches: Array<{ section: string; key: string; value: string }>
   ): Promise<WebsiteSettingsDto> {
+    // Validate everything before writing anything — a patch rejected here
+    // must never leave an earlier, unrelated patch from the same request
+    // half-applied.
+    for (const p of patches) {
+      if (p.section === 'site_meta' && p.key === 'custom_robots_txt') {
+        if (String(p.value ?? '').length > 20_000) {
+          throw new Error('custom_robots_txt must be 20,000 characters or fewer.')
+        }
+      }
+    }
+
     for (const p of patches) {
       const value = String(p.value ?? '')
       const existing = await WebSetting.query()
