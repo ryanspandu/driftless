@@ -86,6 +86,10 @@ export default class Product extends BaseModel {
   @column()
   declare externalLabel: string | null
 
+  /** Times a shopper has followed the `external` buy button, via `/out/:id`. */
+  @column()
+  declare externalClicksCount: number
+
   /**
    * True when this listing cannot be bought here.
    *

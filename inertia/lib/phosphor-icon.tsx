@@ -1,4 +1,5 @@
 import {
+  ArrowSquareOut,
   Briefcase,
   Buildings,
   Calendar,
@@ -37,6 +38,7 @@ import {
  * ships the icons we actually expose. Unknown names fall back to `Cube`.
  */
 const ICONS: Record<string, Icon> = {
+  ArrowSquareOut,
   Briefcase,
   Buildings,
   Calendar,

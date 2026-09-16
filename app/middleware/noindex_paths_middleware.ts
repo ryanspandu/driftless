@@ -36,6 +36,8 @@ const NOINDEX_PREFIXES = [
   '/shop/order',
   '/shop/unsubscribe',
   '/shop/download',
+  /** A product's outbound affiliate-CTA redirector — no content, no SEO value. */
+  '/out',
 ]
 
 function isNoindexPath(path: string): boolean {

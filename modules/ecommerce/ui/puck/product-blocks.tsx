@@ -588,7 +588,7 @@ export function ProductDetail({ slug, editing }: { slug?: string; editing?: bool
            * the kind of quiet omission that costs a site its rankings.
            */
           <a
-            href={product.cta.url ?? '#'}
+            href={product.cta.url ? `/out/${product.id}` : '#'}
             target="_blank"
             rel="nofollow sponsored noopener noreferrer"
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"

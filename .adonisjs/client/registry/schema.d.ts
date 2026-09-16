@@ -3907,6 +3907,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/referral_controller').default['click']>>>
     }
   }
+  'shop.outbound': {
+    methods: ["GET","HEAD"]
+    pattern: '/out/:productId'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { productId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/outbound_controller').default['click']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/outbound_controller').default['click']>>>
+    }
+  }
   'shop.currencies': {
     methods: ["GET","HEAD"]
     pattern: '/api/shop/currencies'
@@ -4531,6 +4543,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/exports_controller').default['products']>>>
     }
   }
+  'ecommerce.api.exports.outboundClicks': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/exports/outbound-clicks'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/exports_controller').default['outboundClicks']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/exports_controller').default['outboundClicks']>>>
+    }
+  }
   'ecommerce.api.grants.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/ecommerce/orders/:orderId/grants'
@@ -4987,6 +5011,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['withdrawalsPage']>>>
     }
   }
+  'ecommerce.outbound_clicks.page': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/marketing/outbound-clicks'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['outboundClicksPage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['outboundClicksPage']>>>
+    }
+  }
   'ecommerce.api.discounts.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/ecommerce/discounts'
@@ -5165,6 +5201,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listWithdrawals']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listWithdrawals']>>>
+    }
+  }
+  'ecommerce.api.outbound_clicks.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/outbound-clicks'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listOutboundClicks']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['listOutboundClicks']>>>
+    }
+  }
+  'ecommerce.api.outbound_clicks.history': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/outbound-clicks/:productId'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { productId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['outboundClickHistory']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/marketing_controller').default['outboundClickHistory']>>>
     }
   }
   'ecommerce.api.commissions.pay': {

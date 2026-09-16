@@ -443,6 +443,7 @@ export interface ApiDefinition {
         orderItems: typeof routes['ecommerce.api.exports.orderItems']
         customers: typeof routes['ecommerce.api.exports.customers']
         products: typeof routes['ecommerce.api.exports.products']
+        outboundClicks: typeof routes['ecommerce.api.exports.outboundClicks']
       }
       grants: {
         index: typeof routes['ecommerce.api.grants.index']
@@ -524,6 +525,10 @@ export interface ApiDefinition {
         process: typeof routes['ecommerce.api.withdrawals.process']
         bulkProcess: typeof routes['ecommerce.api.withdrawals.bulkProcess']
       }
+      outboundClicks: {
+        index: typeof routes['ecommerce.api.outbound_clicks.index']
+        history: typeof routes['ecommerce.api.outbound_clicks.history']
+      }
       stats: typeof routes['ecommerce.api.stats']
     }
     discounts: {
@@ -537,6 +542,9 @@ export interface ApiDefinition {
     }
     withdrawals: {
       page: typeof routes['ecommerce.withdrawals.page']
+    }
+    outboundClicks: {
+      page: typeof routes['ecommerce.outbound_clicks.page']
     }
   }
   shop: {
@@ -602,6 +610,7 @@ export interface ApiDefinition {
       }
     }
     referral: typeof routes['shop.referral']
+    outbound: typeof routes['shop.outbound']
     currencies: typeof routes['shop.currencies']
     shipping: {
       options: typeof routes['shop.shipping.options']

@@ -7,6 +7,7 @@ import type User from '#models/user'
 import Account from '#modules/ecommerce/models/account'
 import DiscountService from '#modules/ecommerce/services/discount_service'
 import AffiliateService from '#modules/ecommerce/services/affiliate_service'
+import ProductCtaClickService from '#modules/ecommerce/services/product_cta_click_service'
 
 const discountValidator = vine.compile(
   vine.object({
@@ -107,7 +108,16 @@ const bulkWithdrawalProcessValidator = vine.compile(
 
 const discounts = new DiscountService()
 const affiliates = new AffiliateService()
+const ctaClicks = new ProductCtaClickService()
 const audit = new AuditLogService()
+
+/** `?days=7|30|90` or `all`. Defaults to `all` for an unrecognised/missing value. */
+function daysFrom(request: HttpContext['request']): number | 'all' {
+  const raw = request.input('days')
+  if (raw === 'all' || raw === undefined) return 'all'
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : 'all'
+}
 
 const fail = (response: HttpContext['response'], error: unknown) =>
   apiFail(response, error, 'ecommerce/marketing')
@@ -129,6 +139,10 @@ export default class MarketingController {
 
   async withdrawalsPage({ inertia }: HttpContext) {
     return renderPage(inertia, 'modules/ecommerce/admin/marketing/withdrawals', {})
+  }
+
+  async outboundClicksPage({ inertia }: HttpContext) {
+    return renderPage(inertia, 'modules/ecommerce/admin/marketing/outbound-clicks', {})
   }
 
   // ── Discounts ────────────────────────────────────────────────────────────
@@ -523,5 +537,16 @@ export default class MarketingController {
       .header('Content-Type', 'text/csv; charset=utf-8')
       .header('Content-Disposition', 'attachment; filename="affiliate-payouts.csv"')
       .send(csv)
+  }
+
+  // ── Outbound (affiliate CTA) clicks ─────────────────────────────────────
+
+  async listOutboundClicks({ request, response }: HttpContext) {
+    return response.json(await ctaClicks.list(daysFrom(request)))
+  }
+
+  /** Individual clicks on one product — the modal behind a row in the list above. */
+  async outboundClickHistory({ params, request, response }: HttpContext) {
+    return response.json(await ctaClicks.history(String(params.productId), daysFrom(request)))
   }
 }
