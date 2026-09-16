@@ -19,8 +19,11 @@ const scriptSrc = isDev
       "'unsafe-inline'",
       'https://accounts.google.com',
       'https://www.google.com',
+      'https://www.gstatic.com',
       'https://hcaptcha.com',
       'https://js.hcaptcha.com',
+      // Admin → Integrations → CAPTCHA (Turnstile).
+      'https://challenges.cloudflare.com',
       // Scalar UI for the dev-only `/api/docs` route loads its bundle from
       // jsDelivr. The route (and this allowance) never exist in production.
       'https://cdn.jsdelivr.net',
@@ -30,8 +33,12 @@ const scriptSrc = isDev
       '@nonce',
       'https://accounts.google.com',
       'https://www.google.com',
+      // reCAPTCHA's own rendering assets (its script itself loads from www.google.com).
+      'https://www.gstatic.com',
       'https://hcaptcha.com',
       'https://js.hcaptcha.com',
+      // Admin → Integrations → CAPTCHA (Turnstile).
+      'https://challenges.cloudflare.com',
       // Admin → Integrations → Google Analytics / Microsoft Clarity.
       'https://www.googletagmanager.com',
       'https://www.clarity.ms',
@@ -51,6 +58,11 @@ const connectSrc = isDev
       'http://localhost:*',
       'https://accounts.google.com',
       'https://www.google.com',
+      // Turnstile / hCaptcha's own background calls (their widgets, not our own
+      // server-side siteverify call — that's a plain server fetch, not subject
+      // to this browser CSP at all).
+      'https://challenges.cloudflare.com',
+      'https://*.hcaptcha.com',
       // Scalar UI (dev-only `/api/docs`) fetches its lazy chunks from jsDelivr.
       'https://cdn.jsdelivr.net',
     ]
@@ -58,6 +70,9 @@ const connectSrc = isDev
       "'self'",
       'https://accounts.google.com',
       'https://www.google.com',
+      // Turnstile / hCaptcha's own background calls — see the dev branch above.
+      'https://challenges.cloudflare.com',
+      'https://*.hcaptcha.com',
       // gtag.js's own hit-collection calls, routed through a regional subdomain.
       'https://www.google-analytics.com',
       'https://*.google-analytics.com',
@@ -101,6 +116,11 @@ const shieldConfig = defineConfig({
         'https://maps.google.com',
         'https://www.facebook.com',
         'https://open.spotify.com',
+        // Admin → Integrations → CAPTCHA: Turnstile's and hCaptcha's widgets
+        // render their challenge inside an iframe (reCAPTCHA's is already
+        // covered by https://www.google.com above).
+        'https://challenges.cloudflare.com',
+        'https://*.hcaptcha.com',
       ],
       formAction: ["'self'"],
     },
