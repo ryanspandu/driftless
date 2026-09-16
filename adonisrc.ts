@@ -216,6 +216,22 @@ export default defineConfig({
       pattern: 'modules/*/data/**',
       reloadServer: false,
     },
+    /**
+     * Template-kit metadata, read directly off disk at runtime by
+     * `TemplateKitsService` (the admin "Template Kit" list: `kit.json` +
+     * counting files in each kit's pages/templates/collection/emails/
+     * components subfolders) — same class of bug as the module-data entry
+     * above. The kit's `.tsx` component code is bundled by Vite separately
+     * (see `inertia/custom/registry.ts`'s eager glob) and the page-rendering
+     * manifest is a generated `.ts` file that compiles normally either way,
+     * so this went unnoticed: a kit correctly deployed (even via
+     * `railway up --no-gitignore`) still listed as "0 kits" in the admin UI
+     * because none of `inertia/` was ever on the copy list at all.
+     */
+    {
+      pattern: 'inertia/custom/kits/**',
+      reloadServer: false,
+    },
   ],
 
   hooks: {
