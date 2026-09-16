@@ -3019,6 +3019,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/data_transfer_controller').default['latestJob']>>>
     }
   }
+  'data_transfer.history': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/data-transfer/history/:kind'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { kind: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin/data_transfer_controller').default['history']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin/data_transfer_controller').default['history']>>>
+    }
+  }
   'data_transfer.download_export': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/data-transfer/exports/:id/download'

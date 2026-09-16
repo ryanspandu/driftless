@@ -1512,6 +1512,12 @@ const routes = {
     tokens: [{"old":"/api/admin/data-transfer/latest/:kind","type":0,"val":"api","end":""},{"old":"/api/admin/data-transfer/latest/:kind","type":0,"val":"admin","end":""},{"old":"/api/admin/data-transfer/latest/:kind","type":0,"val":"data-transfer","end":""},{"old":"/api/admin/data-transfer/latest/:kind","type":0,"val":"latest","end":""},{"old":"/api/admin/data-transfer/latest/:kind","type":1,"val":"kind","end":""}],
     types: placeholder as Registry['data_transfer.latest_job']['types'],
   },
+  'data_transfer.history': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/data-transfer/history/:kind',
+    tokens: [{"old":"/api/admin/data-transfer/history/:kind","type":0,"val":"api","end":""},{"old":"/api/admin/data-transfer/history/:kind","type":0,"val":"admin","end":""},{"old":"/api/admin/data-transfer/history/:kind","type":0,"val":"data-transfer","end":""},{"old":"/api/admin/data-transfer/history/:kind","type":0,"val":"history","end":""},{"old":"/api/admin/data-transfer/history/:kind","type":1,"val":"kind","end":""}],
+    types: placeholder as Registry['data_transfer.history']['types'],
+  },
   'data_transfer.download_export': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/data-transfer/exports/:id/download',

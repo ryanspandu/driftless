@@ -164,6 +164,15 @@ export default class TransferJobService {
     return DataTransferJob.query().where('kind', kind).orderBy('created_at', 'desc').first()
   }
 
+  /** Past runs, most recent first — backs the admin page's history list. */
+  history(kind: DataTransferKind, limit = 20) {
+    return DataTransferJob.query()
+      .where('kind', kind)
+      .whereNotNull('finishedAt')
+      .orderBy('created_at', 'desc')
+      .limit(limit)
+  }
+
   // ── Internals ───────────────────────────────────────────────────────────────
 
   private async create(

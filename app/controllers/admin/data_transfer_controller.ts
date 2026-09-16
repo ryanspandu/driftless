@@ -115,6 +115,13 @@ export default class DataTransferController {
     return response.json({ job: job ? this.toDto(job) : null })
   }
 
+  /** Finished runs of a kind, most recent first — the admin page's history list. */
+  async history({ params, response }: HttpContext) {
+    const kind = params.kind === 'export' ? 'export' : 'import'
+    const jobs = await this.jobs.history(kind)
+    return response.json({ jobs: jobs.map((j) => this.toDto(j)) })
+  }
+
   /** Stream a finished export archive. */
   async downloadExport({ params, response }: HttpContext) {
     const job = await this.jobs.find(params.id)
