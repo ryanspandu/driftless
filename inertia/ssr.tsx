@@ -8,6 +8,7 @@ import { ThemeProvider } from '~/components/providers/theme-provider'
 import { QueryProvider } from '~/components/providers/query-provider'
 import { DeleteConfirmProvider } from '~/components/providers/delete-confirm-provider'
 import { LayoutShell } from '~/components/layout-shell'
+import { formatPageTitle, type TitleFormat } from '~/lib/title_format'
 
 // Mirrors inertia/app.tsx (providers + LayoutShell) so server output matches the
 // client tree and hydration is clean. Only pages allowlisted in config/inertia.ts
@@ -21,11 +22,12 @@ export default function render(page: any) {
   // DOM here, so SSR reads it off the shared Inertia prop instead (both are
   // set by inertia_middleware.ts).
   const appName: string = page?.props?.appName || 'Driftless'
+  const titleFormat: TitleFormat = page?.props?.titleFormat || 'suffix'
   return createInertiaApp({
     page,
     // Mirror app.tsx's title template so the SSR <title> matches the client and
     // no page ever ships without one.
-    title: (title) => (title ? `${title} - ${appName}` : appName),
+    title: (title) => formatPageTitle(title, appName, titleFormat),
     render: ReactDOMServer.renderToString,
     resolve: (name) =>
       resolvePageComponent(

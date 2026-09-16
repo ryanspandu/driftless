@@ -73,6 +73,10 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
     site_title: 'Driftless',
     site_description: 'A modern CMS',
     favicon_url: '/logo.svg',
+    // How the site title is combined with a page's own title in the browser
+    // tab: appended after it, prepended before it, or left out entirely.
+    // 'suffix' matches the behaviour this has always had.
+    title_format: 'suffix',
     // Site-wide custom <meta> tags (JSON array of SiteMetaTag), applied on every
     // public page.
     meta: '[]',
@@ -324,6 +328,8 @@ export interface PublicWebAppearance {
   siteTitle: string
   siteDescription: string
   faviconUrl: string
+  /** How the site title combines with a page's own title in the browser tab. */
+  titleFormat: 'suffix' | 'prefix' | 'none'
   /** Site-wide custom <meta> tags, applied on every public page. */
   metaTags: SiteMetaTag[]
 }
@@ -630,6 +636,7 @@ export class WebSettingsService {
       siteTitle: meta['site_title']?.trim() || 'Driftless',
       siteDescription: meta['site_description']?.trim() || '',
       faviconUrl: meta['favicon_url']?.trim() || '/logo.svg',
+      titleFormat: ((v) => (v === 'prefix' || v === 'none' ? v : 'suffix'))(meta['title_format']),
       metaTags: parseMetaTags(meta['meta']),
     }
   }
