@@ -48,6 +48,10 @@ export default class Account extends BaseModel {
   @column.dateTime()
   declare emailVerifiedAt: DateTime | null
 
+  /** Google account subject id, once this account has signed in with Google. */
+  @column()
+  declare googleSub: string | null
+
   /**
    * Authenticator-app (TOTP) two-factor — the same shape as the admin `User`.
    * Secret encrypted at rest, recovery codes hashed; both `serializeAs: null`.

@@ -29,16 +29,17 @@ const fail = (response: HttpContext['response'], error: unknown) =>
  */
 export default class StorefrontCatalogController {
   /**
-   * Public storefront config a page needs before it can render — currently the
-   * no-secret CAPTCHA config (which flows require a challenge, and the site key
-   * to render the widget). Sourced from the same `IntegrationSettingsService`
-   * the admin auth pages use, so the rule lives in one place. Never returns a
-   * secret.
+   * Public storefront config a page needs before it can render — the no-secret
+   * CAPTCHA config (which flows require a challenge, and the site key to render
+   * the widget) and whether Google sign-in is on for the storefront. Sourced
+   * from the same `IntegrationSettingsService` the admin auth pages use, so the
+   * rule lives in one place. Never returns a secret.
    */
   async config(ctx: HttpContext) {
     try {
       const captcha = await integrations.getPublicCaptchaConfig()
-      return ctx.response.json({ captcha })
+      const { google } = await integrations.getShopAuthPublicConfig()
+      return ctx.response.json({ captcha, google })
     } catch (error) {
       return fail(ctx.response, error)
     }

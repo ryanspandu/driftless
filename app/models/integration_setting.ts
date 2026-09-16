@@ -11,6 +11,10 @@ export default class IntegrationSetting extends BaseModel {
   @column()
   declare googleAuthEnabled: boolean
 
+  /** Independent toggle for the ecommerce storefront's customer login/register. */
+  @column()
+  declare googleAuthEnabledForShop: boolean
+
   @column()
   declare googleClientId: string | null
 

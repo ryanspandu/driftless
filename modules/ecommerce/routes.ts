@@ -41,6 +41,8 @@ const ExportsCtrl = () => import('#modules/ecommerce/controllers/admin/exports_c
 const CustomersCtrl = () => import('#modules/ecommerce/controllers/admin/customers_controller')
 const ShopDownloadCtrl = () =>
   import('#modules/ecommerce/controllers/storefront/download_controller')
+const ShopGoogleAuthCtrl = () =>
+  import('#modules/ecommerce/controllers/storefront/google_auth_controller')
 
 export function registerRoutes(router: HttpRouterService, middleware: NamedMiddleware) {
   const moduleEnabled = middleware.moduleEnabled({ name: 'ecommerce' })
@@ -327,6 +329,23 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
         .as('shop.account.page.register')
     })
     .use(throttle.storefront)
+    .use(moduleEnabled)
+
+  /**
+   * Google sign-in for shoppers. Browser-navigation redirects (Google itself
+   * navigates the visitor to the callback URL), so — like the account-page
+   * group above — these live under `/shop/*`, not `/api/shop/*`. Same throttle
+   * group as password login/register: `throttle.accountAuth` wraps the group,
+   * `accountAuthByEmail` doesn't apply since neither step carries an email.
+   */
+  router
+    .group(() => {
+      router.get('/shop/auth/google', [ShopGoogleAuthCtrl, 'start']).as('shop.auth.google.start')
+      router
+        .get('/shop/auth/google/callback', [ShopGoogleAuthCtrl, 'callback'])
+        .as('shop.auth.google.callback')
+    })
+    .use(throttle.accountAuth)
     .use(moduleEnabled)
 
   router

@@ -19,6 +19,7 @@ export default function GoogleIntegrationPage() {
   const update = useUpdateIntegrationSettings()
 
   const [googleAuthEnabled, setGoogleAuthEnabled] = useState(false)
+  const [googleAuthEnabledForShop, setGoogleAuthEnabledForShop] = useState(false)
   const [googleClientId, setGoogleClientId] = useState('')
   const [googleClientSecretNew, setGoogleClientSecretNew] = useState('')
   const [clearGoogleSecret, setClearGoogleSecret] = useState(false)
@@ -29,6 +30,7 @@ export default function GoogleIntegrationPage() {
     if (!query.data) return
     const d = query.data
     setGoogleAuthEnabled(d.googleAuthEnabled)
+    setGoogleAuthEnabledForShop(d.googleAuthEnabledForShop)
     setGoogleClientId(d.googleClientId ?? '')
     setGoogleClientSecretNew('')
     setClearGoogleSecret(false)
@@ -41,6 +43,7 @@ export default function GoogleIntegrationPage() {
     try {
       await update.mutateAsync({
         googleAuthEnabled,
+        googleAuthEnabledForShop,
         googleClientId: googleClientId.trim() || null,
         ...(clearGoogleSecret
           ? { googleClientSecret: '' }
@@ -84,11 +87,20 @@ export default function GoogleIntegrationPage() {
               <CardHeader>
                 <CardTitle>Credentials</CardTitle>
                 <CardDescription>
-                  From Google Cloud Console → APIs &amp; Services → Credentials. Redirect URI must
-                  be:{' '}
+                  From Google Cloud Console → APIs &amp; Services → Credentials. Redirect URIs must
+                  include:{' '}
                   <code className="rounded bg-muted px-1 py-0.5 text-xs">
                     {query.data?.googleRedirectUriHint}
                   </code>
+                  {query.data?.googleAuthEnabledForShop ? (
+                    <>
+                      {' '}
+                      and{' '}
+                      <code className="rounded bg-muted px-1 py-0.5 text-xs">
+                        {query.data?.googleRedirectUriHintForShop}
+                      </code>
+                    </>
+                  ) : null}
                   {query.data?.envGoogleOAuthFallback ? (
                     <span className="mt-2 block text-xs text-amber-600 dark:text-amber-500">
                       Environment variables also supply OAuth credentials; DB values override when
@@ -99,9 +111,16 @@ export default function GoogleIntegrationPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <ToggleRow
-                  title='Enable "Sign in with Google"'
+                  title='Enable "Sign in with Google" (admin)'
+                  description="Lets admin users sign in to /login with Google."
                   checked={googleAuthEnabled}
                   onChange={setGoogleAuthEnabled}
+                />
+                <ToggleRow
+                  title="Enable for storefront customer accounts"
+                  description="Lets shoppers sign in / sign up with Google at /shop/account/login and /shop/account/register — a separate toggle from admin sign-in above."
+                  checked={googleAuthEnabledForShop}
+                  onChange={setGoogleAuthEnabledForShop}
                 />
                 <div className="space-y-2">
                   <Label htmlFor="googleClientId">OAuth 2.0 Client ID</Label>

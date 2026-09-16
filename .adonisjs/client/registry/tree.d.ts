@@ -614,6 +614,12 @@ export interface ApiDefinition {
     }
     front: typeof routes['shop.front']
     unsubscribe: typeof routes['shop.unsubscribe']
+    auth: {
+      google: {
+        start: typeof routes['shop.auth.google.start']
+        callback: typeof routes['shop.auth.google.callback']
+      }
+    }
     product: typeof routes['shop.product']
     category: typeof routes['shop.category']
     tag: typeof routes['shop.tag']

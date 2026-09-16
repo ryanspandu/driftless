@@ -4015,6 +4015,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/pages_controller').default['accountRegister']>>>
     }
   }
+  'shop.auth.google.start': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop/auth/google'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/google_auth_controller').default['start']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/google_auth_controller').default['start']>>>
+    }
+  }
+  'shop.auth.google.callback': {
+    methods: ["GET","HEAD"]
+    pattern: '/shop/auth/google/callback'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/google_auth_controller').default['callback']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/storefront/google_auth_controller').default['callback']>>>
+    }
+  }
   'shop.product': {
     methods: ["GET","HEAD"]
     pattern: '/shop/p/:slug'

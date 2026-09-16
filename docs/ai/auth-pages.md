@@ -2,6 +2,13 @@
 
 **Status:** implemented.
 
+This page is scoped to the core **admin** `/login`/`/register` screens (the `users` table). The
+e-commerce storefront's shopper login/register is a separate system with its own screen-override
+mechanism and its own Google sign-in — see
+[modules/ecommerce/README.md](../../modules/ecommerce/README.md#screen-override-puck-blocks) and
+["Google sign-in for the storefront"](./custom-templates.md#google-sign-in-for-the-storefront) in
+custom-templates.md.
+
 `/login`, `/register`, `/forgot-password`, `/reset-password/:token` and the public 404/500
 each render a hard-coded React component by default. Any of them can instead render a page
 built in the **page builder**, chosen from Settings → Appearance.

@@ -2010,6 +2010,18 @@ const routes = {
     tokens: [{"old":"/shop/account/register","type":0,"val":"shop","end":""},{"old":"/shop/account/register","type":0,"val":"account","end":""},{"old":"/shop/account/register","type":0,"val":"register","end":""}],
     types: placeholder as Registry['shop.account.page.register']['types'],
   },
+  'shop.auth.google.start': {
+    methods: ["GET","HEAD"],
+    pattern: '/shop/auth/google',
+    tokens: [{"old":"/shop/auth/google","type":0,"val":"shop","end":""},{"old":"/shop/auth/google","type":0,"val":"auth","end":""},{"old":"/shop/auth/google","type":0,"val":"google","end":""}],
+    types: placeholder as Registry['shop.auth.google.start']['types'],
+  },
+  'shop.auth.google.callback': {
+    methods: ["GET","HEAD"],
+    pattern: '/shop/auth/google/callback',
+    tokens: [{"old":"/shop/auth/google/callback","type":0,"val":"shop","end":""},{"old":"/shop/auth/google/callback","type":0,"val":"auth","end":""},{"old":"/shop/auth/google/callback","type":0,"val":"google","end":""},{"old":"/shop/auth/google/callback","type":0,"val":"callback","end":""}],
+    types: placeholder as Registry['shop.auth.google.callback']['types'],
+  },
   'shop.product': {
     methods: ["GET","HEAD"],
     pattern: '/shop/p/:slug',
