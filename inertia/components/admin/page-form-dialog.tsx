@@ -25,6 +25,7 @@ import {
 import { MetaTagsEditor, type MetaTag } from '~/components/admin/meta-tags-editor'
 import { MediaField, isImageMime } from '~/puck/media-field'
 import { SeoPreview } from '~/puck/settings-dialog'
+import { cn } from '~/lib/utils'
 
 type Mode = { kind: 'create' } | { kind: 'edit'; row: PageSummaryDto }
 
@@ -289,7 +290,15 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        className={cn(
+          'flex max-h-[85vh] flex-col',
+          // Wider when the SEO section is showing: it lays the preview and its
+          // fields out side by side, which needs more room than the plain
+          // settings fields above ever do.
+          showSeo ? 'sm:max-w-2xl' : 'sm:max-w-md'
+        )}
+      >
         <DialogHeader>
           <DialogTitle>{mode.kind === 'edit' ? 'Edit page' : 'New page'}</DialogTitle>
           <DialogDescription>
@@ -299,258 +308,263 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="page-title">Title</Label>
-            <Input
-              id="page-title"
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value)
-                if (!pathDirty) setPath(pathify(e.target.value))
-              }}
-              required
-              minLength={1}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="page-path">Path</Label>
-            <div className="flex items-center gap-1">
-              <span className="text-sm text-muted-foreground">/</span>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+            <div className="space-y-2">
+              <Label htmlFor="page-title">Title</Label>
               <Input
-                id="page-path"
-                value={path}
+                id="page-title"
+                value={title}
                 onChange={(e) => {
-                  setPath(e.target.value)
-                  setPathDirty(true)
+                  setTitle(e.target.value)
+                  if (!pathDirty) setPath(pathify(e.target.value))
                 }}
-                placeholder="about/team"
                 required
                 minLength={1}
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="page-kind">Built with</Label>
-            <AppSelect
-              id="page-kind"
-              value={buildWith}
-              onChange={(v) => {
-                // Clear the picker so a value from the other coded choice can't
-                // carry over (a single-file slug is not a kit id).
-                setBuildWith(v as BuildWith)
-                setComponent('')
-              }}
-              options={[
-                { value: 'BUILDER', label: 'Visual builder' },
-                { value: 'CODE', label: 'Custom React component (single file)' },
-                { value: 'KIT', label: 'Custom template (coded)' },
-              ]}
-              isSearchable={false}
-            />
-          </div>
-
-          {buildWith === 'CODE' ? (
             <div className="space-y-2">
-              <Label htmlFor="page-component">Component</Label>
-              {/*
+              <Label htmlFor="page-path">Path</Label>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">/</span>
+                <Input
+                  id="page-path"
+                  value={path}
+                  onChange={(e) => {
+                    setPath(e.target.value)
+                    setPathDirty(true)
+                  }}
+                  placeholder="about/team"
+                  required
+                  minLength={1}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="page-kind">Built with</Label>
+              <AppSelect
+                id="page-kind"
+                value={buildWith}
+                onChange={(v) => {
+                  // Clear the picker so a value from the other coded choice can't
+                  // carry over (a single-file slug is not a kit id).
+                  setBuildWith(v as BuildWith)
+                  setComponent('')
+                }}
+                options={[
+                  { value: 'BUILDER', label: 'Visual builder' },
+                  { value: 'CODE', label: 'Custom React component (single file)' },
+                  { value: 'KIT', label: 'Custom template (coded)' },
+                ]}
+                isSearchable={false}
+              />
+            </div>
+
+            {buildWith === 'CODE' ? (
+              <div className="space-y-2">
+                <Label htmlFor="page-component">Component</Label>
+                {/*
                 A select, never a text field: the list comes from the same
                 generated manifest the server validates against, so an operator
                 cannot type a name that will fail to render.
               */}
-              <AppSelect
-                id="page-component"
-                value={component}
-                onChange={setComponent}
-                options={codeOptions}
-                placeholder={codeQuery.isLoading ? 'Loading…' : '— Choose a component —'}
-              />
-              <p className="text-xs text-muted-foreground">
-                {codeOptions.length
-                  ? 'From inertia/custom/pages/. Adding a file there needs a front-end rebuild before it appears.'
-                  : 'No components found. Add one under inertia/custom/pages/ and rebuild the front end.'}
-              </p>
-            </div>
-          ) : null}
-
-          {buildWith === 'KIT' ? (
-            <div className="space-y-2">
-              <Label htmlFor="page-kit">Custom template</Label>
-              <AppSelect
-                id="page-kit"
-                value={component}
-                onChange={setComponent}
-                options={kitOptions}
-                placeholder={kitQuery.isLoading ? 'Loading…' : '— Choose a template —'}
-              />
-              <p className="text-xs text-muted-foreground">
-                {kitOptions.length
-                  ? 'A self-contained folder under inertia/custom/kits/. Adding one needs a front-end rebuild before it appears.'
-                  : 'No custom templates found. Add a folder under inertia/custom/kits/ (see its README) and rebuild.'}
-              </p>
-            </div>
-          ) : null}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="page-status">Status</Label>
-              <AppSelect
-                id="page-status"
-                value={status}
-                onChange={(v) => setStatus(v as 'DRAFT' | 'PUBLISHED')}
-                options={[
-                  { value: 'DRAFT', label: 'Draft' },
-                  { value: 'PUBLISHED', label: 'Published' },
-                ]}
-                isSearchable={false}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="page-render">Render mode</Label>
-              <AppSelect
-                id="page-render"
-                value={renderMode}
-                onChange={(v) => setRenderMode(v as PageRenderMode)}
-                options={[
-                  { value: 'SSR', label: 'SSR (server-rendered)' },
-                  { value: 'SSG', label: 'Static (cached)' },
-                  { value: 'CSR', label: 'PWA (client)' },
-                ]}
-                isSearchable={false}
-              />
-            </div>
-          </div>
-
-          {buildWith === 'BUILDER' ? (
-            <div className="space-y-2">
-              <Label htmlFor="page-layout">Layout</Label>
-              <AppSelect
-                id="page-layout"
-                value={layoutId}
-                onChange={setLayoutId}
-                options={layoutOptions}
-                placeholder="— Default —"
-              />
-            </div>
-          ) : null}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="page-header">Header override</Label>
-              <AppSelect
-                id="page-header"
-                value={headerTemplateId}
-                onChange={setHeaderTemplateId}
-                options={headerOptions}
-                placeholder="— Default —"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="page-footer">Footer override</Label>
-              <AppSelect
-                id="page-footer"
-                value={footerTemplateId}
-                onChange={setFooterTemplateId}
-                options={footerOptions}
-                placeholder="— Default —"
-              />
-            </div>
-          </div>
-
-          {showSeo ? (
-            <div className="space-y-4 border-t pt-4">
-              <div>
-                <h3 className="text-sm font-medium">Search &amp; social</h3>
+                <AppSelect
+                  id="page-component"
+                  value={component}
+                  onChange={setComponent}
+                  options={codeOptions}
+                  placeholder={codeQuery.isLoading ? 'Loading…' : '— Choose a component —'}
+                />
                 <p className="text-xs text-muted-foreground">
-                  This page has no visual builder, so its SEO fields live here instead.
+                  {codeOptions.length
+                    ? 'From inertia/custom/pages/. Adding a file there needs a front-end rebuild before it appears.'
+                    : 'No components found. Add one under inertia/custom/pages/ and rebuild the front end.'}
                 </p>
               </div>
-              {pageQuery.isLoading ? (
-                <p className="text-xs text-muted-foreground">Loading…</p>
-              ) : (
-                <>
-                  {/* Capped narrower than the dialog: SeoPreview's 1.91:1 image box
-                      scales to its container's full width, which looks right in the
-                      wide Puck settings panel it was built for but towers over this
-                      compact modal at the dialog's own width. */}
-                  <div className="max-w-xs">
-                    <SeoPreview
-                      title={seoStr('title') || title || 'Untitled page'}
-                      description={seoStr('description')}
-                      url={`${typeof window !== 'undefined' ? window.location.origin : ''}/${path.replace(/^\/+/, '')}`.replace(
-                        /\/$/,
-                        ''
-                      )}
-                      image={seoStr('ogImage')}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="page-seo-title">Meta title</Label>
-                    <Input
-                      id="page-seo-title"
-                      value={seoStr('title')}
-                      onChange={(e) => patchSeo({ title: e.target.value })}
-                      placeholder="Falls back to the page title if empty"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="page-seo-description">Meta description</Label>
-                    <Textarea
-                      id="page-seo-description"
-                      rows={3}
-                      value={seoStr('description')}
-                      onChange={(e) => patchSeo({ description: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Open Graph image</Label>
-                    <MediaField
-                      value={seoStr('ogImage')}
-                      onChange={(url) => patchSeo({ ogImage: url })}
-                      mimeFilter={isImageMime}
-                      accept="image/*"
-                      kindLabel="image"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="page-seo-canonical">Canonical URL</Label>
-                    <Input
-                      id="page-seo-canonical"
-                      value={seoStr('canonical')}
-                      onChange={(e) => patchSeo({ canonical: e.target.value })}
-                      placeholder="https://example.com/page"
-                    />
-                  </div>
-                  <label className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                    <span>
-                      <span className="block text-sm font-medium">No-index</span>
-                      <span className="block text-xs text-muted-foreground">
-                        Ask search engines not to index this page.
-                      </span>
-                    </span>
-                    <Switch
-                      checked={seo.noindex === true}
-                      onCheckedChange={(v) => patchSeo({ noindex: v })}
-                    />
-                  </label>
-                  <MetaTagsEditor
-                    tags={seoMetaTags}
-                    onChange={(next) => patchSeo({ meta: next })}
-                  />
-                </>
-              )}
-            </div>
-          ) : null}
+            ) : null}
 
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
+            {buildWith === 'KIT' ? (
+              <div className="space-y-2">
+                <Label htmlFor="page-kit">Custom template</Label>
+                <AppSelect
+                  id="page-kit"
+                  value={component}
+                  onChange={setComponent}
+                  options={kitOptions}
+                  placeholder={kitQuery.isLoading ? 'Loading…' : '— Choose a template —'}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {kitOptions.length
+                    ? 'A self-contained folder under inertia/custom/kits/. Adding one needs a front-end rebuild before it appears.'
+                    : 'No custom templates found. Add a folder under inertia/custom/kits/ (see its README) and rebuild.'}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="page-status">Status</Label>
+                <AppSelect
+                  id="page-status"
+                  value={status}
+                  onChange={(v) => setStatus(v as 'DRAFT' | 'PUBLISHED')}
+                  options={[
+                    { value: 'DRAFT', label: 'Draft' },
+                    { value: 'PUBLISHED', label: 'Published' },
+                  ]}
+                  isSearchable={false}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="page-render">Render mode</Label>
+                <AppSelect
+                  id="page-render"
+                  value={renderMode}
+                  onChange={(v) => setRenderMode(v as PageRenderMode)}
+                  options={[
+                    { value: 'SSR', label: 'SSR (server-rendered)' },
+                    { value: 'SSG', label: 'Static (cached)' },
+                    { value: 'CSR', label: 'PWA (client)' },
+                  ]}
+                  isSearchable={false}
+                />
+              </div>
+            </div>
+
+            {buildWith === 'BUILDER' ? (
+              <div className="space-y-2">
+                <Label htmlFor="page-layout">Layout</Label>
+                <AppSelect
+                  id="page-layout"
+                  value={layoutId}
+                  onChange={setLayoutId}
+                  options={layoutOptions}
+                  placeholder="— Default —"
+                />
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="page-header">Header override</Label>
+                <AppSelect
+                  id="page-header"
+                  value={headerTemplateId}
+                  onChange={setHeaderTemplateId}
+                  options={headerOptions}
+                  placeholder="— Default —"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="page-footer">Footer override</Label>
+                <AppSelect
+                  id="page-footer"
+                  value={footerTemplateId}
+                  onChange={setFooterTemplateId}
+                  options={footerOptions}
+                  placeholder="— Default —"
+                />
+              </div>
+            </div>
+
+            {showSeo ? (
+              <div className="space-y-4 border-t pt-4">
+                <div>
+                  <h3 className="text-sm font-medium">Search &amp; social</h3>
+                  <p className="text-xs text-muted-foreground">
+                    This page has no visual builder, so its SEO fields live here instead.
+                  </p>
+                </div>
+                {pageQuery.isLoading ? (
+                  <p className="text-xs text-muted-foreground">Loading…</p>
+                ) : (
+                  <>
+                    {/* Side by side once the wider (showSeo) dialog width gives
+                        them room: the preview on its own, the fields in their own
+                        column. Stacks back to one column below `sm`. No-index and
+                        the meta-tag list are wider/differently-shaped, so they sit
+                        full-width below this row instead of squeezed into it. */}
+                    <div className="grid gap-4 sm:grid-cols-[220px_1fr] sm:items-start">
+                      <SeoPreview
+                        title={seoStr('title') || title || 'Untitled page'}
+                        description={seoStr('description')}
+                        url={`${typeof window !== 'undefined' ? window.location.origin : ''}/${path.replace(/^\/+/, '')}`.replace(
+                          /\/$/,
+                          ''
+                        )}
+                        image={seoStr('ogImage')}
+                      />
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="page-seo-title">Meta title</Label>
+                          <Input
+                            id="page-seo-title"
+                            value={seoStr('title')}
+                            onChange={(e) => patchSeo({ title: e.target.value })}
+                            placeholder="Falls back to the page title if empty"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="page-seo-description">Meta description</Label>
+                          <Textarea
+                            id="page-seo-description"
+                            rows={3}
+                            value={seoStr('description')}
+                            onChange={(e) => patchSeo({ description: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Open Graph image</Label>
+                          <MediaField
+                            value={seoStr('ogImage')}
+                            onChange={(url) => patchSeo({ ogImage: url })}
+                            mimeFilter={isImageMime}
+                            accept="image/*"
+                            kindLabel="image"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="page-seo-canonical">Canonical URL</Label>
+                          <Input
+                            id="page-seo-canonical"
+                            value={seoStr('canonical')}
+                            onChange={(e) => patchSeo({ canonical: e.target.value })}
+                            placeholder="https://example.com/page"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <label className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                      <span>
+                        <span className="block text-sm font-medium">No-index</span>
+                        <span className="block text-xs text-muted-foreground">
+                          Ask search engines not to index this page.
+                        </span>
+                      </span>
+                      <Switch
+                        checked={seo.noindex === true}
+                        onCheckedChange={(v) => patchSeo({ noindex: v })}
+                      />
+                    </label>
+                    <MetaTagsEditor
+                      tags={seoMetaTags}
+                      onChange={(next) => patchSeo({ meta: next })}
+                    />
+                  </>
+                )}
+              </div>
+            ) : null}
+
+            {error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
+          </div>
 
           <DialogFooter>
             <Button
