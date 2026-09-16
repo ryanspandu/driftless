@@ -36,7 +36,13 @@ shared/
 current
 current.next
 public/uploads
-storage/
+# Leading slash: root-level runtime storage only. A bare `storage/` matches a
+# directory of that name at ANY depth (same class of bug the repo's own
+# .gitignore warns about for modules/* and inertia/custom/kits/*) — it was
+# silently swallowing app/services/storage/ (real source, incl. driver.ts),
+# so `railway up` never uploaded it at all. Every "Cannot find module
+# .../storage/driver.*" failure on Railway was this, not a Node loader bug.
+/storage/
 tmp/*
 !tmp/.gitkeep
 
