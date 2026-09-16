@@ -41,6 +41,8 @@ export default function CaptchaIntegrationPage() {
   const [captchaOnLogin, setCaptchaOnLogin] = useState(false)
   const [captchaOnRegister, setCaptchaOnRegister] = useState(false)
   const [captchaOnCheckout, setCaptchaOnCheckout] = useState(false)
+  const [captchaOnForms, setCaptchaOnForms] = useState(false)
+  const [captchaOnDiscount, setCaptchaOnDiscount] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -55,6 +57,8 @@ export default function CaptchaIntegrationPage() {
     setCaptchaOnLogin(d.captchaOnLogin)
     setCaptchaOnRegister(d.captchaOnRegister)
     setCaptchaOnCheckout(d.captchaOnCheckout)
+    setCaptchaOnForms(d.captchaOnForms)
+    setCaptchaOnDiscount(d.captchaOnDiscount)
   }, [query.data])
 
   async function onSubmit(e: FormEvent) {
@@ -77,6 +81,8 @@ export default function CaptchaIntegrationPage() {
         captchaOnLogin,
         captchaOnRegister,
         captchaOnCheckout,
+        captchaOnForms,
+        captchaOnDiscount,
       })
       setCaptchaSecretNew('')
       setClearCaptchaSecret(false)
@@ -263,6 +269,41 @@ export default function CaptchaIntegrationPage() {
                   Login and registration cover both the admin sign-in and the storefront (shopper)
                   accounts. Checkout uses an invisible challenge, so it takes effect only with
                   Turnstile — other providers fall back to rate limiting there.
+                </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+                  <div className="flex flex-1 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+                    <Label
+                      htmlFor="captchaOnForms"
+                      className={`font-normal ${!captchaEnabled ? 'text-muted-foreground' : ''}`}
+                    >
+                      Require on contact forms
+                    </Label>
+                    <Switch
+                      id="captchaOnForms"
+                      checked={captchaOnForms}
+                      onCheckedChange={(v) => setCaptchaOnForms(v)}
+                      disabled={!captchaEnabled}
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+                    <Label
+                      htmlFor="captchaOnDiscount"
+                      className={`font-normal ${!captchaEnabled ? 'text-muted-foreground' : ''}`}
+                    >
+                      Require on cart discount code
+                    </Label>
+                    <Switch
+                      id="captchaOnDiscount"
+                      checked={captchaOnDiscount}
+                      onCheckedChange={(v) => setCaptchaOnDiscount(v)}
+                      disabled={!captchaEnabled}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Contact forms cover any builder Form block, including a template kit&apos;s own
+                  contact form (it posts to the same endpoint). Cart discount code covers applying a
+                  coupon in the storefront basket.
                 </p>
               </CardContent>
             </Card>

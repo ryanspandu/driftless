@@ -2,6 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http'
 import vine from '@vinejs/vine'
 import { apiFail } from '#helpers/api_error_response'
 import CartService from '#modules/ecommerce/services/cart_service'
+import CaptchaService from '#services/captcha_service'
+import { IntegrationSettingsService } from '#services/settings_service'
 
 const addValidator = vine.compile(
   vine.object({
@@ -20,6 +22,8 @@ const setValidator = vine.compile(
 const discountValidator = vine.compile(vine.object({ code: vine.string().trim().maxLength(64) }))
 
 const carts = new CartService()
+const integrations = new IntegrationSettingsService()
+const captcha = new CaptchaService()
 
 const fail = (response: HttpContext['response'], error: unknown) =>
   apiFail(response, error, 'ecommerce/cart')
@@ -97,6 +101,22 @@ export default class CartController {
   /** Apply a coupon code to the basket. */
   async applyDiscount(ctx: HttpContext) {
     const { request, response } = ctx
+
+    const captchaRow = await integrations.getOrCreate()
+    if (captcha.isCaptchaEffective(captchaRow) && captchaRow.captchaOnDiscount) {
+      const token = request.input('captchaToken')
+      const ok = await captcha.verifyToken(
+        captchaRow,
+        typeof token === 'string' ? token : undefined,
+        request.ip()
+      )
+      if (!ok) {
+        return response
+          .status(400)
+          .json({ message: 'CAPTCHA verification failed.', reason: 'captcha_failed' })
+      }
+    }
+
     try {
       const { code } = await request.validateUsing(discountValidator)
       const cart = await carts.forRequest(ctx)

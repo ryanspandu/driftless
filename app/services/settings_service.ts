@@ -553,6 +553,8 @@ export interface IntegrationSettingsAdmin {
   captchaOnLogin: boolean
   captchaOnRegister: boolean
   captchaOnCheckout: boolean
+  captchaOnForms: boolean
+  captchaOnDiscount: boolean
   envCaptchaFallback: boolean
   ga4Enabled: boolean
   ga4MeasurementId: string | null
@@ -580,6 +582,11 @@ export interface PublicCaptchaConfig {
    * only when this is set; otherwise checkout relies on its rate limit.
    */
   onCheckout: boolean
+  /** The generic builder Forms pipeline (`POST /api/forms/submit`) — the
+   * endpoint any template-kit contact form can post to. */
+  onForms: boolean
+  /** The storefront cart discount-code apply/check endpoints. */
+  onDiscount: boolean
 }
 
 export interface AuthPublicConfig {
@@ -1021,6 +1028,8 @@ export class IntegrationSettingsService {
       onLogin: captchaOk && row.captchaOnLogin,
       onRegister: captchaOk && row.captchaOnRegister,
       onCheckout: captchaOk && row.captchaOnCheckout && invisible,
+      onForms: captchaOk && row.captchaOnForms,
+      onDiscount: captchaOk && row.captchaOnDiscount,
     }
   }
 
@@ -1088,6 +1097,8 @@ export class IntegrationSettingsService {
       captchaOnLogin: row.captchaOnLogin,
       captchaOnRegister: row.captchaOnRegister,
       captchaOnCheckout: row.captchaOnCheckout,
+      captchaOnForms: row.captchaOnForms,
+      captchaOnDiscount: row.captchaOnDiscount,
       // Only the Turnstile env key is actually consumed by the public captcha
       // resolver (getAuthPublicConfig), so an HCAPTCHA_SITE_KEY env alone must
       // NOT report captcha as configured — that made the integrations hub show
@@ -1115,6 +1126,8 @@ export class IntegrationSettingsService {
       captchaOnLogin: boolean
       captchaOnRegister: boolean
       captchaOnCheckout: boolean
+      captchaOnForms: boolean
+      captchaOnDiscount: boolean
       ga4Enabled: boolean
       ga4MeasurementId: string | null
       clarityEnabled: boolean
@@ -1141,6 +1154,8 @@ export class IntegrationSettingsService {
     if (dto.captchaOnLogin !== undefined) row.captchaOnLogin = dto.captchaOnLogin
     if (dto.captchaOnRegister !== undefined) row.captchaOnRegister = dto.captchaOnRegister
     if (dto.captchaOnCheckout !== undefined) row.captchaOnCheckout = dto.captchaOnCheckout
+    if (dto.captchaOnForms !== undefined) row.captchaOnForms = dto.captchaOnForms
+    if (dto.captchaOnDiscount !== undefined) row.captchaOnDiscount = dto.captchaOnDiscount
     if (dto.ga4Enabled !== undefined) row.ga4Enabled = dto.ga4Enabled
     if (dto.ga4MeasurementId !== undefined)
       row.ga4MeasurementId = dto.ga4MeasurementId?.trim() || null

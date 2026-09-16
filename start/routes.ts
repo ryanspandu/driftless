@@ -5,6 +5,7 @@ import {
   analyticsCollectThrottle,
   apiV1Throttle,
   authIpThrottle,
+  blogSearchThrottle,
   formsSubmitThrottle,
   formsUploadThrottle,
   forgotPasswordAccountThrottle,
@@ -12,6 +13,7 @@ import {
   loginAccountThrottle,
   moduleInstallThrottle,
   postUnlockThrottle,
+  publicCmsRecordsThrottle,
   registerThrottle,
 } from '#start/limiter'
 import { registerAllModuleRoutes } from '#modules/registry'
@@ -37,9 +39,16 @@ router
   .post('/posts/:slug/unlock', [() => import('#controllers/public_controller'), 'unlock'])
   .as('posts.unlock')
   .use(postUnlockThrottle)
-router.get('/category/:slug', [() => import('#controllers/public_controller'), 'category'])
-router.get('/tag/:slug', [() => import('#controllers/public_controller'), 'tag'])
-router.get('/blog', [() => import('#controllers/public_controller'), 'blog']).as('blog')
+router
+  .get('/category/:slug', [() => import('#controllers/public_controller'), 'category'])
+  .use(blogSearchThrottle)
+router
+  .get('/tag/:slug', [() => import('#controllers/public_controller'), 'tag'])
+  .use(blogSearchThrottle)
+router
+  .get('/blog', [() => import('#controllers/public_controller'), 'blog'])
+  .as('blog')
+  .use(blogSearchThrottle)
 router.get('/offline', [() => import('#controllers/public_controller'), 'offline'])
 
 // First-party analytics beacon. Public + unauthenticated (real visitors have no
@@ -79,14 +88,19 @@ router.get('/api/public/content/:slug', [
 ])
 
 // Public, read-only CMS collection records (consumed by builder CollectionList blocks)
-router.get('/api/public/cms/:key/records', [
-  () => import('#controllers/public_cms_controller'),
-  'records',
-])
+router
+  .get('/api/public/cms/:key/records', [
+    () => import('#controllers/public_cms_controller'),
+    'records',
+  ])
+  .use(publicCmsRecordsThrottle)
 router.get('/api/public/cms/:key/records/:id', [
   () => import('#controllers/public_cms_controller'),
   'record',
 ])
+
+// Public, module-agnostic CAPTCHA config — see CaptchaController's doc comment.
+router.get('/api/captcha/config', [() => import('#controllers/captcha_controller'), 'config'])
 
 // Public, read-only form definition (consumed by the builder FormBlock auto-render)
 router.get('/api/public/forms/:slug', [

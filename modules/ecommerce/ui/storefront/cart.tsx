@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Head } from '@inertiajs/react'
+import { CaptchaWidget } from '~/components/auth/captcha-widget'
+import { useCaptcha } from '~/hooks/use_captcha'
 import { shopApi, type CartDto } from './_api'
 import { StorefrontLayout } from './_layout'
 import { EmptyBasket } from './_empty-basket'
@@ -165,14 +167,19 @@ function CouponBox({ cart, onChange }: { cart: CartDto; onChange: (c: CartDto) =
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const captcha = useCaptcha('discount')
 
   async function apply(e: FormEvent) {
     e.preventDefault()
     if (!code.trim()) return
+    if (captcha.required && !captcha.token?.trim()) {
+      setErr('Complete the verification challenge before applying a code.')
+      return
+    }
     setErr(null)
     setBusy(true)
     try {
-      onChange(await shopApi.applyDiscount(code.trim()))
+      onChange(await shopApi.applyDiscount(code.trim(), captcha.token))
       setCode('')
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : 'That code is not valid.')
@@ -220,12 +227,19 @@ function CouponBox({ cart, onChange }: { cart: CartDto; onChange: (c: CartDto) =
         />
         <button
           type="submit"
-          disabled={busy || !code.trim()}
+          disabled={busy || !code.trim() || (captcha.required && !captcha.token)}
           className="shrink-0 rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
         >
           {busy ? 'Applying…' : 'Apply'}
         </button>
       </div>
+      {captcha.required && captcha.provider && captcha.siteKey ? (
+        <CaptchaWidget
+          provider={captcha.provider}
+          siteKey={captcha.siteKey}
+          onToken={captcha.setToken}
+        />
+      ) : null}
       {err ? <p className="text-xs text-destructive">{err}</p> : null}
     </form>
   )

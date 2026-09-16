@@ -38,6 +38,12 @@ export default class IntegrationSetting extends BaseModel {
   @column()
   declare captchaOnCheckout: boolean
 
+  @column()
+  declare captchaOnForms: boolean
+
+  @column()
+  declare captchaOnDiscount: boolean
+
   // Explicit column names: the default snake_case strategy turns `ga4Enabled`
   // into `ga_4_enabled`, which doesn't match the `ga4_enabled` migration column.
   @column({ columnName: 'ga4_enabled' })

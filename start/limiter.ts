@@ -154,3 +154,25 @@ export const moduleInstallThrottle = limiter.define('module_install', ((ctx) => 
     .every('1 hour')
     .usingKey(`module_install_user_${userId ?? ctx.request.ip()}`)
 }) as LimiterBuilder)
+
+/**
+ * The blog/category/tag SSR search (`?q=`) — previously had no throttle at
+ * all. Generous, anti-scraping budget rather than a tight anti-brute-force
+ * one: normal browsing/pagination shouldn't come close.
+ */
+export const blogSearchThrottle = limiter.define('blog_search', ((ctx) =>
+  limiter
+    .allowRequests(120)
+    .every('1 minute')
+    .usingKey(`blog_search_${ctx.request.ip()}`)) as LimiterBuilder)
+
+/**
+ * Public CMS collection records (`GET /api/public/cms/:key/records`), used by
+ * builder CollectionList blocks — previously had no throttle at all. Same
+ * anti-scraping budget as `blogSearchThrottle`.
+ */
+export const publicCmsRecordsThrottle = limiter.define('public_cms_records', ((ctx) =>
+  limiter
+    .allowRequests(120)
+    .every('1 minute')
+    .usingKey(`public_cms_records_${ctx.request.ip()}`)) as LimiterBuilder)

@@ -6,6 +6,7 @@ import { PublicFormFields } from '~/puck/public-form-renderer'
 import { CaptchaWidget } from '~/components/auth/captcha-widget'
 import { GoogleSignInButton } from '~/components/auth/google-sign-in-button'
 import { useAuthPublicConfig } from '~/hooks/api/use-auth'
+import { useCaptcha } from '~/hooks/use_captcha'
 import { BlockDataContext, useBinding } from './block-data'
 import { Box } from './style-fields'
 
@@ -662,6 +663,7 @@ export function FormBlockView({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [definedForm, setDefinedForm] = useState<PublicFormDto | null>(null)
   const target = handler && handler !== 'none' ? FORM_HANDLERS[handler] : undefined
+  const captcha = useCaptcha('forms')
 
   // When a saved form is picked, fetch its schema and render its fields (works
   // in the builder preview too, since the endpoint is public).
@@ -685,6 +687,10 @@ export function FormBlockView({
   function collectDefined(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (editing || !definedForm) return
+    if (captcha.required && !captcha.token?.trim()) {
+      setCollectError('Complete the verification challenge before submitting.')
+      return
+    }
     const form = e.currentTarget
     const fd = new FormData(form)
     const fields: Record<string, unknown> = {}
@@ -706,6 +712,7 @@ export function FormBlockView({
         form: formSlug,
         page: typeof window !== 'undefined' ? window.location.pathname : null,
         fields,
+        ...(captcha.required && captcha.token ? { captchaToken: captcha.token } : {}),
       }),
     })
       .then(async (res) => {
@@ -714,7 +721,14 @@ export function FormBlockView({
           form.reset()
         } else if (res.status === 422) {
           const body = (await res.json().catch(() => ({}))) as { errors?: Record<string, string> }
-          setFieldErrors(body.errors ?? {})
+          // A CAPTCHA failure has no matching field in `definedForm.fields`, so
+          // it would never render via `PublicFormFields`' per-field errors —
+          // route it to the visible banner instead.
+          if (body.errors?.captcha) {
+            setCollectError(body.errors.captcha)
+          } else {
+            setFieldErrors(body.errors ?? {})
+          }
         } else if (res.status === 429) {
           setCollectError('Too many submissions. Please wait a moment and try again.')
         } else {
@@ -747,6 +761,10 @@ export function FormBlockView({
   function onCollect(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (editing) return
+    if (captcha.required && !captcha.token?.trim()) {
+      setCollectError('Complete the verification challenge before submitting.')
+      return
+    }
     const form = e.currentTarget
     const fields = Object.fromEntries(new FormData(form).entries())
     setLoading(true)
@@ -762,6 +780,7 @@ export function FormBlockView({
         form: formName || 'Form',
         page: typeof window !== 'undefined' ? window.location.pathname : null,
         fields,
+        ...(captcha.required && captcha.token ? { captchaToken: captcha.token } : {}),
       }),
     })
       .then((res) => {
@@ -800,9 +819,16 @@ export function FormBlockView({
         {auto ? (
           <div className="space-y-4">
             <PublicFormFields fields={definedForm!.fields as FormFieldDef[]} errors={fieldErrors} />
+            {captcha.required && captcha.provider && captcha.siteKey ? (
+              <CaptchaWidget
+                provider={captcha.provider}
+                siteKey={captcha.siteKey}
+                onToken={captcha.setToken}
+              />
+            ) : null}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (captcha.required && !captcha.token)}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
               {loading ? 'Sending…' : 'Submit'}
@@ -811,7 +837,16 @@ export function FormBlockView({
         ) : formSlug ? (
           <p className="text-sm text-muted-foreground">Loading form…</p>
         ) : Content ? (
-          <Content />
+          <>
+            <Content />
+            {captcha.required && captcha.provider && captcha.siteKey ? (
+              <CaptchaWidget
+                provider={captcha.provider}
+                siteKey={captcha.siteKey}
+                onToken={captcha.setToken}
+              />
+            ) : null}
+          </>
         ) : null}
         {/* Honeypot: hidden from real users, catches naive bots. */}
         <input

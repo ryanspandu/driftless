@@ -38,6 +38,9 @@ export interface ApiDefinition {
     records: typeof routes['public_cms.records']
     record: typeof routes['public_cms.record']
   }
+  captcha: {
+    config: typeof routes['captcha.config']
+  }
   publicForms: {
     show: typeof routes['public_forms.show']
   }
