@@ -19,6 +19,7 @@ import { cn } from '~/lib/utils'
 import { Switch } from '~/components/ui/switch'
 import { BackButton } from '~/components/admin/back-button'
 import { PageHeader } from '~/components/admin/page-header'
+import { ToggleRow } from '~/components/admin/toggle-row'
 import { Can } from '~/components/providers/ability-provider'
 import { useWebsiteSettings, useUpdateWebsiteSettings } from '~/hooks/api/use-website-settings'
 import { useModulesMenu } from '~/hooks/api/use-modules'
@@ -79,30 +80,6 @@ function mergeOrder(saved: string[] | undefined, defaults: string[]): string[] {
  * the order saved here is read back correctly there.
  */
 const moduleGroupKey = (g: { name: string; label: string }) => `${g.name}:${g.label}`
-
-function ToggleRow({
-  title,
-  description,
-  checked,
-  disabled,
-  onChange,
-}: {
-  title: string
-  description?: string | null
-  checked: boolean
-  disabled?: boolean
-  onChange: (checked: boolean) => void
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3">
-      <div className="min-w-0">
-        <p className="text-sm font-medium">{title}</p>
-        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
-      </div>
-      <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} />
-    </div>
-  )
-}
 
 /** A draggable row shell — provides the grip handle and drag transform. */
 function SortableRow({ id, children }: { id: string; children: ReactNode }) {

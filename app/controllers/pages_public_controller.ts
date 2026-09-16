@@ -8,11 +8,13 @@ import RedirectsService from '#services/redirects_service'
 import PagesService from '#services/pages_service'
 import { findFilePageByPath, virtualPageForFilePage } from '#services/file_pages'
 import TemplateKitsService from '#services/template_kits_service'
+import { WebSettingsService } from '#services/settings_service'
 
 const renderer = new PageRenderer()
 const redirects = new RedirectsService()
 const pagesService = new PagesService()
 const templateKits = new TemplateKitsService()
+const webSettingsService = new WebSettingsService()
 
 /**
  * Signal "no such page" so the exception handler can shape the response.
@@ -98,6 +100,13 @@ export default class PagesPublicController {
         ? page.renderedHtml.replaceAll(CSP_NONCE_SENTINEL, nonce)
         : page.renderedHtml
       response.header('Cache-Control', SSG_CACHE)
+      // This branch serves a pre-rendered snapshot and bypasses
+      // PageRenderer.render() entirely, so the site-wide noindex header (a
+      // live response property, unlike the meta tag baked into the snapshot
+      // HTML) has to be set here too.
+      if (await webSettingsService.getDiscourageIndexing()) {
+        response.header('X-Robots-Tag', 'noindex, nofollow')
+      }
       return response.header('Content-Type', 'text/html; charset=utf-8').send(html)
     }
 

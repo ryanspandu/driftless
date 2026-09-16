@@ -226,12 +226,14 @@ export default class PageRenderer {
             },
           })
 
-    const [globalCode, globalMeta, breakpoints, appearance] = await Promise.all([
-      webSettingsService.getGlobalCode(),
-      webSettingsService.getSiteMetaTags(),
-      webSettingsService.getBreakpointsRaw(),
-      webSettingsService.getPublicAppearance(),
-    ])
+    const [globalCode, globalMeta, breakpoints, appearance, discourageIndexing] =
+      await Promise.all([
+        webSettingsService.getGlobalCode(),
+        webSettingsService.getSiteMetaTags(),
+        webSettingsService.getBreakpointsRaw(),
+        webSettingsService.getPublicAppearance(),
+        webSettingsService.getDiscourageIndexing(),
+      ])
 
     /**
      * The record's own SEO wins over the template's, field by field — a
@@ -287,7 +289,18 @@ export default class PageRenderer {
       extra: ov?.jsonLd,
       custom: typeof baseSeo.jsonLdCustom === 'string' ? baseSeo.jsonLdCustom : null,
     })
-    const seo = { ...baseSeo, canonical, ...(jsonLd ? { jsonLd } : {}) }
+    const seo = {
+      ...baseSeo,
+      canonical,
+      ...(jsonLd ? { jsonLd } : {}),
+      // Site-wide "discourage indexing" only ever adds noindex, never removes
+      // a page's own — an operator turning it off doesn't silently make a
+      // page that opted into noindex itself start indexing again.
+      ...(discourageIndexing ? { noindex: true } : {}),
+    }
+    if (discourageIndexing) {
+      response.header('X-Robots-Tag', 'noindex, nofollow')
+    }
 
     const result = await renderPage(inertia, component, {
       page: {

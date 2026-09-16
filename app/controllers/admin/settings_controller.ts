@@ -47,9 +47,18 @@ export default class SettingsController {
     }
     try {
       const settings = await webSettingsService.applyPatches(patches)
-      // The theme (font/colours) is baked into SSG snapshots via shared props →
-      // re-render cached HTML when it changes.
-      if (patches.some((p) => p && typeof p === 'object' && p.section === 'theme')) {
+      // The theme (font/colours) and the site-wide noindex flag are both
+      // baked into SSG snapshots via shared props → re-render cached HTML
+      // when either changes. The AI-crawler toggles and the raw robots.txt
+      // override only ever affect /robots.txt, which is never cached, so
+      // they need no invalidation.
+      const touchesRenderedHtml = patches.some(
+        (p) =>
+          p &&
+          typeof p === 'object' &&
+          (p.section === 'theme' || (p.section === 'site_meta' && p.key === 'discourage_indexing'))
+      )
+      if (touchesRenderedHtml) {
         await pagesService.invalidateAllSnapshots()
       }
       return response.json(settings)
