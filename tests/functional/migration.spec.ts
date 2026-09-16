@@ -396,6 +396,52 @@ test.group('Public SEO', (group) => {
   })
 })
 
+test.group('Hardcoded noindex paths', (group) => {
+  group.each.setup(async () => resetDatabase())
+
+  test('admin, auth, and shop account/cart pages always carry X-Robots-Tag', async ({
+    client,
+    assert: a,
+  }) => {
+    // Unauthenticated (and, for /shop/*, with the ecommerce module left
+    // disabled) is enough — the header is set by global middleware before
+    // any auth check or module-enabled redirect, so it must be on the
+    // response for this exact path, redirect or not. `.redirects(0)` stops
+    // the client from silently following a redirect onto some OTHER page
+    // (e.g. /shop/cart → / when the module is off) and asserting against that.
+    for (const path of [
+      '/admin/dashboard',
+      '/admin/ecommerce',
+      '/login',
+      '/register',
+      '/forgot-password',
+      '/shop/cart',
+      '/shop/checkout',
+      '/shop/account',
+    ]) {
+      const res = await client.get(path).redirects(0)
+      a.equal(res.header('x-robots-tag'), 'noindex, nofollow', `expected noindex on ${path}`)
+    }
+  })
+
+  test('storefront catalogue pages are not noindexed', async ({ client, assert: a }) => {
+    const res = await client.get('/shop').redirects(0)
+    a.isUndefined(res.header('x-robots-tag'))
+  })
+
+  test('this cannot be defeated by discourage_indexing being off or a custom robots.txt', async ({
+    client,
+    assert: a,
+  }) => {
+    await new WebSettingsService().applyPatches([
+      { section: 'site_meta', key: 'discourage_indexing', value: '0' },
+      { section: 'site_meta', key: 'custom_robots_txt', value: 'User-agent: *\nAllow: /\n' },
+    ])
+    const res = await client.get('/admin/dashboard').redirects(0)
+    a.equal(res.header('x-robots-tag'), 'noindex, nofollow')
+  })
+})
+
 test.group('CMS', (group) => {
   group.each.setup(async () => resetDatabase())
 
