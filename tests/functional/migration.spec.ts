@@ -54,6 +54,24 @@ test.group('Not found', (group) => {
     res.assertStatus(404)
     res.assertBodyContains({ message: 'Not found' })
   })
+
+  test('a deleted/unknown post, category, or tag renders the themed 404 page', async ({
+    client,
+  }) => {
+    // Regression: these used to `response.status(404).send('Post not found')`
+    // — a bare-text response that bypassed the exception handler entirely, so
+    // a link to a since-deleted post rendered unstyled plain text instead of
+    // the branded errors/not_found page.
+    for (const path of [
+      '/posts/no-such-post-slug',
+      '/category/no-such-category-slug',
+      '/tag/no-such-tag-slug',
+    ]) {
+      const res = await client.get(path)
+      res.assertStatus(404)
+      res.assertTextIncludes('errors/not_found')
+    }
+  })
 })
 
 test.group('Auth unauthenticated', (group) => {

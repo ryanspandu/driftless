@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { Exception } from '@adonisjs/core/exceptions'
 import type User from '#models/user'
 import ContentService from '#services/content_service'
 import ContentCategoryService from '#services/content_category_service'
@@ -22,6 +23,17 @@ const renderer = new PageRenderer()
 
 /** Signed cookie listing the post ids this visitor has unlocked with a password. */
 const UNLOCK_COOKIE = 'dl_unlocked'
+
+/**
+ * Signal "no such post/category/tag" so the exception handler renders the
+ * themed `errors/not_found` page — must *throw* rather than
+ * `response.status(404).send(...)`, which short-circuits the handler and
+ * ships bare unstyled text instead (see `pages_public_controller.ts`'s
+ * identical `pageNotFound()` for the same reasoning).
+ */
+function contentNotFound(message: string): never {
+  throw new Exception(message, { status: 404, code: 'E_PAGE_NOT_FOUND' })
+}
 
 function readUnlockedIds(request: HttpContext['request']): string[] {
   const raw = request.cookie(UNLOCK_COOKIE) as { ids?: unknown } | undefined
@@ -63,7 +75,7 @@ export default class PublicController {
     }
 
     const meta = await contentService.findAccessMetaBySlug(params.slug)
-    if (!meta) return response.status(404).send('Post not found')
+    if (!meta) contentNotFound('Post not found')
 
     // The gate decides whether the body may ship. A locked post is rendered with
     // its body withheld server-side (findPublishedBySlug(slug, false)) plus a
@@ -166,7 +178,7 @@ export default class PublicController {
     }
     const category = await contentCategoryService.findRefBySlug(params.slug)
     if (!category) {
-      return response.status(404).send('Category not found')
+      contentNotFound('Category not found')
     }
 
     const q = String(request.qs().q ?? '').trim()
@@ -209,7 +221,7 @@ export default class PublicController {
     }
     const tag = await contentTagService.findRefBySlug(params.slug)
     if (!tag) {
-      return response.status(404).send('Tag not found')
+      contentNotFound('Tag not found')
     }
 
     const q = String(request.qs().q ?? '').trim()
