@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import type { PageSummaryDto, PageRenderMode, PageKind } from '~/types/api'
 import { Button } from '~/components/ui/button'
 import {
@@ -11,10 +11,20 @@ import {
 } from '~/components/ui/dialog'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
+import { Switch } from '~/components/ui/switch'
+import { Textarea } from '~/components/ui/textarea'
 import { AppSelect, type AppSelectOption } from '~/components/ui/app-select'
 import { apiErrorMessage } from '~/lib/api'
 import { useTemplatesList } from '~/hooks/api/use-templates'
-import { useCodeComponents, useCustomTemplates, useCodeTemplates } from '~/hooks/api/use-pages'
+import {
+  useCodeComponents,
+  useCustomTemplates,
+  useCodeTemplates,
+  usePage,
+} from '~/hooks/api/use-pages'
+import { MetaTagsEditor, type MetaTag } from '~/components/admin/meta-tags-editor'
+import { MediaField, isImageMime } from '~/puck/media-field'
+import { SeoPreview } from '~/puck/settings-dialog'
 
 type Mode = { kind: 'create' } | { kind: 'edit'; row: PageSummaryDto }
 
@@ -54,6 +64,8 @@ export type PageFormSubmit = (values: {
   codeLayout: string | null
   hideHeader: boolean
   hideFooter: boolean
+  /** Only sent when the dialog shows the SEO section (edit mode, CODE/KIT pages). */
+  seo?: Record<string, unknown>
 }) => Promise<void> | void
 
 /**
@@ -95,6 +107,7 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
   const [pathDirty, setPathDirty] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [seo, setSeo] = useState<Record<string, unknown>>({})
 
   // Each picker's list is only fetched once its choice is active — most pages
   // never need either.
@@ -153,6 +166,18 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
 
   const modeKey = mode.kind === 'edit' ? `edit:${mode.row.id}` : 'create'
 
+  /**
+   * BUILDER pages already have a full SEO editor in the Puck builder, staged
+   * into `draftSeo` and only promoted on Publish — this dialog's save flow
+   * writes `seo` live, so a second SEO editor here for BUILDER pages would let
+   * an operator bypass their own draft/publish review. CODE and KIT pages have
+   * no builder at all, so this dialog is their only SEO surface.
+   */
+  const showSeo = mode.kind === 'edit' && buildWith !== 'BUILDER'
+  // Fetches the full page (mode.row is a PageSummaryDto and doesn't carry seo).
+  const pageQuery = usePage(mode.kind === 'edit' ? mode.row.id : '', showSeo)
+  const seoSeededKeyRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!open) return
     if (mode.kind === 'edit') {
@@ -194,8 +219,21 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
       setPathDirty(false)
     }
     setError(null)
+    setSeo({})
+    seoSeededKeyRef.current = null
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, modeKey])
+
+  // Seeds `seo` from the fetched full page once per dialog open — not on every
+  // `pageQuery.data` reference change (a background refetch, e.g. from another
+  // mutation invalidating the same query key, would otherwise clobber edits the
+  // operator has made in this dialog since it opened).
+  useEffect(() => {
+    if (!open || !showSeo || !pageQuery.data) return
+    if (seoSeededKeyRef.current === modeKey) return
+    setSeo(pageQuery.data.seo ?? {})
+    seoSeededKeyRef.current = modeKey
+  }, [open, showSeo, modeKey, pageQuery.data])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -233,6 +271,9 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
         codeFooter: footerSel?.code ?? null,
         hideHeader: headerTemplateId === NONE,
         hideFooter: footerTemplateId === NONE,
+        // Omitted entirely (not sent as {}) when the section isn't shown, so a
+        // BUILDER page's Puck-managed `seo` is never touched from here.
+        ...(showSeo ? { seo } : {}),
       })
       onOpenChange(false)
     } catch (err) {
@@ -241,6 +282,10 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
       setSubmitting(false)
     }
   }
+
+  const seoStr = (k: string) => (typeof seo[k] === 'string' ? (seo[k] as string) : '')
+  const patchSeo = (p: Record<string, unknown>) => setSeo((prev) => ({ ...prev, ...p }))
+  const seoMetaTags: MetaTag[] = Array.isArray(seo.meta) ? (seo.meta as MetaTag[]) : []
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -415,6 +460,85 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
               />
             </div>
           </div>
+
+          {showSeo ? (
+            <div className="space-y-4 border-t pt-4">
+              <div>
+                <h3 className="text-sm font-medium">Search &amp; social</h3>
+                <p className="text-xs text-muted-foreground">
+                  This page has no visual builder, so its SEO fields live here instead.
+                </p>
+              </div>
+              {pageQuery.isLoading ? (
+                <p className="text-xs text-muted-foreground">Loading…</p>
+              ) : (
+                <>
+                  <SeoPreview
+                    title={seoStr('title') || title || 'Untitled page'}
+                    description={seoStr('description')}
+                    url={`${typeof window !== 'undefined' ? window.location.origin : ''}/${path.replace(/^\/+/, '')}`.replace(
+                      /\/$/,
+                      ''
+                    )}
+                    image={seoStr('ogImage')}
+                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="page-seo-title">Meta title</Label>
+                    <Input
+                      id="page-seo-title"
+                      value={seoStr('title')}
+                      onChange={(e) => patchSeo({ title: e.target.value })}
+                      placeholder="Falls back to the page title if empty"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="page-seo-description">Meta description</Label>
+                    <Textarea
+                      id="page-seo-description"
+                      rows={3}
+                      value={seoStr('description')}
+                      onChange={(e) => patchSeo({ description: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Open Graph image</Label>
+                    <MediaField
+                      value={seoStr('ogImage')}
+                      onChange={(url) => patchSeo({ ogImage: url })}
+                      mimeFilter={isImageMime}
+                      accept="image/*"
+                      kindLabel="image"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="page-seo-canonical">Canonical URL</Label>
+                    <Input
+                      id="page-seo-canonical"
+                      value={seoStr('canonical')}
+                      onChange={(e) => patchSeo({ canonical: e.target.value })}
+                      placeholder="https://example.com/page"
+                    />
+                  </div>
+                  <label className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                    <span>
+                      <span className="block text-sm font-medium">No-index</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Ask search engines not to index this page.
+                      </span>
+                    </span>
+                    <Switch
+                      checked={seo.noindex === true}
+                      onCheckedChange={(v) => patchSeo({ noindex: v })}
+                    />
+                  </label>
+                  <MetaTagsEditor
+                    tags={seoMetaTags}
+                    onChange={(next) => patchSeo({ meta: next })}
+                  />
+                </>
+              )}
+            </div>
+          ) : null}
 
           {error ? (
             <p role="alert" className="text-sm text-destructive">

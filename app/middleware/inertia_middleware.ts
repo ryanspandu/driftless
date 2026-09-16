@@ -43,6 +43,10 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
     const appName = isAdminPath
       ? sections['admin_branding']?.['project_name']?.trim() || 'Driftless'
       : appearance.siteTitle
+    // The admin shell's own tab titles always use the suffix form — the
+    // site_meta.title_format setting is about the public site's <title>, not
+    // the admin UI's.
+    const titleFormat = isAdminPath ? 'suffix' : appearance.titleFormat
 
     /**
      * The favicon `<link>` and app-name `<meta>` live in the root edge shell
@@ -54,7 +58,7 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
      * it may not exist yet.
      */
     if ('view' in ctx) {
-      ctx.view.share({ faviconUrl: appearance.faviconUrl, appName })
+      ctx.view.share({ faviconUrl: appearance.faviconUrl, appName, titleFormat })
     }
 
     /**
@@ -79,6 +83,7 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
       // above) so `inertia/ssr.tsx` — which has no DOM to read a <meta> tag
       // from — can read it off `page.props` instead, mirroring `cspNonce`.
       appName: ctx.inertia.always(appName),
+      titleFormat: ctx.inertia.always(titleFormat),
     }
   }
 

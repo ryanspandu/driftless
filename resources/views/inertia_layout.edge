@@ -25,6 +25,9 @@
          before Inertia's own title template runs, so " - {siteName}" reflects the
          operator's actual settings instead of a hardcoded fallback. --}}
     <meta name="app-name" content="{{ appName ?? 'Driftless' }}" />
+    {{-- Same idea as `app-name` above — `titleFormat` is site_meta.title_format
+         on public pages, always 'suffix' on /admin. --}}
+    <meta name="title-format" content="{{ titleFormat ?? 'suffix' }}" />
     <link rel="manifest" href="/manifest.webmanifest" />
     {{-- `faviconUrl` is a view local (not an Inertia prop) passed by public
          renders via `renderPage`'s third argument, so the icon is right in the

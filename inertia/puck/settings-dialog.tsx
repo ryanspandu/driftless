@@ -472,7 +472,7 @@ function SeoSection({ meta, onChange }: { meta: PageMeta; onChange: (m: PageMeta
 }
 
 /** Live Google-result + social-card preview for the SEO fields being edited. */
-function SeoPreview({
+export function SeoPreview({
   title,
   description,
   url,

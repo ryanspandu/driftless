@@ -9,6 +9,7 @@ import { ThemeProvider } from '~/components/providers/theme-provider'
 import { QueryProvider } from '~/components/providers/query-provider'
 import { DeleteConfirmProvider } from '~/components/providers/delete-confirm-provider'
 import { LayoutShell } from '~/components/layout-shell'
+import { formatPageTitle, type TitleFormat } from '~/lib/title_format'
 
 // Set per-request by `inertia_middleware.ts` (site_meta.site_title on public
 // pages, admin_branding.project_name on /admin) — read from a <meta> tag,
@@ -16,6 +17,13 @@ import { LayoutShell } from '~/components/layout-shell'
 // page props.
 const appName =
   document.querySelector('meta[name="app-name"]')?.getAttribute('content') || 'Driftless'
+
+// Same idea as `appName` above — set per-request by `inertia_middleware.ts`
+// (site_meta.title_format on public pages, always 'suffix' on /admin).
+const titleFormat =
+  (document.querySelector('meta[name="title-format"]')?.getAttribute('content') as
+    | TitleFormat
+    | undefined) || 'suffix'
 
 // The per-request CSP nonce, published by the server in <meta name="csp-nonce">.
 // next-themes needs it or its no-FOUC inline <script>/<style> are CSP-blocked.
@@ -40,7 +48,7 @@ window.addEventListener('vite:preloadError', (event) => {
 })
 
 createInertiaApp({
-  title: (title) => (title ? `${title} - ${appName}` : appName),
+  title: (title) => formatPageTitle(title, appName, titleFormat),
   resolve: async (name) => {
     // Module pages: "modules/<name>/<area>/<page>" lives at
     // modules/<name>/ui/<area>/<page>.tsx (co-located with the module back-end).

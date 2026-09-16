@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { Textarea } from '~/components/ui/textarea'
+import { AppSelect } from '~/components/ui/app-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Can, useAbility } from '~/components/providers/ability-provider'
 import { useUpdateWebsiteSettings, useWebsiteSettings } from '~/hooks/api/use-website-settings'
@@ -92,6 +93,7 @@ function SiteMetaSection() {
   const update = useUpdateWebsiteSettings()
   const sm = data?.sections?.[WEBSITE_SETTING_SECTIONS.SITE_META]
   const [siteTitle, setSiteTitle] = useState('Driftless')
+  const [titleFormat, setTitleFormat] = useState<'suffix' | 'prefix' | 'none'>('suffix')
   const [siteDescription, setSiteDescription] = useState(SITE_DEFAULT_DESCRIPTION)
   const [faviconUrl, setFaviconUrl] = useState(SITE_DEFAULT_FAVICON)
   const [metaTags, setMetaTags] = useState<MetaTag[]>([])
@@ -113,6 +115,9 @@ function SiteMetaSection() {
   useEffect(() => {
     if (!sm) return
     setSiteTitle(sm.site_title ?? 'Driftless')
+    setTitleFormat(
+      sm.title_format === 'prefix' || sm.title_format === 'none' ? sm.title_format : 'suffix'
+    )
     setSiteDescription(sm.site_description ?? SITE_DEFAULT_DESCRIPTION)
     setFaviconUrl(sm.favicon_url ?? SITE_DEFAULT_FAVICON)
     try {
@@ -155,6 +160,11 @@ function SiteMetaSection() {
             section: WEBSITE_SETTING_SECTIONS.SITE_META,
             key: 'site_title',
             value: siteTitle.trim() || 'Driftless',
+          },
+          {
+            section: WEBSITE_SETTING_SECTIONS.SITE_META,
+            key: 'title_format',
+            value: titleFormat,
           },
           {
             section: WEBSITE_SETTING_SECTIONS.SITE_META,
@@ -228,6 +238,25 @@ function SiteMetaSection() {
               disabled={isPending}
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="titleFormat">Page title format</Label>
+            <AppSelect
+              id="titleFormat"
+              value={titleFormat}
+              onChange={(v) => setTitleFormat(v as 'suffix' | 'prefix' | 'none')}
+              options={[
+                { value: 'suffix', label: 'Site name after the page title (suffix)' },
+                { value: 'prefix', label: 'Site name before the page title (prefix)' },
+                { value: 'none', label: "Don't add the site name" },
+              ]}
+              isSearchable={false}
+              disabled={isPending}
+            />
+            <p className="text-xs text-muted-foreground">
+              How the public page title combines with the site title above, in the browser tab.
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="siteDescription">Meta description</Label>
             <Textarea
