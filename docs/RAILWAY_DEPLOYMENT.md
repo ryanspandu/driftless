@@ -35,6 +35,55 @@ monorepo, so no per-service root directory is needed.
 | Postgres | Railway DB plugin | — | managed | — | — |
 | Redis | Railway DB plugin | — | managed | — | — |
 
+### Copy-paste reference: exactly what goes in Build vs. Deploy
+
+Every field below lives in a service's **Settings** — `Build Command` under **Build**;
+`Start Command`, `Healthcheck Path` and `Pre-Deploy Command` under **Deploy**. Identical whether
+the service builds from GitHub or from `railway up` (see below).
+
+**Build Command** — same on `web`, `worker`, `maintenance`:
+```
+npm_config_production=false npm install && npm run build
+```
+
+**`web`** — Start Command:
+```
+node build/bin/server.js
+```
+Healthcheck Path: `/health`. Pre-Deploy Command:
+```
+node build/bin/console.js migration:run --force && node build/bin/console.js db:seed
+```
+
+**`worker`** — Start Command:
+```
+node build/bin/console.js queue:work
+```
+No Healthcheck Path, no Pre-Deploy Command.
+
+**`maintenance`** — Start Command:
+```
+node build/bin/console.js modules:maintenance
+```
+No Healthcheck Path, no Pre-Deploy Command. Cron Schedule: `*/5 * * * *`.
+
+**These three Deploy fields are never inferred — you must set them explicitly, every time you
+create a service from scratch** (an "Empty Service", or one created any other way than following
+this guide top to bottom). Leaving them blank does not fall back to anything build-related:
+Railway runs `npm start`, which is `package.json`'s own self-hosted `"start"` script
+(`node current/bin/server.js`, pointing at the `current` release symlink — a self-hosted-only
+concept that doesn't exist on Railway). The service builds fine and then crash-loops on every
+boot with `Error: Cannot find module '/app/current/bin/server.js'` — a runtime crash, not a build
+failure, so `railway up`/the GitHub build log reports success right before this happens.
+
+**Changing one of these three fields does not affect the current deployment — only the *next
+build*.** Railpack bakes the Start Command into the built image; it is not read fresh each time a
+container starts. Clicking **Redeploy** (or the `redeploy` CLI/MCP action) explicitly *reuses the
+existing build* — by design, that's what makes it fast — so it re-runs whatever Start Command was
+baked in at build time, even after you've since corrected it in Settings. After changing Start
+Command, Pre-Deploy Command or Healthcheck Path, the fix only lands once a **genuinely new build**
+runs: push again (GitHub-connected) or `railway up` again (manual upload) — not just Redeploy.
+
 **Build Command**, identical on all three app services:
 
 ```
@@ -307,7 +356,10 @@ must not reach Railway (especially anything holding a secret), add it to `.railw
    (pick the project, the `production` environment, and the `driftless` service).
 
 Build Command, Start Command, Pre-Deploy Command, variables and the Node pin all stay exactly as
-configured above — only the *source* of the build changes.
+configured above (see [the copy-paste reference](#copy-paste-reference-exactly-what-goes-in-build-vs-deploy))
+— only the *source* of the build changes. A service created directly for CLI upload (e.g. an
+"Empty Service") doesn't have these set just because you picked Railpack as the builder — set them
+explicitly, or the deploy crash-loops per that section's warning.
 
 ### Every deploy
 
@@ -337,8 +389,18 @@ Add `--detach` to return immediately instead of streaming the build log.
 
 ## Redeploying
 
-GitHub-connected: push to the connected branch, or trigger a redeploy from the Railway dashboard.
-Manual upload: run `railway up --no-gitignore --service driftless` again. Either way that's the
-whole release process; there's no separate "cut a release" step the way the self-hosted model has
-one. The Pre-Deploy Command (migrations + seed) runs again automatically before traffic switches
-over.
+GitHub-connected: push to the connected branch — Railway builds fresh from the new commit.
+Manual upload: run `railway up --no-gitignore --service driftless` again — same thing, a fresh
+build from whatever's on disk right now. Either way that's the whole release process; there's no
+separate "cut a release" step the way the self-hosted model has one. The Pre-Deploy Command
+(migrations + seed) runs again automatically before traffic switches over.
+
+**The dashboard's own "Redeploy" button (and the CLI/API `redeploy` action) is a different thing:
+it re-runs a *specific past deployment*, reusing its already-built image rather than building
+again.** Use it to roll back to an older, known-good build, or to just restart the running
+container — never to pick up a source change or a Deploy-settings change (Start Command,
+Pre-Deploy Command, Healthcheck Path). Railpack bakes the Start Command into the image at build
+time, so changing it in Settings and clicking Redeploy re-runs the *old* command — confirmed by
+reproducing exactly this: `Error: Cannot find module '/app/current/bin/server.js'` (the
+pre-fix Start Command) kept recurring across several Redeploys after the Settings field already
+showed the corrected `node build/bin/server.js`. The fix only lands on the next real build.

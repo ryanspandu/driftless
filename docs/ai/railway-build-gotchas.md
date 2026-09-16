@@ -1,6 +1,6 @@
 # Railway / fresh-clone build gotchas
 
-Five things break a Railway (Railpack) build that a **macOS working-tree `npm run build`
+Seven things break a Railway (Railpack) build that a **macOS working-tree `npm run build`
 never reproduces**, so they were missed until a real deploy. If you touch the build, deploy
 config, Node version, or `.adonisjs` codegen, read this. Human-facing walkthrough:
 [../RAILWAY_DEPLOYMENT.md](../RAILWAY_DEPLOYMENT.md).
@@ -77,3 +77,40 @@ secrets, releases, storage, regenerated codegen). **When you add a secret-bearin
 `.gitignore`, add it to `.railwayignore` too** — with `--no-gitignore` only `.railwayignore`
 stands between it and the image. The importer drafts kit pages whose kit isn't in the target
 build and warns; after deploying with the kit, publish (or re-import) them.
+
+## 6. An unscoped `.railwayignore` pattern silently drops source, not just runtime dirs
+
+`.railwayignore` (and `.gitignore`) match a bare `name/` pattern at **any depth**, not just the
+repo root. A `storage/` line meant to exclude the empty root-level runtime dir (local media
+uploads) also matched `app/services/storage/` — real source, including the S3 storage driver —
+so it was silently missing from every `railway up --no-gitignore` upload. The build then failed
+deep inside `node ace mcp:catalog` with `Error: Cannot find module '.../storage/driver.*'
+imported from .../media_service.ts'`, which reads exactly like a module-resolution/loader bug
+(and was chased as one — Node's async loader-hooks race, nodejs/node#59666 — for several attempts)
+before the actual cause surfaced: the file was never uploaded in the first place. `git archive`-
+based local reproductions never catch this class of bug, since `git archive` doesn't go through
+`.railwayignore`/`.gitignore` at all — reproduce with `railway up`'s own upload, or check with
+`git check-ignore -v <path>` against the exact pattern in question first.
+
+Fix: anchor with a leading slash — `/storage/` — for anything meant to exclude only a root-level
+directory. Same class of bug the repo's own `.gitignore` already calls out for `modules/*` and
+`inertia/custom/kits/*`.
+
+## 7. A service's Start/Pre-Deploy/Healthcheck are never inferred, and don't apply until the next real build
+
+A freshly created service (an "Empty Service", or any service not walked through this guide's
+steps 4-6) has no Start Command, Pre-Deploy Command or Healthcheck Path set just because Railpack
+detected the app and built it successfully. Left unset, Railway falls back to `npm start` —
+`package.json`'s own self-hosted script, `node current/bin/server.js`, pointing at a release
+symlink (`scripts/build-release.mjs`'s convention) that doesn't exist on Railway. The build
+succeeds; the container then crash-loops on every boot with
+`Error: Cannot find module '/app/current/bin/server.js'` — a **runtime** crash, so build logs and
+`railway up`'s own success message give no hint anything is wrong.
+
+Setting these fields (Settings → Deploy, or `update-service`'s `startCommand`/`preDeployCommand`/
+`healthcheckPath` fields via the Railway MCP) does **not** fix an already-crash-looping service by
+itself. Railpack bakes the Start Command into the built image at build time — confirmed by
+reproduction: correcting the field, then calling `redeploy` (dashboard "Redeploy", or the CLI/MCP
+redeploy action) re-ran the *old* `node current/bin/server.js` every time, because `redeploy`
+explicitly reuses the existing build rather than building again. The corrected command only takes
+effect on the next real build — push again (GitHub) or `railway up` again (manual upload).
