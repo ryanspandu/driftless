@@ -46,6 +46,8 @@ const RESERVED_FIRST_SEGMENT = new Set([
   'preview',
   /** Affiliate referral links (`/ref/:code`), registered by the same module. */
   'ref',
+  /** A product's outbound affiliate-CTA redirector (`/out/:productId`), same module. */
+  'out',
 ])
 
 /** The reserved segment a path's first component matches, or null if it's free. */

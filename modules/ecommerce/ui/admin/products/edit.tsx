@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { router, usePage } from '@inertiajs/react'
+import { Link, router, usePage } from '@inertiajs/react'
 import {
   DndContext,
   closestCenter,
@@ -652,6 +652,15 @@ export default function ProductEditPage() {
                       Your affiliate URL. Marked <code>nofollow sponsored</code> automatically — a
                       paid link has to say so.
                     </p>
+                    {!isNew ? (
+                      <p className="text-xs text-muted-foreground">
+                        Clicked {product.data?.externalClicksCount ?? 0} times. See{' '}
+                        <Link href="/admin/marketing/outbound-clicks" className="underline">
+                          Outbound links
+                        </Link>{' '}
+                        for click history across every product.
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="space-y-2">

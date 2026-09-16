@@ -3,8 +3,10 @@ import { apiFail } from '#helpers/api_error_response'
 import AuditLogService from '#services/audit_log_service'
 import type User from '#models/user'
 import ExportService, { type ExportRange } from '#modules/ecommerce/services/export_service'
+import ProductCtaClickService from '#modules/ecommerce/services/product_cta_click_service'
 
 const exports = new ExportService()
+const ctaClicks = new ProductCtaClickService()
 const audit = new AuditLogService()
 
 const fail = (response: HttpContext['response'], error: unknown) =>
@@ -74,5 +76,11 @@ export default class ExportsController {
 
   async products(ctx: HttpContext) {
     return this.send(ctx, 'products', 'products.csv', () => exports.products())
+  }
+
+  async outboundClicks(ctx: HttpContext) {
+    const raw = ctx.request.input('days')
+    const days = raw === 'all' || raw === undefined ? 'all' : Number(raw) || 'all'
+    return this.send(ctx, 'outbound_clicks', 'outbound-clicks.csv', () => ctaClicks.csv(days))
   }
 }

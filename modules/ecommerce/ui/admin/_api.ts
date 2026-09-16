@@ -63,6 +63,8 @@ export interface ProductDto {
   ctaMode: 'add_to_cart' | 'buy_now' | 'external'
   externalUrl: string | null
   externalLabel: string | null
+  /** Times a shopper has followed the `external` buy button, via `/out/:id`. */
+  externalClicksCount: number
   position: number
   /** Custom-field values from the singleton PRODUCT-type CMS collection. */
   data: Record<string, unknown> | null
@@ -1397,6 +1399,46 @@ export function useAbandonedCarts() {
     queryKey: ['ecommerce', 'abandoned-carts'] as const,
     queryFn: () => apiFetch<AbandonedCartDto[]>(`${BASE}/abandoned-carts`),
     staleTime: 60_000,
+  })
+}
+
+// ── Outbound (affiliate CTA) clicks ─────────────────────────────────────────
+
+export interface OutboundClickDto {
+  productId: string
+  title: string
+  slug: string
+  externalUrl: string | null
+  externalLabel: string | null
+  clicks: number
+  lastClickedAt: string | null
+}
+
+/** `days`: 7 | 30 | 90, or `'all'` for all-time. */
+export function useOutboundClicks(days: number | 'all') {
+  return useQuery({
+    queryKey: ['ecommerce', 'outbound-clicks', days] as const,
+    queryFn: () => apiFetch<OutboundClickDto[]>(`${BASE}/outbound-clicks?days=${days}`),
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+  })
+}
+
+export interface ClickHistoryDto {
+  createdAt: string
+  deviceType: 'desktop' | 'mobile' | 'tablet'
+  browser: string | null
+  os: string | null
+  referrer: string | null
+}
+
+/** Individual clicks on one product. `productId` null disables the query (modal closed). */
+export function useOutboundClickHistory(productId: string | null, days: number | 'all') {
+  return useQuery({
+    queryKey: ['ecommerce', 'outbound-clicks', productId, days, 'history'] as const,
+    queryFn: () => apiFetch<ClickHistoryDto[]>(`${BASE}/outbound-clicks/${productId}?days=${days}`),
+    enabled: !!productId,
+    staleTime: 30_000,
   })
 }
 

@@ -1,10 +1,12 @@
 import OrderService from '#modules/ecommerce/services/order_service'
 import AffiliateService from '#modules/ecommerce/services/affiliate_service'
 import WebhookService from '#modules/ecommerce/services/webhook_service'
+import ProductCtaClickService from '#modules/ecommerce/services/product_cta_click_service'
 
 const orders = new OrderService()
 const affiliates = new AffiliateService()
 const webhooks = new WebhookService()
+const ctaClicks = new ProductCtaClickService()
 
 export interface MaintenanceSummary extends Record<string, number> {
   /**
@@ -24,6 +26,8 @@ export interface MaintenanceSummary extends Record<string, number> {
   webhooksFailed: number
   /** Old affiliate click rows deleted. */
   clicksPruned: number
+  /** Old product outbound-CTA click rows deleted. */
+  ctaClicksPruned: number
   /** Abandoned-basket reminders sent. Only ever to customers who opted in. */
   basketReminders: number
 }
@@ -58,6 +62,7 @@ export default class MaintenanceService {
       webhooksProcessed: 0,
       webhooksFailed: 0,
       clicksPruned: 0,
+      ctaClicksPruned: 0,
       basketReminders: 0,
     }
 
@@ -73,6 +78,7 @@ export default class MaintenanceService {
     summary.webhooksFailed = webhookResult.failed
 
     summary.clicksPruned = await this.step(() => affiliates.pruneClicks())
+    summary.ctaClicksPruned = await this.step(() => ctaClicks.pruneClicks())
 
     /**
      * Last, and isolated like the rest. This is the only step that emails

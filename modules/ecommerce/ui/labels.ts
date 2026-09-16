@@ -21,6 +21,7 @@ export default {
     '/admin/marketing/discounts': 'Discounts',
     '/admin/marketing/affiliates': 'Affiliates',
     '/admin/marketing/commissions': 'Commissions',
+    '/admin/marketing/outbound-clicks': 'Outbound links',
   },
   prefix: [
     { path: '/admin/ecommerce/products/', label: 'Product' },

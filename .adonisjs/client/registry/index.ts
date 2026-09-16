@@ -1956,6 +1956,12 @@ const routes = {
     tokens: [{"old":"/ref/:code","type":0,"val":"ref","end":""},{"old":"/ref/:code","type":1,"val":"code","end":""}],
     types: placeholder as Registry['shop.referral']['types'],
   },
+  'shop.outbound': {
+    methods: ["GET","HEAD"],
+    pattern: '/out/:productId',
+    tokens: [{"old":"/out/:productId","type":0,"val":"out","end":""},{"old":"/out/:productId","type":1,"val":"productId","end":""}],
+    types: placeholder as Registry['shop.outbound']['types'],
+  },
   'shop.currencies': {
     methods: ["GET","HEAD"],
     pattern: '/api/shop/currencies',
@@ -2268,6 +2274,12 @@ const routes = {
     tokens: [{"old":"/api/admin/ecommerce/exports/products","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/exports/products","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/exports/products","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/exports/products","type":0,"val":"exports","end":""},{"old":"/api/admin/ecommerce/exports/products","type":0,"val":"products","end":""}],
     types: placeholder as Registry['ecommerce.api.exports.products']['types'],
   },
+  'ecommerce.api.exports.outboundClicks': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/ecommerce/exports/outbound-clicks',
+    tokens: [{"old":"/api/admin/ecommerce/exports/outbound-clicks","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/exports/outbound-clicks","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/exports/outbound-clicks","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/exports/outbound-clicks","type":0,"val":"exports","end":""},{"old":"/api/admin/ecommerce/exports/outbound-clicks","type":0,"val":"outbound-clicks","end":""}],
+    types: placeholder as Registry['ecommerce.api.exports.outboundClicks']['types'],
+  },
   'ecommerce.api.grants.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/ecommerce/orders/:orderId/grants',
@@ -2496,6 +2508,12 @@ const routes = {
     tokens: [{"old":"/admin/marketing/withdrawals","type":0,"val":"admin","end":""},{"old":"/admin/marketing/withdrawals","type":0,"val":"marketing","end":""},{"old":"/admin/marketing/withdrawals","type":0,"val":"withdrawals","end":""}],
     types: placeholder as Registry['ecommerce.withdrawals.page']['types'],
   },
+  'ecommerce.outbound_clicks.page': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/marketing/outbound-clicks',
+    tokens: [{"old":"/admin/marketing/outbound-clicks","type":0,"val":"admin","end":""},{"old":"/admin/marketing/outbound-clicks","type":0,"val":"marketing","end":""},{"old":"/admin/marketing/outbound-clicks","type":0,"val":"outbound-clicks","end":""}],
+    types: placeholder as Registry['ecommerce.outbound_clicks.page']['types'],
+  },
   'ecommerce.api.discounts.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/ecommerce/discounts',
@@ -2585,6 +2603,18 @@ const routes = {
     pattern: '/api/admin/ecommerce/withdrawals',
     tokens: [{"old":"/api/admin/ecommerce/withdrawals","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/withdrawals","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/withdrawals","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/withdrawals","type":0,"val":"withdrawals","end":""}],
     types: placeholder as Registry['ecommerce.api.withdrawals.index']['types'],
+  },
+  'ecommerce.api.outbound_clicks.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/ecommerce/outbound-clicks',
+    tokens: [{"old":"/api/admin/ecommerce/outbound-clicks","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/outbound-clicks","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/outbound-clicks","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/outbound-clicks","type":0,"val":"outbound-clicks","end":""}],
+    types: placeholder as Registry['ecommerce.api.outbound_clicks.index']['types'],
+  },
+  'ecommerce.api.outbound_clicks.history': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/ecommerce/outbound-clicks/:productId',
+    tokens: [{"old":"/api/admin/ecommerce/outbound-clicks/:productId","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/outbound-clicks/:productId","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/outbound-clicks/:productId","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/outbound-clicks/:productId","type":0,"val":"outbound-clicks","end":""},{"old":"/api/admin/ecommerce/outbound-clicks/:productId","type":1,"val":"productId","end":""}],
+    types: placeholder as Registry['ecommerce.api.outbound_clicks.history']['types'],
   },
   'ecommerce.api.commissions.pay': {
     methods: ["POST"],

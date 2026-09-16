@@ -43,6 +43,7 @@ const ShopDownloadCtrl = () =>
   import('#modules/ecommerce/controllers/storefront/download_controller')
 const ShopGoogleAuthCtrl = () =>
   import('#modules/ecommerce/controllers/storefront/google_auth_controller')
+const OutboundCtrl = () => import('#modules/ecommerce/controllers/storefront/outbound_controller')
 
 export function registerRoutes(router: HttpRouterService, middleware: NamedMiddleware) {
   const moduleEnabled = middleware.moduleEnabled({ name: 'ecommerce' })
@@ -245,6 +246,17 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
   router
     .get('/ref/:code', [ReferralCtrl, 'click'])
     .as('shop.referral')
+    .use(throttle.storefront)
+    .use(moduleEnabled)
+
+  /**
+   * A product's `external` (affiliate) buy-button link. Records the click,
+   * then redirects to the product's own `externalUrl`. Top-level, not under
+   * `/shop/*`, mirroring `/ref/:code` above.
+   */
+  router
+    .get('/out/:productId', [OutboundCtrl, 'click'])
+    .as('shop.outbound')
     .use(throttle.storefront)
     .use(moduleEnabled)
 
@@ -638,6 +650,13 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
     .use(moduleEnabled)
 
   router
+    .get('/api/admin/ecommerce/exports/outbound-clicks', [ExportsCtrl, 'outboundClicks'])
+    .as('ecommerce.api.exports.outboundClicks')
+    .use(middleware.auth())
+    .use(middleware.permission({ permission: 'ecommerce:products:read' }))
+    .use(moduleEnabled)
+
+  router
     .get('/api/admin/ecommerce/orders/:orderId/grants', [DigitalCtrl, 'grants'])
     .as('ecommerce.api.grants.index')
     .use(middleware.auth())
@@ -862,6 +881,16 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
   router
     .group(() => {
       router
+        .get('/admin/marketing/outbound-clicks', [MarketingCtrl, 'outboundClicksPage'])
+        .as('ecommerce.outbound_clicks.page')
+    })
+    .use(middleware.auth())
+    .use(middleware.pagePermission({ permission: 'ecommerce:products:read' }))
+    .use(moduleEnabled)
+
+  router
+    .group(() => {
+      router
         .get('/api/admin/ecommerce/discounts', [MarketingCtrl, 'listDiscounts'])
         .as('ecommerce.api.discounts.index')
     })
@@ -940,6 +969,22 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:commissions:read' }))
+    .use(moduleEnabled)
+
+  router
+    .group(() => {
+      router
+        .get('/api/admin/ecommerce/outbound-clicks', [MarketingCtrl, 'listOutboundClicks'])
+        .as('ecommerce.api.outbound_clicks.index')
+      router
+        .get('/api/admin/ecommerce/outbound-clicks/:productId', [
+          MarketingCtrl,
+          'outboundClickHistory',
+        ])
+        .as('ecommerce.api.outbound_clicks.history')
+    })
+    .use(middleware.auth())
+    .use(middleware.permission({ permission: 'ecommerce:products:read' }))
     .use(moduleEnabled)
 
   /**

@@ -234,6 +234,12 @@ export default defineModule({
           permission: 'ecommerce:affiliates:read',
         },
         {
+          label: 'Outbound links',
+          href: '/admin/marketing/outbound-clicks',
+          icon: 'ArrowSquareOut',
+          permission: 'ecommerce:products:read',
+        },
+        {
           label: 'Commissions',
           href: '/admin/marketing/commissions',
           icon: 'CurrencyDollar',

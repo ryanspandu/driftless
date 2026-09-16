@@ -72,6 +72,8 @@ export interface ProductDto {
   ctaMode: ProductCtaMode
   externalUrl: string | null
   externalLabel: string | null
+  /** Times a shopper has followed the `external` buy button, via `/out/:id`. */
+  externalClicksCount: number
   position: number
   /** Custom-field values from the singleton PRODUCT-type CMS collection. */
   data: Record<string, unknown> | null
@@ -890,6 +892,7 @@ export default class CatalogService {
       ctaMode: row.ctaMode ?? 'add_to_cart',
       externalUrl: row.externalUrl,
       externalLabel: row.externalLabel,
+      externalClicksCount: row.externalClicksCount ?? 0,
       position: row.position,
       data: row.data ?? null,
       variants,
