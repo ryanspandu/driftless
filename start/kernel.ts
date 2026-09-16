@@ -45,6 +45,8 @@ router.use([
   // Must follow silent_auth: it inspects the user that silent_auth resolved and
   // ends the session when the account has been deleted or deactivated.
   () => import('#middleware/active_user_middleware'),
+  // Hardcoded, not a setting — see the middleware's own doc comment.
+  () => import('#middleware/noindex_paths_middleware'),
 ])
 
 /**
