@@ -3,7 +3,12 @@
   "compilerOptions": {
     "rootDir": "./",
     "jsx": "react",
-    "outDir": "./build"
+    "outDir": "./build",
+    // Lets a handful of relative imports use the literal .ts extension (see
+    // app/services/media_service.ts) instead of the .js convention — needed
+    // alongside the already-enabled rewriteRelativeImportExtensions so tsc's
+    // type-checker (not just the ts-exec runtime loader) accepts the syntax.
+    "allowImportingTsExtensions": true
   },
   "references": [{ "path": "./tsconfig.inertia.json" }],
   "exclude": [
