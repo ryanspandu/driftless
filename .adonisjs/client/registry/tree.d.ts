@@ -334,6 +334,7 @@ export interface ApiDefinition {
     importArchive: typeof routes['data_transfer.import_archive']
     job: typeof routes['data_transfer.job']
     latestJob: typeof routes['data_transfer.latest_job']
+    history: typeof routes['data_transfer.history']
     downloadExport: typeof routes['data_transfer.download_export']
   }
   apiTokens: {

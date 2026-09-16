@@ -1281,6 +1281,10 @@ router
           () => import('#controllers/admin/data_transfer_controller'),
           'latestJob',
         ])
+        router.get('/api/admin/data-transfer/history/:kind', [
+          () => import('#controllers/admin/data_transfer_controller'),
+          'history',
+        ])
         router.get('/api/admin/data-transfer/exports/:id/download', [
           () => import('#controllers/admin/data_transfer_controller'),
           'downloadExport',

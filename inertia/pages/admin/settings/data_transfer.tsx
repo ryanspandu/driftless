@@ -5,12 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Button } from '~/components/ui/button'
 import { Checkbox } from '~/components/ui/checkbox'
 import { Label } from '~/components/ui/label'
+import { Badge } from '~/components/ui/badge'
 import { AppSelect } from '~/components/ui/app-select'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '~/components/ui/collapsible'
 import { DragDropImageUpload } from '~/components/drag-drop-image-upload'
-import { Download, FileArchive, Loader2 } from 'lucide-react'
+import { ChevronDown, Download, FileArchive, Loader2 } from 'lucide-react'
 import { apiFetch } from '~/lib/api-client'
 import {
   useTransferJob,
+  useTransferHistory,
+  useInvalidateTransferHistory,
   type ImportResult,
   type TransferJobDto,
 } from '~/hooks/api/use-data-transfer'
@@ -65,7 +69,7 @@ function ProgressPanel({ job }: { job: TransferJobDto }) {
   )
 }
 
-/** The final import report (dry-run or a completed background import). */
+/** A dry-run preview report — ephemeral, shown inline while the operator iterates. */
 function ReportPanel({ result }: { result: ImportResult }) {
   return (
     <div className="rounded-lg border border-border p-3 text-sm">
@@ -86,6 +90,80 @@ function ReportPanel({ result }: { result: ImportResult }) {
   )
 }
 
+/** The full log/skipped detail for one finished job — the history row's expanded content. */
+function JobDetail({ job }: { job: TransferJobDto }) {
+  if (job.state === 'failed') {
+    return <p className="text-sm text-destructive">{job.errorMessage ?? 'Import failed.'}</p>
+  }
+  const result = job.result as ImportResult | null
+  if (!result) return <p className="text-sm text-muted-foreground">No details recorded.</p>
+  return (
+    <ul className="space-y-1 text-xs text-muted-foreground">
+      {result.log.map((l, i) => (
+        <li key={i}>{l}</li>
+      ))}
+      {result.skipped.map((s, i) => (
+        <li key={`sk-${i}`} className="text-amber-600">
+          skipped {s.name}: {s.reason}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Total rows a section touched, for the row's one-line summary before it's expanded. */
+function resultSummary(result: ImportResult | null): string | null {
+  if (!result?.sections?.length) return null
+  const created = result.sections.reduce((n, s) => n + s.created, 0)
+  const updated = result.sections.reduce((n, s) => n + s.updated, 0)
+  return `+${created} created, ~${updated} updated`
+}
+
+/** Past import runs, most recent first, each collapsed until clicked. */
+function HistoryList({ jobs }: { jobs: TransferJobDto[] }) {
+  const [openId, setOpenId] = useState<string | null>(null)
+  if (jobs.length === 0) return null
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-muted-foreground">History</p>
+      <div className="divide-y divide-border rounded-lg border border-border">
+        {jobs.map((job) => {
+          const result = job.state === 'succeeded' ? (job.result as ImportResult | null) : null
+          const summary = resultSummary(result)
+          const open = openId === job.id
+          return (
+            <Collapsible
+              key={job.id}
+              open={open}
+              onOpenChange={(next) => setOpenId(next ? job.id : null)}
+            >
+              <CollapsibleTrigger
+                className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-muted/40"
+              >
+                <Badge variant={job.state === 'succeeded' ? 'success' : 'destructive'}>
+                  {job.state === 'succeeded' ? 'Imported' : 'Failed'}
+                </Badge>
+                <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                  {job.finishedAt ? new Date(job.finishedAt).toLocaleString() : '—'}
+                  {job.mode ? ` · ${job.mode}` : ''}
+                  {summary ? ` · ${summary}` : ''}
+                </span>
+                <ChevronDown
+                  className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
+                  aria-hidden
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="border-t border-border px-3 py-2.5">
+                <JobDetail job={job} />
+              </CollapsibleContent>
+            </Collapsible>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function DataTransferPage() {
   const [sections, setSections] = useState<Section[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -100,6 +178,17 @@ export default function DataTransferPage() {
 
   const importJob = useTransferJob(importJobId).data
   const exportJob = useTransferJob(exportJobId).data
+  const { data: importHistory = [] } = useTransferHistory('import')
+  const invalidateHistory = useInvalidateTransferHistory()
+
+  // Once a background import finishes, refresh the history list so the new
+  // entry shows up there instead of leaving a separate flat report on screen.
+  useEffect(() => {
+    if (importJob && (importJob.state === 'succeeded' || importJob.state === 'failed')) {
+      invalidateHistory('import')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [importJob?.state])
 
   useEffect(() => {
     apiFetch<{ sections: Section[] }>('/api/admin/data-transfer/manifest')
@@ -204,8 +293,6 @@ export default function DataTransferPage() {
 
   const importActive = isActive(importJob)
   const exportActive = isActive(exportJob)
-  const importResult: ImportResult | null =
-    dryReport ?? (importJob?.state === 'succeeded' ? (importJob.result as ImportResult) : null)
 
   return (
     <div className="space-y-6">
@@ -364,7 +451,8 @@ export default function DataTransferPage() {
           {importJob?.state === 'failed' ? (
             <p className="text-sm text-destructive">Import failed: {importJob.errorMessage}</p>
           ) : null}
-          {importResult ? <ReportPanel result={importResult} /> : null}
+          {dryReport ? <ReportPanel result={dryReport} /> : null}
+          <HistoryList jobs={importHistory} />
         </CardContent>
       </Card>
     </div>

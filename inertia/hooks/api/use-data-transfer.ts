@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '~/lib/api-client'
 
 export interface SectionReport {
@@ -58,4 +58,22 @@ export function useTransferJob(jobId: string | null) {
         (r) => r.job
       ),
   })
+}
+
+/** Finished export/import runs, most recent first — the history list. */
+export function useTransferHistory(kind: 'import' | 'export') {
+  return useQuery({
+    queryKey: ['data-transfer', 'history', kind],
+    queryFn: () =>
+      apiFetch<{ jobs: TransferJobDto[] }>(`/api/admin/data-transfer/history/${kind}`).then(
+        (r) => r.jobs
+      ),
+  })
+}
+
+/** Call after a job finishes so its freshly-terminal state lands in the history list. */
+export function useInvalidateTransferHistory() {
+  const queryClient = useQueryClient()
+  return (kind: 'import' | 'export') =>
+    queryClient.invalidateQueries({ queryKey: ['data-transfer', 'history', kind] })
 }
