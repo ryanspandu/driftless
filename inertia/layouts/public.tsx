@@ -7,7 +7,6 @@ import { type Data } from '@generated/data'
 import { buttonVariants } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
 import { PublicWebMeta } from '~/components/public-web-meta'
-import { AnalyticsScripts } from '~/components/analytics-scripts'
 import { ScrollToTop } from '~/components/scroll-to-top'
 
 const NAV_LINKS = [
@@ -64,7 +63,6 @@ export default function PublicLayout({
   return (
     <div className="theme-light cms-shell flex min-h-screen flex-col bg-background">
       <PublicWebMeta />
-      <AnalyticsScripts />
 
       <header
         className={cn(
