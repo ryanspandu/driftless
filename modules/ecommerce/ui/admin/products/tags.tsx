@@ -22,10 +22,21 @@ import { Textarea } from '~/components/ui/textarea'
 import { PageHeader } from '~/components/admin/page-header'
 import { BackButton } from '~/components/admin/back-button'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
+import { TrashModal } from '~/components/trash-modal'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { Can } from '~/components/providers/ability-provider'
 import { apiErrorMessage } from '~/lib/api-client'
-import { useDeleteTag, useSaveTag, useTags, type TagDto } from '../_api'
+import { formatAdminTableDateTime } from '~/lib/utils'
+import {
+  useDeleteTag,
+  useForceDeleteTag,
+  useRestoreTag,
+  useSaveTag,
+  useTags,
+  useTrashedTags,
+  type TagDto,
+  type TrashedTagDto,
+} from '../_api'
 
 function emptyForm() {
   return { id: null as string | null, name: '', slug: '', description: '' }
@@ -59,6 +70,13 @@ export default function TagsPage() {
 
   const [form, setForm] = useState<FormState | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Trash (soft-delete + restore), mirroring the core Templates page.
+  const trashedQuery = useTrashedTags()
+  const restoreTag = useRestoreTag()
+  const forceDeleteTag = useForceDeleteTag()
+  const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data])
+  const [trashOpen, setTrashOpen] = useState(false)
 
   const tags = query.data ?? []
 
@@ -175,6 +193,33 @@ export default function TagsPage() {
     [confirmDelete, remove]
   )
 
+  const trashColumns = useMemo<ColumnDef<TrashedTagDto, unknown>[]>(
+    () => [
+      {
+        id: 'name',
+        accessorFn: (r) => `${r.name} ${r.slug}`,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Tag" />,
+        cell: ({ row }) => (
+          <div className="flex flex-col leading-tight">
+            <span className="font-medium">{row.original.name}</span>
+            <span className="text-xs text-muted-foreground">/{row.original.slug}</span>
+          </div>
+        ),
+      },
+      {
+        id: 'deletedAt',
+        accessorFn: (r) => r.deletedAt,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Deleted" />,
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {formatAdminTableDateTime(row.original.deletedAt)}
+          </span>
+        ),
+      },
+    ],
+    []
+  )
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -185,18 +230,32 @@ export default function TagsPage() {
           subtitle="A flat way to label products across categories."
           count={tags.length}
           actions={
-            <Can permission="ecommerce:products:manage">
+            <div className="flex items-center gap-2">
               <Button
-                className="gap-2"
+                variant="ghost"
+                size="sm"
+                className="gap-1.5"
                 onClick={() => {
-                  setError(null)
-                  setForm(emptyForm())
+                  setTrashOpen(true)
+                  void trashedQuery.refetch()
                 }}
               >
-                <Plus className="size-4" aria-hidden />
-                New tag
+                <Trash2 className="size-4" />
+                Trash{trashedItems.length ? ` (${trashedItems.length})` : ''}
               </Button>
-            </Can>
+              <Can permission="ecommerce:products:manage">
+                <Button
+                  className="gap-2"
+                  onClick={() => {
+                    setError(null)
+                    setForm(emptyForm())
+                  }}
+                >
+                  <Plus className="size-4" aria-hidden />
+                  New tag
+                </Button>
+              </Can>
+            </div>
           }
         />
       </div>
@@ -293,6 +352,20 @@ export default function TagsPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <TrashModal
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        title="Trash — Tags"
+        itemNoun="tag"
+        rows={trashedItems}
+        columns={trashColumns}
+        isLoading={trashedQuery.isLoading}
+        getRowId={(r) => r.id}
+        onRestore={(id) => restoreTag.mutateAsync(id).then(() => undefined)}
+        onForceDelete={(id) => forceDeleteTag.mutateAsync(id)}
+        emptyMessage="No deleted tags."
+      />
     </div>
   )
 }

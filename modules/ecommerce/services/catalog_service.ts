@@ -87,6 +87,30 @@ export interface ProductDto {
   updatedAt: string
 }
 
+/** A lightweight row for the trash view — not the full DTO, matching the
+ *  same "lighter subset" convention the core Templates trash list uses. */
+export interface TrashedProductDto {
+  id: string
+  title: string
+  slug: string
+  status: ProductStatus
+  deletedAt: string
+}
+
+export interface TrashedCategoryDto {
+  id: string
+  name: string
+  slug: string
+  deletedAt: string
+}
+
+export interface TrashedTagDto {
+  id: string
+  name: string
+  slug: string
+  deletedAt: string
+}
+
 export interface CategoryDto {
   id: string
   slug: string
@@ -392,6 +416,43 @@ export default class CatalogService {
     })
   }
 
+  async findTrashedProducts(): Promise<TrashedProductDto[]> {
+    const rows = await Product.query().whereNotNull('deleted_at').orderBy('updated_at', 'desc')
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      slug: row.slug,
+      status: row.status,
+      deletedAt: row.deletedAt!.toISO()!,
+    }))
+  }
+
+  /** Clears `deletedAt` only — mirrors the core Templates restore, which
+   *  doesn't try to undo other delete-time side effects either (here, that a
+   *  removed product's `status` was set to `archived`; the admin can flip it
+   *  back to `active` from the edit page same as any other product). */
+  async restoreProduct(id: string): Promise<ProductDto> {
+    const row = await Product.query().where('id', id).whereNotNull('deleted_at').first()
+    if (!row) throw publicError.notFound('Product not found in trash.', 'product_not_found')
+    row.deletedAt = null
+    await row.save()
+    return this.find(id)
+  }
+
+  /**
+   * Permanent delete. Cascades to the product's variants and images at the DB
+   * level (`ON DELETE CASCADE`, see the catalog migration). Any order item
+   * that referenced one of those variants has its `variant_id` set null
+   * rather than being blocked — deliberately safe, per the comment on that FK
+   * in the orders migration: an order already snapshots title/sku/price/image
+   * independently, so losing the live variant link doesn't lose order history.
+   */
+  async forceDeleteProduct(id: string): Promise<void> {
+    const row = await Product.query().where('id', id).whereNotNull('deleted_at').first()
+    if (!row) throw publicError.notFound('Product not found in trash.', 'product_not_found')
+    await row.delete()
+  }
+
   // ── Variants ─────────────────────────────────────────────────────────────
 
   async createVariant(productId: string, input: VariantInput): Promise<VariantDto> {
@@ -605,6 +666,33 @@ export default class CatalogService {
     })
   }
 
+  async findTrashedCategories(): Promise<TrashedCategoryDto[]> {
+    const rows = await Category.query().whereNotNull('deleted_at').orderBy('updated_at', 'desc')
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      deletedAt: row.deletedAt!.toISO()!,
+    }))
+  }
+
+  /** The product-category links were detached at delete time — restoring
+   *  only brings back the category itself, not its old product assignments. */
+  async restoreCategory(id: string): Promise<CategoryDto> {
+    const row = await Category.query().where('id', id).whereNotNull('deleted_at').first()
+    if (!row) throw publicError.notFound('Category not found in trash.', 'category_not_found')
+    row.deletedAt = null
+    await row.save()
+    const all = await this.listCategories()
+    return all.find((c) => c.id === id)!
+  }
+
+  async forceDeleteCategory(id: string): Promise<void> {
+    const row = await Category.query().where('id', id).whereNotNull('deleted_at').first()
+    if (!row) throw publicError.notFound('Category not found in trash.', 'category_not_found')
+    await row.delete()
+  }
+
   // ── Tags (flat) ────────────────────────────────────────────────────────────
 
   async listTags(): Promise<TagDto[]> {
@@ -681,6 +769,31 @@ export default class CatalogService {
       await row.save()
       await trx.from('ecommerce_product_tags').where('tag_id', id).delete()
     })
+  }
+
+  async findTrashedTags(): Promise<TrashedTagDto[]> {
+    const rows = await Tag.query().whereNotNull('deleted_at').orderBy('updated_at', 'desc')
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      deletedAt: row.deletedAt!.toISO()!,
+    }))
+  }
+
+  async restoreTag(id: string): Promise<TagDto> {
+    const row = await Tag.query().where('id', id).whereNotNull('deleted_at').first()
+    if (!row) throw publicError.notFound('Tag not found in trash.', 'tag_not_found')
+    row.deletedAt = null
+    await row.save()
+    const all = await this.listTags()
+    return all.find((t) => t.id === id)!
+  }
+
+  async forceDeleteTag(id: string): Promise<void> {
+    const row = await Tag.query().where('id', id).whereNotNull('deleted_at').first()
+    if (!row) throw publicError.notFound('Tag not found in trash.', 'tag_not_found')
+    await row.delete()
   }
 
   // ── Internals ────────────────────────────────────────────────────────────

@@ -316,6 +316,9 @@ export const ecommerceKeys = {
   product: (id: string) => ['ecommerce', 'product', id] as const,
   categories: ['ecommerce', 'categories'] as const,
   tags: ['ecommerce', 'tags'] as const,
+  productsTrash: ['ecommerce', 'products', 'trash'] as const,
+  categoriesTrash: ['ecommerce', 'categories', 'trash'] as const,
+  tagsTrash: ['ecommerce', 'tags', 'trash'] as const,
   settings: ['ecommerce', 'settings'] as const,
   stats: ['ecommerce', 'stats'] as const,
   orders: (query: string) => ['ecommerce', 'orders', query] as const,
@@ -474,6 +477,45 @@ export function useBulkDeleteProducts() {
   })
 }
 
+/** A lightweight row for the trash view — mirrors the server's `TrashedProductDto`. */
+export interface TrashedProductDto {
+  id: string
+  title: string
+  slug: string
+  status: ProductStatus
+  deletedAt: string
+}
+
+export function useTrashedProducts(enabled = true) {
+  return useQuery({
+    queryKey: ecommerceKeys.productsTrash,
+    queryFn: () => apiFetch<TrashedProductDto[]>(`${BASE}/products/trash`),
+    enabled,
+    staleTime: 10_000,
+  })
+}
+
+export function useRestoreProduct() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<ProductDto>(`${BASE}/products/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ecommerceKeys.productsTrash })
+      invalidateProducts(qc)
+    },
+  })
+}
+
+export function useForceDeleteProduct() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`${BASE}/products/${id}/force`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ecommerceKeys.productsTrash }),
+  })
+}
+
 /** The per-row outcome of a CSV import (mirrors `ProductImportService.ImportResult`). */
 export interface ProductImportResult {
   created: number
@@ -592,6 +634,43 @@ export function useDeleteCategory() {
   })
 }
 
+export interface TrashedCategoryDto {
+  id: string
+  name: string
+  slug: string
+  deletedAt: string
+}
+
+export function useTrashedCategories(enabled = true) {
+  return useQuery({
+    queryKey: ecommerceKeys.categoriesTrash,
+    queryFn: () => apiFetch<TrashedCategoryDto[]>(`${BASE}/categories/trash`),
+    enabled,
+    staleTime: 10_000,
+  })
+}
+
+export function useRestoreCategory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<CategoryDto>(`${BASE}/categories/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ecommerceKeys.categoriesTrash })
+      void qc.invalidateQueries({ queryKey: ecommerceKeys.categories })
+    },
+  })
+}
+
+export function useForceDeleteCategory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`${BASE}/categories/${id}/force`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ecommerceKeys.categoriesTrash }),
+  })
+}
+
 export function useSaveTag() {
   const qc = useQueryClient()
   return useMutation({
@@ -617,6 +696,41 @@ export function useDeleteTag() {
       void qc.invalidateQueries({ queryKey: ecommerceKeys.tags })
       void qc.invalidateQueries({ queryKey: ['ecommerce', 'products'] })
     },
+  })
+}
+
+export interface TrashedTagDto {
+  id: string
+  name: string
+  slug: string
+  deletedAt: string
+}
+
+export function useTrashedTags(enabled = true) {
+  return useQuery({
+    queryKey: ecommerceKeys.tagsTrash,
+    queryFn: () => apiFetch<TrashedTagDto[]>(`${BASE}/tags/trash`),
+    enabled,
+    staleTime: 10_000,
+  })
+}
+
+export function useRestoreTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<TagDto>(`${BASE}/tags/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ecommerceKeys.tagsTrash })
+      void qc.invalidateQueries({ queryKey: ecommerceKeys.tags })
+    },
+  })
+}
+
+export function useForceDeleteTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`${BASE}/tags/${id}/force`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ecommerceKeys.tagsTrash }),
   })
 }
 

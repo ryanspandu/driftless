@@ -80,4 +80,50 @@ export default class CategoriesController {
       return fail(response, error)
     }
   }
+
+  async trash({ response }: HttpContext) {
+    return response.json(await catalog.findTrashedCategories())
+  }
+
+  async restore(ctx: HttpContext) {
+    const { params, response, auth } = ctx
+    try {
+      const id = String(params.id)
+      const category = await catalog.restoreCategory(id)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'category.updated',
+        subjectType: 'category',
+        subjectId: id,
+        changes: { restored: true },
+        ctx,
+      })
+
+      return response.json(category)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  async forceDestroy(ctx: HttpContext) {
+    const { params, response, auth } = ctx
+    try {
+      const id = String(params.id)
+      await catalog.forceDeleteCategory(id)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'category.deleted',
+        subjectType: 'category',
+        subjectId: id,
+        changes: { permanent: true },
+        ctx,
+      })
+
+      return response.json({ success: true })
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
 }

@@ -80,4 +80,50 @@ export default class TagsController {
       return fail(response, error)
     }
   }
+
+  async trash({ response }: HttpContext) {
+    return response.json(await catalog.findTrashedTags())
+  }
+
+  async restore(ctx: HttpContext) {
+    const { params, response, auth } = ctx
+    try {
+      const id = String(params.id)
+      const tag = await catalog.restoreTag(id)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'tag.updated',
+        subjectType: 'tag',
+        subjectId: id,
+        changes: { restored: true },
+        ctx,
+      })
+
+      return response.json(tag)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  async forceDestroy(ctx: HttpContext) {
+    const { params, response, auth } = ctx
+    try {
+      const id = String(params.id)
+      await catalog.forceDeleteTag(id)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'tag.deleted',
+        subjectType: 'tag',
+        subjectId: id,
+        changes: { permanent: true },
+        ctx,
+      })
+
+      return response.json({ success: true })
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
 }

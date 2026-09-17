@@ -704,6 +704,11 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .get('/api/admin/ecommerce/products', [ProductsCtrl, 'index'])
         .as('ecommerce.api.products.index')
+      // Literal /trash before the bare /:id below, or it would be read as a
+      // product id — same ordering rule the core Templates trash route uses.
+      router
+        .get('/api/admin/ecommerce/products/trash', [ProductsCtrl, 'trash'])
+        .as('ecommerce.api.products.trash')
       router
         .get('/api/admin/ecommerce/products/:id', [ProductsCtrl, 'show'])
         .as('ecommerce.api.products.show')
@@ -729,6 +734,14 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .post('/api/admin/ecommerce/products/bulk-delete', [ProductsCtrl, 'bulkDestroy'])
         .as('ecommerce.api.products.bulkDestroy')
+      // Suffixed patterns registered before the bare PUT/DELETE :id above so
+      // they win — same rule the trash GET route above follows.
+      router
+        .post('/api/admin/ecommerce/products/:id/restore', [ProductsCtrl, 'restore'])
+        .as('ecommerce.api.products.restore')
+      router
+        .delete('/api/admin/ecommerce/products/:id/force', [ProductsCtrl, 'forceDestroy'])
+        .as('ecommerce.api.products.forceDestroy')
 
       router
         .post('/api/admin/ecommerce/products/:id/variants', [ProductsCtrl, 'storeVariant'])
@@ -779,6 +792,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .get('/api/admin/ecommerce/categories', [CategoriesCtrl, 'index'])
         .as('ecommerce.api.categories.index')
+      router
+        .get('/api/admin/ecommerce/categories/trash', [CategoriesCtrl, 'trash'])
+        .as('ecommerce.api.categories.trash')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:products:read' }))
@@ -795,6 +811,12 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .delete('/api/admin/ecommerce/categories/:id', [CategoriesCtrl, 'destroy'])
         .as('ecommerce.api.categories.destroy')
+      router
+        .post('/api/admin/ecommerce/categories/:id/restore', [CategoriesCtrl, 'restore'])
+        .as('ecommerce.api.categories.restore')
+      router
+        .delete('/api/admin/ecommerce/categories/:id/force', [CategoriesCtrl, 'forceDestroy'])
+        .as('ecommerce.api.categories.forceDestroy')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:products:manage' }))
@@ -804,6 +826,9 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
   router
     .group(() => {
       router.get('/api/admin/ecommerce/tags', [TagsCtrl, 'index']).as('ecommerce.api.tags.index')
+      router
+        .get('/api/admin/ecommerce/tags/trash', [TagsCtrl, 'trash'])
+        .as('ecommerce.api.tags.trash')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:products:read' }))
@@ -818,6 +843,12 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .delete('/api/admin/ecommerce/tags/:id', [TagsCtrl, 'destroy'])
         .as('ecommerce.api.tags.destroy')
+      router
+        .post('/api/admin/ecommerce/tags/:id/restore', [TagsCtrl, 'restore'])
+        .as('ecommerce.api.tags.restore')
+      router
+        .delete('/api/admin/ecommerce/tags/:id/force', [TagsCtrl, 'forceDestroy'])
+        .as('ecommerce.api.tags.forceDestroy')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:products:manage' }))
