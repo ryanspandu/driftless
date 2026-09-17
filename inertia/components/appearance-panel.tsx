@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { usePage } from '@inertiajs/react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -152,6 +153,7 @@ function serializeColors(rows: ColorRow[]): SavedColor[] {
 }
 
 export function AppearancePanel() {
+  const { cspNonce } = usePage<{ cspNonce?: string }>().props
   const { data, isPending } = useWebsiteSettings()
   const update = useUpdateWebsiteSettings()
   const theme = data?.sections?.[WEBSITE_SETTING_SECTIONS.THEME]
@@ -395,6 +397,7 @@ export function AppearancePanel() {
           public render) — a stray quote/paren must not break out of the rule. */}
       {hasCustomFont && safeFontFamily(fontCustomName) && safeFontFaceUrl(fontFaceUrl) ? (
         <style
+          nonce={cspNonce}
           dangerouslySetInnerHTML={{
             __html: `@font-face{font-family:'${safeFontFamily(fontCustomName)}';src:url('${safeFontFaceUrl(fontFaceUrl)}');font-display:swap}`,
           }}
