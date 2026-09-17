@@ -23,10 +23,21 @@ import { AppSelect } from '~/components/ui/app-select'
 import { PageHeader } from '~/components/admin/page-header'
 import { BackButton } from '~/components/admin/back-button'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
+import { TrashModal } from '~/components/trash-modal'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { Can } from '~/components/providers/ability-provider'
 import { apiErrorMessage } from '~/lib/api-client'
-import { useCategories, useDeleteCategory, useSaveCategory, type CategoryDto } from '../_api'
+import { formatAdminTableDateTime } from '~/lib/utils'
+import {
+  useCategories,
+  useDeleteCategory,
+  useForceDeleteCategory,
+  useRestoreCategory,
+  useSaveCategory,
+  useTrashedCategories,
+  type CategoryDto,
+  type TrashedCategoryDto,
+} from '../_api'
 
 function emptyForm() {
   return { id: null as string | null, name: '', slug: '', description: '', parentId: '' }
@@ -61,6 +72,13 @@ export default function CategoriesPage() {
 
   const [form, setForm] = useState<FormState | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Trash (soft-delete + restore), mirroring the core Templates page.
+  const trashedQuery = useTrashedCategories()
+  const restoreCategory = useRestoreCategory()
+  const forceDeleteCategory = useForceDeleteCategory()
+  const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data])
+  const [trashOpen, setTrashOpen] = useState(false)
 
   const categories = query.data ?? []
 
@@ -209,6 +227,33 @@ export default function CategoriesPage() {
     [confirmDelete, nameById, remove]
   )
 
+  const trashColumns = useMemo<ColumnDef<TrashedCategoryDto, unknown>[]>(
+    () => [
+      {
+        id: 'name',
+        accessorFn: (r) => `${r.name} ${r.slug}`,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Category" />,
+        cell: ({ row }) => (
+          <div className="flex flex-col leading-tight">
+            <span className="font-medium">{row.original.name}</span>
+            <span className="text-xs text-muted-foreground">/{row.original.slug}</span>
+          </div>
+        ),
+      },
+      {
+        id: 'deletedAt',
+        accessorFn: (r) => r.deletedAt,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Deleted" />,
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {formatAdminTableDateTime(row.original.deletedAt)}
+          </span>
+        ),
+      },
+    ],
+    []
+  )
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -219,18 +264,32 @@ export default function CategoriesPage() {
           subtitle="How the storefront groups what you sell."
           count={categories.length}
           actions={
-            <Can permission="ecommerce:products:manage">
+            <div className="flex items-center gap-2">
               <Button
-                className="gap-2"
+                variant="ghost"
+                size="sm"
+                className="gap-1.5"
                 onClick={() => {
-                  setError(null)
-                  setForm(emptyForm())
+                  setTrashOpen(true)
+                  void trashedQuery.refetch()
                 }}
               >
-                <Plus className="size-4" aria-hidden />
-                New category
+                <Trash2 className="size-4" />
+                Trash{trashedItems.length ? ` (${trashedItems.length})` : ''}
               </Button>
-            </Can>
+              <Can permission="ecommerce:products:manage">
+                <Button
+                  className="gap-2"
+                  onClick={() => {
+                    setError(null)
+                    setForm(emptyForm())
+                  }}
+                >
+                  <Plus className="size-4" aria-hidden />
+                  New category
+                </Button>
+              </Can>
+            </div>
           }
         />
       </div>
@@ -337,6 +396,20 @@ export default function CategoriesPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <TrashModal
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        title="Trash — Categories"
+        itemNoun="category"
+        rows={trashedItems}
+        columns={trashColumns}
+        isLoading={trashedQuery.isLoading}
+        getRowId={(r) => r.id}
+        onRestore={(id) => restoreCategory.mutateAsync(id).then(() => undefined)}
+        onForceDelete={(id) => forceDeleteCategory.mutateAsync(id)}
+        emptyMessage="No deleted categories."
+      />
     </div>
   )
 }

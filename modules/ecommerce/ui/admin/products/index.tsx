@@ -24,16 +24,21 @@ import {
 } from '~/components/ui/dropdown_menu'
 import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
+import { TrashModal } from '~/components/trash-modal'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { useUrlState } from '~/hooks/use-url-state'
 import { apiErrorMessage } from '~/lib/api-client'
-import { cn } from '~/lib/utils'
+import { cn, formatAdminTableDateTime } from '~/lib/utils'
 import {
   useBulkDeleteProducts,
   useDeleteProduct,
+  useForceDeleteProduct,
   useProducts,
+  useRestoreProduct,
+  useTrashedProducts,
   type ProductDto,
   type ProductStatus,
+  type TrashedProductDto,
 } from '../_api'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 import { ImportProductsDialog } from './import-dialog'
@@ -122,6 +127,13 @@ export default function ProductsPage() {
   const [importOpen, setImportOpen] = useState(false)
   const [selection, setSelection] = useState<RowSelectionState>({})
   const [bulkError, setBulkError] = useState<string | null>(null)
+
+  // Trash (soft-delete + restore), mirroring the core Templates page.
+  const trashedQuery = useTrashedProducts()
+  const restoreProduct = useRestoreProduct()
+  const forceDeleteProduct = useForceDeleteProduct()
+  const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data])
+  const [trashOpen, setTrashOpen] = useState(false)
 
   const products = query.data?.items ?? []
   const total = query.data?.total ?? 0
@@ -286,6 +298,39 @@ export default function ProductsPage() {
     [confirmDelete, deleteProduct]
   )
 
+  const trashColumns = useMemo<ColumnDef<TrashedProductDto, unknown>[]>(
+    () => [
+      {
+        id: 'title',
+        accessorFn: (r) => r.title,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Product" />,
+        cell: ({ row }) => (
+          <div className="flex flex-col leading-tight">
+            <span className="font-medium">{row.original.title}</span>
+            <span className="text-xs text-muted-foreground">/{row.original.slug}</span>
+          </div>
+        ),
+      },
+      {
+        id: 'status',
+        accessorFn: (r) => r.status,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      },
+      {
+        id: 'deletedAt',
+        accessorFn: (r) => r.deletedAt,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Deleted" />,
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {formatAdminTableDateTime(row.original.deletedAt)}
+          </span>
+        ),
+      },
+    ],
+    []
+  )
+
   const statusFilter = (
     <TableFilterTabs
       value={status}
@@ -344,6 +389,21 @@ export default function ProductsPage() {
           </div>
         }
       />
+
+      <div className="flex justify-end">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => {
+            setTrashOpen(true)
+            void trashedQuery.refetch()
+          }}
+        >
+          <Trash2 className="size-4" />
+          Trash{trashedItems.length ? ` (${trashedItems.length})` : ''}
+        </Button>
+      </div>
 
       {selectedIds.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
@@ -411,6 +471,20 @@ export default function ProductsPage() {
       />
 
       <ImportProductsDialog open={importOpen} onOpenChange={setImportOpen} />
+
+      <TrashModal
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        title="Trash — Products"
+        itemNoun="product"
+        rows={trashedItems}
+        columns={trashColumns}
+        isLoading={trashedQuery.isLoading}
+        getRowId={(r) => r.id}
+        onRestore={(id) => restoreProduct.mutateAsync(id).then(() => undefined)}
+        onForceDelete={(id) => forceDeleteProduct.mutateAsync(id)}
+        emptyMessage="No deleted products."
+      />
     </div>
   )
 }
