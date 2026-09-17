@@ -3,6 +3,7 @@
 import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 import type { TooltipValueType } from "recharts"
+import { usePage } from '@inertiajs/react'
 
 import { cn } from "~/lib/utils"
 
@@ -85,6 +86,12 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
     ([, config]) => config.theme ?? config.color
   )
+  // Production runs a strict nonce-based style-src (no 'unsafe-inline', see
+  // config/shield.ts) — an inline <style> with no nonce is silently dropped,
+  // which left every chart's --color-* custom properties undefined and its
+  // line/area/bars invisible. Mirrors the identical fix in layout-shell.tsx
+  // and public-page-frame.tsx for the same class of bug.
+  const { cspNonce } = usePage<{ cspNonce?: string }>().props
 
   if (!colorConfig.length) {
     return null
@@ -92,6 +99,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 
   return (
     <style
+      nonce={cspNonce}
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
