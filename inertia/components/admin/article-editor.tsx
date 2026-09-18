@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { NodeSelection } from '@tiptap/pm/state'
@@ -141,6 +141,57 @@ const TEXT_COLORS = [
   '#1e3a8a',
 ]
 
+/** Every ancestor (excluding `from` itself) that actually scrolls its overflow. */
+function findScrollableAncestors(from: HTMLElement): HTMLElement[] {
+  const found: HTMLElement[] = []
+  let el = from.parentElement
+  while (el && el !== document.body) {
+    const style = getComputedStyle(el)
+    if (/(auto|scroll)/.test(style.overflowY) || /(auto|scroll)/.test(style.overflow)) {
+      found.push(el)
+    }
+    el = el.parentElement
+  }
+  return found
+}
+
+/** Stable key so the bubble menu's own scroll dispatch (below) can target it. */
+const BUBBLE_MENU_PLUGIN_KEY = 'articleEditorBubbleMenu'
+
+/**
+ * TipTap's BubbleMenu only repositions on `scroll` of a single target (default
+ * `window`), but this editor always sits inside a scrollable admin layout
+ * container, not the window itself — so without this, scrolling the page
+ * leaves the bubble menu floating at its last screen position. Rather than
+ * fight the plugin's single-`scrollTarget` option, dispatch the same
+ * `updatePosition` meta its own internal scroll handler uses, from listeners
+ * on every scrollable ancestor (the page's own scroll container, plus this
+ * editor's internal `overflow-auto` content area for long documents).
+ */
+function useBubbleMenuScrollFix(
+  editor: Editor | null,
+  wrapperRef: RefObject<HTMLElement | null>,
+  contentRef: RefObject<HTMLElement | null>
+) {
+  useEffect(() => {
+    if (!editor || !wrapperRef.current) return
+
+    const targets = findScrollableAncestors(wrapperRef.current)
+    if (contentRef.current) targets.push(contentRef.current)
+    if (targets.length === 0) return
+
+    const reposition = () => {
+      if (editor.isDestroyed) return
+      editor.view.dispatch(editor.state.tr.setMeta(BUBBLE_MENU_PLUGIN_KEY, 'updatePosition'))
+    }
+
+    targets.forEach((el) => el.addEventListener('scroll', reposition, { passive: true }))
+    return () => {
+      targets.forEach((el) => el.removeEventListener('scroll', reposition))
+    }
+  }, [editor, wrapperRef, contentRef])
+}
+
 /**
  * Full-featured TipTap WYSIWYG editor for article bodies. Emits **HTML** (the
  * same markup rendered publicly inside `prose`). StarterKit already bundles
@@ -157,6 +208,8 @@ export function ArticleEditor({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
 
   const editor = useEditor({
     editable: !disabled,
@@ -212,6 +265,8 @@ export function ArticleEditor({
     },
   })
 
+  useBubbleMenuScrollFix(editor, wrapperRef, contentRef)
+
   if (!editor) {
     return (
       <div
@@ -236,9 +291,10 @@ export function ArticleEditor({
 
   return (
     <div
+      ref={wrapperRef}
       className={cn(
         bare
-          ? 'overflow-hidden bg-transparent'
+          ? 'overflow-hidden rounded-lg border bg-transparent'
           : 'overflow-hidden rounded-lg border bg-background focus-within:ring-2 focus-within:ring-ring',
         disabled && 'opacity-60',
         className
@@ -250,7 +306,7 @@ export function ArticleEditor({
         onInsertImage={() => setPickerOpen(true)}
         onEditLink={openLink}
       />
-      <div className="max-h-[60vh] overflow-auto border-t">
+      <div ref={contentRef} className="max-h-[60vh] overflow-auto border-t">
         <EditorContent editor={editor} />
       </div>
       <DragHandle editor={editor}>
@@ -266,6 +322,7 @@ export function ArticleEditor({
 
       <BubbleMenu
         editor={editor}
+        pluginKey={BUBBLE_MENU_PLUGIN_KEY}
         shouldShow={({ editor: ed, state }) =>
           ed.isEditable && !state.selection.empty && !ed.isActive('image')
         }
