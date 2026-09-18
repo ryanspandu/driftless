@@ -13,7 +13,7 @@ import {
   readComponentFields,
   type ComponentSubField,
 } from '~/components/cms/component-schema-editor'
-import { RichTextEditor } from './rich-text-editor'
+import { ArticleEditor } from '~/components/admin/article-editor'
 import { MediaIdField } from '~/puck/media-field'
 
 interface FieldRendererProps {
@@ -72,8 +72,9 @@ export function FieldRenderer({ field, value, onChange, disabled }: FieldRendere
       return (
         <div className="space-y-1">
           {label}
-          <RichTextEditor
-            value={value}
+          <ArticleEditor
+            bare
+            value={stringOr(value, '')}
             onChange={onChange}
             disabled={disabled}
             placeholder="Write the article body here…"

@@ -36,7 +36,9 @@ export const createProductValidator = vine.compile(
     title: vine.string().trim().minLength(1).maxLength(255),
     slug: vine.string().trim().maxLength(200).optional(),
     subtitle: vine.string().trim().maxLength(255).nullable().optional(),
-    description: vine.object({}).allowUnknownProperties().optional(),
+    // Sanitized server-side (sanitizeRichText) before storage — same
+    // unbounded-length convention Content's own `body` field uses.
+    description: vine.string().optional(),
     type: vine.enum(['physical', 'digital'] as const).optional(),
     status: vine.enum(['draft', 'active', 'archived'] as const).optional(),
     seo: vine.object({}).allowUnknownProperties().optional(),
@@ -68,7 +70,9 @@ export const updateProductValidator = vine.compile(
     title: vine.string().trim().minLength(1).maxLength(255).optional(),
     slug: vine.string().trim().maxLength(200).optional(),
     subtitle: vine.string().trim().maxLength(255).nullable().optional(),
-    description: vine.object({}).allowUnknownProperties().optional(),
+    // Sanitized server-side (sanitizeRichText) before storage — same
+    // unbounded-length convention Content's own `body` field uses.
+    description: vine.string().optional(),
     type: vine.enum(['physical', 'digital'] as const).optional(),
     status: vine.enum(['draft', 'active', 'archived'] as const).optional(),
     seo: vine.object({}).allowUnknownProperties().optional(),

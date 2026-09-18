@@ -25,7 +25,7 @@ import { MoneyInput } from '../../components/money-input'
 import { BackButton } from '~/components/admin/back-button'
 import { PageHeader } from '~/components/admin/page-header'
 import { MediaImagePicker } from '~/components/admin/media-image-picker'
-import { RichTextEditor } from '~/components/cms/rich-text-editor'
+import { ArticleEditor } from '~/components/admin/article-editor'
 import { FieldRenderer } from '~/components/cms/field-renderer'
 import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
@@ -173,7 +173,7 @@ export default function ProductEditPage() {
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
   const [subtitle, setSubtitle] = useState('')
-  const [description, setDescription] = useState<unknown>('')
+  const [description, setDescription] = useState('')
   const [type, setType] = useState<ProductType>('physical')
   const [status, setStatus] = useState<ProductStatus>('draft')
   const [featured, setFeatured] = useState(false)
@@ -223,6 +223,14 @@ export default function ProductEditPage() {
 
   const data = product.data
 
+  // ArticleEditor only reads `value` as TipTap's *initial* content — it does not
+  // react to the prop changing later. Since `data` loads asynchronously, the
+  // editor would otherwise already be mounted (with empty content) by the time
+  // this effect populates `description`/`customData`. Remounting it once, right
+  // when those values become available, is what makes the loaded content show up.
+  const [richTextLoaded, setRichTextLoaded] = useState(false)
+  const richTextKey = `${productId ?? 'new'}-${richTextLoaded ? 'loaded' : 'loading'}`
+
   useEffect(() => {
     if (!data) return
     setTitle(data.title)
@@ -240,6 +248,7 @@ export default function ProductEditPage() {
     setImages(data.images.map((img) => ({ mediaUrl: img.mediaUrl, alt: img.alt })))
     setDrafts(Object.fromEntries(data.variants.map((v) => [v.id, variantToDraft(v)])))
     setCustomData((data.data as Record<string, unknown> | null) ?? {})
+    setRichTextLoaded(true)
   }, [data])
 
   const categoryOptions = useMemo(
@@ -270,9 +279,7 @@ export default function ProductEditPage() {
           title: title.trim(),
           slug: slug.trim() || undefined,
           subtitle: subtitle.trim() || null,
-          description: (typeof description === 'object' && description !== null
-            ? description
-            : {}) as Record<string, unknown>,
+          description,
           type,
           status,
           featured,
@@ -396,7 +403,13 @@ export default function ProductEditPage() {
 
               <div className="space-y-2">
                 <Label>Description</Label>
-                <RichTextEditor value={description} onChange={setDescription} />
+                <ArticleEditor
+                  key={richTextKey}
+                  bare
+                  value={description}
+                  onChange={setDescription}
+                  placeholder="Describe this product…"
+                />
               </div>
             </CardContent>
           </Card>
@@ -410,7 +423,7 @@ export default function ProductEditPage() {
               <CardContent className="space-y-4">
                 {customFields.map((field) => (
                   <FieldRenderer
-                    key={field.id}
+                    key={`${field.id}-${richTextKey}`}
                     field={field}
                     value={customData[field.key]}
                     onChange={(v) => setCustomData((prev) => ({ ...prev, [field.key]: v }))}

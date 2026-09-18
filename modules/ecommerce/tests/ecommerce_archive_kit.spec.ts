@@ -53,7 +53,7 @@ async function seedCategoryWithProduct(slug = 'widgets', name = 'Widgets') {
     slug: 'blue-widget',
     title: 'Blue Widget',
     subtitle: 'A widget, in blue',
-    description: {},
+    description: '',
     type: 'physical',
     status: 'active',
     currency: 'USD',

@@ -2322,6 +2322,12 @@ const routes = {
     tokens: [{"old":"/api/admin/ecommerce/products","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products","type":0,"val":"products","end":""}],
     types: placeholder as Registry['ecommerce.api.products.index']['types'],
   },
+  'ecommerce.api.products.trash': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/ecommerce/products/trash',
+    tokens: [{"old":"/api/admin/ecommerce/products/trash","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products/trash","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products/trash","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products/trash","type":0,"val":"products","end":""},{"old":"/api/admin/ecommerce/products/trash","type":0,"val":"trash","end":""}],
+    types: placeholder as Registry['ecommerce.api.products.trash']['types'],
+  },
   'ecommerce.api.products.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/ecommerce/products/:id',
@@ -2357,6 +2363,18 @@ const routes = {
     pattern: '/api/admin/ecommerce/products/bulk-delete',
     tokens: [{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"products","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"bulk-delete","end":""}],
     types: placeholder as Registry['ecommerce.api.products.bulkDestroy']['types'],
+  },
+  'ecommerce.api.products.restore': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/products/:id/restore',
+    tokens: [{"old":"/api/admin/ecommerce/products/:id/restore","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products/:id/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products/:id/restore","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products/:id/restore","type":0,"val":"products","end":""},{"old":"/api/admin/ecommerce/products/:id/restore","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/products/:id/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['ecommerce.api.products.restore']['types'],
+  },
+  'ecommerce.api.products.forceDestroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/ecommerce/products/:id/force',
+    tokens: [{"old":"/api/admin/ecommerce/products/:id/force","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products/:id/force","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products/:id/force","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products/:id/force","type":0,"val":"products","end":""},{"old":"/api/admin/ecommerce/products/:id/force","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/products/:id/force","type":0,"val":"force","end":""}],
+    types: placeholder as Registry['ecommerce.api.products.forceDestroy']['types'],
   },
   'ecommerce.api.variants.store': {
     methods: ["POST"],
@@ -2418,6 +2436,12 @@ const routes = {
     tokens: [{"old":"/api/admin/ecommerce/categories","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/categories","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/categories","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/categories","type":0,"val":"categories","end":""}],
     types: placeholder as Registry['ecommerce.api.categories.index']['types'],
   },
+  'ecommerce.api.categories.trash': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/ecommerce/categories/trash',
+    tokens: [{"old":"/api/admin/ecommerce/categories/trash","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/categories/trash","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/categories/trash","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/categories/trash","type":0,"val":"categories","end":""},{"old":"/api/admin/ecommerce/categories/trash","type":0,"val":"trash","end":""}],
+    types: placeholder as Registry['ecommerce.api.categories.trash']['types'],
+  },
   'ecommerce.api.categories.store': {
     methods: ["POST"],
     pattern: '/api/admin/ecommerce/categories',
@@ -2436,11 +2460,29 @@ const routes = {
     tokens: [{"old":"/api/admin/ecommerce/categories/:id","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/categories/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/categories/:id","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/categories/:id","type":0,"val":"categories","end":""},{"old":"/api/admin/ecommerce/categories/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['ecommerce.api.categories.destroy']['types'],
   },
+  'ecommerce.api.categories.restore': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/categories/:id/restore',
+    tokens: [{"old":"/api/admin/ecommerce/categories/:id/restore","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/categories/:id/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/categories/:id/restore","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/categories/:id/restore","type":0,"val":"categories","end":""},{"old":"/api/admin/ecommerce/categories/:id/restore","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/categories/:id/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['ecommerce.api.categories.restore']['types'],
+  },
+  'ecommerce.api.categories.forceDestroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/ecommerce/categories/:id/force',
+    tokens: [{"old":"/api/admin/ecommerce/categories/:id/force","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/categories/:id/force","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/categories/:id/force","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/categories/:id/force","type":0,"val":"categories","end":""},{"old":"/api/admin/ecommerce/categories/:id/force","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/categories/:id/force","type":0,"val":"force","end":""}],
+    types: placeholder as Registry['ecommerce.api.categories.forceDestroy']['types'],
+  },
   'ecommerce.api.tags.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/admin/ecommerce/tags',
     tokens: [{"old":"/api/admin/ecommerce/tags","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/tags","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/tags","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/tags","type":0,"val":"tags","end":""}],
     types: placeholder as Registry['ecommerce.api.tags.index']['types'],
+  },
+  'ecommerce.api.tags.trash': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/ecommerce/tags/trash',
+    tokens: [{"old":"/api/admin/ecommerce/tags/trash","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/tags/trash","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/tags/trash","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/tags/trash","type":0,"val":"tags","end":""},{"old":"/api/admin/ecommerce/tags/trash","type":0,"val":"trash","end":""}],
+    types: placeholder as Registry['ecommerce.api.tags.trash']['types'],
   },
   'ecommerce.api.tags.store': {
     methods: ["POST"],
@@ -2459,6 +2501,18 @@ const routes = {
     pattern: '/api/admin/ecommerce/tags/:id',
     tokens: [{"old":"/api/admin/ecommerce/tags/:id","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/tags/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/tags/:id","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/tags/:id","type":0,"val":"tags","end":""},{"old":"/api/admin/ecommerce/tags/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['ecommerce.api.tags.destroy']['types'],
+  },
+  'ecommerce.api.tags.restore': {
+    methods: ["POST"],
+    pattern: '/api/admin/ecommerce/tags/:id/restore',
+    tokens: [{"old":"/api/admin/ecommerce/tags/:id/restore","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/tags/:id/restore","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/tags/:id/restore","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/tags/:id/restore","type":0,"val":"tags","end":""},{"old":"/api/admin/ecommerce/tags/:id/restore","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/tags/:id/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['ecommerce.api.tags.restore']['types'],
+  },
+  'ecommerce.api.tags.forceDestroy': {
+    methods: ["DELETE"],
+    pattern: '/api/admin/ecommerce/tags/:id/force',
+    tokens: [{"old":"/api/admin/ecommerce/tags/:id/force","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/tags/:id/force","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/tags/:id/force","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/tags/:id/force","type":0,"val":"tags","end":""},{"old":"/api/admin/ecommerce/tags/:id/force","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/tags/:id/force","type":0,"val":"force","end":""}],
+    types: placeholder as Registry['ecommerce.api.tags.forceDestroy']['types'],
   },
   'ecommerce.api.settings.show': {
     methods: ["GET","HEAD"],

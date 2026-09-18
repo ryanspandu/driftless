@@ -38,9 +38,9 @@ export default class Product extends BaseModel {
   @column()
   declare subtitle: string | null
 
-  /** TipTap JSON, matching how the CMS stores rich text. */
-  @column(jsonColumn)
-  declare description: Record<string, unknown>
+  /** Sanitized HTML, matching how `Content.body` stores rich text. */
+  @column()
+  declare description: string
 
   @column()
   declare type: ProductType

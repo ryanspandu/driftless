@@ -31,7 +31,7 @@ async function seedProduct(overrides: Partial<Product> = {}) {
     id: newUlid(),
     slug: `p-${newUlid().toLowerCase().slice(-8)}`,
     title: 'Partner Widget',
-    description: {},
+    description: '',
     type: 'physical',
     status: 'active',
     currency: 'USD',

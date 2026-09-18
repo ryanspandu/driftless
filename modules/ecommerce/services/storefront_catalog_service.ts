@@ -43,7 +43,9 @@ export interface PublicProductDto {
   slug: string
   title: string
   subtitle: string | null
-  description: Record<string, unknown>
+  /** Sanitized HTML, matching `Content.body`'s shape. Not rendered by any
+   *  storefront block today. */
+  description: string
   type: 'physical' | 'digital'
   priceFrom: MoneyDto | null
   images: { url: string; alt: string | null }[]
@@ -201,7 +203,7 @@ export default class StorefrontCatalogService {
 
     if (!product) throw publicError.notFound('Product not found.', 'product_not_found')
 
-    const dto = (await this.toDtos([product], store.locale, currency))[0]
+    const [dto] = await this.toDtos([product], store.locale, currency)
     // Resolve the single product's custom fields (RELATION ids → labels, MEDIA
     // ids → URLs) — single-product only, so the list path stays free of N+1s.
     // `toDtos` can drop a product with nothing sellable in this currency; guard.

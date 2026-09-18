@@ -51,7 +51,8 @@ export interface ProductDto {
   slug: string
   title: string
   subtitle: string | null
-  description: Record<string, unknown>
+  /** Sanitized HTML, matching `Content.body`'s shape. */
+  description: string
   type: ProductType
   status: ProductStatus
   currency: string
@@ -423,7 +424,7 @@ export interface ProductInput {
   title: string
   slug?: string
   subtitle?: string | null
-  description?: Record<string, unknown>
+  description?: string
   type?: ProductType
   status?: ProductStatus
   seo?: Record<string, unknown>
