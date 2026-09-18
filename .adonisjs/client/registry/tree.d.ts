@@ -456,12 +456,15 @@ export interface ApiDefinition {
       }
       products: {
         index: typeof routes['ecommerce.api.products.index']
+        trash: typeof routes['ecommerce.api.products.trash']
         show: typeof routes['ecommerce.api.products.show']
         store: typeof routes['ecommerce.api.products.store']
         import: typeof routes['ecommerce.api.products.import']
         update: typeof routes['ecommerce.api.products.update']
         destroy: typeof routes['ecommerce.api.products.destroy']
         bulkDestroy: typeof routes['ecommerce.api.products.bulkDestroy']
+        restore: typeof routes['ecommerce.api.products.restore']
+        forceDestroy: typeof routes['ecommerce.api.products.forceDestroy']
       }
       variants: {
         store: typeof routes['ecommerce.api.variants.store']
@@ -480,15 +483,21 @@ export interface ApiDefinition {
       }
       categories: {
         index: typeof routes['ecommerce.api.categories.index']
+        trash: typeof routes['ecommerce.api.categories.trash']
         store: typeof routes['ecommerce.api.categories.store']
         update: typeof routes['ecommerce.api.categories.update']
         destroy: typeof routes['ecommerce.api.categories.destroy']
+        restore: typeof routes['ecommerce.api.categories.restore']
+        forceDestroy: typeof routes['ecommerce.api.categories.forceDestroy']
       }
       tags: {
         index: typeof routes['ecommerce.api.tags.index']
+        trash: typeof routes['ecommerce.api.tags.trash']
         store: typeof routes['ecommerce.api.tags.store']
         update: typeof routes['ecommerce.api.tags.update']
         destroy: typeof routes['ecommerce.api.tags.destroy']
+        restore: typeof routes['ecommerce.api.tags.restore']
+        forceDestroy: typeof routes['ecommerce.api.tags.forceDestroy']
       }
       settings: {
         show: typeof routes['ecommerce.api.settings.show']

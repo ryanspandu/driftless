@@ -170,7 +170,7 @@ export default class ProductImportService {
       externalUrl: head.get('external_url', 'externalurl') || null,
       externalLabel: head.get('external_label', 'externallabel') || null,
       categoryIds,
-      ...(description ? { description: richTextDoc(description) } : {}),
+      ...(description ? { description: richTextHtml(description) } : {}),
     }
 
     let productId: string
@@ -342,14 +342,15 @@ function optionalInt(raw: string, field: string): number | null {
   return n
 }
 
-/** Wrap plain text as a minimal TipTap document, matching the product editor's
- *  `description` shape (a doc of paragraphs). */
-function richTextDoc(text: string): Record<string, unknown> {
-  const paragraphs = text.split(/\r?\n/).map((line) => ({
-    type: 'paragraph',
-    ...(line ? { content: [{ type: 'text', text: line }] } : {}),
-  }))
-  return { type: 'doc', content: paragraphs }
+/** Wrap plain CSV text as HTML paragraphs, matching `description`'s stored
+ *  shape (sanitizeRichText() in CatalogService still re-sanitizes on save —
+ *  this only needs to keep raw `<`/`&` from being misread as markup). */
+function richTextHtml(text: string): string {
+  const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return text
+    .split(/\r?\n/)
+    .map((line) => `<p>${escape(line)}</p>`)
+    .join('')
 }
 
 function messageOf(error: unknown): string {

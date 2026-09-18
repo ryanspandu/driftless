@@ -55,7 +55,7 @@ async function seedProduct(slug = 'blue-widget', title = 'Blue Widget') {
     id: newUlid(),
     slug,
     title,
-    description: {},
+    description: '',
     type: 'physical',
     status: 'active',
     currency: 'USD',

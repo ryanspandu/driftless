@@ -4639,6 +4639,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['index']>>>
     }
   }
+  'ecommerce.api.products.trash': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/products/trash'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['trash']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['trash']>>>
+    }
+  }
   'ecommerce.api.products.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/ecommerce/products/:id'
@@ -4709,6 +4721,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['bulkDestroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['bulkDestroy']>>>
+    }
+  }
+  'ecommerce.api.products.restore': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/products/:id/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['restore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['restore']>>>
+    }
+  }
+  'ecommerce.api.products.forceDestroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/ecommerce/products/:id/force'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['forceDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['forceDestroy']>>>
     }
   }
   'ecommerce.api.variants.store': {
@@ -4831,6 +4867,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['index']>>>
     }
   }
+  'ecommerce.api.categories.trash': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/categories/trash'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['trash']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['trash']>>>
+    }
+  }
   'ecommerce.api.categories.store': {
     methods: ["POST"]
     pattern: '/api/admin/ecommerce/categories'
@@ -4867,6 +4915,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['destroy']>>>
     }
   }
+  'ecommerce.api.categories.restore': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/categories/:id/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['restore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['restore']>>>
+    }
+  }
+  'ecommerce.api.categories.forceDestroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/ecommerce/categories/:id/force'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['forceDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/categories_controller').default['forceDestroy']>>>
+    }
+  }
   'ecommerce.api.tags.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/admin/ecommerce/tags'
@@ -4877,6 +4949,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/tags_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/tags_controller').default['index']>>>
+    }
+  }
+  'ecommerce.api.tags.trash': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/tags/trash'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/tags_controller').default['trash']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/tags_controller').default['trash']>>>
     }
   }
   'ecommerce.api.tags.store': {
@@ -4913,6 +4997,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/tags_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/tags_controller').default['destroy']>>>
+    }
+  }
+  'ecommerce.api.tags.restore': {
+    methods: ["POST"]
+    pattern: '/api/admin/ecommerce/tags/:id/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/tags_controller').default['restore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/tags_controller').default['restore']>>>
+    }
+  }
+  'ecommerce.api.tags.forceDestroy': {
+    methods: ["DELETE"]
+    pattern: '/api/admin/ecommerce/tags/:id/force'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/tags_controller').default['forceDestroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/tags_controller').default['forceDestroy']>>>
     }
   }
   'ecommerce.api.settings.show': {

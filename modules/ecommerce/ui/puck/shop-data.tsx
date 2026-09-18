@@ -47,7 +47,7 @@ export interface ShopProduct {
   slug: string
   title: string
   subtitle: string | null
-  description: Record<string, unknown>
+  description: string
   type: 'physical' | 'digital'
   priceFrom: MoneyDto | null
   images: { url: string; alt: string | null }[]

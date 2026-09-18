@@ -69,7 +69,7 @@ async function seedProduct(price = 1999, stock = 10) {
     id: newUlid(),
     slug: `p-${newUlid().toLowerCase().slice(-8)}`,
     title: 'Test product',
-    description: {},
+    description: '',
     type: 'physical',
     status: 'active',
     currency: 'USD',

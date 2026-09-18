@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import Task, { type TaskPriority, type TaskStatus } from '#modules/tasks/models/task'
 import User from '#models/user'
 import { newUlid } from '#services/ulid_service'
+import { sanitizeRichText } from '#services/html_sanitizer_service'
 
 export interface TaskAssignee {
   id: number
@@ -61,7 +62,7 @@ export default class TasksService {
     const row = await Task.create({
       id: newUlid(),
       title: dto.title,
-      description: dto.description ?? null,
+      description: dto.description ? sanitizeRichText(dto.description) : null,
       status,
       priority: this.normalizePriority(dto.priority),
       dueDate: this.parseDate(dto.dueDate),
@@ -76,7 +77,9 @@ export default class TasksService {
   async update(id: string, dto: TaskInput): Promise<TaskDto> {
     const row = await Task.query().where('id', id).whereNull('deleted_at').firstOrFail()
     if (dto.title !== undefined) row.title = dto.title
-    if (dto.description !== undefined) row.description = dto.description
+    if (dto.description !== undefined) {
+      row.description = dto.description ? sanitizeRichText(dto.description) : null
+    }
     if (dto.status !== undefined) row.status = this.normalizeStatus(dto.status)
     if (dto.priority !== undefined) row.priority = this.normalizePriority(dto.priority)
     if (dto.dueDate !== undefined) row.dueDate = this.parseDate(dto.dueDate)
@@ -148,11 +151,11 @@ export default class TasksService {
           insertIdx = 0
         }
         const ordered = [...others.slice(0, insertIdx), task, ...others.slice(insertIdx)]
-        for (let i = 0; i < ordered.length; i++) {
-          ordered[i]!.position = (i + 1) * GAP
-          ordered[i]!.status = status
-          ordered[i]!.useTransaction(trx)
-          await ordered[i]!.save()
+        for (const [i, element] of ordered.entries()) {
+          element!.position = (i + 1) * GAP
+          element!.status = status
+          element!.useTransaction(trx)
+          await element!.save()
         }
       } else {
         let newPos: number

@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { newUlid } from '#services/ulid_service'
 import { publicError } from '#exceptions/public_error'
+import { sanitizeRichText } from '#services/html_sanitizer_service'
 import Product from '#modules/ecommerce/models/product'
 import type { ProductCtaMode } from '#modules/ecommerce/models/product'
 import type { ProductOption, ProductStatus, ProductType } from '#modules/ecommerce/models/product'
@@ -61,7 +62,8 @@ export interface ProductDto {
   slug: string
   title: string
   subtitle: string | null
-  description: Record<string, unknown>
+  /** Sanitized HTML, matching `Content.body`'s shape. */
+  description: string
   type: ProductType
   status: ProductStatus
   currency: string
@@ -159,7 +161,7 @@ export interface ProductInput {
   title: string
   slug?: string
   subtitle?: string | null
-  description?: Record<string, unknown>
+  description?: string
   type?: ProductType
   status?: ProductStatus
   seo?: Record<string, unknown>
@@ -271,7 +273,7 @@ export default class CatalogService {
       .orderBy('created_at', 'desc')
       .paginate(page, pageSize)
 
-    const currency = (await this.settings.getOrCreate()).currency
+    const { currency } = await this.settings.getOrCreate()
     return {
       items: result.all().map((row) => this.toDto(row, currency)),
       total: result.total,
@@ -292,7 +294,7 @@ export default class CatalogService {
 
     if (!row) throw publicError.notFound('Product not found.', 'product_not_found')
 
-    const currency = (await this.settings.getOrCreate()).currency
+    const { currency } = await this.settings.getOrCreate()
     return this.toDto(row, currency)
   }
 
@@ -310,7 +312,7 @@ export default class CatalogService {
           slug,
           title: input.title.trim(),
           subtitle: input.subtitle ?? null,
-          description: input.description ?? {},
+          description: sanitizeRichText(input.description ?? ''),
           type: input.type ?? 'physical',
           status: input.status ?? 'draft',
           currency: settings.currency,
@@ -353,7 +355,7 @@ export default class CatalogService {
         row.slug = await this.uniqueSlug(input.slug.trim(), row.id)
       }
       if (input.subtitle !== undefined) row.subtitle = input.subtitle ?? null
-      if (input.description !== undefined) row.description = input.description
+      if (input.description !== undefined) row.description = sanitizeRichText(input.description)
       if (input.type !== undefined) row.type = input.type
       if (input.status !== undefined) row.status = input.status
       if (input.seo !== undefined) row.seo = input.seo

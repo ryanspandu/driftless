@@ -68,7 +68,7 @@ async function seedAbandonedCart(accountId: string | null) {
     id: newUlid(),
     slug: `p-${newUlid().toLowerCase().slice(-8)}`,
     title: 'Test product',
-    description: {},
+    description: '',
     type: 'physical',
     status: 'active',
     currency: 'USD',

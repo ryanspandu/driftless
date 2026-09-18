@@ -43,7 +43,7 @@ async function seedProduct(slug = 'blue-widget', title = 'Blue Widget') {
     slug,
     title,
     subtitle: 'A widget, in blue',
-    description: {},
+    description: '',
     type: 'physical',
     status: 'active',
     currency: 'USD',

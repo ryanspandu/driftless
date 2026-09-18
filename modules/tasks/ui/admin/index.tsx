@@ -40,7 +40,7 @@ import { Label } from '~/components/ui/label'
 import { Textarea } from '~/components/ui/textarea'
 import { AppSelect } from '~/components/ui/app-select'
 import { DatePicker } from '~/components/ui/date-picker'
-import { RichTextEditor } from '~/components/cms/rich-text-editor'
+import { ArticleEditor } from '~/components/admin/article-editor'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import {
   DropdownMenu,
@@ -135,55 +135,19 @@ function groupByStatus(items: TaskDto[]): Record<TaskStatus, TaskDto[]> {
   return out
 }
 
-// ── Rich-text description ──────────────────────────────────────────────────
-// The `description` column holds a TipTap JSON document (stringified). Legacy
-// rows hold plain text; helpers below tolerate both.
-
-function plainTextOf(node: unknown): string {
-  if (!node || typeof node !== 'object') return ''
-  const n = node as { text?: unknown; content?: unknown }
-  if (typeof n.text === 'string') return n.text
-  if (Array.isArray(n.content)) return n.content.map(plainTextOf).join(' ')
-  return ''
-}
-
-/** A one-line plain-text excerpt of a stored description (for cards / table). */
+/** A one-line plain-text excerpt of a stored HTML description (for cards / table). */
 function descriptionExcerpt(raw: string | null): string {
   if (!raw) return ''
-  const trimmed = raw.trim()
-  if (!trimmed.startsWith('{')) return raw
-  try {
-    return plainTextOf(JSON.parse(trimmed)).replace(/\s+/g, ' ').trim()
-  } catch {
-    return raw
-  }
-}
-
-/** Stored string → TipTap value for the editor (wraps legacy plain text). */
-function parseDescription(raw: string | null): unknown {
-  if (!raw || !raw.trim()) return null
-  const trimmed = raw.trim()
-  if (trimmed.startsWith('{')) {
-    try {
-      return JSON.parse(trimmed)
-    } catch {
-      /* fall through to plain-text wrapping */
-    }
-  }
-  return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: raw }] }] }
-}
-
-/** Editor value → stored string (null when the doc has no text). */
-function serializeDescription(value: unknown): string | null {
-  if (value == null) return null
-  if (!plainTextOf(value).trim()) return null
-  return JSON.stringify(value)
+  return raw
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 type FormState = {
   id: string | null
   title: string
-  description: unknown
+  description: string
   status: TaskStatus
   priority: TaskPriority
   dueDate: string
@@ -192,7 +156,7 @@ type FormState = {
 const EMPTY_FORM: FormState = {
   id: null,
   title: '',
-  description: null,
+  description: '',
   status: 'TODO',
   priority: 'MEDIUM',
   dueDate: '',
@@ -241,7 +205,7 @@ export default function TasksAdminPage() {
     mutationFn: (f: FormState) => {
       const body = JSON.stringify({
         title: f.title,
-        description: serializeDescription(f.description),
+        description: f.description.trim() || null,
         status: f.status,
         priority: f.priority,
         dueDate: f.dueDate || null,
@@ -286,7 +250,7 @@ export default function TasksAdminPage() {
     const next: FormState = {
       id: t.id,
       title: t.title,
-      description: parseDescription(t.description),
+      description: t.description ?? '',
       status: t.status,
       priority: t.priority,
       dueDate: t.dueDate ?? '',
@@ -611,14 +575,25 @@ export default function TasksAdminPage() {
 
                 <div className="space-y-1.5">
                   <Label>Description</Label>
-                  {!editing && !serializeDescription(form.description) ? (
-                    <p className="text-sm text-muted-foreground">No description.</p>
+                  {!editing ? (
+                    form.description.trim() ? (
+                      // Read-only view: plain sanitized HTML, not a mounted
+                      // editor — matches how `posts/show.tsx` displays
+                      // `Content.body`. `form.description` is already
+                      // server-sanitized (sanitizeRichText in TasksService).
+                      <div
+                        className="prose prose-sm max-w-none dark:prose-invert"
+                        dangerouslySetInnerHTML={{ __html: form.description }}
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No description.</p>
+                    )
                   ) : (
-                    <RichTextEditor
-                      key={`${form.id ?? 'new'}:${editing ? 'edit' : 'view'}`}
+                    <ArticleEditor
+                      key={form.id ?? 'new'}
+                      bare
                       value={form.description}
                       onChange={(v) => setForm((f) => ({ ...f, description: v }))}
-                      readOnly={!editing}
                       placeholder="Add a more detailed description…"
                     />
                   )}
