@@ -402,10 +402,13 @@ export default function ProductEditPage() {
           imageUrl: draft.imageUrl,
         },
       })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2000)
+      // A toast rather than the "Saved." line at the foot of the page, which is
+      // nowhere near the button that was clicked.
+      toast.success(`Variant "${draft.title.trim() || 'Default'}" saved`)
     } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to save the variant'))
+      const message = apiErrorMessage(err, 'Failed to save the variant')
+      setError(message)
+      toast.error(message)
     }
   }
 
@@ -571,11 +574,10 @@ export default function ProductEditPage() {
                             <Button
                               type="button"
                               size="sm"
-                              variant="outline"
                               disabled={saveVariant.isPending}
                               onClick={() => onSaveVariant(draft)}
                             >
-                              Save variant
+                              {saveVariant.isPending ? 'Saving…' : 'Save variant'}
                             </Button>
                             <Button
                               type="button"
