@@ -35,6 +35,75 @@ is the titleized filename, overridable with `export const title = '...'`. A data
 wins on a path clash. File-pages are pure code (no editable region) and show in the admin pages
 list as read-only rows. Full reference: [`docs/ai/custom-templates.md`](../../../docs/ai/custom-templates.md).
 
+## Router kits — one `index.tsx`, many pages
+
+A kit can be a router: a single `index.tsx` that picks what to draw from the props the server hands it.
+Each remaining Page row points at the kit (`kit:<id>`); template Pages (role slots, or a collection's Public
+pages) are told apart by props, checked in this order:
+
+1. `bindings.collection === "<key>"` — a collection's public detail page; `record = { collection, item }`,
+   `item.data.<field>` (a MEDIA field is already a URL).
+2. `record.post` — the `postDetail` role (`{ post, locked }`).
+3. `record.items` + `query` — the `postsArchive` role (`{ items, total, query }`).
+4. otherwise the row's own `path` (a plain lookup of components).
+
+A record template's own `path` is only a label — never branch on it. `resolveCapability` only sees
+`{ path, roleSlot }`, not `bindings` / `record`: key a record template on its row path there, or leave
+`resolveCapability` out. The `aftrn-web` kit (gitignored) is a working router: home, portfolio list,
+portfolio case, insights archive, article.
+
+```tsx
+export default function Site({ path, bindings, record }: CodePageProps) {
+  if (bindings?.collection === 'portfolio') {
+    return <PortfolioCase record={(record as PortfolioRecord | null)?.item} />
+  }
+  if (record?.post) return <Article record={record as unknown as ArticleRecord} />
+  const Page = ROUTES[path] ?? Home
+  return <Page />
+}
+```
+
+## Collection detail pages (record templates)
+
+Give every published record of a collection its own server-rendered URL, `/<prefix>/<slug>`, with its own SEO
+and no Page row per record:
+
+1. The collection needs a **unique slug field** (`SLUG` type, or keyed `slug`, with *Unique* on).
+2. Create a **CODE/kit Page** for the template (`kind: CODE`, `component: kit:<id>`) and **publish** it — a
+   builder page cannot render a record.
+3. Collection → Settings → **Public pages**: switch on, set a single-segment prefix, pick that Page.
+
+What the kit gets: `props.bindings = { collection, slug }`, `props.record = { collection, item }` (dates are ISO
+strings; MEDIA fields are URLs; relations are display strings). The record carries **no URL** — hard-code the prefix
+(`/portfolio/${encodeURIComponent(slug)}`). SEO is the record's own (title/name/label/slug; description from
+`seo_description`/`description`/`summary`/`excerpt`/`subtitle`; image from `seo_image`/`og_image`/`image`/…/first MEDIA
+field); anything the record cannot supply falls back to the **template Page's** SEO — keep that description empty or
+generic and **never set `noindex`** on it. The template Page is also reachable at its own path, where it renders
+**without a record** — handle `record` being undefined. Rules and edge cases:
+[`docs/ai/cms.md`](../../../docs/ai/cms.md#public-detail-pages-per-collection-off-by-default). To link to the pages
+from a Collection List block: *Link field* = the slug field, *Link base* = `/<prefix>/`.
+
+## Configurable blog URLs (`useContentPaths`)
+
+The operator can move the blog (Website settings → URLs), so never hard-code `/blog` or `/posts/…`:
+
+```tsx
+import { useContentPaths } from '~/lib/content_paths'
+
+const paths = useContentPaths()
+paths.url('archive')                               // "/insights"
+paths.url('detail', encodeURIComponent(post.slug)) // "/insights/hello" — the slug must already be URL-encoded
+```
+
+## Rich text from the CMS — the sanitiser
+
+Post bodies and `RICHTEXT` fields arrive as **sanitised HTML**: no `<div>`, **no `id` on any tag**, `class`
+allowed on every tag, and only a narrow set of inline styles (`color`, `background-color`, `font-family`,
+`font-size`, `line-height`, `text-align`, `width`). Add ids **at render time** (a string transform like
+`aftrn-web`'s `withHeadingIds`, which gives each `<h2>` an id in the server-rendered HTML) and style the body with
+descendant selectors on a wrapper you own (`.prose h2 { … }`). See
+[`docs/ai/security.md`](../../../docs/ai/security.md#content-and-page-builder-html).
+
 ## Collection templates — render CMS records as code
 
 Each `collection/<key>.tsx` draws **one** record of a collection as code. On a **Collection List**
@@ -61,7 +130,7 @@ rebuild. See `example/emails/password_reset.tsx`.
 - `kit.json` = `{ "name": "...", "description": "..." }` — shown in the
   create-page picker. Its presence is also what marks the folder as a kit.
 - `index.tsx` receives `CodePageProps` (see `inertia/custom/types.ts`): `title`,
-  `path`, `seo`, `header`, `footer`, `bindings`, `record`, `preview`. Wrap your
+  `path`, `seo`, `header`, `footer`, `bindings`, `record`, `preview`, `contentFields`. Wrap your
   markup in `<SiteChrome header footer>` to sit inside the real site header/footer,
   or omit it to own the whole viewport.
 - Add `export const editableRegion = true` and render `<BuilderRegion />` to
@@ -72,12 +141,14 @@ rebuild. See `example/emails/password_reset.tsx`.
 A **published** kit/CODE page can be pointed at any built-in slot — the same
 pickers a builder page uses:
 - **Pages → row menu → "Use as page"** and **Settings → Appearance → "Replace
-  built-in pages"** (front page, sign in/up, 404/500, category/tag archive).
+  built-in pages"** (front page, sign in/up, 404/500, blog index, post page,
+  category/tag archive).
 - **E-commerce → Store settings → Storefront pages / screens** (shop front,
   **product-detail template**, basket, checkout, account, …).
 
 When a kit page backs a **record template** — the product-detail template at
-`/shop/p/<slug>` — it is handed the resolved record server-side:
+`/shop/p/<slug>` (or one of the blog/collection templates above) — it is handed the resolved record
+server-side:
 - `props.bindings.slug` — the route slug.
 - `props.record` — the already-resolved record (the product DTO). Render from it
   directly (SSR, SEO-safe); no need to client-fetch `/api/shop/*` or read a
@@ -129,7 +200,9 @@ const { data, isLoading } = useCollectionRecords('posts', { limit: 6, sortDir: '
 
 Use it only for data that should NOT be indexed anyway: interactive filters,
 "load more", search-as-you-type, personalised or account-specific content. For
-anything a search engine should see, use the block path above. Reference:
+anything a search engine should see, use the block path above — and for an indexable page **per
+record**, use the collection's Public pages with a record-template kit (see *Collection detail pages*),
+not `useCollectionRecord`. Reference:
 `example/pages/collection-demo.tsx`.
 
 ### Which to use
@@ -139,6 +212,7 @@ anything a search engine should see, use the block path above. Reference:
 | Blog index, product grid, any list a crawler should read | Collection List block (builder page, or region + `collection/<key>.tsx`) | ✅ server-rendered |
 | Interactive filter / search / "load more" / personalised | `useCollectionRecords` (client) | ❌ after hydration |
 | One record, code-owned card, SEO | `collection/<key>.tsx` template on a block | ✅ server-rendered |
+| One record with its own URL + SEO | Collection **Public pages** + a record-template kit | ✅ server-rendered |
 
 The endpoints behind both (`GET /api/public/cms/:key/records[/:id]`, published-only)
 are auto-documented at **`/api/docs`** (dev only). Full reference:

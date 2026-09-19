@@ -26,7 +26,9 @@ imported assets) — the operator-payload form a template marketplace installs.
 
 > **Rule for AI assistants:** build pages with the **page builder**. Code pages exist for a
 > human who has decided the builder is the wrong tool for one specific page. Do not convert
-> a builder page to a code page, or create code pages, unless explicitly asked.
+> a builder page to a code page, or create code pages, unless explicitly asked — **unless the
+> operator asks for public detail pages for a collection**, which need a CODE/kit template page
+> (a builder page cannot render a record; see *Record templates* below).
 
 ## Code pages
 
@@ -55,8 +57,16 @@ and pick the slug. `inertia/custom/pages/playground.tsx` is a working reference.
 ### Props
 
 `CodePageProps` (`inertia/custom/types.ts`): `title`, `path`, `seo`, `globalMeta`, `header`,
-`footer`, `bindings`, `preview`. Block-data plumbing is deliberately not forwarded — a page
-should not need to know about resolvers to render a heading.
+`footer`, `bindings`, `record`, `preview`, `contentFields`. Block-data plumbing is deliberately
+not forwarded — a page should not need to know about resolvers to render a heading.
+
+- `bindings` — route params when the page is rendered as a **template** (`{ collection, slug }` on a
+  collection's public detail page, `{ slug }` on the post page…); undefined for an ordinary page.
+- `record` — the server-resolved record when the page backs a template slot (a collection's
+  `{ collection, item }`, the post page's `{ post, locked }`, the blog index's `{ items, total, query }`,
+  a shop product…), so it renders SSR from props instead of client-fetching. Undefined for an ordinary
+  page — **and for a template Page opened at its own path**, so a record template must render without it.
+- `contentFields` — the kit-author-declared field values (see *Editable fields* below), already render-ready.
 
 Per-page and site-wide custom code (Website Settings → analytics, pixels) run on code pages
 too, via the shared `<PublicPageFrame>`. They did not at first; see the note below.
@@ -148,6 +158,10 @@ export function resolveCapability(ctx: KitCapabilityContext): KitCapability {
   isn't assigned to one; module-contributed slots like ecommerce's `shop`/`cart` aren't covered,
   key on `path` for those, same as before).
   A throwing `resolveCapability` fails open to `{ kind: 'none' }`.
+- **It only sees `{ path, roleSlot }`** (`KitCapabilityContext`) — the Page row's own path and core role
+  slot — **not** `bindings` or `record`, which exist only while rendering. A **record-template Page**
+  (a collection's public detail template) has no role slot, so key its branch on the row's own `path`,
+  or omit `resolveCapability` for it (a kit without one falls back to the plain `editableRegion` flag).
 - **Storage is already render-ready.** Field values live in `pages.content_fields`
   (`{ [fieldKey]: value }`), staged in `pages.draft_content_fields` exactly like
   `content`/`draftContent`, and reach the page as `CodePageProps.contentFields`. `image`/`video`
@@ -160,6 +174,25 @@ export function resolveCapability(ctx: KitCapabilityContext): KitCapability {
 - This does **not** replace `<BuilderRegion />`/`editableRegion` — use a region when there is
   real block-composable content, fields when there's a fixed handful of values, and `none` when
   there's nothing an editor should touch here at all (edit the underlying record instead).
+
+### Record templates (collection detail pages)
+
+A code page can be the **template for a collection's public detail pages** (Collection → Settings → Public
+pages, see [cms.md](./cms.md#public-detail-pages-per-collection-off-by-default)). One template Page then serves
+every record: the kit gets `props.bindings = { collection, slug }` and `props.record = { collection, item }`
+(`item.data.<field>`; MEDIA already a URL, dates ISO strings). Same idea as the posts `postDetail` role, which
+passes `record = { post, locked }`; the blog's URLs are configurable
+([content-taxonomy](./content-taxonomy-and-visibility.md#configurable-blog-urls)).
+
+- **Router kits.** Several templates usually share one kit, so `index.tsx` is a router: it branches on the
+  props the server hands it — `bindings.collection === "<key>"` first — and **never on `path`**, which for a
+  record template is only the template Page's own label. The full contract and the branch order are in
+  [custom-templates.md](./custom-templates.md#router-kits--one-indextsx-many-pages) and
+  [collection detail pages](./custom-templates.md#collection-detail-pages-record-templates).
+- **The template is also reachable at its own path**, rendered with no `record` (and hidden from the sitemap).
+  Guard against `record` being undefined, keep the Page's SEO description generic and never set `noindex` on
+  it — the record's SEO falls back to the template's for any field the record cannot supply.
+- **The template must be a CODE page**, PUBLISHED, with its kit active — otherwise the detail URLs 404.
 
 ### Render modes
 

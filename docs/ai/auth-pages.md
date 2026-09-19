@@ -30,7 +30,7 @@ published pages — so a seeded example cannot take over `/login` by accident.
 ## Why the override is a lookup, not a route
 
 `login`, `register`, `logout`, `forgot-password` and `reset-password` are all in
-`RESERVED_FIRST_SEGMENT` ([`pages_public_controller.ts`](../../app/controllers/pages_public_controller.ts)),
+`RESERVED_FIRST_SEGMENT` ([`reserved_paths.ts`](../../app/services/reserved_paths.ts), consulted by the catch-all in `pages_public_controller.ts`),
 so a builder page can never be *authored at* `/login` — the catch-all refuses to resolve it.
 Each auth controller therefore asks
 [`AuthPageOverrideService`](../../app/services/auth_page_override_service.ts) for a page and

@@ -110,14 +110,33 @@ command — see [docs/ai/modules.md](./ai/modules.md).
   builder, the **gear** opens *Page settings* — page SEO/meta tags and per-page custom CSS/JS that
   runs only on that page.
 - **Use a page you built instead of the default one**: on the **Pages** list, a page's **⋯** menu
-  has **Use as page**, which swaps it in for a built-in screen — the blog index (`/blog`), a
-  single post's page, a category or tag archive, the home page, or the sign-in/sign-up screens.
+  has **Use as page**, which swaps it in for a built-in screen — the blog index (`/blog` by default —
+  you can move it under *Website settings → URLs*), a single post's page, a category or tag archive, the home page, or the sign-in/sign-up screens.
   The page must be **Published** first. Clicking the same slot again unassigns it, back to the
   built-in version. This is also how every canonical/SEO link for that screen stays correct
   automatically — it's computed from the real URL your visitors see, not anything on the page
   itself.
-- **Website settings** (UI → Website settings) sets your site title, favicon, site-wide meta tags,
-  and global custom CSS/JS applied across your published pages.
+- **Website settings** (UI → Website settings) has tabs for your site title, favicon and site-wide
+  meta tags (**Site & SEO**), your font and colours (**Appearance**), the web addresses of your blog
+  (**URLs**), the form webhook and notification email (**Forms**), and global custom CSS/JS applied
+  across your published pages (**Custom code**).
+- **Change your blog's web address**: Website settings → **URLs**. For example set *Posts archive*
+  and *Post page* to `insights` and your blog lives at `/insights` and `/insights/your-post`. The old
+  `/blog` and `/posts/…` addresses redirect automatically, and links, canonical URLs and the sitemap
+  follow. It won't let you pick an address that one of your pages already uses, one the system
+  reserves, or one a collection uses for its public pages — and once an address is moved, you can't
+  create a page underneath it, because that page would hide your posts.
+- **Give every entry of a collection its own page**: open the collection → **Settings → Public
+  pages**, switch on *Expose detail pages*, choose a URL prefix (e.g. `portfolio`) and a template
+  page. The template must be a **published custom-code page** (see *Custom code templates* below — a
+  page-builder page can't show an entry). The collection needs a **slug field with *Unique* switched
+  on** (it can't be changed afterwards, so add a new slug field if yours isn't unique). Every
+  **published** entry then has its own address (`/portfolio/my-project`) with its own title,
+  description and image, and is added to the sitemap automatically. Change the prefix or an entry's
+  slug later and the old address redirects to the new one. The template page itself also stays
+  visible at its own address (with no entry), so give it a plain description and never mark it
+  "no-index" — that setting would spread to every entry. It's off by default, so nothing is public
+  until you turn it on.
 - Tables everywhere share the same toolbar (search + filters), tinted status badges, and
   pagination, so every list page feels identical.
 
@@ -160,6 +179,11 @@ built-in forms on any custom form it builds — there's nothing to configure bey
 toggles under *Settings → Integrations → CAPTCHA*. The developer reference is
 [`docs/ai/custom-templates.md`](./ai/custom-templates.md).
 
+A kit can also be the **template behind a collection's public entry pages** (see *Give every entry
+of a collection its own page* above): one kit page then draws every entry of that collection at
+`/<prefix>/<slug>`. To link to those pages from a **Collection List** block, set the block's *Link
+field* to the collection's slug field and *Link base* to `/<prefix>/` (for example `/portfolio/`).
+
 A kit page's row menu has an **Edit content region** action — what it opens depends on how much of
 that page the developer left editable:
 
@@ -173,6 +197,15 @@ that page the developer left editable:
   unpublished edits away.
 - **A full editable area** — the normal visual builder opens, scoped to just the one region the
   developer left open; the rest of the page (and its component palette) is unaffected.
+
+## Export / Import
+
+*Settings → Export / Import* moves the whole site between environments (or backs it up). Your blog's
+web addresses (Website settings → URLs) and each collection's public pages settings travel with the
+export. The import log and the dry run now list **warnings** — for example a collection whose public
+pages could not be switched on because its address is already taken on the target site — instead of
+staying silent; the rest of the import carries on. If you import over an existing site and choose to
+skip conflicts, the target's own blog addresses are kept.
 
 ## Email
 

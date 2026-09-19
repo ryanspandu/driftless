@@ -5,6 +5,7 @@ import { usersSection } from './sections/users.js'
 import { componentsSection } from './sections/components.js'
 import { collectionsSection } from './sections/collections.js'
 import { collectionRecordsSection } from './sections/collection_records.js'
+import { collectionDetailSection } from './sections/collection_detail.js'
 import { contentSection } from './sections/content.js'
 import { templatesSection } from './sections/templates.js'
 import { formsSection } from './sections/forms.js'
@@ -36,5 +37,6 @@ export function registerCoreDataSections(): void {
   registerDataSection(integrationsSection) // 71
   registerDataSection(redirectsSection) // 72
   registerDataSection(mailEventsSection) // 73 — after templates (template_id)
+  registerDataSection(collectionDetailSection) // 74 — after pages (template id remap) + settings (blog prefixes)
   registerDataSection(kitsSection) // 75
 }

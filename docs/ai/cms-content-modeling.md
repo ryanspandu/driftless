@@ -27,8 +27,8 @@ PostgreSQL table (`cms_<key>`), one field = one column** — with structured val
 |------|-------------|-------|-------|
 | `TEXT` | TEXT | text | single line; uniquable |
 | `TEXTAREA` | TEXT | textarea | multi-line plain |
-| `RICHTEXT` | TEXT (JSON) | rich editor | TipTap document |
-| `SLUG` | TEXT | text | auto-generated from `config.source` when blank |
+| `RICHTEXT` | TEXT | rich editor (`ArticleEditor`) | sanitised **HTML** string — `coerceFieldValue` runs `sanitizeRichText` on write (no `<div>`, no `id`; see [security.md](./security.md#content-and-page-builder-html)); never a TipTap JSON document |
+| `SLUG` | TEXT | text | auto-generated from `config.source` when blank; uniquable — a collection's public detail pages require the slug field to be **Unique** |
 | `EMAIL` | TEXT | email | validated in `coerceFieldValue` |
 | `NUMBER` | DOUBLE PRECISION | number | float |
 | `INTEGER` | BIGINT | number | parsed to int in `coerceFieldValue` |
@@ -36,7 +36,7 @@ PostgreSQL table (`cms_<key>`), one field = one column** — with structured val
 | `BOOL` | BOOLEAN | checkbox | |
 | `DATE` / `DATETIME` | DATE / TIMESTAMPTZ | date / datetime | datetime stored UTC |
 | `SELECT` | TEXT | dropdown | one value; options in `config.options` |
-| `MULTISELECT` | JSONB (`TEXT` on SQLite) | chips + searchable menu | **many** values (`string[]`); options in `config.options` — see [§1a](#1a-select--multiselect-options) |
+| `MULTISELECT` | JSONB (`TEXT` on SQLite) | chips + searchable menu | **many** values (`string[]`); options in `config.options` — see [§1a](#1a-select--multi-select-options) |
 | `PASSWORD` | TEXT | password | **write-only**, hashed (see below) |
 | `MEDIA` | TEXT | media picker | stores a media id |
 | `JSON` | JSONB | JSON editor | freeform |
@@ -253,7 +253,8 @@ mobile (`< sm`) everything collapses to one column.
 | Component schema editor | `inertia/components/cms/component-schema-editor.tsx` |
 | Record inputs | `inertia/components/cms/field-renderer.tsx` (`RelationField`, `RelationMultiField`, `ComponentField`) |
 | Width helpers | `inertia/lib/cms/field-width.ts` |
-| Collection editor | `inertia/pages/admin/cms/collection_detail.tsx` |
+| Collection editor | `inertia/pages/admin/cms/collection_detail.tsx` (Settings tab: group, **Public pages**) |
+| Public detail pages | `app/services/collection_detail_rules.ts` (validation of the `detail_*` settings), `app/services/collection_detail_service.ts` (serving + sitemap) — see [cms.md](./cms.md#public-detail-pages-per-collection-off-by-default) |
 | Components admin | `inertia/pages/admin/cms/components.tsx` |
 | Hooks / client | `inertia/hooks/api/use-cms-components.ts`, `lib/cms/client.ts` |
 
@@ -263,6 +264,7 @@ mobile (`< sm`) everything collapses to one column.
 |-----------|------|
 | `1761885935300_add_cms_collection_kind.ts` | `cms_collections.kind` |
 | `1761885935400_create_cms_components.ts` | `cms_components` table |
+| `1763500000000_add_detail_pages_to_cms_collections.ts` | `cms_collections.detail_pages_on`, `detail_path_prefix`, `detail_page_id` + the partial unique index `cms_collections_detail_prefix_unique` (public detail pages, see [cms.md](./cms.md#public-detail-pages-per-collection-off-by-default)) |
 
 Relation join tables / FK columns and component JSONB columns are created at
 **runtime** via `addField` DDL (like all dynamic columns), not via migrations.

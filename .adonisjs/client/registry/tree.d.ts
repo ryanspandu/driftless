@@ -745,6 +745,9 @@ export interface ApiDefinition {
     breakpoints: typeof routes['mcp.breakpoints']
     globalcode: typeof routes['mcp.globalcode']
     pageroles: typeof routes['mcp.pageroles']
+    contentpaths: typeof routes['mcp.contentpaths'] & {
+      get: typeof routes['mcp.contentpaths.get']
+    }
     media: {
       index: typeof routes['mcp.media.index']
       palette: typeof routes['mcp.media.palette']

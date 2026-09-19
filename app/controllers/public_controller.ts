@@ -7,6 +7,7 @@ import ContentTagService from '#services/content_tag_service'
 import { IntegrationSettingsService, WebSettingsService } from '#services/settings_service'
 import AuthPageOverrideService from '#services/auth_page_override_service'
 import ModulesService from '#services/modules_service'
+import ContentPathsService from '#services/content_paths_service'
 import PageRenderer from '#services/page_renderer'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
 import { renderPage } from '#helpers/inertia_render'
@@ -19,6 +20,7 @@ const integrationService = new IntegrationSettingsService()
 const webSettingsService = new WebSettingsService()
 const overrides = new AuthPageOverrideService()
 const modules = new ModulesService()
+const contentPaths = new ContentPathsService()
 const renderer = new PageRenderer()
 
 /** Signed cookie listing the post ids this visitor has unlocked with a password. */
@@ -74,6 +76,11 @@ export default class PublicController {
       return response.redirect(auth.user ? '/admin/dashboard' : '/login')
     }
 
+    // The operator may have moved posts (Website settings → URLs): the
+    // historical `/posts/:slug` then 301s to the configured address.
+    const moved = await contentPaths.movedTo(request, 'detail', params.slug)
+    if (moved) return response.redirect().status(301).toPath(moved)
+
     const meta = await contentService.findAccessMetaBySlug(params.slug)
     if (!meta) contentNotFound('Post not found')
 
@@ -97,7 +104,7 @@ export default class PublicController {
         seoOverride: {
           title: post.title,
           imageUrl: post.featuredImage,
-          canonicalPath: `/posts/${post.slug}`,
+          canonicalPath: await contentPaths.urlFor('detail', post.slug),
         },
         // Never snapshot — the cache is keyed on the page, so caching one
         // post's HTML would serve it back for every other post on the same
@@ -128,7 +135,7 @@ export default class PublicController {
     const ids = readUnlockedIds(request)
     if (meta && !ids.includes(meta.id)) ids.push(meta.id)
     response.cookie(UNLOCK_COOKIE, { ids }, { httpOnly: true, sameSite: 'lax', maxAge: '7days' })
-    return response.redirect(`/posts/${params.slug}`)
+    return response.redirect(await contentPaths.urlFor('detail', params.slug))
   }
 
   /**
@@ -176,6 +183,9 @@ export default class PublicController {
     if (!landingEnabled) {
       return response.redirect(auth.user ? '/admin/dashboard' : '/login')
     }
+    const moved = await contentPaths.movedTo(request, 'category', params.slug)
+    if (moved) return response.redirect().status(301).toPath(moved)
+
     const category = await contentCategoryService.findRefBySlug(params.slug)
     if (!category) {
       contentNotFound('Category not found')
@@ -189,7 +199,10 @@ export default class PublicController {
     if (override) {
       return renderer.render(override, ctx, {
         bindings: { params: { slug: category.slug, kind: 'category' } },
-        seoOverride: { title: category.name, canonicalPath: `/category/${category.slug}` },
+        seoOverride: {
+          title: category.name,
+          canonicalPath: await contentPaths.urlFor('category', category.slug),
+        },
         skipSnapshot: true,
       })
     }
@@ -219,6 +232,9 @@ export default class PublicController {
     if (!landingEnabled) {
       return response.redirect(auth.user ? '/admin/dashboard' : '/login')
     }
+    const moved = await contentPaths.movedTo(request, 'tag', params.slug)
+    if (moved) return response.redirect().status(301).toPath(moved)
+
     const tag = await contentTagService.findRefBySlug(params.slug)
     if (!tag) {
       contentNotFound('Tag not found')
@@ -230,7 +246,10 @@ export default class PublicController {
     if (override) {
       return renderer.render(override, ctx, {
         bindings: { params: { slug: tag.slug, kind: 'tag' } },
-        seoOverride: { title: tag.name, canonicalPath: `/tag/${tag.slug}` },
+        seoOverride: {
+          title: tag.name,
+          canonicalPath: await contentPaths.urlFor('tag', tag.slug),
+        },
         skipSnapshot: true,
       })
     }
@@ -274,6 +293,9 @@ export default class PublicController {
     if (!landingEnabled) {
       return response.redirect(auth.user ? '/admin/dashboard' : '/login')
     }
+
+    const moved = await contentPaths.movedTo(request, 'archive')
+    if (moved) return response.redirect().status(301).toPath(moved)
 
     const q = String(request.qs().q ?? '').trim()
     const result = await contentService.listPublished({ search: q || undefined, pageSize: 12 })

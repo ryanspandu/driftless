@@ -121,6 +121,13 @@ export interface DataSection {
   tables?: string[]
   export(ctx: ExportCtx): Promise<unknown>
   import(ctx: ImportCtx, data: unknown): Promise<SectionReport>
+  /**
+   * Optional, read-only: what would go wrong (or need attention) if this payload
+   * were imported into the CURRENT site. Called for a dry run — which otherwise
+   * never invokes `import` — and must not write anything. Each returned string
+   * is shown as a warning.
+   */
+  preflight?(ctx: ImportCtx, data: unknown): Promise<string[]>
 }
 
 const sections = new Map<string, DataSection>()

@@ -1,5 +1,6 @@
 import Content from '#models/content'
 import type { CmsRecordDto } from '#services/cms_service'
+import ContentPathsService from '#services/content_paths_service'
 import {
   excerptOf,
   pageOf,
@@ -19,7 +20,7 @@ import {
  */
 
 export const POSTS_COLLECTION_KEY = 'posts'
-export const POST_PATH_PREFIX = '/posts'
+const contentPaths = new ContentPathsService()
 
 const COLUMNS: Record<string, string> = {
   title: 'title',
@@ -27,7 +28,7 @@ const COLUMNS: Record<string, string> = {
   body: 'body',
 }
 
-function toRecord(row: Content): CmsRecordDto {
+function toRecord(row: Content, detailPrefix: string): CmsRecordDto {
   const slug = row.slug
   /**
    * Withhold protected content from this listing surface.
@@ -60,7 +61,7 @@ function toRecord(row: Content): CmsRecordDto {
       excerpt: excerptOf(body),
       body,
       featuredImage: row.featuredImage ?? null,
-      url: `${POST_PATH_PREFIX}/${encodeURIComponent(slug)}`,
+      url: `/${detailPrefix}/${encodeURIComponent(slug)}`,
       author: row.author?.fullName ?? null,
       publishedAt: row.createdAt.toISO(),
       // Exposed so a card/template can show a lock badge, matching the built-in
@@ -139,12 +140,23 @@ export const postsCollection: BuiltinCollection = {
     const countRow = await countQuery.count('* as total')
     const total = Number((countRow[0] as any)?.$extras?.total ?? 0)
     const rows = await q.limit(pageSize).offset(offset)
-    return pageOf(rows.map(toRecord), total, page, pageSize)
+    // Where a post lives is a Website setting (default `posts`), so a card built
+    // from this record links to the address the operator actually configured.
+    const paths = await contentPaths.get()
+    const detailPrefix = paths.detail
+    return pageOf(
+      rows.map((row) => toRecord(row, detailPrefix)),
+      total,
+      page,
+      pageSize
+    )
   },
 
   async find(id: string) {
     const row = await base().where('id', id).first()
-    return row ? toRecord(row) : null
+    if (!row) return null
+    const paths = await contentPaths.get()
+    return toRecord(row, paths.detail)
   },
 }
 

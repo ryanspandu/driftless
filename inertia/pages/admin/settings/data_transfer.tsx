@@ -70,6 +70,13 @@ function ProgressPanel({ job }: { job: TransferJobDto }) {
   )
 }
 
+/** Warnings the import engine logs (`⚠ …`, `[dry-run] warning …`) stand out from progress lines. */
+function logLineClass(line: string): string | undefined {
+  return line.startsWith('⚠') || line.includes('warning') || line.startsWith('✗')
+    ? 'text-amber-600'
+    : undefined
+}
+
 /** A dry-run preview report — ephemeral, shown inline while the operator iterates. */
 function ReportPanel({ result }: { result: ImportResult }) {
   return (
@@ -79,7 +86,9 @@ function ReportPanel({ result }: { result: ImportResult }) {
       </div>
       <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
         {result.log.map((l, i) => (
-          <li key={i}>{l}</li>
+          <li key={i} className={logLineClass(l)}>
+            {l}
+          </li>
         ))}
         {result.skipped.map((s, i) => (
           <li key={`sk-${i}`} className="text-amber-600">
@@ -101,7 +110,9 @@ function JobDetail({ job }: { job: TransferJobDto }) {
   return (
     <ul className="space-y-1 text-xs text-muted-foreground">
       {result.log.map((l, i) => (
-        <li key={i}>{l}</li>
+        <li key={i} className={logLineClass(l)}>
+          {l}
+        </li>
       ))}
       {result.skipped.map((s, i) => (
         <li key={`sk-${i}`} className="text-amber-600">

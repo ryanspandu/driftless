@@ -7,8 +7,11 @@ import { WebSettingsService } from '#services/settings_service'
 import { renderAiCrawlerBlock, type AiCrawlerGroup } from '#services/ai_crawlers'
 import { PAGE_ROLE_SLOTS } from '#services/page_role_slots'
 import ModulesService from '#services/modules_service'
+import ContentPathsService from '#services/content_paths_service'
+import CmsCollection from '#models/cms_collection'
 
 const contentService = new ContentService()
+const contentPaths = new ContentPathsService()
 const webSettingsService = new WebSettingsService()
 const modulesService = new ModulesService()
 
@@ -25,6 +28,19 @@ async function rolePageIds(sections: Record<string, Record<string, string>>): Pr
   for (const { section, key } of PAGE_ROLE_SLOTS) {
     const id = sections[section]?.[key]?.trim()
     if (id) ids.add(id)
+  }
+
+  // A collection's public detail template renders every record — its own path
+  // is not a real page either.
+  // (a failed lookup — e.g. the migration has not run yet — just hides nothing)
+  const detailTemplates = await CmsCollection.query()
+    .where('detail_pages_on', true)
+    .whereNotNull('detail_page_id')
+    .whereNull('deleted_at')
+    .select('detail_page_id')
+    .catch(() => [] as CmsCollection[])
+  for (const c of detailTemplates) {
+    if (c.detailPageId) ids.add(c.detailPageId)
   }
 
   if (await modulesService.isEnabled('ecommerce')) {
@@ -98,6 +114,8 @@ Host: ${base}
     let entries: { loc: string; lastmod: string }[] = []
     if (sections['site_meta']?.['discourage_indexing'] !== '1') {
       const posts = await contentService.findPublishedList()
+      const paths = await contentPaths.get()
+      const postPrefix = paths.detail
       const pages = await Page.query().where('status', 'PUBLISHED').whereNull('deleted_at')
       // Module-contributed URLs (e.g. e-commerce product pages).
       const contributed = await collectSitemapEntries()
@@ -106,7 +124,7 @@ Host: ${base}
       entries = [
         { loc: `${base}/`, lastmod: now },
         ...posts.map((p) => ({
-          loc: `${base}/posts/${encodeURIComponent(p.slug)}`,
+          loc: `${base}/${postPrefix}/${encodeURIComponent(p.slug)}`,
           lastmod: p.updatedAt,
         })),
         ...pages

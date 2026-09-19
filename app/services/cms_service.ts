@@ -10,6 +10,13 @@ import { newUlid } from '#services/ulid_service'
 import CmsPermissionsService from '#services/cms_permissions_service'
 import PagesService from '#services/pages_service'
 import ModulesService from '#services/modules_service'
+import {
+  assertDetailSettings,
+  assertPrefixUsable,
+  assertTemplatePage,
+  findSlugField,
+  normalizeDetailPrefix,
+} from '#services/collection_detail_rules'
 import { isPostgres, recordLabel, coerceFieldValue, serializeFieldValue } from '#cms/field_values'
 import { nativeFieldColumn, nativeTableName } from '#cms/native_registry'
 import {
@@ -279,6 +286,11 @@ export interface CmsCollectionDto {
   revisionsOn: boolean
   draftsOn: boolean
   kind: 'collection' | 'single'
+  /** Public detail pages: serve each PUBLISHED record at `/<prefix>/<slug>`. Off by default. */
+  detailPagesOn: boolean
+  detailPathPrefix: string | null
+  /** Id of the CODE/kit Page that renders a record. */
+  detailPageId: string | null
   fields: CmsFieldDto[]
   createdAt: string
   updatedAt: string
@@ -468,6 +480,9 @@ export default class CmsService {
       revisionsOn: false,
       draftsOn: false,
       kind: 'collection',
+      detailPagesOn: false,
+      detailPathPrefix: null,
+      detailPageId: null,
       fields: b.fields.map((f, i) => ({
         id: `builtin:${b.key}:${f.key}`,
         collectionId: `builtin:${b.key}`,
@@ -568,6 +583,10 @@ export default class CmsService {
     revisionsOn?: boolean
     draftsOn?: boolean
     kind?: 'collection' | 'single'
+    /** Public detail pages (default off) — see `CollectionDetailService`. */
+    detailPagesOn?: boolean
+    detailPathPrefix?: string | null
+    detailPageId?: string | null
     fields?: Array<{
       key: string
       label: string
@@ -617,6 +636,20 @@ export default class CmsService {
       )
     }
 
+    // Public detail pages: validated before any write, like the fields below.
+    const detail = await assertDetailSettings({
+      key: dto.key,
+      type,
+      kind: dto.kind === 'single' ? 'single' : 'collection',
+      slugField: findSlugField(dto.fields ?? []),
+      settings: {
+        on: dto.detailPagesOn === true,
+        prefix: dto.detailPathPrefix ?? null,
+        pageId: dto.detailPageId ?? null,
+      },
+    })
+    await assertTemplatePage(detail.pageId)
+
     // Validate EVERY field UP FRONT, before any write. Previously an invalid key
     // (e.g. camelCase "compareAtPrice") threw mid-loop, after the collection and
     // some fields were already committed but before the physical table was
@@ -665,6 +698,9 @@ export default class CmsService {
           revisionsOn: dto.revisionsOn ?? true,
           draftsOn: dto.draftsOn ?? true,
           kind: dto.kind === 'single' ? 'single' : 'collection',
+          detailPagesOn: detail.on,
+          detailPathPrefix: detail.prefix,
+          detailPageId: detail.pageId,
         },
         { client: trx }
       )
@@ -676,8 +712,8 @@ export default class CmsService {
       const scalarFields: CmsField[] = []
       const relationInputs: Array<{ input: (typeof inputFields)[number]; order: number }> = []
 
-      for (let i = 0; i < inputFields.length; i++) {
-        const f = inputFields[i]!
+      for (const [i, inputField] of inputFields.entries()) {
+        const f = inputField!
         if (f.type === 'RELATION' && !isMetadataOnly(type)) {
           relationInputs.push({ input: f, order: i })
           continue
@@ -757,6 +793,10 @@ export default class CmsService {
       revisionsOn?: boolean
       draftsOn?: boolean
       kind?: 'collection' | 'single'
+      /** Public detail pages — see `CollectionDetailService`. `null` clears. */
+      detailPagesOn?: boolean
+      detailPathPrefix?: string | null
+      detailPageId?: string | null
       /** Rename the collection's key (renames its physical storage live). */
       key?: string
       /** Switch between COLLECTION and a metadata-only type (allowed only while empty). */
@@ -771,6 +811,46 @@ export default class CmsService {
 
     if (collection.source !== 'DYNAMIC') throw new Error('Native collections are read-only')
 
+    // Public detail pages. Validated against the state the collection would be in
+    // AFTER this write — but only when something about them actually changes (or
+    // an enabled toggle could be invalidated by a type/kind change). The admin
+    // form re-sends the whole settings block on every save, so an unchanged block
+    // must never be re-checked: a template page deleted since, or a prefix the
+    // blog has taken since, would otherwise make every unrelated save fail.
+    const previousDetail = {
+      on: Boolean(collection.detailPagesOn),
+      prefix: collection.detailPathPrefix ?? null,
+      pageId: collection.detailPageId ?? null,
+    }
+    const wanted = {
+      on: dto.detailPagesOn ?? previousDetail.on,
+      prefix:
+        dto.detailPathPrefix !== undefined
+          ? normalizeDetailPrefix(dto.detailPathPrefix)
+          : previousDetail.prefix,
+      pageId: dto.detailPageId !== undefined ? dto.detailPageId || null : previousDetail.pageId,
+    }
+    const detailChanged =
+      wanted.on !== previousDetail.on ||
+      wanted.prefix !== previousDetail.prefix ||
+      wanted.pageId !== previousDetail.pageId
+    const shapeChanged = previousDetail.on && (dto.type !== undefined || dto.kind !== undefined)
+    if (detailChanged || shapeChanged) {
+      const detail = await assertDetailSettings({
+        key: collection.key,
+        selfId: collection.id,
+        type: dto.type ?? collection.type ?? 'COLLECTION',
+        kind: (dto.kind ?? collection.kind) === 'single' ? 'single' : 'collection',
+        slugField: findSlugField(collection.fields),
+        settings: wanted,
+      })
+      // The template is checked when it is CHOSEN, not on every later save.
+      if (wanted.pageId !== previousDetail.pageId) await assertTemplatePage(detail.pageId)
+      collection.detailPagesOn = detail.on
+      collection.detailPathPrefix = detail.prefix
+      collection.detailPageId = detail.pageId
+    }
+
     if (dto.label !== undefined) collection.label = dto.label
     if (dto.icon !== undefined) collection.icon = dto.icon ?? null
     if (dto.group !== undefined) collection.group = dto.group ?? null
@@ -780,6 +860,22 @@ export default class CmsService {
       collection.kind = dto.kind === 'single' ? 'single' : 'collection'
     }
     await collection.save()
+
+    // An enabled collection whose prefix moved: keep every published entry's old
+    // URL alive (slug renames are already covered per record).
+    if (
+      previousDetail.on &&
+      collection.detailPagesOn &&
+      previousDetail.prefix &&
+      collection.detailPathPrefix &&
+      previousDetail.prefix !== collection.detailPathPrefix
+    ) {
+      await this.redirectMovedDetailPrefix(
+        collection,
+        previousDetail.prefix,
+        collection.detailPathPrefix
+      )
+    }
 
     // Type switch first (it changes whether a physical table exists), then the
     // rename (which renames whatever storage the final type has).
@@ -1075,6 +1171,20 @@ export default class CmsService {
       await this.assertMetadataSingleton(collection.type, collection.id)
     }
 
+    // A detail prefix is unique among live collections; another may have taken
+    // it while this one sat in the Trash. Restore with the feature off rather
+    // than fail the restore (or the unique index).
+    if (collection.detailPathPrefix) {
+      try {
+        // Full check, not just the unique index: the blog may have moved onto this
+        // prefix (or a module reserved it) while the collection was in the Trash,
+        // and the blog wins in the catch-all, so its entry URLs would silently break.
+        await assertPrefixUsable(collection.detailPathPrefix, collection.id)
+      } catch {
+        collection.detailPagesOn = false
+        collection.detailPathPrefix = null
+      }
+    }
     collection.deletedAt = null
     await collection.save()
     // Metadata-only collections mint no records permissions (they have no records).
@@ -1165,8 +1275,8 @@ export default class CmsService {
 
     if (collection.source !== 'DYNAMIC') throw new Error('Native collections are read-only')
 
-    for (let i = 0; i < fieldKeys.length; i++) {
-      const key = fieldKeys[i]!
+    for (const [i, fieldKey] of fieldKeys.entries()) {
+      const key = fieldKey!
       const field = collection.fields.find((f) => f.key === key)
       if (field) {
         field.order = i
@@ -1571,6 +1681,12 @@ export default class CmsService {
       .whereNull('deleted_at')
       .firstOrFail()
 
+    if (collection.detailPagesOn && this.isSlugField(field)) {
+      throw new Error(
+        'This is the slug field the public detail pages use — turn the detail pages off first'
+      )
+    }
+
     // Metadata-only fields own no physical schema — just soft-delete the metadata.
     if (isMetadataOnly(collection.type)) {
       field.deletedAt = DateTime.now()
@@ -1782,6 +1898,87 @@ export default class CmsService {
     if (opts?.resolveRelations) await this.resolveRelationLabels(collection, [dto])
     if (opts?.resolveMedia) await this.resolveMediaUrls(collection, [dto])
     return dto
+  }
+
+  /**
+   * One PUBLISHED record of a dynamic collection by its slug — the lookup behind
+   * a collection's public detail pages. Exact match (the list `filterField` is a
+   * substring match), null when there is no such record, no slug field, or the
+   * collection is a built-in or metadata-only one. Media and relations arrive
+   * resolved, like the public records API.
+   */
+  async findPublishedRecordBySlug(
+    collectionKey: string,
+    slug: string
+  ): Promise<CmsRecordDto | null> {
+    if (!slug || (await builtinCollection(collectionKey))) return null
+    let context: { table: string; collection: CmsCollection }
+    try {
+      context = await this.resolveRecordContext(collectionKey)
+    } catch {
+      return null
+    }
+    const { table, collection } = context
+    const slugField =
+      collection.fields.find((f) => f.type === 'SLUG') ??
+      collection.fields.find((f) => f.key === 'slug')
+    if (!slugField) return null
+    // The slug field is unique (enforced when detail pages are enabled), so this
+    // is an index lookup. A missing table (a half-created collection) is "no such
+    // record", not a 500 — this runs for arbitrary public URLs.
+    let row: Record<string, unknown> | undefined
+    try {
+      row = await db
+        .from(table)
+        .where(slugField.key, slug)
+        .where('status', 'PUBLISHED')
+        .whereNull('deleted_at')
+        .first()
+    } catch {
+      return null
+    }
+    if (!row) return null
+
+    const dto = this.rowToRecordDto(row, collection)
+    await this.resolveMultiRelations(collection, [dto])
+    await this.resolveRelationLabels(collection, [dto])
+    await this.resolveMediaUrls(collection, [dto])
+    return dto
+  }
+
+  /**
+   * The slug and last-modified time of every PUBLISHED record of a dynamic
+   * collection — one narrow query (no bodies, no relations), for the sitemap.
+   * Empty when the collection has no slug field or no table.
+   */
+  async publishedSlugEntries(
+    collectionKey: string,
+    limit: number
+  ): Promise<Array<{ slug: string; updatedAt: unknown }>> {
+    if (await builtinCollection(collectionKey)) return []
+    let context: { table: string; collection: CmsCollection }
+    try {
+      context = await this.resolveRecordContext(collectionKey)
+    } catch {
+      return []
+    }
+    const slugField = findSlugField(context.collection.fields)
+    if (!slugField) return []
+    const col = this.fieldToColumn(context.collection, slugField.key)
+    try {
+      const rows = await db
+        .from(context.table)
+        .select(col, 'updated_at')
+        .where('status', 'PUBLISHED')
+        .whereNull('deleted_at')
+        .orderBy('updated_at', 'desc')
+        .limit(limit)
+      return rows
+        .filter((r) => typeof r[col] === 'string' && r[col])
+        .map((r) => ({ slug: r[col] as string, updatedAt: r['updated_at'] }))
+    } catch {
+      return []
+    }
   }
 
   /**
@@ -2155,7 +2352,76 @@ export default class CmsService {
     const result = this.rowToRecordDto(row, collection)
     await this.resolveMultiRelations(collection, [result])
     await this.invalidatePageSnapshots()
+    await this.redirectRenamedDetailUrl(collection, existing, row)
     return result
+  }
+
+  /**
+   * A collection's detail prefix changed: 301 every published entry's old URL to
+   * the new one. Bounded (a huge collection is logged, not looped forever); turning
+   * the feature off creates no redirects — the pages are gone by design.
+   */
+  private async redirectMovedDetailPrefix(
+    collection: CmsCollection,
+    oldPrefix: string,
+    newPrefix: string
+  ): Promise<void> {
+    const slugField = findSlugField(collection.fields)
+    if (!slugField) return
+    const table = this.tableForCollection(collection)
+    const col = this.fieldToColumn(collection, slugField.key)
+    const LIMIT = 1000
+    try {
+      const rows = await db
+        .from(table)
+        .select(col)
+        .where('status', 'PUBLISHED')
+        .whereNull('deleted_at')
+        .limit(LIMIT + 1)
+      const { default: RedirectsService } = await import('#services/redirects_service')
+      const redirects = new RedirectsService()
+      for (const row of rows.slice(0, LIMIT)) {
+        const slug = row[col]
+        if (typeof slug !== 'string' || !slug) continue
+        await redirects
+          .capturePathChange(`${oldPrefix}/${slug}`, `${newPrefix}/${slug}`)
+          .catch(() => {})
+      }
+      if (rows.length > LIMIT) {
+        console.warn(
+          `[cms] "${collection.key}": detail prefix moved, but only the first ${LIMIT} entries got a redirect`
+        )
+      }
+    } catch {
+      /* redirects are best-effort; the prefix change itself has already been saved */
+    }
+  }
+
+  /**
+   * With public detail pages on, a published record's slug is part of a URL that
+   * may be linked and indexed — keep it working after a rename with a 301, the
+   * same way renaming a Page's path does.
+   */
+  private async redirectRenamedDetailUrl(
+    collection: CmsCollection,
+    before: Record<string, unknown>,
+    after: Record<string, unknown> | undefined
+  ): Promise<void> {
+    if (!collection.detailPagesOn || !collection.detailPathPrefix || !after) return
+    const slugField =
+      collection.fields.find((f) => f.type === 'SLUG') ??
+      collection.fields.find((f) => f.key === 'slug')
+    if (!slugField) return
+    const col = this.fieldToColumn(collection, slugField.key)
+    const oldSlug = before[col]
+    const newSlug = after[col]
+    if (typeof oldSlug !== 'string' || typeof newSlug !== 'string' || oldSlug === newSlug) return
+    if (before['status'] !== 'PUBLISHED' || after['status'] !== 'PUBLISHED') return
+    const prefix = collection.detailPathPrefix
+    const { default: RedirectsService } = await import('#services/redirects_service')
+    await new RedirectsService()
+      .capturePathChange(`${prefix}/${oldSlug}`, `${prefix}/${newSlug}`)
+      .catch(() => {})
   }
 
   async deleteRecord(collectionKey: string, id: string): Promise<void> {
@@ -2451,6 +2717,9 @@ export default class CmsService {
       revisionsOn: col.revisionsOn,
       draftsOn: col.draftsOn,
       kind: col.kind ?? 'collection',
+      detailPagesOn: Boolean(col.detailPagesOn),
+      detailPathPrefix: col.detailPathPrefix ?? null,
+      detailPageId: col.detailPageId ?? null,
       fields: col.fields?.map((f) => this.fieldToDto(f)) ?? [],
       createdAt: col.createdAt.toISO()!,
       updatedAt: col.updatedAt.toISO()!,

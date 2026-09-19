@@ -9,6 +9,7 @@ import { DateTime } from 'luxon'
 import { sanitizePuckDocument } from '#services/html_sanitizer_service'
 import RedirectsService from '#services/redirects_service'
 import { reservedFirstSegment } from '#services/reserved_paths'
+import ContentPathsService from '#services/content_paths_service'
 
 export type PageStatus = 'DRAFT' | 'PUBLISHED'
 export type PageRenderMode = 'SSR' | 'SSG' | 'CSR'
@@ -143,6 +144,7 @@ export default class PagesService {
     if (!path) throw new Error('Path is required')
     this.assertPathNotReserved(path)
     await this.assertPathFree(path)
+    await this.assertPathNotOnMovedScreen(path)
 
     const status = dto.status ?? 'DRAFT'
     const kind = dto.kind ?? 'BUILDER'
@@ -295,6 +297,7 @@ export default class PagesService {
       if (path !== row.path) {
         this.assertPathNotReserved(path)
         await this.assertPathFree(path, id)
+        await this.assertPathNotOnMovedScreen(path)
       }
       row.path = path
     }
@@ -696,6 +699,18 @@ export default class PagesService {
    * (`pages_public_controller.ts`). That used to be a silent trap: no error, just
    * a page that quietly never renders. Reject it outright instead, with the fix.
    */
+  /**
+   * A page beats the blog screens and a collection's public entry pages on the same
+   * path, so once those have been given their own URL a page saved beneath it would
+   * silently hide an archive or a post. Reject it with the way out. Only prefixes
+   * the operator has moved (or a collection's) are enforced — see
+   * `ContentPathsService.pathConflict`.
+   */
+  private async assertPathNotOnMovedScreen(path: string): Promise<void> {
+    const conflict = await new ContentPathsService().pathConflict(path)
+    if (conflict) throw new Error(conflict)
+  }
+
   private assertPathNotReserved(path: string): void {
     const segment = reservedFirstSegment(path)
     if (!segment) return

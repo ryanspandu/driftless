@@ -33,6 +33,17 @@ other inline style property, and unrecognised tags/attributes are removed. Do
 not introduce a new `dangerouslySetInnerHTML` sink for editor input without
 routing its value through `#services/html_sanitizer_service` first.
 
+**What this means for a kit that renders a body.** A custom template
+([custom-templates.md](./custom-templates.md#rich-text-from-the-cms--what-the-sanitiser-leaves-you)) that puts
+sanitised HTML into `dangerouslySetInnerHTML` receives markup with **no `<div>`** (the tag is not on the list;
+only `CodeEmbed` widens it), **no `id` attribute on any tag** (`id` is not an allowed attribute, so
+`<h2 id="intro">` is stored as `<h2>`), `class` allowed on **every** allowed tag, and only the narrow inline
+styles above (on `span`, `p`, `h1`–`h6`, `img`, `td`, `th`). Do not rely on wrapper elements or ids inside the
+body. Add ids **at render time** — a string transform such as the `aftrn-web` kit's `withHeadingIds` (every
+`<h2>` gets a slug id, in the server-rendered HTML too) — and style the body with **descendant selectors on a
+wrapper you own** (`.prose h2 { … }`, `.prose figure { … }`), not with classes you expect the author to have
+typed.
+
 ### Code Embed and trusted snippets
 
 `CodeEmbed` is intentionally **not** an arbitrary-code escape hatch. On save it

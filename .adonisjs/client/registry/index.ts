@@ -3150,6 +3150,18 @@ const routes = {
     tokens: [{"old":"/api/mcp/v1/page-roles","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/page-roles","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/page-roles","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/page-roles","type":0,"val":"page-roles","end":""}],
     types: placeholder as Registry['mcp.pageroles']['types'],
   },
+  'mcp.contentpaths.get': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/mcp/v1/content-paths',
+    tokens: [{"old":"/api/mcp/v1/content-paths","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/content-paths","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/content-paths","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/content-paths","type":0,"val":"content-paths","end":""}],
+    types: placeholder as Registry['mcp.contentpaths.get']['types'],
+  },
+  'mcp.contentpaths': {
+    methods: ["PUT"],
+    pattern: '/api/mcp/v1/content-paths',
+    tokens: [{"old":"/api/mcp/v1/content-paths","type":0,"val":"api","end":""},{"old":"/api/mcp/v1/content-paths","type":0,"val":"mcp","end":""},{"old":"/api/mcp/v1/content-paths","type":0,"val":"v1","end":""},{"old":"/api/mcp/v1/content-paths","type":0,"val":"content-paths","end":""}],
+    types: placeholder as Registry['mcp.contentpaths']['types'],
+  },
   'mcp.media.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/mcp/v1/media',

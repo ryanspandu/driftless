@@ -55,7 +55,7 @@ Settings → API tokens — with the abilities the work needs:
 | `builder:templates`      | create/update templates                                      | `template:*`                 |
 | `builder:menus`          | create menus + set menu items                                | `menu:*`                     |
 | `builder:forms`          | create/update/delete form definitions                        | `forms:manage`               |
-| `builder:settings`       | write appearance, breakpoints, global code, page roles        | `settings:manage`            |
+| `builder:settings`       | write appearance, breakpoints, global code, page roles, blog URLs | `settings:manage`        |
 | `builder:media`          | upload / crop / edit media                                   | `media:manage`               |
 | `builder:products`       | create/update/delete products, variants, categories          | `ecommerce:products:manage`  |
 | `builder:content`        | create/update posts + their categories & tags                | `content:*`                  |
@@ -77,33 +77,50 @@ issues }`.
 | -------------------------------------------------------------------------------------------------- | -------------------------------- | ----------------------------------------- |
 | `GET /catalog?type=page\|collection\|email`                                                        | `builder:read`                   | machine-readable block catalog            |
 | `GET /collections` · `GET /collections/:key`                                                       | `builder:read`                   |                                           |
-| `POST /collections` · `PUT /collections/:key` · `DELETE /collections/:key`                         | `builder:collections`            |                                           |
+| `GET /collections/trashed`                                                                         | `builder:read`                   | soft-deleted collections (restorable)     |
+| `POST /collections` · `PUT /collections/:key` · `DELETE /collections/:key`                         | `builder:collections`            | `POST`/`PUT` accept `detailPagesOn`, `detailPathPrefix`, `detailPageId` (public entry pages at `/<prefix>/<slug>`); a bad prefix, a missing/non-unique SLUG field or a non-CODE template answers `422 { message }`; `DELETE` moves to Trash |
+| `POST /collections/:key/restore` · `DELETE /collections/:key/force`                                | `builder:collections`            | bring a trashed collection back; drop it permanently |
 | `POST /collections/:key/fields` · `PUT\|DELETE .../fields/:field` · `PATCH .../fields/reorder`     | `builder:collections`            |                                           |
-| `GET /pages` · `GET /pages/:id`                                                                    | `builder:read`                   |                                           |
-| `POST /pages` · `PUT /pages/:id`                                                                   | `builder:pages`                  | `content` validated against the catalog   |
+| `GET /pages` · `GET /pages/:id`                                                                    | `builder:read`                   | list rows carry `id`, `path`, `status`, `kind` (`BUILDER`\|`CODE`), `component` |
+| `GET /custom-templates`                                                                            | `builder:read`                   | the ACTIVE custom-template kits (`kit:<id>` values for a CODE page) |
+| `POST /pages` · `PUT /pages/:id`                                                                   | `builder:pages`                  | `content` validated against the catalog; creating/editing a `CODE` page also needs `settings:manage` (403 otherwise) |
 | `PUT /pages/:id/content`                                                                           | `builder:pages`                  | stages a draft (like autosave)            |
+| `PUT /pages/:id/content/patch`                                                                     | `builder:pages`                  | patch one block by its `props.id` (a small diff) |
+| `POST /pages/:id/insert-section`                                                                   | `builder:pages`                  | clone a section preset into a page; returns `insertedBlockIds` |
+| `GET /pages/:id/render`                                                                            | `builder:read`                   | rendered HTML of the draft                |
+| `GET /pages/:id/screenshot`                                                                        | `builder:read`                   | rendered pixels of the draft (image)      |
+| `GET /pages/:id/compare`                                                                           | `builder:read`                   | draft screenshot next to the design reference |
+| `POST /pages/:id/analyze-layout`                                                                   | `builder:pages`                  | reference-layout analysis; stores expectations on the brief |
+| `GET /pages/:id/lint-layout`                                                                       | `builder:read`                   | grades the rendered draft against those expectations |
 | `POST /pages/:id/publish`                                                                          | `builder:pages`                  | promotes the draft, or explicit `content` |
 | `POST /pages/validate`                                                                             | `builder:read`                   | validate a doc **without** writing; returns `issues` + `warnings` |
 | `POST /pages/:id/discard-draft`                                                                    | `builder:pages`                  |                                           |
 | `POST /pages/:id/preview-token`                                                                    | `builder:pages`                  | no-login draft preview `{ token, url }`   |
 | `PUT /pages/:id/brief`                                                                             | `builder:pages`                  | store the structured design brief         |
 | `GET /pages/:id/coverage`                                                                          | `builder:read`                   | brief-vs-build fidelity report            |
-| `GET /templates` · `GET /templates/:id`                                                            | `builder:read`                   |                                           |
+| `GET /templates` · `GET /templates/:id` · `GET /section-presets`                                   | `builder:read`                   | `section-presets` = the COMPONENT templates `insert-section` clones |
 | `POST /templates` · `PUT /templates/:id` · `DELETE /templates/:id` · `POST /templates/:id/default` | `builder:templates`              |                                           |
 | `GET /appearance`                                                                                  | `builder:read`                   | theme + EFFECTIVE colours                 |
 | `PUT /appearance` · `PUT /breakpoints` · `PUT /global-code`                                        | `builder:settings`               | appearance validated on write (422 + `issues`) |
-| `PUT /page-roles`                                                                                  | `builder:settings`               | assign a builder page to a role (home, auth/error, category/tag archives); `pageId:""` clears |
+| `PUT /page-roles`                                                                                  | `builder:settings`               | assign a PUBLISHED builder or CODE/kit page to a role (home, auth/error, category/tag archives, `postsArchive`, `postDetail`); `pageId:""` clears |
+| `GET /content-paths` · `PUT /content-paths`                                                        | `builder:read` / `builder:settings` | where the built-in blog screens live (`postsArchive`, `postDetail`, `category`, `tag`; defaults `blog`/`posts`/`category`/`tag`) with example URLs; `PUT` sets only the fields sent (`""`/`null` resets), old addresses 301, a reserved/used prefix answers `422 { message }`; needs `settings:manage` |
 | `PUT /storefront-pages`                                                                            | `builder:settings`               | assign a builder page to a storefront screen (shop, product, cart/checkout/account, category/tag); needs the `ecommerce` module + `ecommerce:settings:manage` |
 | `GET /media` · `POST /media` (multipart `file`)                                                    | `builder:read` / `builder:media` | upload records provenance (origin/sourceUrl) |
+| `GET /media/:id/palette`                                                                           | `builder:read`                   | colour palette extracted from an image    |
 | `POST /media/:id/crop` · `PATCH /media/:id`                                                        | `builder:media`                  | crop a region into a new asset; edit meta |
 | `GET /menus` · `GET /menus/:id`                                                                    | `builder:read`                   | reusable navigation menus                 |
 | `POST /menus` · `PUT /menus/:id/items`                                                             | `builder:menus`                  | create a menu; replace its whole tree     |
 | `GET /forms` · `GET /forms/:id`                                                                    | `builder:read`                   | named form definitions a FormBlock renders |
 | `POST /forms` · `PUT /forms/:id` · `DELETE /forms/:id`                                             | `builder:forms`                  | `fields` validated (422 + reason on a bad schema) |
-| `GET /products` · `GET /products/:id` · `GET /categories`                                          | `builder:read`                   | needs the `ecommerce` module              |
+| `GET /products` · `GET /products/:id` · `GET /categories` · `GET /product-tags`                    | `builder:read`                   | needs the `ecommerce` module              |
 | `POST /products` · `PUT\|DELETE /products/:id`                                                     | `builder:products`               | `price` (minor units) auto-adds a variant; `description` is sanitised HTML |
 | `POST /products/:id/variants` · `PUT\|DELETE /variants/:variantId`                                 | `builder:products`               |                                           |
 | `POST /categories` · `PUT\|DELETE /categories/:id`                                                 | `builder:products`               |                                           |
+| `POST /product-tags` · `PUT\|DELETE /product-tags/:id`                                             | `builder:products`               |                                           |
+| `GET /content` · `GET /content/:id` · `GET /content-categories` · `GET /content-tags`             | `builder:read`                   | built-in Content (blog posts) + taxonomy; RBAC resource `content` |
+| `POST /content` · `PUT\|DELETE /content/:id`                                                       | `builder:content`                | posts; RBAC resource `content`            |
+| `POST /content-categories` · `PUT\|DELETE /content-categories/:id`                                 | `builder:content`                |                                           |
+| `POST /content-tags` · `PUT\|DELETE /content-tags/:id`                                             | `builder:content`                |                                           |
 | `POST /api/v1/cms/:key/records` …                                                                  | `cms:write`                      | records — the existing v1 API             |
 
 ## Block catalog + content validation
@@ -184,6 +201,14 @@ units, `categoryIds`, `images`) → build the page with a `ProductList` block
 (`source.featured` or `source.categorySlug`) → `publish_page`. Create the
 products **before** placing `ProductList` — it renders only what already exists,
 so an empty store yields an empty grid.
+
+**Public entry pages for a collection** (each published record at its own URL):
+`list_custom_templates` → `create_page` (`kind:"CODE"`, `component:"kit:<id>"`)
+and publish it → `create_collection` / `update_collection` (needs a UNIQUE SLUG
+field) with `detailPagesOn` / `detailPathPrefix` / `detailPageId` →
+`create_record` with `status: PUBLISHED`. The kit receives
+`props.bindings {collection, slug}` and `props.record {collection, item}`. Move
+the blog itself with `set_content_paths`.
 
 ### Option A — Remote (recommended, no install)
 

@@ -6295,6 +6295,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['usePageAsRole']>>>
     }
   }
+  'mcp.contentpaths.get': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/mcp/v1/content-paths'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['getContentPaths']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['getContentPaths']>>>
+    }
+  }
+  'mcp.contentpaths': {
+    methods: ["PUT"]
+    pattern: '/api/mcp/v1/content-paths'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['setContentPaths']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/mcp/controllers/api/settings_controller').default['setContentPaths']>>>
+    }
+  }
   'mcp.media.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/mcp/v1/media'

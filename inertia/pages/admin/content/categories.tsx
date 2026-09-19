@@ -25,6 +25,7 @@ import {
   useUpdateContentCategory,
 } from '~/hooks/api/use-content-categories'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
+import { useContentPaths } from '~/lib/content_paths'
 
 type Editing = ContentCategoryDto | 'new' | null
 
@@ -39,6 +40,7 @@ function CategoryDialog({
 }) {
   const createMut = useCreateContentCategory()
   const updateMut = useUpdateContentCategory()
+  const paths = useContentPaths()
   const isEdit = editing && editing !== 'new'
   const [name, setName] = useState(isEdit ? editing.name : '')
   const [slug, setSlug] = useState(isEdit ? editing.slug : '')
@@ -112,7 +114,9 @@ function CategoryDialog({
               placeholder="tutorials"
               className="font-mono text-sm"
             />
-            <p className="text-xs text-muted-foreground">Used in the archive URL /category/…</p>
+            <p className="text-xs text-muted-foreground">
+              Used in the archive URL /{paths.category}/…
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cat-parent">Parent</Label>

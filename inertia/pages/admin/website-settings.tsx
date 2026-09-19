@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
 import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
-import { WEBSITE_SETTING_SECTIONS } from '~/types/api'
+import { CONTENT_PATH_FIELDS, WEBSITE_SETTING_SECTIONS } from '~/types/api'
 import { BackButton } from '~/components/admin/back-button'
 import { ImageSettingControl } from '~/components/admin/image-setting-control'
 import { MetaTagsEditor, type MetaTag } from '~/components/admin/meta-tags-editor'
@@ -36,7 +36,9 @@ export default function WebsiteSettingsPage() {
   // default and is omitted from the URL.
   const tab = useMemo(() => {
     const t = searchParams.get('tab')
-    return t === 'custom-code' || t === 'appearance' || t === 'forms' ? t : 'site-meta'
+    return t === 'custom-code' || t === 'appearance' || t === 'forms' || t === 'urls'
+      ? t
+      : 'site-meta'
   }, [searchParams])
   const onTabChange = (value: string) => {
     const merged = mergeSearchParamsLive(searchParams, {
@@ -62,6 +64,7 @@ export default function WebsiteSettingsPage() {
           <TabsList>
             <TabsTrigger value="site-meta">Site &amp; SEO</TabsTrigger>
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
+            <TabsTrigger value="urls">URLs</TabsTrigger>
             <TabsTrigger value="forms">Forms</TabsTrigger>
             <TabsTrigger value="custom-code">Custom code</TabsTrigger>
           </TabsList>
@@ -71,6 +74,9 @@ export default function WebsiteSettingsPage() {
           </TabsContent>
           <TabsContent value="appearance" className="mt-4">
             <AppearanceSection />
+          </TabsContent>
+          <TabsContent value="urls" className="mt-4">
+            <UrlsSection />
           </TabsContent>
           <TabsContent value="forms" className="mt-4">
             <FormsSection />
@@ -377,6 +383,110 @@ function SiteMetaSection() {
               {update.isPending ? 'Saving…' : 'Save site & SEO'}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+    </form>
+  )
+}
+
+/**
+ * Where the built-in Content screens live. The server is the authority on what
+ * is allowed (reserved paths, clashes with existing pages); this only checks the
+ * shape so a typo is caught before the round trip, and shows the resulting URL.
+ */
+function UrlsSection() {
+  const { data, isPending } = useWebsiteSettings()
+  const update = useUpdateWebsiteSettings('URLs saved')
+  const saved = data?.sections?.[WEBSITE_SETTING_SECTIONS.CONTENT_PATHS]
+  const [values, setValues] = useState<Record<string, string>>({})
+  const [formError, setFormError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!saved) return
+    setValues(
+      Object.fromEntries(CONTENT_PATH_FIELDS.map((f) => [f.key, saved[f.key] || f.default]))
+    )
+  }, [saved])
+
+  const clean = (raw: string) =>
+    raw
+      .trim()
+      .toLowerCase()
+      .replace(/^\/+|\/+$/g, '')
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    setFormError(null)
+    for (const f of CONTENT_PATH_FIELDS) {
+      const v = clean(values[f.key] ?? '')
+      if (v && !v.split('/').every((s) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s))) {
+        setFormError(
+          `${f.label}: use lowercase letters, numbers and dashes, with “/” between segments.`
+        )
+        return
+      }
+    }
+    try {
+      await update.mutateAsync({
+        patches: CONTENT_PATH_FIELDS.map((f) => {
+          const v = clean(values[f.key] ?? '')
+          // The default is stored as "no override", so it stays a true default.
+          return {
+            section: WEBSITE_SETTING_SECTIONS.CONTENT_PATHS,
+            key: f.key,
+            value: v === f.default ? '' : v,
+          }
+        }),
+      })
+    } catch {
+      // Reported by the mutation handler (the server explains what clashed).
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <Card>
+        <CardHeader>
+          <CardDescription>
+            Choose the address of your blog. Moving it (for example to “insights”) redirects the old
+            address automatically and updates links, canonical URLs and the sitemap. Leave a field
+            at its default to keep the built-in address.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {CONTENT_PATH_FIELDS.map((f) => {
+            const v = clean(values[f.key] ?? f.default) || f.default
+            return (
+              <div key={f.key} className="space-y-2">
+                <Label htmlFor={`url-${f.key}`}>{f.label}</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">/</span>
+                  <Input
+                    id={`url-${f.key}`}
+                    className="font-mono"
+                    value={values[f.key] ?? ''}
+                    onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    placeholder={f.default}
+                    autoComplete="off"
+                    disabled={isPending}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {f.hint} Example: <code>{f.example(v)}</code>
+                </p>
+              </div>
+            )
+          })}
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={isPending || update.isPending}>
+              {update.isPending ? 'Saving…' : 'Save URLs'}
+            </Button>
+          </div>
+          {formError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {formError}
+            </p>
+          ) : null}
         </CardContent>
       </Card>
     </form>

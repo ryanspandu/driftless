@@ -49,6 +49,21 @@ const WEB_DEFAULTS: Record<string, Record<string, string>> = {
   content_pages: {
     category_archive_page_id: '',
     tag_archive_page_id: '',
+    // Posts index (`/blog`) and post detail (`/posts/:slug`) templates — read
+    // and written by the "Use as page" menu, but were never seeded here.
+    posts_archive_page_id: '',
+    post_detail_page_id: '',
+  },
+  /**
+   * Public URL prefixes of the Content screens (no leading slash). Defaults are
+   * the historical routes; see `#services/content_paths`. Resolved per request
+   * by `ContentPathsService`, validated on write in `applyPatches`.
+   */
+  content_paths: {
+    posts_archive_prefix: 'blog',
+    post_detail_prefix: 'posts',
+    category_prefix: 'category',
+    tag_prefix: 'tag',
   },
   /**
    * The builder page that renders at `/` (the front page), by page id. Empty
@@ -850,8 +865,20 @@ export class WebSettingsService {
   }
 
   async applyPatches(
-    patches: Array<{ section: string; key: string; value: string }>
+    rawPatches: Array<{ section: string; key: string; value: string }>,
+    opts: {
+      /**
+       * A data import: the content-URL validation keeps its format / reserved /
+       * ambiguity rules but does not compare against pages that already exist
+       * (see `ContentPathsService.validate`).
+       */
+      fromImport?: boolean
+    } = {}
   ): Promise<WebsiteSettingsDto> {
+    // The value that is validated must be the value that is stored: normalise the
+    // content URL prefixes and keep only the last patch per key.
+    const { normalizeContentPathPatches } = await import('#services/content_paths')
+    const patches = normalizeContentPathPatches(rawPatches)
     // Validate everything before writing anything — a patch rejected here
     // must never leave an earlier, unrelated patch from the same request
     // half-applied.
@@ -863,25 +890,54 @@ export class WebSettingsService {
       }
     }
 
+    // The content URL prefixes can shadow pages and reserved routes, and rows
+    // also arrive through import/MCP (not only the settings screen), so the
+    // rules live here rather than in one controller.
+    const touchesContentPaths = patches.some((p) => p.section === 'content_paths')
+    if (touchesContentPaths) {
+      const { default: ContentPathsService } = await import('#services/content_paths_service')
+      const issues = await new ContentPathsService().validate(patches, {
+        checkExistingPaths: !opts.fromImport,
+      })
+      if (issues.length) throw new Error(issues.join(' '))
+    }
+
+    const { CONTENT_PATH_KEYS, CONTENT_PATH_KINDS, CONTENT_PATH_DEFAULTS } =
+      await import('#services/content_paths')
+    const contentPathDefault = new Map<string, string>(
+      CONTENT_PATH_KINDS.map((kind) => [CONTENT_PATH_KEYS[kind], CONTENT_PATH_DEFAULTS[kind]])
+    )
+    let contentPathsChanged = false
     for (const p of patches) {
-      const value = String(p.value ?? '')
+      // A blog URL set to its built-in default is "no override": no row is stored
+      // (so an import re-sending the defaults changes nothing, and the SSG cache
+      // is not thrown away for it).
+      const isDefaultUrl =
+        p.section === 'content_paths' && contentPathDefault.get(p.key) === p.value
+      const value = isDefaultUrl ? '' : String(p.value ?? '')
       const existing = await WebSetting.query()
         .where('section', p.section)
         .where('key', p.key)
         .whereNull('deleted_at')
         .first()
+      const isContentPath = p.section === 'content_paths'
 
       if (value === '') {
         // Empty = reset to the in-memory default; drop the override row so we
         // never persist an empty string (and re-toggling can't conflict).
-        if (existing) await existing.delete()
+        if (existing) {
+          await existing.delete()
+          if (isContentPath) contentPathsChanged = true
+        }
         continue
       }
 
       if (existing) {
+        if (isContentPath && existing.value !== value) contentPathsChanged = true
         existing.value = value
         await existing.save()
       } else {
+        if (isContentPath) contentPathsChanged = true
         await WebSetting.create({
           id: newUlid(),
           section: p.section,
@@ -889,6 +945,13 @@ export class WebSettingsService {
           value,
         })
       }
+    }
+    if (contentPathsChanged) {
+      // Canonicals, JSON-LD and collection `url`s baked into SSG snapshots carry
+      // the old prefix — re-render them. Only when a value really changed: an
+      // import re-sends the defaults every time.
+      const { default: PagesService } = await import('#services/pages_service')
+      await new PagesService().invalidateAllSnapshots()
     }
     return this.getDto()
   }

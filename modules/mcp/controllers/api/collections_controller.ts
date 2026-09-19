@@ -33,6 +33,9 @@ export default class BuilderCollectionsController {
       'draftsOn',
       'kind',
       'fields',
+      'detailPagesOn',
+      'detailPathPrefix',
+      'detailPageId',
     ]) as Parameters<CmsService['createCollection']>[0]
     try {
       return response.status(201).json(await cms.createCollection(dto))
@@ -42,7 +45,18 @@ export default class BuilderCollectionsController {
   }
 
   async update({ params, request, response }: HttpContext) {
-    const dto = request.only(['label', 'icon', 'group', 'type', 'revisionsOn', 'draftsOn', 'kind'])
+    const dto = request.only([
+      'label',
+      'icon',
+      'group',
+      'type',
+      'revisionsOn',
+      'draftsOn',
+      'kind',
+      'detailPagesOn',
+      'detailPathPrefix',
+      'detailPageId',
+    ])
     try {
       return response.json(await cms.updateCollection(params.key, dto))
     } catch (e) {

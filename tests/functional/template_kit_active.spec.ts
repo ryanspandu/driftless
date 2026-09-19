@@ -5,10 +5,13 @@ import Role from '#models/role'
 import TemplateKitState from '#models/template_kit_state'
 import TemplateKitsService from '#services/template_kits_service'
 
-/** A kit that ships both code-templates (header/footer) and file-pages. */
-const KIT = 'aftrn-web'
+/**
+ * A kit that ships both code-templates (header/footer) and file-pages. The
+ * committed reference kit — operator kits are gitignored and change per site.
+ */
+const KIT = 'example'
 /** A file-page path contributed by that kit. */
-const KIT_PAGE_PATH = 'aftrn'
+const KIT_PAGE_PATH = 'kit-example/about'
 
 async function resetDatabase() {
   const cleanup = await testUtils.db().truncate()

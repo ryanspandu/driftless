@@ -9,12 +9,17 @@ import PagesService from '#services/pages_service'
 import { findFilePageByPath, virtualPageForFilePage } from '#services/file_pages'
 import TemplateKitsService from '#services/template_kits_service'
 import { WebSettingsService } from '#services/settings_service'
+import ContentPathsService from '#services/content_paths_service'
+import CollectionDetailService from '#services/collection_detail_service'
+import { blogSearchThrottle } from '#start/limiter'
 
 const renderer = new PageRenderer()
 const redirects = new RedirectsService()
 const pagesService = new PagesService()
 const templateKits = new TemplateKitsService()
 const webSettingsService = new WebSettingsService()
+const contentPaths = new ContentPathsService()
+const collectionDetails = new CollectionDetailService()
 
 /**
  * Signal "no such page" so the exception handler can shape the response.
@@ -54,6 +59,29 @@ export default class PagesPublicController {
       const filePage = findFilePageByPath(path, await templateKits.activeSet())
       if (filePage) {
         return this.composeAndRender(virtualPageForFilePage(filePage), ctx, false)
+      }
+
+      // The Content screens (blog archive, post, category, tag) at the prefixes
+      // the operator configured (Website settings → URLs). A page or file-page on
+      // the same path already won above; content beats a redirect.
+      const content = await contentPaths.match(path)
+      if (content) {
+        try {
+          return await this.renderContentScreen(content, ctx)
+        } catch (e) {
+          // "No such post/category/tag" must not end the lookup here: an old slug
+          // may have a redirect, and a manual 301 under the blog prefix must work.
+          if ((e as { code?: string }).code !== 'E_PAGE_NOT_FOUND') throw e
+        }
+      }
+
+      // A collection's public detail page (`/<prefix>/<slug>`), rendered through
+      // its template page. Same precedence as the content screens: a page
+      // above wins, a record beats a redirect. A lookup failure (e.g. the
+      // migration has not run yet) is "no such page", never a 500 on a public URL.
+      const detail = await collectionDetails.resolve(path).catch(() => null)
+      if (detail) {
+        return renderer.render(detail.page, ctx, detail.options)
       }
 
       // Before giving up, honour a configured redirect (e.g. a moved page's old
@@ -162,9 +190,33 @@ export default class PagesPublicController {
     response.header('X-Frame-Options', 'SAMEORIGIN')
     const csp = response.getHeader('Content-Security-Policy')
     if (typeof csp === 'string') {
-      response.header('Content-Security-Policy', csp.replace("frame-ancestors 'none'", "frame-ancestors 'self'"))
+      response.header(
+        'Content-Security-Policy',
+        csp.replace("frame-ancestors 'none'", "frame-ancestors 'self'")
+      )
     }
     return this.composeAndRender(page, ctx, true)
+  }
+
+  /**
+   * Hand a catch-all hit on a configured Content prefix to the same handler the
+   * historical route uses (they read `params.slug` and the request URL). Routes
+   * are frozen at boot, so the per-route throttle is applied by hand.
+   */
+  private async renderContentScreen(
+    match: { kind: 'archive' | 'detail' | 'category' | 'tag'; slug?: string },
+    ctx: HttpContext
+  ) {
+    if (match.kind !== 'detail') {
+      await blogSearchThrottle(ctx, async () => {})
+    }
+    const { default: PublicController } = await import('#controllers/public_controller')
+    const controller = new PublicController()
+    ctx.params = { ...ctx.params, slug: match.slug }
+    if (match.kind === 'archive') return controller.blog(ctx)
+    if (match.kind === 'detail') return controller.post(ctx)
+    if (match.kind === 'category') return controller.category(ctx)
+    return controller.tag(ctx)
   }
 
   /**

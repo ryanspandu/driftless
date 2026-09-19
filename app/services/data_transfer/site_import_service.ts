@@ -128,14 +128,6 @@ export default class SiteImportService {
 
       const label = section.label ?? section.name
 
-      if (opts.dryRun) {
-        const count = countRows(data)
-        pushLog(`[dry-run] would import ${count} ${count === 1 ? 'row' : 'rows'} → ${label}`)
-        continue
-      }
-
-      await opts.onProgress?.({ completed, total, section: label, phase: 'start' })
-
       const ctx: ImportCtx = {
         mode,
         conflict,
@@ -145,6 +137,28 @@ export default class SiteImportService {
         getFile: (name) => files.get(name),
         log: (line) => pushLog(line),
       }
+
+      if (opts.dryRun) {
+        const count = countRows(data)
+        pushLog(`[dry-run] would import ${count} ${count === 1 ? 'row' : 'rows'} → ${label}`)
+        // A dry run never runs `import`, so it cannot hit the validators that an
+        // import would — ask the section what it would trip over (read-only).
+        if (section.preflight) {
+          try {
+            for (const warning of await section.preflight(ctx, data)) {
+              pushLog(`[dry-run] warning (${section.name}): ${warning}`)
+            }
+          } catch (e) {
+            pushLog(
+              `[dry-run] warning (${section.name}): preflight failed — ${(e as Error).message}`
+            )
+          }
+        }
+        continue
+      }
+
+      await opts.onProgress?.({ completed, total, section: label, phase: 'start' })
+
       // Isolate each section: one section's failure (a bad row, an unexpected FK)
       // must not abort the rest of the migration — record it and carry on, so a
       // late section (e.g. settings, order 70) always runs.
@@ -154,6 +168,10 @@ export default class SiteImportService {
         pushLog(
           `${section.name}: +${report.created} created, ~${report.updated} updated, ${report.skipped} skipped`
         )
+        // A section that recovers from a problem reports it as a warning. Those
+        // used to be visible only in the JSON result — surface them in the log
+        // the operator actually reads.
+        for (const warning of report.warnings) pushLog(`⚠ ${section.name}: ${warning}`)
       } catch (e) {
         const msg = (e as Error).message
         reports.push({ name: section.name, created: 0, updated: 0, skipped: 0, warnings: [msg] })
