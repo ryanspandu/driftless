@@ -50,6 +50,7 @@ export function useCmsCollection(key: string) {
 export function useCreateCmsCollection() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Collection created' },
     mutationFn: (body: CreateCmsCollectionRequest) => cmsCollections.create(body),
     onSuccess: (created: CmsCollectionDto) => {
       qc.invalidateQueries({ queryKey: qk.list })
@@ -61,6 +62,7 @@ export function useCreateCmsCollection() {
 export function useUpdateCmsCollection(key: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Collection updated' },
     mutationFn: (body: UpdateCmsCollectionRequest) => cmsCollections.update(key, body),
     onSuccess: (updated) => {
       qc.setQueryData(qk.one(key), updated)
@@ -72,6 +74,7 @@ export function useUpdateCmsCollection(key: string) {
 export function useDeleteCmsCollection() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Collection deleted' },
     mutationFn: (collectionKey: string) => cmsCollections.remove(collectionKey),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.list })
@@ -111,6 +114,7 @@ export function useForceDeleteCmsCollection() {
 export function useAddCmsField(key: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Field added' },
     mutationFn: (body: AddCmsFieldRequest): Promise<CmsFieldDto> =>
       cmsCollections.addField(key, body),
     onSuccess: () => {
@@ -123,6 +127,7 @@ export function useAddCmsField(key: string) {
 export function useUpdateCmsField(key: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Field updated' },
     mutationFn: ({
       fieldKey,
       body,
@@ -161,6 +166,7 @@ export function useUpdateCmsField(key: string) {
 export function useReorderCmsFields(key: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Field order saved' },
     // The API returns the reordered field list (CmsFieldDto[]), NOT the whole
     // collection — merge it into the cached collection rather than replacing it.
     mutationFn: (body: ReorderCmsFieldsRequest): Promise<CmsFieldDto[]> =>
@@ -200,6 +206,7 @@ export function useReorderCmsFields(key: string) {
 export function useRemoveCmsField(key: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Field removed' },
     mutationFn: (fieldKey: string) => cmsCollections.removeField(key, fieldKey),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.one(key) }),
   })

@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { Loader2, Trash2 } from 'lucide-react'
 import { Button } from '~/components/ui/button'
+import { reportError } from '~/lib/notify'
 import {
   Dialog,
   DialogContent,
@@ -67,7 +68,10 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
       try {
         await state.onConfirm()
         close(true)
-      } catch {
+      } catch (error) {
+        // Stay open so the action can be retried, and say why it failed — the
+        // dialog used to just stop spinning.
+        reportError(error, 'Could not complete that action')
         setIsPending(false)
       }
       return

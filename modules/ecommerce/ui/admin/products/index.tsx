@@ -27,7 +27,6 @@ import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { TrashModal } from '~/components/trash-modal'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { useUrlState } from '~/hooks/use-url-state'
-import { apiErrorMessage } from '~/lib/api-client'
 import { cn, formatAdminTableDateTime } from '~/lib/utils'
 import {
   useBulkDeleteProducts,
@@ -126,7 +125,6 @@ export default function ProductsPage() {
   const confirmDelete = useConfirmDelete()
   const [importOpen, setImportOpen] = useState(false)
   const [selection, setSelection] = useState<RowSelectionState>({})
-  const [bulkError, setBulkError] = useState<string | null>(null)
 
   // Trash (soft-delete + restore), mirroring the core Templates page.
   const trashedQuery = useTrashedProducts()
@@ -143,7 +141,6 @@ export default function ProductsPage() {
   )
 
   async function onBulkDelete() {
-    setBulkError(null)
     const confirmed = await confirmDelete({
       title: `Delete ${selectedIds.length} product${selectedIds.length === 1 ? '' : 's'}?`,
       description:
@@ -153,8 +150,8 @@ export default function ProductsPage() {
     try {
       await bulkDelete.mutateAsync(selectedIds)
       setSelection({})
-    } catch (err) {
-      setBulkError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -428,7 +425,6 @@ export default function ProductsPage() {
           </div>
         </div>
       ) : null}
-      {bulkError ? <p className="text-sm text-destructive">{bulkError}</p> : null}
 
       <DataTable
         columns={columns}

@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/react'
 import { accountApi, ShopError, type AffiliateOverviewDto, type PayoutMethodInput } from '../_api'
 import { FIELD_CLASS, SUBMIT_CLASS } from '../_layout'
 import { apiErrorMessage } from '~/lib/api-client'
+import { reportError, reportSuccess } from '~/lib/notify'
 
 /**
  * The affiliate tab. Self-fetching (like `AddressesSection`), it adapts to the
@@ -165,8 +166,9 @@ function ApplyForm({
     setLoading(true)
     try {
       onApplied(await accountApi.applyAffiliate({ message: message.trim() || undefined }))
+      reportSuccess('Application sent')
     } catch (err) {
-      setError(apiErrorMessage(err))
+      reportError(err, 'Failed to send application')
     } finally {
       setLoading(false)
     }
@@ -349,13 +351,9 @@ function PayoutAndWithdraw({
   const [email, setEmail] = useState('')
   const [saving, setSaving] = useState(false)
   const [withdrawing, setWithdrawing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   async function savePayout(e: FormEvent) {
     e.preventDefault()
-    setError(null)
-    setSaved(false)
     let input: PayoutMethodInput
     if (type === 'bank') input = { type, bankName, accountNumber, accountHolder }
     else if (type === 'ewallet') input = { type, provider, accountNumber, accountHolder }
@@ -363,22 +361,21 @@ function PayoutAndWithdraw({
     setSaving(true)
     try {
       onChange(await accountApi.setPayoutMethod(input))
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2_000)
+      reportSuccess('Payout method saved')
     } catch (err) {
-      setError(apiErrorMessage(err))
+      reportError(err, 'Failed to save payout method')
     } finally {
       setSaving(false)
     }
   }
 
   async function withdraw() {
-    setError(null)
     setWithdrawing(true)
     try {
       onChange(await accountApi.requestWithdrawal())
+      reportSuccess('Withdrawal requested')
     } catch (err) {
-      setError(apiErrorMessage(err))
+      reportError(err, 'Failed to request withdrawal')
     } finally {
       setWithdrawing(false)
     }
@@ -476,12 +473,10 @@ function PayoutAndWithdraw({
           />
         )}
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <div className="flex items-center gap-3">
           <button type="submit" disabled={saving} className={`${SUBMIT_CLASS} w-auto px-6`}>
             {saving ? 'Saving…' : 'Save payout method'}
           </button>
-          {saved ? <span className="text-sm text-emerald-600">Saved</span> : null}
         </div>
       </form>
     </div>

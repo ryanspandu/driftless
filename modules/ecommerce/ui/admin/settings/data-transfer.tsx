@@ -6,6 +6,7 @@ import { Checkbox } from '~/components/ui/checkbox'
 import { Label } from '~/components/ui/label'
 import { AppSelect } from '~/components/ui/app-select'
 import { DragDropImageUpload } from '~/components/drag-drop-image-upload'
+import { reportError, reportSuccess } from '~/lib/notify'
 
 interface SectionReport {
   name: string
@@ -46,6 +47,7 @@ export default function DataTransferPanel() {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [report, setReport] = useState<ImportResult | null>(null)
+  // Client-side validation only — a failed export/import is toasted.
   const [error, setError] = useState<string | null>(null)
 
   const sectionsList = [...selected]
@@ -81,8 +83,9 @@ export default function DataTransferPanel() {
       a.download = `ecommerce-${new Date().toISOString().slice(0, 10)}.driftless`
       a.click()
       URL.revokeObjectURL(url)
+      reportSuccess('Export downloaded')
     } catch (e) {
-      setError((e as Error).message)
+      reportError(e, 'Export failed')
     } finally {
       setBusy(false)
     }
@@ -111,8 +114,10 @@ export default function DataTransferPanel() {
       const data = (await res.json()) as ImportResult & { message?: string }
       if (!res.ok) throw new Error(data.message ?? `Import failed (${res.status})`)
       setReport(data)
+      // A dry-run changes nothing; its report is the feedback.
+      if (!dryRun) reportSuccess('Store data imported')
     } catch (e) {
-      setError((e as Error).message)
+      reportError(e, 'Import failed')
     } finally {
       setBusy(false)
     }

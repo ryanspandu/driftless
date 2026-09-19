@@ -49,7 +49,7 @@ export default function EcommercePageRoles({ page }: ModulePageRolesProps) {
     enabled,
     staleTime: 30_000,
   })
-  const update = useUpdateStoreSettings()
+  const update = useUpdateStoreSettings('Page role updated')
 
   if (!enabled) return null
 

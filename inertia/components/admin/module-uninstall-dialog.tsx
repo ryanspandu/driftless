@@ -12,7 +12,6 @@ import {
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { useUninstallModule } from '~/hooks/api/use-schema'
-import { apiErrorMessage } from '~/lib/api-client'
 import type { ModuleDto } from '~/types/api'
 
 /**
@@ -34,12 +33,10 @@ export function ModuleUninstallDialog({
 }) {
   const uninstall = useUninstallModule()
   const [confirm, setConfirm] = useState('')
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
       setConfirm('')
-      setError(null)
     }
   }, [open])
 
@@ -47,12 +44,11 @@ export function ModuleUninstallDialog({
 
   async function onConfirm() {
     if (!mod || !matches) return
-    setError(null)
     try {
       await uninstall.mutateAsync({ name: mod.name, confirm: confirm.trim() })
       onOpenChange(false)
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to uninstall'))
+    } catch {
+      // Reported by the mutation handler; the dialog stays open.
     }
   }
 
@@ -87,12 +83,6 @@ export function ModuleUninstallDialog({
               spellCheck={false}
             />
           </div>
-
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
         </div>
 
         <DialogFooter>

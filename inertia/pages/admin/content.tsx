@@ -39,8 +39,17 @@ import {
 import { syncStatusOf } from '~/lib/offline/sync-status'
 import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
 import { formatAdminTableDateTime } from '~/lib/utils'
+import { reportError, reportSuccess } from '~/lib/notify'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
+
+/** Offline-store writes are not react-query mutations, so tell the user how each one went. */
+function settle(work: Promise<unknown>, success: string, failure: string): Promise<void> {
+  return work.then(
+    () => reportSuccess(success),
+    (err) => reportError(err, failure)
+  )
+}
 
 function parseContentTab(sp: ReturnType<typeof useSearchParams>): string {
   const t = sp.get('tab')
@@ -84,7 +93,12 @@ function ContentPageInner() {
     setBulkBusy(true)
     try {
       for (const id of selectedIds) await update(id, { status })
+      reportSuccess(
+        `${selectedIds.length} post${selectedIds.length === 1 ? '' : 's'} ${status === 'PUBLISHED' ? 'published' : 'unpublished'}`
+      )
       setSelection({})
+    } catch (err) {
+      reportError(err, 'Failed to update posts')
     } finally {
       setBulkBusy(false)
     }
@@ -100,7 +114,12 @@ function ContentPageInner() {
     setBulkBusy(true)
     try {
       for (const id of selectedIds) await remove(id)
+      reportSuccess(
+        `${selectedIds.length} post${selectedIds.length === 1 ? '' : 's'} moved to trash`
+      )
       setSelection({})
+    } catch (err) {
+      reportError(err, 'Failed to move posts to trash')
     } finally {
       setBulkBusy(false)
     }
@@ -295,7 +314,8 @@ function ContentPageInner() {
                   void confirmDelete({
                     description: 'Delete this content?',
                   }).then((confirmed) => {
-                    if (confirmed) void remove(row.original.id)
+                    if (confirmed)
+                      void settle(remove(row.original.id), 'Content deleted', 'Failed to delete')
                   })
                 }}
               >
@@ -307,7 +327,13 @@ function ContentPageInner() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="gap-2"
-                    onClick={() => void recreateFromConflict(row.original.id)}
+                    onClick={() =>
+                      void settle(
+                        recreateFromConflict(row.original.id),
+                        'Queued to recreate on the server',
+                        'Failed to recreate'
+                      )
+                    }
                   >
                     <CloudUpload className="size-4" />
                     Recreate on server
@@ -322,7 +348,12 @@ function ContentPageInner() {
                           'This record no longer exists on the server. Discarding permanently drops your offline copy of this post.',
                         confirmLabel: 'Discard',
                       }).then((confirmed) => {
-                        if (confirmed) void discardConflict(row.original.id)
+                        if (confirmed)
+                          void settle(
+                            discardConflict(row.original.id),
+                            'Local change discarded',
+                            'Failed to discard'
+                          )
                       })
                     }}
                   >

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Label } from '~/components/ui/label'
 import { AppSelect } from '~/components/ui/app-select'
 import { apiErrorMessage } from '~/lib/api-client'
+import { reportError } from '~/lib/notify'
 import { currencyOptions } from '../../lib/currencies'
 import {
   useStoreCurrencies,
@@ -23,19 +24,18 @@ export default function CurrenciesPanel() {
   const query = useStoreCurrencies()
   const save = useUpdateStoreCurrencies()
   const settings = useStoreSettings()
-  const saveSettings = useUpdateStoreSettings()
+  // `silent`: the repricing refusal is a question shown in the amber panel below,
+  // not a failure, so it must not also toast. Genuine failures are reported in saveBase.
+  const saveSettings = useUpdateStoreSettings('Base currency changed', { silent: true })
 
   const [codes, setCodes] = useState<string[]>([])
   const [draft, setDraft] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   /**
    * The base is edited here rather than only in Store details, because this is
    * where someone thinking about currencies actually looks.
    */
   const [baseDraft, setBaseDraft] = useState('')
-  const [baseError, setBaseError] = useState<string | null>(null)
   /** Set when the server says the change would reprice an existing catalogue. */
   const [repriceWarning, setRepriceWarning] = useState<string | null>(null)
 
@@ -54,7 +54,6 @@ export default function CurrenciesPanel() {
    * whether it is needed — this never guesses, it just relays the answer.
    */
   async function saveBase(confirm: boolean) {
-    setBaseError(null)
     try {
       await saveSettings.mutateAsync({ currency: baseDraft, confirmRepricing: confirm })
       setRepriceWarning(null)
@@ -62,7 +61,7 @@ export default function CurrenciesPanel() {
       const message = apiErrorMessage(err)
       // The repricing refusal is a question, not a failure — show it as one.
       if (/reinterprets/i.test(message)) setRepriceWarning(message)
-      else setBaseError(message)
+      else reportError(err)
     }
   }
 
@@ -79,21 +78,12 @@ export default function CurrenciesPanel() {
     const code = draft.trim().toUpperCase()
     if (!code) return
 
-    setError(null)
     setCodes((prev) => [...prev, code])
     setDraft('')
   }
 
-  async function onSave() {
-    setError(null)
-    setSaved(false)
-    try {
-      await save.mutateAsync(codes)
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2_000)
-    } catch (err) {
-      setError(apiErrorMessage(err))
-    }
+  function onSave() {
+    save.mutate(codes)
   }
 
   return (
@@ -118,7 +108,6 @@ export default function CurrenciesPanel() {
                 onChange={(value) => {
                   setBaseDraft(value)
                   setRepriceWarning(null)
-                  setBaseError(null)
                 }}
                 options={currencyOptions()}
                 placeholder="Search a currency…"
@@ -169,7 +158,6 @@ export default function CurrenciesPanel() {
             </div>
           ) : null}
 
-          {baseError ? <p className="mt-2 text-sm text-destructive">{baseError}</p> : null}
         </div>
 
         <div className="space-y-1.5">
@@ -234,13 +222,10 @@ export default function CurrenciesPanel() {
           kept, so putting it back does not mean entering them again.
         </p>
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
         <div className="flex items-center gap-3">
           <Button type="button" disabled={save.isPending} onClick={onSave}>
             {save.isPending ? 'Saving…' : 'Save currencies'}
           </Button>
-          {saved ? <span className="text-sm text-emerald-600">Saved</span> : null}
         </div>
       </CardContent>
     </Card>

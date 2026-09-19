@@ -12,7 +12,6 @@ import {
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { AppSelect } from '~/components/ui/app-select'
-import { apiErrorMessage } from '~/lib/api'
 import { useBindableCollections } from '~/hooks/api/use-cms-collections'
 
 export type TemplateFormSubmit = (values: {
@@ -91,8 +90,8 @@ export function TemplateFormDialog({ open, onOpenChange, onSubmit, initial }: Pr
         ...(isCollection ? { collectionKey } : {}),
       })
       onOpenChange(false)
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to save'))
+    } catch {
+      // reported by the mutation handler
     } finally {
       setSubmitting(false)
     }

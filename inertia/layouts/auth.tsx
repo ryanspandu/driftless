@@ -1,6 +1,7 @@
 import { type ReactElement, type ReactNode } from 'react'
 import { usePage } from '@inertiajs/react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
+import { Toaster } from '~/components/ui/toaster'
 import { useEffect } from 'react'
 import { type Data } from '@generated/data'
 import { AuthShell } from '~/components/auth/auth-shell'
@@ -24,7 +25,7 @@ export default function AuthLayout({
   return (
     <AuthShell redirectIfAuthenticated>
       {children}
-      <Toaster position="top-center" richColors />
+      <Toaster />
     </AuthShell>
   )
 }

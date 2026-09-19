@@ -215,11 +215,15 @@ export default function TasksAdminPage() {
         ? apiFetch<TaskDto>(`/api/admin/tasks/${f.id}`, { method: 'PUT', body })
         : apiFetch<TaskDto>('/api/admin/tasks', { method: 'POST', body })
     },
+    meta: {
+      successMessage: (_task: TaskDto, f: FormState) => (f.id ? 'Task updated' : 'Task created'),
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk }),
   })
 
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/api/admin/tasks/${id}`, { method: 'DELETE' }),
+    meta: { successMessage: 'Task deleted' },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk }),
   })
 
@@ -229,6 +233,7 @@ export default function TasksAdminPage() {
         method: 'PATCH',
         body: JSON.stringify({ toStatus: v.toStatus, beforeId: v.beforeId, afterId: v.afterId }),
       }),
+    // No success toast: a drag already shows the result. A failure still toasts (global handler).
     onSettled: () => qc.invalidateQueries({ queryKey: qk }),
   })
 
@@ -238,6 +243,7 @@ export default function TasksAdminPage() {
         method: 'POST',
         body: JSON.stringify({ title: v.title, status: v.status }),
       }),
+    meta: { successMessage: 'Task added' },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk }),
   })
 
@@ -285,7 +291,7 @@ export default function TasksAdminPage() {
         setEditing(false)
       }
     } catch {
-      /* surfaced via save.error */
+      /* reported by the mutation handler */
     }
   }
 
@@ -683,10 +689,6 @@ export default function TasksAdminPage() {
                 </div>
               </div>
             </div>
-
-            {save.error ? (
-              <p className="text-sm text-destructive">{(save.error as Error).message}</p>
-            ) : null}
 
             <DialogFooter>
               {form.id ? (

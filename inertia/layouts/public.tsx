@@ -1,7 +1,8 @@
 import { type ReactElement, type ReactNode, useEffect, useState } from 'react'
 import { Link, usePage } from '@inertiajs/react'
 import { useTheme } from 'next-themes'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
+import { Toaster } from '~/components/ui/toaster'
 import { Layers } from 'lucide-react'
 import { type Data } from '@generated/data'
 import { buttonVariants } from '~/components/ui/button'
@@ -120,7 +121,7 @@ export default function PublicLayout({
       <main className="flex-1">{children}</main>
 
       <ScrollToTop />
-      <Toaster position="top-center" richColors />
+      <Toaster />
     </div>
   )
 }

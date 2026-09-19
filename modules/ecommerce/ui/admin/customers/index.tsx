@@ -13,7 +13,6 @@ import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { Can } from '~/components/providers/ability-provider'
 import { useUrlState } from '~/hooks/use-url-state'
-import { apiErrorMessage } from '~/lib/api-client'
 import { formatAdminTableDateTime } from '~/lib/utils'
 import {
   useBulkSetCustomerStatus,
@@ -52,7 +51,6 @@ export default function CustomersPage() {
   const bulkSetStatus = useBulkSetCustomerStatus()
   const [createOpen, setCreateOpen] = useState(false)
   const [selection, setSelection] = useState<RowSelectionState>({})
-  const [bulkError, setBulkError] = useState<string | null>(null)
 
   const customers = query.data?.items ?? []
   const total = query.data?.total ?? 0
@@ -62,12 +60,11 @@ export default function CustomersPage() {
   )
 
   async function onBulkStatus(status: 'active' | 'blocked') {
-    setBulkError(null)
     try {
       await bulkSetStatus.mutateAsync({ ids: selectedIds, status })
       setSelection({})
-    } catch (err) {
-      setBulkError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -271,7 +268,6 @@ export default function CustomersPage() {
           </div>
         </Can>
       ) : null}
-      {bulkError ? <p className="text-sm text-destructive">{bulkError}</p> : null}
 
       <DataTable
         columns={columns}

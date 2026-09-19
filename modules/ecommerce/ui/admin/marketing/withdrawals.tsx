@@ -8,7 +8,6 @@ import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { Can } from '~/components/providers/ability-provider'
 import { useUrlState } from '~/hooks/use-url-state'
-import { apiErrorMessage } from '~/lib/api-client'
 import {
   useWithdrawals,
   useProcessWithdrawal,
@@ -40,12 +39,10 @@ export default function WithdrawalsPage() {
   const query = useWithdrawals(filter === 'all' ? undefined : filter)
   const process = useProcessWithdrawal()
   const bulkProcess = useBulkProcessWithdrawals()
-  const [error, setError] = useState<string | null>(null)
   const [selection, setSelection] = useState<RowSelectionState>({})
 
   function act(id: string, action: 'paid' | 'reject') {
-    setError(null)
-    process.mutate({ id, action }, { onError: (err) => setError(apiErrorMessage(err)) })
+    process.mutate({ id, action })
   }
 
   const withdrawals = query.data ?? []
@@ -55,12 +52,11 @@ export default function WithdrawalsPage() {
   )
 
   async function onBulkAct(action: 'paid' | 'reject') {
-    setError(null)
     try {
       await bulkProcess.mutateAsync({ ids: selectedIds, action })
       setSelection({})
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -196,7 +192,6 @@ export default function WithdrawalsPage() {
           </div>
         </Can>
       ) : null}
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <DataTable
         columns={columns}

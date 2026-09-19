@@ -3,7 +3,9 @@ import { Puck, type Data } from '@measured/puck'
 import { useState } from 'react'
 import { Link } from '@inertiajs/react'
 import { ArrowLeft, Code2, Eye, ExternalLink, History } from 'lucide-react'
-import { Toaster, toast } from 'sonner'
+import { toast } from 'sonner'
+import { reportError } from '~/lib/notify'
+import { Toaster } from '~/components/ui/toaster'
 import { puckConfig } from '~/puck/config'
 import { builderViewports } from '~/puck/style-fields'
 import { puckOverrides } from '~/puck/overrides'
@@ -230,7 +232,7 @@ function BuilderInner({
         setMeta((m) => ({ ...m, status: 'DRAFT' }))
         toast.success(`Publish scheduled for ${scheduledAt!.toLocaleString()}`)
       } catch (error) {
-        toast.error('Failed to schedule')
+        reportError(error, 'Failed to schedule')
         throw error
       }
       return
@@ -245,7 +247,7 @@ function BuilderInner({
       setMeta((m) => ({ ...m, status: 'PUBLISHED' }))
       toast.success('Page published')
     } catch (error) {
-      toast.error('Failed to publish')
+      reportError(error, 'Failed to publish')
       // Rethrown so BuilderShell keeps the page marked unsaved — a failed save
       // that clears the guard is how you lose the work you thought was safe.
       throw error
@@ -285,9 +287,7 @@ function BuilderInner({
         pageMeta={meta}
         onPageMetaChange={setMeta}
         breakpoints={breakpoints}
-        onBreakpointsChange={(next: Breakpoint[]) =>
-          updateBp.mutate(next, { onError: () => toast.error('Could not save breakpoints') })
-        }
+        onBreakpointsChange={(next: Breakpoint[]) => updateBp.mutate(next)}
         savedColors={savedColors}
         themeColors={themeColors}
         topbarStart={
@@ -354,7 +354,7 @@ function BuilderInner({
         onRestored={() => window.location.reload()}
       />
 
-      <Toaster richColors position="bottom-right" />
+      <Toaster position="bottom-right" />
     </Puck>
   )
 }

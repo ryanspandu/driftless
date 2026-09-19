@@ -36,6 +36,8 @@ export function FormCreateDialog({
     setBusy(true)
     try {
       await onSubmit(title.trim())
+    } catch {
+      // reported by the mutation handler
     } finally {
       setBusy(false)
     }

@@ -32,6 +32,10 @@ export function useToggleModule() {
         method: 'PUT',
         body: JSON.stringify({ enabled }),
       }),
+    meta: {
+      successMessage: (_data: ModuleDto, vars: { name: string; enabled: boolean }) =>
+        vars.enabled ? 'Module enabled' : 'Module disabled',
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.list })
       qc.invalidateQueries({ queryKey: qk.menu })

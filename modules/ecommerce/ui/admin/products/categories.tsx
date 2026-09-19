@@ -26,7 +26,6 @@ import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { TrashModal } from '~/components/trash-modal'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { Can } from '~/components/providers/ability-provider'
-import { apiErrorMessage } from '~/lib/api-client'
 import { formatAdminTableDateTime } from '~/lib/utils'
 import {
   useCategories,
@@ -71,7 +70,6 @@ export default function CategoriesPage() {
   const confirmDelete = useConfirmDelete()
 
   const [form, setForm] = useState<FormState | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   // Trash (soft-delete + restore), mirroring the core Templates page.
   const trashedQuery = useTrashedCategories()
@@ -110,7 +108,6 @@ export default function CategoriesPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (!form) return
-    setError(null)
 
     try {
       await save.mutateAsync({
@@ -123,8 +120,8 @@ export default function CategoriesPage() {
         },
       })
       setForm(null)
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -193,7 +190,6 @@ export default function CategoriesPage() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     onClick={() => {
-                      setError(null)
                       setForm(toForm(category))
                     }}
                   >
@@ -281,7 +277,6 @@ export default function CategoriesPage() {
                 <Button
                   className="gap-2"
                   onClick={() => {
-                    setError(null)
                     setForm(emptyForm())
                   }}
                 >
@@ -381,8 +376,6 @@ export default function CategoriesPage() {
                   onChange={(e) => set('description', e.target.value)}
                 />
               </div>
-
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setForm(null)}>

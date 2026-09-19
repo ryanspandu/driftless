@@ -21,7 +21,6 @@ import { AppSelect } from '~/components/ui/app-select'
 import { PageHeader } from '~/components/admin/page-header'
 import { useMenu, useSaveMenuItems } from '~/hooks/api/use-menus'
 import { usePagesList } from '~/hooks/api/use-pages'
-import { apiErrorMessage } from '~/lib/api'
 
 /** A menu item in the editor's nested tree. `key` is a stable client id. */
 interface Tree {
@@ -448,8 +447,8 @@ export default function MenuBuilderPage({ id }: { id: string }) {
       const result = await saveMut.mutateAsync({ id, items: toInput(tree) })
       setTree(toTree(result.items))
       toast.success('Menu saved')
-    } catch (err) {
-      toast.error(apiErrorMessage(err))
+    } catch {
+      // reported by the mutation handler
     }
   }
 

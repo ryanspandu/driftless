@@ -122,6 +122,7 @@ export function useForceDeleteTemplate() {
 export function useDuplicateTemplate() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Template duplicated' },
     mutationFn: (id: string) =>
       apiFetch<TemplateDto>(`/api/admin/templates/${id}/duplicate`, { method: 'POST' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates', 'list'] }),
@@ -131,6 +132,7 @@ export function useDuplicateTemplate() {
 export function useSetDefaultTemplate() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Set as default' },
     mutationFn: (id: string) =>
       apiFetch<TemplateDto>(`/api/admin/templates/${id}/default`, { method: 'POST' }),
     onSuccess: (_data, id) => {

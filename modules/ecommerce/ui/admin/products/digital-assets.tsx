@@ -6,7 +6,6 @@ import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { AppSelect } from '~/components/ui/app-select'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
-import { apiErrorMessage } from '~/lib/api-client'
 import {
   useDeleteAsset,
   useProductAssets,
@@ -47,7 +46,6 @@ export default function DigitalAssets({
   const [variantId, setVariantId] = useState(variants[0]?.id ?? '')
   const [maxDownloads, setMaxDownloads] = useState('0')
   const [linkTtlHours, setLinkTtlHours] = useState('72')
-  const [error, setError] = useState<string | null>(null)
 
   const variantOptions = variants.map((variant) => ({
     value: variant.id,
@@ -58,7 +56,6 @@ export default function DigitalAssets({
 
   async function onPick(file: File | undefined) {
     if (!file) return
-    setError(null)
     try {
       await upload.mutateAsync({
         variantId,
@@ -66,8 +63,8 @@ export default function DigitalAssets({
         maxDownloads: Number(maxDownloads) || 0,
         linkTtlHours: Number(linkTtlHours) || 0,
       })
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler.
     } finally {
       if (fileInput.current) fileInput.current.value = ''
     }
@@ -151,8 +148,6 @@ export default function DigitalAssets({
                 put them in a zip.
               </p>
             </div>
-
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
             <div className="space-y-4">
               {variants.map((variant) => {

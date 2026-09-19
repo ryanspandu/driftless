@@ -15,7 +15,8 @@ import { useContentSlugCheck } from '~/hooks/api/use-content'
 import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
 import { useContentCategories, useCreateContentCategory } from '~/hooks/api/use-content-categories'
 import { useContentTags, useCreateContentTag } from '~/hooks/api/use-content-tags'
-import { apiErrorMessage, apiFetch } from '~/lib/api'
+import { apiFetch } from '~/lib/api'
+import { reportError } from '~/lib/notify'
 import { formatAdminTableDateTime } from '~/lib/utils'
 
 export type ContentFormValues = {
@@ -62,8 +63,8 @@ function CategoriesField({
       const cat = await createMut.mutateAsync({ name })
       onChange([...value, cat.id])
       setNewName('')
-    } catch (e) {
-      toast.error(apiErrorMessage(e, 'Could not create category'))
+    } catch {
+      // reported by the mutation handler
     }
   }
 
@@ -122,8 +123,8 @@ function TagsField({ value, onChange }: { value: string[]; onChange: (ids: strin
       const tag = await createMut.mutateAsync({ name })
       onChange([...value, tag.id])
       setNewName('')
-    } catch (e) {
-      toast.error(apiErrorMessage(e, 'Could not create tag'))
+    } catch {
+      // reported by the mutation handler
     }
   }
 
@@ -231,7 +232,7 @@ export function ContentEditorForm({
       )
       setPassword(res.password ?? '')
     } catch (err) {
-      toast.error(apiErrorMessage(err, 'Could not reveal password'))
+      reportError(err, 'Could not reveal password')
     } finally {
       setRevealing(false)
     }
@@ -264,7 +265,7 @@ export function ContentEditorForm({
       toast.success(initial ? 'Content updated' : 'Content created')
       router.visit('/admin/content')
     } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to save'))
+      reportError(err, 'Failed to save')
       setSaving(false)
     }
   }

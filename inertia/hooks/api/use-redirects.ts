@@ -22,6 +22,7 @@ export function useRedirects() {
 export function useCreateRedirect() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Redirect created' },
     mutationFn: (vars: { fromPath: string; toPath: string; status: number }) =>
       apiPost<Redirect>('/api/admin/redirects', vars),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['redirects'] }),
@@ -31,6 +32,7 @@ export function useCreateRedirect() {
 export function useUpdateRedirect() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Redirect updated' },
     mutationFn: (vars: { id: string; fromPath?: string; toPath?: string; status?: number }) =>
       apiPut<Redirect>(`/api/admin/redirects/${vars.id}`, vars),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['redirects'] }),
@@ -40,6 +42,7 @@ export function useUpdateRedirect() {
 export function useDeleteRedirect() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Redirect deleted' },
     mutationFn: (id: string) => apiDelete<{ ok: true }>(`/api/admin/redirects/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['redirects'] }),
   })

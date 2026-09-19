@@ -7,6 +7,7 @@ import { Label } from '~/components/ui/label'
 import { AppSelect } from '~/components/ui/app-select'
 import { useWebsiteSettings, useUpdateWebsiteSettings } from '~/hooks/api/use-website-settings'
 import { WEBSITE_SETTING_SECTIONS } from '~/types/api'
+import { reportError } from '~/lib/notify'
 import { ColorPickerInput } from '~/puck/style-controls'
 import { parseSavedColors, slugifyColorName, type SavedColor } from '~/puck/saved-colors'
 import { safeColor, safeFontFamily, safeFontFaceUrl } from '~/lib/css-safe'
@@ -167,7 +168,6 @@ export function AppearancePanel() {
   const [colors, setColors] = useState<ColorRow[]>([])
   const [defaults, setDefaults] = useState({ primary: '#5225e6', secondary: '#f1f5f9' })
   const [uploading, setUploading] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => setDefaults(readThemeDefaults()), [])
@@ -226,7 +226,6 @@ export function AppearancePanel() {
   }
 
   async function onUploadFont(file: File) {
-    setFormError(null)
     setUploading(true)
     try {
       const body = new FormData()
@@ -252,7 +251,7 @@ export function AppearancePanel() {
       setFontFamily(name)
       setFontUrl('')
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Upload failed.')
+      reportError(err, 'Upload failed.')
     } finally {
       setUploading(false)
     }
@@ -305,10 +304,8 @@ export function AppearancePanel() {
           { section, key: 'saved_colors', value: JSON.stringify(serializeColors(colors)) },
         ],
       })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not save.')
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -496,7 +493,6 @@ export function AppearancePanel() {
         <Button type="submit" disabled={update.isPending}>
           {update.isPending ? 'Saving…' : 'Save appearance'}
         </Button>
-        {saved ? <span className="text-sm text-emerald-600">Saved</span> : null}
       </div>
     </form>
   )

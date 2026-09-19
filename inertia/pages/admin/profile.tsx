@@ -8,7 +8,8 @@ import { Input } from '~/components/ui/input'
 import { Textarea } from '~/components/ui/textarea'
 import { Separator } from '~/components/ui/separator'
 import { formatAdminTableDateTime } from '~/lib/utils'
-import api, { ApiError } from '~/lib/api'
+import api from '~/lib/api'
+import { reportError } from '~/lib/notify'
 import TwoFactorCard from '~/components/admin/two-factor-card'
 
 interface ProfileUser {
@@ -55,7 +56,6 @@ const ProfilePage: FC<Props> = ({ user }) => {
   const [phone, setPhone] = useState(user.phone ?? '')
   const [address, setAddress] = useState(user.address ?? '')
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(user.twoFactorEnabled ?? false)
 
   function resetFromUser() {
@@ -65,7 +65,6 @@ const ProfilePage: FC<Props> = ({ user }) => {
     setEmail(user.email)
     setPhone(user.phone ?? '')
     setAddress(user.address ?? '')
-    setError(null)
   }
 
   useEffect(resetFromUser, [user])
@@ -85,7 +84,6 @@ const ProfilePage: FC<Props> = ({ user }) => {
   })()
 
   async function onSave() {
-    setError(null)
     setSaving(true)
     try {
       await api.put('/api/me', {
@@ -99,9 +97,7 @@ const ProfilePage: FC<Props> = ({ user }) => {
       toast.success('Profile updated')
       setEditing(false)
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Failed to save profile'
-      setError(msg)
-      toast.error(msg)
+      reportError(err, 'Failed to save profile')
     } finally {
       setSaving(false)
     }
@@ -232,11 +228,6 @@ const ProfilePage: FC<Props> = ({ user }) => {
                 }
               />
             </div>
-            {error ? (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            ) : null}
           </section>
 
           <Separator />

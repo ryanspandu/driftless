@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { router } from '@inertiajs/react'
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { toast } from 'sonner'
+import { reportError, reportSuccess } from '~/lib/notify'
 import {
   Code2,
   Copy,
@@ -134,14 +135,7 @@ export default function PagesPage() {
   const selectedIds = useMemo(() => Object.keys(selection).filter((k) => selection[k]), [selection])
   const [importOpen, setImportOpen] = useState(false)
 
-  const onDuplicate = async (id: string) => {
-    try {
-      await duplicateMut.mutateAsync(id)
-      toast.success('Page duplicated')
-    } catch {
-      toast.error('Could not duplicate')
-    }
-  }
+  const onDuplicate = (id: string) => duplicateMut.mutate(id)
 
   const onExport = async (id: string, title: string) => {
     try {
@@ -155,11 +149,10 @@ export default function PagesPage() {
       a.download = `${title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'page'}.json`
       a.click()
       URL.revokeObjectURL(url)
-    } catch {
-      toast.error('Could not export')
+    } catch (err) {
+      reportError(err, 'Could not export')
     }
   }
-
 
   const onCopyPreviewLink = async (id: string) => {
     try {
@@ -167,18 +160,17 @@ export default function PagesPage() {
       const full = `${window.location.origin}${url}`
       await navigator.clipboard.writeText(full)
       toast.success('Preview link copied')
-    } catch {
-      toast.error('Could not create preview link')
+    } catch (err) {
+      reportError(err, 'Could not create preview link')
     }
   }
 
   const onBulk = async (action: 'publish' | 'unpublish' | 'trash') => {
     try {
-      const { count } = await bulkMut.mutateAsync({ ids: selectedIds, action })
+      await bulkMut.mutateAsync({ ids: selectedIds, action })
       setSelection({})
-      toast.success(`${count} page(s) updated`)
     } catch {
-      toast.error('Bulk action failed')
+      // reported by the mutation handler
     }
   }
   const [dialog, setDialog] = useState<{ open: boolean; mode: DialogMode }>({
@@ -349,10 +341,7 @@ export default function PagesPage() {
           // .tsx file, so every DB-backed action (build, settings, delete, …) is
           // omitted; only "View" (a separate column) applies.
           if (row.original.source === 'file') {
-            const code = codePageInfo(
-              row.original,
-              resolveCoreRoleSlot(row.original.id, sections)
-            )
+            const code = codePageInfo(row.original, resolveCoreRoleSlot(row.original.id, sections))
             return (
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -419,10 +408,7 @@ export default function PagesPage() {
                   <Pencil className="size-4" />
                   Edit settings
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="gap-2"
-                  onClick={() => void onDuplicate(row.original.id)}
-                >
+                <DropdownMenuItem className="gap-2" onClick={() => onDuplicate(row.original.id)}>
                   <Copy className="size-4" />
                   Duplicate
                 </DropdownMenuItem>
@@ -446,7 +432,7 @@ export default function PagesPage() {
                   className="gap-2"
                   onClick={() => {
                     void confirmDelete({ description: 'Delete this page?' }).then((confirmed) => {
-                      if (confirmed) void deleteMut.mutateAsync(row.original.id)
+                      if (confirmed) deleteMut.mutate(row.original.id)
                     })
                   }}
                 >
@@ -566,7 +552,9 @@ export default function PagesPage() {
         onSubmit={async (values) => {
           if (dialog.mode.kind === 'edit') {
             await updateMut.mutateAsync({ id: dialog.mode.row.id, ...values })
+            reportSuccess('Page updated')
           } else {
+            // No success toast: the builder route has its own Toaster, so it would be lost.
             const created = await createMut.mutateAsync(values)
             router.visit(`/admin/pages/${created.id}/edit`)
           }
@@ -622,14 +610,14 @@ function PageRoleBadges({ pageId }: { pageId: string }) {
  */
 function PageRoleMenu({ page }: { page: PageSummaryDto }) {
   const { data } = useWebsiteSettings()
-  const update = useUpdateWebsiteSettings()
+  const update = useUpdateWebsiteSettings('Page role updated')
   const sections = data?.sections
   // Builder AND code/kit pages can back a role — the renderer + every resolver
   // handle both; only a Draft resolves to nothing.
   const eligible = page.status === 'PUBLISHED'
 
   const setRole = (slot: (typeof PAGE_ROLE_SLOTS)[number], value: string) => {
-    void update.mutateAsync({ patches: [{ section: slot.section, key: slot.key, value }] })
+    update.mutate({ patches: [{ section: slot.section, key: slot.key, value }] })
   }
 
   return (

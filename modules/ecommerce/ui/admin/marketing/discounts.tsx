@@ -29,7 +29,6 @@ import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { useUrlState } from '~/hooks/use-url-state'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { Can } from '~/components/providers/ability-provider'
-import { apiErrorMessage } from '~/lib/api-client'
 import { cn } from '~/lib/utils'
 import {
   useBulkDeleteDiscounts,
@@ -150,7 +149,6 @@ export default function DiscountsPage() {
   const settings = useStoreSettings()
   const confirmDelete = useConfirmDelete()
   const [selection, setSelection] = useState<RowSelectionState>({})
-  const [bulkError, setBulkError] = useState<string | null>(null)
 
   const currency = settings.data?.currency ?? 'USD'
 
@@ -177,7 +175,6 @@ export default function DiscountsPage() {
   }
 
   const [form, setForm] = useState<FormState | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev))
@@ -203,7 +200,6 @@ export default function DiscountsPage() {
   )
 
   async function onBulkDelete() {
-    setBulkError(null)
     const confirmed = await confirmDelete({
       title: `Delete ${selectedIds.length} discount${selectedIds.length === 1 ? '' : 's'}?`,
       description:
@@ -213,15 +209,14 @@ export default function DiscountsPage() {
     try {
       await bulkRemove.mutateAsync(selectedIds)
       setSelection({})
-    } catch (err) {
-      setBulkError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (!form) return
-    setError(null)
 
     /**
      * Empty text means "no limit", which the API expects as `null` — sending
@@ -256,8 +251,8 @@ export default function DiscountsPage() {
         },
       })
       setForm(null)
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler; the dialog stays open.
     }
   }
 
@@ -356,7 +351,6 @@ export default function DiscountsPage() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     onClick={() => {
-                      setError(null)
                       setForm(toForm(discount))
                     }}
                   >
@@ -401,7 +395,6 @@ export default function DiscountsPage() {
             <Button
               className="gap-2"
               onClick={() => {
-                setError(null)
                 setForm(emptyForm())
               }}
             >
@@ -435,7 +428,6 @@ export default function DiscountsPage() {
           </div>
         </div>
       ) : null}
-      {bulkError ? <p className="text-sm text-destructive">{bulkError}</p> : null}
 
       <DataTable
         columns={columns}
@@ -694,8 +686,6 @@ export default function DiscountsPage() {
                   onCheckedChange={(checked) => set('enabled', checked)}
                 />
               </div>
-
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setForm(null)}>

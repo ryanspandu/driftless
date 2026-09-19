@@ -72,8 +72,6 @@ function KitCard({ kit }: { kit: TemplateKitDto }) {
                 {
                   onSuccess: () =>
                     toast.success(active ? `"${kit.name}" activated` : `"${kit.name}" deactivated`),
-                  onError: (e) =>
-                    toast.error(e instanceof Error ? e.message : 'Could not update kit'),
                 }
               )
             }}
@@ -102,26 +100,19 @@ function ImportKitDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const importMut = useImportTemplateKit()
-  const [error, setError] = useState<string | null>(null)
-
-  const close = (next: boolean) => {
-    if (!next) setError(null)
-    onOpenChange(next)
-  }
 
   const onFile = async (file: File) => {
-    setError(null)
     try {
       const result = await importMut.mutateAsync(file)
       toast.success(`Kit "${result.id}" installed (${result.files} files)`)
-      close(false)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Import failed')
+      onOpenChange(false)
+    } catch {
+      // reported by the mutation handler
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={close}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Import template kit</DialogTitle>
@@ -132,11 +123,6 @@ function ImportKitDialog({
           accept=".tar.gz,.tgz,application/gzip,application/x-gzip"
           hint="A .tar.gz kit archive exported from a Driftless install."
         />
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
       </DialogContent>
     </Dialog>
   )

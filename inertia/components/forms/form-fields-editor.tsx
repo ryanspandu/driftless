@@ -93,7 +93,6 @@ export function FormFieldsEditor({
   const [fields, setFields] = useState<FormFieldDef[]>(initialFields)
   const [baseline, setBaseline] = useState<FormFieldDef[]>(initialFields)
   const [editing, setEditing] = useState<{ index: number; draft: FormFieldDef } | null>(null)
-  const [savedFlash, setSavedFlash] = useState(false)
 
   const dirty = useMemo(
     () => JSON.stringify(fields) !== JSON.stringify(baseline),
@@ -118,10 +117,12 @@ export function FormFieldsEditor({
   }
 
   const save = async () => {
-    await onSave(fields)
-    setBaseline(fields)
-    setSavedFlash(true)
-    window.setTimeout(() => setSavedFlash(false), 2000)
+    try {
+      await onSave(fields)
+      setBaseline(fields)
+    } catch {
+      // Reported by the mutation handler; the edits stay unsaved.
+    }
   }
 
   return (
@@ -173,7 +174,6 @@ export function FormFieldsEditor({
             {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             Save fields
           </Button>
-          {savedFlash ? <span className="text-sm text-emerald-600">Saved</span> : null}
           {dirty && !saving ? (
             <span className="text-sm text-muted-foreground">Unsaved changes</span>
           ) : null}

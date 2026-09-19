@@ -26,7 +26,6 @@ import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { TrashModal } from '~/components/trash-modal'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { formatAdminTableDateTime } from '~/lib/utils'
-import { apiErrorMessage } from '~/lib/api'
 import {
   useMenusList,
   useCreateMenu,
@@ -77,9 +76,12 @@ export default function MenusPage() {
     setBulkBusy(true)
     try {
       for (const id of selectedIds) await deleteMut.mutateAsync(id)
+      toast.success(
+        `${selectedIds.length} menu${selectedIds.length === 1 ? '' : 's'} moved to trash`
+      )
       setSelection({})
-    } catch (e) {
-      toast.error(apiErrorMessage(e, 'Failed to delete'))
+    } catch {
+      // reported by the mutation handler
     } finally {
       setBulkBusy(false)
     }
@@ -163,8 +165,8 @@ export default function MenusPage() {
         })
         setDialog(null)
       }
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // reported by the mutation handler
     }
   }
 
@@ -245,8 +247,8 @@ export default function MenusPage() {
                       try {
                         await deleteMut.mutateAsync(menu.id)
                         toast.success('Menu deleted')
-                      } catch (err) {
-                        toast.error(apiErrorMessage(err))
+                      } catch {
+                        // reported by the mutation handler
                       }
                     }}
                   >

@@ -43,6 +43,9 @@ export function PageRevisionsPanel({
       confirmLabel: 'Restore',
       onConfirm: async () => {
         await restoreMut.mutateAsync({ pageId, revisionId })
+        // The host reloads the builder next, which would wipe the "Revision restored"
+        // toast the mutation just raised — give it a moment to be seen.
+        await new Promise((resolve) => setTimeout(resolve, 900))
         onRestored?.()
       },
     })

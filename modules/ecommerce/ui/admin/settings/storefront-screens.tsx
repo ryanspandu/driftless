@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Label } from '~/components/ui/label'
 import { AppSelect } from '~/components/ui/app-select'
 import { usePagesList } from '~/hooks/api/use-pages'
-import { apiErrorMessage } from '~/lib/api-client'
 import { useStoreSettings, useUpdateStoreSettings } from '../_api'
 
 /**
@@ -57,7 +56,7 @@ const SLOTS: Slot[] = [
 export default function StorefrontScreensPanel() {
   const settings = useStoreSettings()
   const pages = usePagesList()
-  const update = useUpdateStoreSettings()
+  const update = useUpdateStoreSettings('Storefront screens saved')
 
   const [values, setValues] = useState<Record<Slot['key'], string>>({
     cartPageId: '',
@@ -69,8 +68,6 @@ export default function StorefrontScreensPanel() {
     categoryPageId: '',
     tagPageId: '',
   })
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (!settings.data) return
@@ -93,25 +90,17 @@ export default function StorefrontScreensPanel() {
       })),
   ]
 
-  async function onSave() {
-    setError(null)
-    setSaved(false)
-    try {
-      await update.mutateAsync({
-        cartPageId: values.cartPageId || null,
-        checkoutPageId: values.checkoutPageId || null,
-        orderPageId: values.orderPageId || null,
-        accountPageId: values.accountPageId || null,
-        loginPageId: values.loginPageId || null,
-        registerPageId: values.registerPageId || null,
-        categoryPageId: values.categoryPageId || null,
-        tagPageId: values.tagPageId || null,
-      })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2_000)
-    } catch (err) {
-      setError(apiErrorMessage(err))
-    }
+  function onSave() {
+    update.mutate({
+      cartPageId: values.cartPageId || null,
+      checkoutPageId: values.checkoutPageId || null,
+      orderPageId: values.orderPageId || null,
+      accountPageId: values.accountPageId || null,
+      loginPageId: values.loginPageId || null,
+      registerPageId: values.registerPageId || null,
+      categoryPageId: values.categoryPageId || null,
+      tagPageId: values.tagPageId || null,
+    })
   }
 
   return (
@@ -143,13 +132,10 @@ export default function StorefrontScreensPanel() {
           </div>
         ))}
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
         <div className="flex items-center gap-3">
           <Button type="button" disabled={update.isPending} onClick={onSave}>
             {update.isPending ? 'Saving…' : 'Save'}
           </Button>
-          {saved ? <span className="text-sm text-emerald-600">Saved</span> : null}
         </div>
       </CardContent>
     </Card>

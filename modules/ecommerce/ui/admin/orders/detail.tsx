@@ -21,7 +21,6 @@ import { BackButton } from '~/components/admin/back-button'
 import { PageHeader } from '~/components/admin/page-header'
 import { Can } from '~/components/providers/ability-provider'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
-import { apiErrorMessage } from '~/lib/api-client'
 import {
   useCancelOrder,
   useOrder,
@@ -77,6 +76,7 @@ function RefundDialog({
   const [amount, setAmount] = useState<number | null>(order.refundable.amount)
   const [reason, setReason] = useState('')
   const [restock, setRestock] = useState(true)
+  // Client-side validation only — a failed refund is reported by the mutation handler.
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -100,8 +100,8 @@ function RefundDialog({
         input: { amount, reason: reason.trim() || null, restock },
       })
       onOpenChange(false)
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to issue the refund'))
+    } catch {
+      // Reported by the mutation handler; the dialog stays open.
     }
   }
 
@@ -177,7 +177,6 @@ export default function OrderDetailPage() {
 
   const [refundOpen, setRefundOpen] = useState(false)
   const [note, setNote] = useState('')
-  const [error, setError] = useState<string | null>(null)
 
   const order = query.data
 
@@ -195,11 +194,10 @@ export default function OrderDetailPage() {
   }
 
   async function run(action: () => Promise<unknown>) {
-    setError(null)
     try {
       await action()
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Action failed'))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -221,12 +219,6 @@ export default function OrderDetailPage() {
           }
         />
       </div>
-
-      {error ? (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -550,24 +542,18 @@ function ShipmentPanel({ order, orderId }: { order: OrderDetailDto; orderId: str
   const [carrier, setCarrier] = useState(order.carrier ?? '')
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber ?? '')
   const [trackingUrl, setTrackingUrl] = useState(order.trackingUrl ?? '')
-  const [error, setError] = useState<string | null>(null)
 
   const physical = order.items.some((item) => item.productType === 'physical')
   if (!physical) return null
 
   const alreadyShipped = Boolean(order.shippedAt)
 
-  async function onSave() {
-    setError(null)
-    try {
-      await ship.mutateAsync({
-        carrier: carrier.trim() || null,
-        trackingNumber: trackingNumber.trim() || null,
-        trackingUrl: trackingUrl.trim() || null,
-      })
-    } catch (err) {
-      setError(apiErrorMessage(err))
-    }
+  function onSave() {
+    ship.mutate({
+      carrier: carrier.trim() || null,
+      trackingNumber: trackingNumber.trim() || null,
+      trackingUrl: trackingUrl.trim() || null,
+    })
   }
 
   return (
@@ -622,8 +608,6 @@ function ShipmentPanel({ order, orderId }: { order: OrderDetailDto; orderId: str
             buyer.
           </p>
         </div>
-
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
         <Can permission="ecommerce:orders:manage">
           <Button type="button" disabled={ship.isPending} onClick={onSave}>

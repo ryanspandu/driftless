@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { PageHeader } from '~/components/admin/page-header'
 import { Can } from '~/components/providers/ability-provider'
 import { useUrlState } from '~/hooks/use-url-state'
-import { apiErrorMessage } from '~/lib/api-client'
 import { currencyOptions } from '../../lib/currencies'
 import { useStoreSettings, useUpdateStoreSettings, type StoreSettingsDto } from '../_api'
 import GatewaysPage from './gateways'
@@ -44,8 +43,6 @@ function StoreDetailsPanel() {
   const update = useUpdateStoreSettings()
 
   const [form, setForm] = useState<StoreSettingsDto | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (query.data) setForm(query.data)
@@ -55,19 +52,10 @@ function StoreDetailsPanel() {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
 
-  async function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (!form) return
-    setError(null)
-    setSaved(false)
-
-    try {
-      await update.mutateAsync(form)
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to save store settings'))
-    }
+    update.mutate(form)
   }
 
   if (!form) {
@@ -298,17 +286,6 @@ function StoreDetailsPanel() {
           </div>
         </CardContent>
       </Card>
-
-      {error ? (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {saved ? (
-        <p className="text-sm text-green-600 dark:text-green-500" role="status">
-          Saved.
-        </p>
-      ) : null}
 
       <div className="flex justify-end">
         <Button type="submit" disabled={update.isPending}>

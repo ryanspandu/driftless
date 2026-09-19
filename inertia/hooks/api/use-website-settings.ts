@@ -11,7 +11,8 @@ export function useWebsiteSettings() {
   })
 }
 
-export function useUpdateWebsiteSettings() {
+/** `successMessage` names what changed — the default suits a generic settings form. */
+export function useUpdateWebsiteSettings(successMessage = 'Settings saved') {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: UpdateWebsiteSettingsRequest) =>
@@ -19,6 +20,7 @@ export function useUpdateWebsiteSettings() {
         method: 'PUT',
         body: JSON.stringify(body),
       }),
+    meta: { successMessage },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: websiteSettingsQueryKey })
       void qc.invalidateQueries({ queryKey: ['auth', 'public-config'] })

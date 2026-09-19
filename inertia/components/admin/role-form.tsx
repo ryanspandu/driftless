@@ -54,8 +54,8 @@ export function RoleForm({
         description: description.trim() || null,
         permissions,
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save.");
+    } catch {
+      // reported by the mutation handler
     }
   }
 

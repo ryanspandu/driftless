@@ -45,8 +45,8 @@ export function PermissionForm({
         name: name.trim(),
         description: description.trim() || null,
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save.");
+    } catch {
+      // reported by the mutation handler
     }
   }
 

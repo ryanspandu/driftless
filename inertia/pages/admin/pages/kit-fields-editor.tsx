@@ -8,6 +8,8 @@ import { usePublishPage, useSaveDraft, useDiscardDraft } from '~/hooks/api/use-p
 import { KitFieldInput } from '~/pages/admin/pages/kit-field-input'
 import type { KitFieldDef } from '~/custom/types'
 import type { PageDto } from '~/types/api'
+import { Toaster } from '~/components/ui/toaster'
+import { reportError } from '~/lib/notify'
 
 /**
  * Simplified "content region" editor for a CODE page whose resolved template
@@ -68,8 +70,8 @@ export function KitFieldsEditor({
       await publishMut.mutateAsync({ id, contentFields: values })
       setPreviewKey((k) => k + 1) // reload the preview iframe with the live values
       toast.success('Page published')
-    } catch {
-      toast.error('Failed to publish')
+    } catch (error) {
+      reportError(error, 'Failed to publish')
     }
   }
 
@@ -82,6 +84,9 @@ export function KitFieldsEditor({
 
   return (
     <div className="flex h-screen flex-col">
+      {/* This route has no layout of its own, so it mounts the toast host itself —
+          otherwise the publish toasts below render nowhere. */}
+      <Toaster position="bottom-right" />
       <div className="flex shrink-0 items-center gap-3 border-b px-4 py-2">
         <Link
           href="/admin/pages"

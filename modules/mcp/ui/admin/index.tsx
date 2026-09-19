@@ -218,8 +218,8 @@ export default function MCPAdminPage() {
       resetForm()
       setCopied(false)
       setCreated(result)
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to create token.')
+    } catch {
+      /* reported by the mutation handler */
     }
   }
 

@@ -16,6 +16,7 @@ export function useContentTags() {
 export function useCreateContentTag() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Tag created' },
     mutationFn: (body: CreateContentTagRequest) =>
       apiFetch<ContentTagDto>(BASE, { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
@@ -25,6 +26,7 @@ export function useCreateContentTag() {
 export function useUpdateContentTag() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Tag updated' },
     mutationFn: ({ id, ...body }: { id: string } & UpdateContentTagRequest) =>
       apiFetch<ContentTagDto>(`${BASE}/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
@@ -34,6 +36,7 @@ export function useUpdateContentTag() {
 export function useDeleteContentTag() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Tag deleted' },
     mutationFn: (id: string) => apiFetch<void>(`${BASE}/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   })

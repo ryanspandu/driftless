@@ -20,6 +20,7 @@ export function useContentCategories() {
 export function useCreateContentCategory() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Category created' },
     mutationFn: (body: CreateContentCategoryRequest) =>
       apiFetch<ContentCategoryDto>(BASE, { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
@@ -29,6 +30,7 @@ export function useCreateContentCategory() {
 export function useUpdateContentCategory() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Category updated' },
     mutationFn: ({ id, ...body }: { id: string } & UpdateContentCategoryRequest) =>
       apiFetch<ContentCategoryDto>(`${BASE}/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
@@ -38,6 +40,7 @@ export function useUpdateContentCategory() {
 export function useDeleteContentCategory() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Category deleted' },
     mutationFn: (id: string) => apiFetch<void>(`${BASE}/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   })

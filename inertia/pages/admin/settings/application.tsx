@@ -17,7 +17,6 @@ import {
   useLatestModuleInstallJob,
   type DetectedModule,
 } from '~/hooks/api/use-module-install'
-import { apiErrorMessage } from '~/lib/api-client'
 import type { ModuleDto } from '~/types/api'
 
 /**
@@ -98,7 +97,6 @@ function ModulesManager() {
 
   const [installing, setInstalling] = useState<InstallTarget | null>(null)
   const [uninstalling, setUninstalling] = useState<ModuleDto | null>(null)
-  const [toggleError, setToggleError] = useState<string | null>(null)
 
   /**
    * Only fetched for whoever may actually install; for everyone else these
@@ -163,26 +161,15 @@ function ModulesManager() {
    * Only reachable for a module whose tables exist — the Switch is disabled
    * otherwise, so there is no "install first" error path left to write.
    *
-   * The `onError` matters: this mutation has none of its own and neither does
-   * the query client, so without it a failed toggle is completely silent and
-   * the switch simply snaps back.
+   * Success and failure are both toasted by the mutation itself
+   * (`useToggleModule`), so the switch snapping back is never silent.
    */
   function onToggle(mod: ModuleDto, enabled: boolean) {
-    setToggleError(null)
-    toggleModule.mutate(
-      { name: mod.name, enabled },
-      { onError: (err) => setToggleError(apiErrorMessage(err, 'Failed to update the module')) }
-    )
+    toggleModule.mutate({ name: mod.name, enabled })
   }
 
   return (
     <div className="space-y-4">
-      {toggleError ? (
-        <p className="text-sm text-destructive" role="alert">
-          {toggleError}
-        </p>
-      ) : null}
-
       {/*
         Page-scoped, not tab-scoped: at most one install runs at a time, so the
         panel belongs above the tabs where a tab switch cannot hide it.

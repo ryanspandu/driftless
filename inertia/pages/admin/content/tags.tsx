@@ -1,5 +1,4 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { toast } from 'sonner'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Loader2, MoreHorizontal, Pencil, Plus, Tags, Trash2 } from 'lucide-react'
 import type { ContentTagDto } from '~/types/api'
@@ -25,7 +24,6 @@ import {
   useUpdateContentTag,
 } from '~/hooks/api/use-content-tags'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
-import { apiErrorMessage } from '~/lib/api'
 
 type Editing = ContentTagDto | 'new' | null
 
@@ -37,12 +35,10 @@ function TagDialog({ editing, onClose }: { editing: Editing; onClose: () => void
   const [slug, setSlug] = useState(isEdit ? editing.slug : '')
   const [slugDirty, setSlugDirty] = useState(Boolean(isEdit))
   const [description, setDescription] = useState(isEdit ? (editing.description ?? '') : '')
-  const [error, setError] = useState<string | null>(null)
   const saving = createMut.isPending || updateMut.isPending
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setError(null)
     try {
       const body = {
         name: name.trim(),
@@ -51,10 +47,9 @@ function TagDialog({ editing, onClose }: { editing: Editing; onClose: () => void
       }
       if (isEdit) await updateMut.mutateAsync({ id: editing.id, ...body })
       else await createMut.mutateAsync(body)
-      toast.success(isEdit ? 'Tag updated' : 'Tag created')
       onClose()
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to save'))
+    } catch {
+      // reported by the mutation handler
     }
   }
 
@@ -108,7 +103,6 @@ function TagDialog({ editing, onClose }: { editing: Editing; onClose: () => void
               rows={3}
             />
           </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
@@ -139,10 +133,7 @@ export default function ContentTagsPage() {
           ? `${t.postCount} post${t.postCount === 1 ? '' : 's'} will lose this tag. The posts themselves are untouched.`
           : 'The posts themselves are untouched.',
     }).then((ok) => {
-      if (ok)
-        deleteMut.mutate(t.id, {
-          onError: (e) => toast.error(apiErrorMessage(e, 'Failed to delete')),
-        })
+      if (ok) deleteMut.mutate(t.id)
     })
   }
 

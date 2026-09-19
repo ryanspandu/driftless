@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Button } from '~/components/ui/button'
 import { Label } from '~/components/ui/label'
 import { MoneyInput } from '../../components/money-input'
-import { apiErrorMessage } from '~/lib/api-client'
 import {
   useSaveVariantPrices,
   useStoreCurrencies,
@@ -27,8 +26,6 @@ export default function VariantPrices({ variantId }: { variantId: string }) {
   const save = useSaveVariantPrices(variantId)
 
   const [amounts, setAmounts] = useState<Record<string, number | null>>({})
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   const others = (currencies.data ?? []).filter((c) => !c.isBase)
 
@@ -41,10 +38,7 @@ export default function VariantPrices({ variantId }: { variantId: string }) {
 
   if (others.length === 0) return null
 
-  async function onSave() {
-    setError(null)
-    setSaved(false)
-
+  function onSave() {
     const prices: VariantPriceDto[] = others
       .filter((c) => amounts[c.code] !== null && amounts[c.code] !== undefined)
       .map((c) => ({
@@ -53,13 +47,7 @@ export default function VariantPrices({ variantId }: { variantId: string }) {
         compareAtAmount: null,
       }))
 
-    try {
-      await save.mutateAsync(prices)
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2_000)
-    } catch (err) {
-      setError(apiErrorMessage(err))
-    }
+    save.mutate(prices)
   }
 
   return (
@@ -87,8 +75,6 @@ export default function VariantPrices({ variantId }: { variantId: string }) {
         ))}
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
       <div className="flex items-center gap-3">
         <Button
           type="button"
@@ -99,7 +85,6 @@ export default function VariantPrices({ variantId }: { variantId: string }) {
         >
           {save.isPending ? 'Saving…' : 'Save prices'}
         </Button>
-        {saved ? <span className="text-xs text-emerald-600">Saved</span> : null}
       </div>
     </div>
   )

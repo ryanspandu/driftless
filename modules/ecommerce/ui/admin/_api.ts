@@ -441,9 +441,18 @@ export interface ProductInput {
   data?: Record<string, unknown> | null
 }
 
+/** `3 discounts`, `1 discount` — for the bulk-action toasts. */
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`
+}
+
 export function useSaveProduct() {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage: (_: ProductDto, v: { id: string | null }) =>
+        v.id ? 'Product saved' : 'Product created',
+    },
     mutationFn: ({ id, input }: { id: string | null; input: ProductInput }) =>
       id
         ? apiFetch<ProductDto>(`${BASE}/products/${id}`, {
@@ -461,6 +470,7 @@ export function useSaveProduct() {
 export function useDeleteProduct() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Product deleted' },
     mutationFn: (id: string) => apiFetch<void>(`${BASE}/products/${id}`, { method: 'DELETE' }),
     onSuccess: () => invalidateProducts(qc),
   })
@@ -469,6 +479,7 @@ export function useDeleteProduct() {
 export function useBulkDeleteProducts() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: (r: { count: number }) => `${plural(r.count, 'product')} deleted` },
     mutationFn: (ids: string[]) =>
       apiFetch<{ count: number }>(`${BASE}/products/bulk-delete`, {
         method: 'POST',
@@ -601,6 +612,7 @@ export function useSaveVariant() {
 export function useDeleteVariant() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Variant deleted' },
     mutationFn: ({ variantId }: { productId: string; variantId: string }) =>
       apiFetch<void>(`${BASE}/variants/${variantId}`, { method: 'DELETE' }),
     onSuccess: (_data, vars) => invalidateProducts(qc, vars.productId),
@@ -610,6 +622,10 @@ export function useDeleteVariant() {
 export function useSaveCategory() {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage: (_: CategoryDto, v: { id: string | null }) =>
+        v.id ? 'Category saved' : 'Category created',
+    },
     mutationFn: ({ id, input }: { id: string | null; input: Partial<CategoryDto> }) =>
       id
         ? apiFetch<CategoryDto>(`${BASE}/categories/${id}`, {
@@ -627,6 +643,7 @@ export function useSaveCategory() {
 export function useDeleteCategory() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Category deleted' },
     mutationFn: (id: string) => apiFetch<void>(`${BASE}/categories/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ecommerceKeys.categories })
@@ -675,6 +692,9 @@ export function useForceDeleteCategory() {
 export function useSaveTag() {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage: (_: TagDto, v: { id: string | null }) => (v.id ? 'Tag saved' : 'Tag created'),
+    },
     mutationFn: ({ id, input }: { id: string | null; input: Partial<TagDto> }) =>
       id
         ? apiFetch<TagDto>(`${BASE}/tags/${id}`, {
@@ -692,6 +712,7 @@ export function useSaveTag() {
 export function useDeleteTag() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Tag deleted' },
     mutationFn: (id: string) => apiFetch<void>(`${BASE}/tags/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ecommerceKeys.tags })
@@ -735,9 +756,17 @@ export function useForceDeleteTag() {
   })
 }
 
-export function useUpdateStoreSettings() {
+/**
+ * `successMessage` names what changed — the same endpoint saves every settings
+ * form. `silent` is for a caller that reports (or answers) a failure itself.
+ */
+export function useUpdateStoreSettings(
+  successMessage = 'Settings saved',
+  options: { silent?: boolean } = {}
+) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage, silent: options.silent },
     mutationFn: (input: UpdateStoreSettingsInput) =>
       apiFetch<StoreSettingsDto>(`${BASE}/settings`, {
         method: 'PUT',
@@ -803,10 +832,17 @@ export function useOrder(id: string | null) {
 
 /** Every order mutation returns the refreshed detail, so the cache is seeded. */
 function useOrderMutation<TInput>(
-  request: (orderId: string, input: TInput) => Promise<OrderDetailDto>
+  request: (orderId: string, input: TInput) => Promise<OrderDetailDto>,
+  successMessage: string | ((input: TInput) => string)
 ) {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage:
+        typeof successMessage === 'function'
+          ? (_: OrderDetailDto, v: { input: TInput }) => successMessage(v.input)
+          : successMessage,
+    },
     mutationFn: ({ orderId, input }: { orderId: string; input: TInput }) => request(orderId, input),
     onSuccess: (order) => {
       qc.setQueryData(ecommerceKeys.order(order.id), order)
@@ -824,35 +860,42 @@ export interface RefundInput {
 }
 
 export function useRefundOrder() {
-  return useOrderMutation<RefundInput>((orderId, input) =>
-    apiFetch<OrderDetailDto>(`${BASE}/orders/${orderId}/refund`, {
-      method: 'POST',
-      body: JSON.stringify(input),
-    })
+  return useOrderMutation<RefundInput>(
+    (orderId, input) =>
+      apiFetch<OrderDetailDto>(`${BASE}/orders/${orderId}/refund`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    'Refund issued'
   )
 }
 
 export function useUpdateOrderStatus() {
-  return useOrderMutation<{ status: 'confirmed' | 'fulfilled' | 'completed' }>((orderId, input) =>
-    apiFetch<OrderDetailDto>(`${BASE}/orders/${orderId}/status`, {
-      method: 'PUT',
-      body: JSON.stringify(input),
-    })
+  return useOrderMutation<{ status: 'confirmed' | 'fulfilled' | 'completed' }>(
+    (orderId, input) =>
+      apiFetch<OrderDetailDto>(`${BASE}/orders/${orderId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+    (input) => `Order marked ${input.status}`
   )
 }
 
 export function useCancelOrder() {
-  return useOrderMutation<{ reason?: string | null }>((orderId, input) =>
-    apiFetch<OrderDetailDto>(`${BASE}/orders/${orderId}/cancel`, {
-      method: 'POST',
-      body: JSON.stringify(input),
-    })
+  return useOrderMutation<{ reason?: string | null }>(
+    (orderId, input) =>
+      apiFetch<OrderDetailDto>(`${BASE}/orders/${orderId}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    'Order cancelled'
   )
 }
 
 export function useBulkCancelOrders() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: (r: { count: number }) => `${plural(r.count, 'order')} cancelled` },
     mutationFn: ({ ids, reason }: { ids: string[]; reason?: string | null }) =>
       apiFetch<{ count: number }>(`${BASE}/orders/bulk-cancel`, {
         method: 'POST',
@@ -866,11 +909,13 @@ export function useBulkCancelOrders() {
 }
 
 export function useUpdateOrderNote() {
-  return useOrderMutation<{ internalNote: string | null }>((orderId, input) =>
-    apiFetch<OrderDetailDto>(`${BASE}/orders/${orderId}/note`, {
-      method: 'PUT',
-      body: JSON.stringify(input),
-    })
+  return useOrderMutation<{ internalNote: string | null }>(
+    (orderId, input) =>
+      apiFetch<OrderDetailDto>(`${BASE}/orders/${orderId}/note`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+    'Note saved'
   )
 }
 
@@ -896,6 +941,7 @@ export interface UpdateGatewayInput {
 export function useUpdateGateway() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Credentials saved' },
     mutationFn: ({
       gateway,
       mode,
@@ -1031,6 +1077,10 @@ export function useProductAutomaticDiscounts(productId: string | null) {
 export function useSetProductAutomaticDiscount(productId: string | null) {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage: (_: ProductAutomaticDiscountDto[], v: { applies: boolean }) =>
+        v.applies ? 'Discount applied to this product' : 'Discount switched off for this product',
+    },
     mutationFn: ({ discountId, applies }: { discountId: string; applies: boolean }) =>
       apiFetch<ProductAutomaticDiscountDto[]>(
         `${BASE}/products/${productId}/automatic-discounts/${discountId}`,
@@ -1044,6 +1094,10 @@ export function useSetProductAutomaticDiscount(productId: string | null) {
 export function useSaveDiscount() {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage: (_: DiscountDto, v: { id: string | null }) =>
+        v.id ? 'Discount saved' : 'Discount created',
+    },
     mutationFn: ({ id, input }: { id: string | null; input: Partial<DiscountDto> }) =>
       id
         ? apiFetch<DiscountDto>(`${BASE}/discounts/${id}`, {
@@ -1065,6 +1119,7 @@ export function useSaveDiscount() {
 export function useDeleteDiscount() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Discount deleted' },
     mutationFn: (id: string) => apiFetch<void>(`${BASE}/discounts/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['ecommerce', 'discounts'] })
@@ -1077,6 +1132,7 @@ export function useDeleteDiscount() {
 export function useBulkDeleteDiscounts() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: (r: { count: number }) => `${plural(r.count, 'discount')} deleted` },
     mutationFn: (ids: string[]) =>
       apiFetch<{ count: number }>(`${BASE}/discounts/bulk-delete`, {
         method: 'POST',
@@ -1113,6 +1169,7 @@ export function searchAffiliateAccounts(q: string): Promise<AffiliateAccountOpti
 export function useAddAffiliate() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Affiliate added' },
     mutationFn: (input: { email: string; commissionPercent?: number }) =>
       apiFetch<AffiliateDto>(`${BASE}/affiliates`, { method: 'POST', body: JSON.stringify(input) }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'affiliates'] }),
@@ -1122,6 +1179,7 @@ export function useAddAffiliate() {
 export function useApproveAffiliate() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Affiliate approved' },
     mutationFn: ({ id, commissionPercent }: { id: string; commissionPercent?: number }) =>
       apiFetch<AffiliateDto>(`${BASE}/affiliates/${id}/approve`, {
         method: 'POST',
@@ -1134,6 +1192,7 @@ export function useApproveAffiliate() {
 export function useRejectAffiliate() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Affiliate rejected' },
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       apiFetch<AffiliateDto>(`${BASE}/affiliates/${id}/reject`, {
         method: 'POST',
@@ -1146,6 +1205,7 @@ export function useRejectAffiliate() {
 export function useBulkApproveAffiliates() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: (r: { count: number }) => `${plural(r.count, 'affiliate')} approved` },
     mutationFn: (ids: string[]) =>
       apiFetch<{ count: number }>(`${BASE}/affiliates/bulk-approve`, {
         method: 'POST',
@@ -1158,6 +1218,7 @@ export function useBulkApproveAffiliates() {
 export function useBulkRejectAffiliates() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: (r: { count: number }) => `${plural(r.count, 'affiliate')} rejected` },
     mutationFn: ({ ids, reason }: { ids: string[]; reason?: string }) =>
       apiFetch<{ count: number }>(`${BASE}/affiliates/bulk-reject`, {
         method: 'POST',
@@ -1171,6 +1232,7 @@ export function useBulkRejectAffiliates() {
 export function useUpdateAffiliate() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Affiliate updated' },
     mutationFn: ({ id, input }: { id: string; input: Record<string, unknown> }) =>
       apiFetch<AffiliateDto>(`${BASE}/affiliates/${id}`, {
         method: 'PUT',
@@ -1191,6 +1253,10 @@ export function useWithdrawals(status?: string) {
 export function useProcessWithdrawal() {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage: (_: { ok: true }, v: { action: 'paid' | 'reject' }) =>
+        v.action === 'paid' ? 'Withdrawal marked paid' : 'Withdrawal rejected',
+    },
     mutationFn: ({
       id,
       action,
@@ -1214,6 +1280,10 @@ export function useProcessWithdrawal() {
 export function useBulkProcessWithdrawals() {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage: (r: { count: number }, v: { action: 'paid' | 'reject' }) =>
+        `${plural(r.count, 'withdrawal')} ${v.action === 'paid' ? 'marked paid' : 'rejected'}`,
+    },
     mutationFn: ({
       ids,
       action,
@@ -1245,6 +1315,9 @@ export function useCommissions(status?: string) {
 export function usePayCommissions() {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage: (r: { paid: number }) => `${plural(r.paid, 'commission')} marked paid`,
+    },
     mutationFn: (commissionIds: string[]) =>
       apiFetch<{ paid: number }>(`${BASE}/commissions/pay`, {
         method: 'POST',
@@ -1305,6 +1378,7 @@ export function useProductAssets(productId: string | null) {
 export function useUploadAsset(productId: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'File uploaded' },
     mutationFn: async ({
       variantId,
       file,
@@ -1346,6 +1420,7 @@ export function useUploadAsset(productId: string) {
 export function useUpdateAsset(productId: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Download limit saved' },
     mutationFn: ({ id, input }: { id: string; input: Partial<DigitalAssetDto> }) =>
       apiFetch<DigitalAssetDto>(`${BASE}/assets/${id}`, {
         method: 'PUT',
@@ -1358,6 +1433,7 @@ export function useUpdateAsset(productId: string) {
 export function useDeleteAsset(productId: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'File removed' },
     mutationFn: (id: string) => apiFetch<void>(`${BASE}/assets/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'assets', productId] }),
   })
@@ -1374,6 +1450,7 @@ export function useOrderGrants(orderId: string | null) {
 export function useRevokeGrant(orderId: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Download access revoked' },
     mutationFn: (id: string) =>
       apiFetch<{ revoked: boolean }>(`${BASE}/grants/${id}/revoke`, { method: 'POST' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'grants', orderId] }),
@@ -1467,6 +1544,10 @@ export function useCustomers(query: {
 export function useSetCustomerStatus() {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage: (r: AccountDto) =>
+        r.status === 'blocked' ? 'Customer blocked' : 'Customer unblocked',
+    },
     mutationFn: ({ id, status }: { id: string; status: 'active' | 'blocked' }) =>
       apiFetch<AccountDto>(`${BASE}/customers/${id}/status`, {
         method: 'PUT',
@@ -1479,6 +1560,10 @@ export function useSetCustomerStatus() {
 export function useBulkSetCustomerStatus() {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage: (r: { count: number }, v: { status: 'active' | 'blocked' }) =>
+        `${plural(r.count, 'customer')} ${v.status === 'blocked' ? 'blocked' : 'unblocked'}`,
+    },
     mutationFn: ({ ids, status }: { ids: string[]; status: 'active' | 'blocked' }) =>
       apiFetch<{ count: number }>(`${BASE}/customers/bulk-status`, {
         method: 'PUT',
@@ -1501,6 +1586,7 @@ export interface CreateCustomerInput {
 export function useCreateCustomer() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Customer created' },
     mutationFn: (input: CreateCustomerInput) =>
       apiFetch<AccountDto>(`${BASE}/customers`, {
         method: 'POST',
@@ -1634,6 +1720,7 @@ export function useStoreCurrencies() {
 export function useUpdateStoreCurrencies() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Currencies saved' },
     mutationFn: (codes: string[]) =>
       apiFetch<StoreCurrencyDto[]>(`${BASE}/currencies`, {
         method: 'PUT',
@@ -1654,6 +1741,7 @@ export function useVariantPrices(variantId: string | null) {
 export function useSaveVariantPrices(variantId: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Prices saved' },
     mutationFn: (prices: VariantPriceDto[]) =>
       apiFetch<VariantPriceDto[]>(`${BASE}/variants/${variantId}/prices`, {
         method: 'PUT',
@@ -1709,6 +1797,7 @@ export function useShipping() {
 export function useSaveShipping() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Shipping saved' },
     mutationFn: (zones: ShippingZoneDto[]) =>
       apiFetch<ShippingZoneDto[]>(`${BASE}/shipping`, {
         method: 'PUT',
@@ -1721,6 +1810,7 @@ export function useSaveShipping() {
 export function useMarkShipped(orderId: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Shipment saved' },
     mutationFn: (shipment: {
       carrier: string | null
       trackingNumber: string | null
@@ -1737,6 +1827,7 @@ export function useMarkShipped(orderId: string) {
 export function useSeedStorefront() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Default pages created' },
     mutationFn: () =>
       apiFetch<{ shopPageId: string | null; productPageId: string | null; created: string[] }>(
         `${BASE}/storefront/seed`,

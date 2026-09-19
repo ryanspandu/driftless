@@ -14,6 +14,7 @@ import { useCmsCollection } from '~/hooks/api/use-cms-collections'
 import { useCmsRecord } from '~/hooks/api/use-cms-records'
 import { useOfflineRecords } from '~/hooks/offline/use-offline-records'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
+import { reportError, reportSuccess } from '~/lib/notify'
 
 interface CmsRecordEditPageProps {
   collectionKey: string
@@ -105,6 +106,7 @@ export default function CmsRecordEditPage({
               onCancel={() => router.visit(`/admin/cms/${encodeURIComponent(key)}`)}
               onSubmit={async (value) => {
                 await offline.create(value)
+                reportSuccess('Record created')
                 router.visit(`/admin/cms/${encodeURIComponent(key)}`)
               }}
             />
@@ -129,7 +131,13 @@ export default function CmsRecordEditPage({
                       description: `Delete record "${record.id}"?`,
                     }).then(async (confirmed) => {
                       if (!confirmed) return
-                      await offline.remove(record.id)
+                      try {
+                        await offline.remove(record.id)
+                      } catch (err) {
+                        reportError(err, 'Failed to delete')
+                        return
+                      }
+                      reportSuccess('Record deleted')
                       router.visit(`/admin/cms/${encodeURIComponent(key)}`)
                     })
                   }}
@@ -140,6 +148,7 @@ export default function CmsRecordEditPage({
               }
               onSubmit={async (value) => {
                 await offline.update(record.id, value)
+                reportSuccess('Record saved')
                 router.visit(`/admin/cms/${encodeURIComponent(key)}`)
               }}
             />

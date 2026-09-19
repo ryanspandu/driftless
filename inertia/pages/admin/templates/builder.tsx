@@ -4,7 +4,9 @@ import { Puck, Render, type Data } from '@measured/puck'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Link } from '@inertiajs/react'
 import { ArrowLeft } from 'lucide-react'
-import { Toaster, toast } from 'sonner'
+import { toast } from 'sonner'
+import { reportError } from '~/lib/notify'
+import { Toaster } from '~/components/ui/toaster'
 import { puckConfig } from '~/puck/config'
 import { emailPuckConfig } from '~/puck/email-config'
 import { collectionPuckConfig } from '~/puck/collection-config'
@@ -154,7 +156,7 @@ export default function TemplateBuilder({ id }: { id: string }) {
       })
       toast.success('Template design saved')
     } catch (error) {
-      toast.error('Failed to save')
+      reportError(error, 'Failed to save')
       // Rethrown so BuilderShell keeps the template marked unsaved — see the
       // guard there; a failed save must not clear it.
       throw error
@@ -197,12 +199,7 @@ export default function TemplateBuilder({ id }: { id: string }) {
       <BuilderShell
         onPublish={save}
         breakpoints={breakpoints}
-        onBreakpointsChange={
-          isEmail
-            ? undefined
-            : (next: Breakpoint[]) =>
-                updateBp.mutate(next, { onError: () => toast.error('Could not save breakpoints') })
-        }
+        onBreakpointsChange={isEmail ? undefined : (next: Breakpoint[]) => updateBp.mutate(next)}
         savedColors={savedColors}
         themeColors={themeColors}
         topbarStart={
@@ -245,7 +242,7 @@ export default function TemplateBuilder({ id }: { id: string }) {
         }
       />
 
-      <Toaster richColors position="bottom-right" />
+      <Toaster position="bottom-right" />
     </Puck>
   )
 

@@ -109,8 +109,6 @@ function SiteMetaSection() {
   // AI-crawler toggle) would silently persist that preview text as a
   // permanent robots.txt override.
   const [robotsTxtEdited, setRobotsTxtEdited] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!sm) return
@@ -152,7 +150,6 @@ function SiteMetaSection() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    setFormError(null)
     try {
       await update.mutateAsync({
         patches: [
@@ -210,10 +207,8 @@ function SiteMetaSection() {
           },
         ],
       })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not save.')
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -382,16 +377,6 @@ function SiteMetaSection() {
               {update.isPending ? 'Saving…' : 'Save site & SEO'}
             </Button>
           </div>
-          {formError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {formError}
-            </p>
-          ) : null}
-          {saved ? (
-            <p className="text-sm text-green-600 dark:text-green-500" role="status">
-              Site settings saved.
-            </p>
-          ) : null}
         </CardContent>
       </Card>
     </form>
@@ -404,7 +389,6 @@ function FormsSection() {
   const forms = data?.sections?.[WEBSITE_SETTING_SECTIONS.FORMS]
   const [webhookUrl, setWebhookUrl] = useState('')
   const [notifyEmail, setNotifyEmail] = useState('')
-  const [saved, setSaved] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -433,10 +417,8 @@ function FormsSection() {
           { section: WEBSITE_SETTING_SECTIONS.FORMS, key: 'notify_email', value: email },
         ],
       })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not save.')
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -493,11 +475,6 @@ function FormsSection() {
           {formError ? (
             <p className="text-sm text-destructive" role="alert">
               {formError}
-            </p>
-          ) : null}
-          {saved ? (
-            <p className="text-sm text-green-600 dark:text-green-500" role="status">
-              Form settings saved.
             </p>
           ) : null}
         </CardContent>

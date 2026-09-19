@@ -1,5 +1,4 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { toast } from 'sonner'
 import type { ColumnDef } from '@tanstack/react-table'
 import { FolderTree, Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { ContentCategoryDto } from '~/types/api'
@@ -26,7 +25,6 @@ import {
   useUpdateContentCategory,
 } from '~/hooks/api/use-content-categories'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
-import { apiErrorMessage } from '~/lib/api'
 
 type Editing = ContentCategoryDto | 'new' | null
 
@@ -47,7 +45,6 @@ function CategoryDialog({
   const [slugDirty, setSlugDirty] = useState(Boolean(isEdit))
   const [description, setDescription] = useState(isEdit ? (editing.description ?? '') : '')
   const [parentId, setParentId] = useState(isEdit ? (editing.parentId ?? '') : '')
-  const [error, setError] = useState<string | null>(null)
   const saving = createMut.isPending || updateMut.isPending
 
   const parentOptions = useMemo(
@@ -62,7 +59,6 @@ function CategoryDialog({
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setError(null)
     try {
       const body = {
         name: name.trim(),
@@ -72,10 +68,9 @@ function CategoryDialog({
       }
       if (isEdit) await updateMut.mutateAsync({ id: editing.id, ...body })
       else await createMut.mutateAsync(body)
-      toast.success(isEdit ? 'Category updated' : 'Category created')
       onClose()
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to save'))
+    } catch {
+      // reported by the mutation handler
     }
   }
 
@@ -139,7 +134,6 @@ function CategoryDialog({
               rows={3}
             />
           </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
@@ -172,10 +166,7 @@ export default function ContentCategoriesPage() {
           ? `${c.postCount} post${c.postCount === 1 ? '' : 's'} will lose this category. The posts themselves are untouched.`
           : 'The posts themselves are untouched.',
     }).then((ok) => {
-      if (ok)
-        deleteMut.mutate(c.id, {
-          onError: (e) => toast.error(apiErrorMessage(e, 'Failed to delete')),
-        })
+      if (ok) deleteMut.mutate(c.id)
     })
   }
 

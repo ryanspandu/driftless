@@ -7,7 +7,6 @@ import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { Switch } from '~/components/ui/switch'
 import { MoneyInput } from '../../components/money-input'
-import { apiErrorMessage } from '~/lib/api-client'
 import {
   useSaveShipping,
   useShipping,
@@ -46,8 +45,6 @@ export default function ShippingPanel() {
   const currencies = useStoreCurrencies()
 
   const [zones, setZones] = useState<ShippingZoneDto[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   const base = currencies.data?.find((c) => c.isBase)?.code ?? 'USD'
   const others = (currencies.data ?? []).filter((c) => !c.isBase)
@@ -98,16 +95,8 @@ export default function ShippingPanel() {
     )
   }
 
-  async function onSave() {
-    setError(null)
-    setSaved(false)
-    try {
-      await save.mutateAsync(zones)
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2_000)
-    } catch (err) {
-      setError(apiErrorMessage(err))
-    }
+  function onSave() {
+    save.mutate(zones)
   }
 
   return (
@@ -309,13 +298,10 @@ export default function ShippingPanel() {
           </p>
         ) : null}
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
         <div className="flex items-center gap-3">
           <Button type="button" disabled={save.isPending} onClick={onSave}>
             {save.isPending ? 'Saving…' : 'Save shipping'}
           </Button>
-          {saved ? <span className="text-sm text-emerald-600">Saved</span> : null}
         </div>
       </CardContent>
     </Card>

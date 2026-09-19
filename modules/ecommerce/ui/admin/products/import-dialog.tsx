@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/components/ui/dialog'
-import { apiErrorMessage } from '~/lib/api'
 import { useImportProducts, type ProductImportResult } from '../_api'
 
 /** Where the "Download template" link points — the products export is the exact
@@ -26,7 +25,6 @@ export function ImportProductsDialog({
   const inputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [result, setResult] = useState<ProductImportResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const importProducts = useImportProducts()
 
   // Reset the transient state whenever the dialog is opened or closed, so a
@@ -34,7 +32,6 @@ export function ImportProductsDialog({
   function reset() {
     setFile(null)
     setResult(null)
-    setError(null)
     if (inputRef.current) inputRef.current.value = ''
   }
 
@@ -45,12 +42,11 @@ export function ImportProductsDialog({
 
   async function submit() {
     if (!file) return
-    setError(null)
     try {
       const res = await importProducts.mutateAsync(file)
       setResult(res)
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler; the report below is the success feedback.
     }
   }
 
@@ -92,14 +88,9 @@ export function ImportProductsDialog({
                 type="file"
                 accept=".csv,text/csv,.txt"
                 className="sr-only"
-                onChange={(e) => {
-                  setError(null)
-                  setFile(e.target.files?.[0] ?? null)
-                }}
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               />
             </label>
-
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
           </div>
         )}
 
