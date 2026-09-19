@@ -118,7 +118,7 @@ function ClickHistoryDialog({
           responsive-breakpoint system (`--container-lg: 1024px` etc. in
           `inertia/css/app.css`), so those utilities are far wider here than
           Tailwind's own defaults — this bypasses that redefinition. */}
-      <DialogContent className="max-h-[80vh] max-w-[28rem] overflow-y-auto">
+      <DialogContent className="max-w-[28rem]">
         <DialogHeader>
           <DialogTitle>{product?.title}</DialogTitle>
         </DialogHeader>
