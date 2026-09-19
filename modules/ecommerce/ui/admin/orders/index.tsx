@@ -4,6 +4,7 @@ import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { Ban, Download, Plus, Receipt } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkAction } from '~/components/admin/bulk-action-bar'
 import { PageHeader } from '~/components/admin/page-header'
 import { Can } from '~/components/providers/ability-provider'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
@@ -255,27 +256,16 @@ export default function OrdersPage() {
 
       {selectedIds.length > 0 ? (
         <Can permission="ecommerce:orders:manage">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
-            <p className="text-sm">
-              <span className="font-medium">{selectedIds.length}</span>{' '}
-              {selectedIds.length === 1 ? 'order' : 'orders'} selected
-            </p>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
-                Clear
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2 text-destructive"
-                disabled={bulkCancel.isPending}
-                onClick={() => void onBulkCancel()}
-              >
-                <Ban className="size-4" aria-hidden />
-                {bulkCancel.isPending ? 'Cancelling…' : 'Cancel'}
-              </Button>
-            </div>
-          </div>
+          <BulkActionBar count={selectedIds.length} noun="order" onClear={() => setSelection({})}>
+            <BulkAction
+              destructive
+              icon={Ban}
+              disabled={bulkCancel.isPending}
+              onClick={() => void onBulkCancel()}
+            >
+              {bulkCancel.isPending ? 'Cancelling…' : 'Cancel'}
+            </BulkAction>
+          </BulkActionBar>
         </Can>
       ) : null}
 

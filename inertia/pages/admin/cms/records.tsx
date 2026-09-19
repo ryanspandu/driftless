@@ -1,11 +1,12 @@
 import { Link } from '@inertiajs/react'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { Plus, Settings, Trash2 } from 'lucide-react'
 import type { CmsCollectionDto, CmsRecordDto, ContentStatus } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkDeleteButton } from '~/components/admin/bulk-action-bar'
 import {
   CmsRecordActions,
   cmsRecordEditPath,
@@ -47,6 +48,8 @@ function CmsRecordsPageInner({ collectionKey: key }: { collectionKey: string }) 
   const collection = collectionQuery.data
   const isUserCollection = collection?.source === 'PRISMA' && key === 'user'
   const canCreate = permissions.canCms('create', key) && !isUserCollection
+  // Same rule as the row's own Delete action (see CmsRecordActions).
+  const canDelete = permissions.canCms('delete', key) && !isUserCollection
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<ContentStatus | 'ALL'>('ALL')
   const [revisionsFor, setRevisionsFor] = useState<string | null>(null)
@@ -106,6 +109,43 @@ function CmsRecordsPageInner({ collectionKey: key }: { collectionKey: string }) 
   }, [status, writeListFiltersToUrl])
 
   const offline = useOfflineRecords(key)
+
+  // Bulk selection: delete every checked record (a soft delete — Trash can restore them).
+  const [selection, setSelection] = useState<RowSelectionState>({})
+  const selectedIds = useMemo(() => Object.keys(selection).filter((k) => selection[k]), [selection])
+  const [bulkBusy, setBulkBusy] = useState(false)
+
+  const onBulkTrash = async () => {
+    const count = selectedIds.length
+    const noun = `record${count === 1 ? '' : 's'}`
+    const confirmed = await confirmDelete({
+      title: `Delete ${count} ${noun}?`,
+      description: `You can restore ${count === 1 ? 'it' : 'them'} from the trash later.`,
+      confirmLabel: 'Delete',
+    })
+    if (!confirmed) return
+    setBulkBusy(true)
+    let moved = 0
+    try {
+      for (const id of selectedIds) {
+        await offline.remove(id)
+        moved += 1
+      }
+    } catch (err) {
+      reportError(err, `Failed to delete ${noun}`)
+    } finally {
+      setBulkBusy(false)
+      // A partial run still moved some: say so and keep only the ones left.
+      if (moved > 0) {
+        reportSuccess(`${moved} ${moved === 1 ? 'record' : 'records'} deleted`)
+        setSelection((prev) => {
+          const next = { ...prev }
+          for (const id of selectedIds.slice(0, moved)) delete next[id]
+          return next
+        })
+      }
+    }
+  }
 
   const trashedQuery = useTrashedCmsRecords(key)
   const restoreMut = useRestoreCmsRecord(key)
@@ -273,10 +313,19 @@ function CmsRecordsPageInner({ collectionKey: key }: { collectionKey: string }) 
         }
       />
 
+      {canDelete && selectedIds.length > 0 ? (
+        <BulkActionBar count={selectedIds.length} noun="record" onClear={() => setSelection({})}>
+          <BulkDeleteButton busy={bulkBusy} onClick={() => void onBulkTrash()} />
+        </BulkActionBar>
+      ) : null}
+
       <DataTable
         columns={columns}
         data={items}
         getRowId={(r) => r.id}
+        enableBulkSelect={canDelete}
+        rowSelection={selection}
+        onRowSelectionChange={setSelection}
         getSyncStatus={getSyncStatus}
         lastSyncedAt={offline.lastSyncedAt}
         toolbarActions={trashButton}
@@ -323,6 +372,9 @@ export default function CmsRecordsPage({ collectionKey }: { collectionKey: strin
   return <CmsRecordsPageInner collectionKey={collectionKey} />
 }
 
+/** Caps a text cell's width so one long value cannot blow its column out; the rest becomes "…". */
+const CELL_TEXT_CLASS = 'inline-block max-w-[24rem] truncate align-bottom'
+
 function buildColumns(
   collection: CmsCollectionDto,
   callbacks: {
@@ -354,15 +406,25 @@ function buildColumns(
       ),
       cell: ({ row }) => {
         const text = renderValue(row.original.data[fieldKey]) || '—'
+        // Long content (a review, a body) is clipped with an ellipsis instead of
+        // stretching its column across the page; the full text is on hover.
         if (!isPrimary) {
-          return <span className="truncate">{text}</span>
+          return (
+            <span className={CELL_TEXT_CLASS} title={text}>
+              {text}
+            </span>
+          )
         }
         const rowHref =
           collection.source === 'PRISMA' && collection.key === 'user'
             ? '/admin/users'
             : cmsRecordEditPath(collection.key, row.original.id)
         return (
-          <Link href={rowHref} className="truncate font-medium hover:underline">
+          <Link
+            href={rowHref}
+            className={`${CELL_TEXT_CLASS} font-medium hover:underline`}
+            title={text}
+          >
             {text}
           </Link>
         )

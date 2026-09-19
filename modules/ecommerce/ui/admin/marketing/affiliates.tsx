@@ -4,6 +4,7 @@ import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { Check, Copy, MessageSquare, MoreHorizontal, Pencil, Plus, Users, X } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkAction } from '~/components/admin/bulk-action-bar'
 import {
   Dialog,
   DialogContent,
@@ -395,37 +396,27 @@ export default function AffiliatesPage() {
 
       {selectedIds.length > 0 ? (
         <Can permission="ecommerce:affiliates:manage">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
-            <p className="text-sm">
-              <span className="font-medium">{selectedIds.length}</span>{' '}
-              {selectedIds.length === 1 ? 'application' : 'applications'} selected
-            </p>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
-                Clear
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2"
-                disabled={bulkApprove.isPending}
-                onClick={() => void onBulkApprove()}
-              >
-                <Check className="size-4" aria-hidden />
-                Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2 text-destructive"
-                disabled={bulkReject.isPending}
-                onClick={() => void onBulkReject()}
-              >
-                <X className="size-4" aria-hidden />
-                Reject
-              </Button>
-            </div>
-          </div>
+          <BulkActionBar
+            count={selectedIds.length}
+            noun="application"
+            onClear={() => setSelection({})}
+          >
+            <BulkAction
+              icon={Check}
+              disabled={bulkApprove.isPending}
+              onClick={() => void onBulkApprove()}
+            >
+              Approve
+            </BulkAction>
+            <BulkAction
+              destructive
+              icon={X}
+              disabled={bulkReject.isPending}
+              onClick={() => void onBulkReject()}
+            >
+              Reject
+            </BulkAction>
+          </BulkActionBar>
         </Can>
       ) : null}
 

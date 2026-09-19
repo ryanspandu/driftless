@@ -182,7 +182,7 @@ export function useBulkPages() {
         const verb = {
           publish: 'published',
           unpublish: 'unpublished',
-          trash: 'moved to trash',
+          trash: 'deleted',
           delete: 'deleted',
         }[v.action]
         return `${r.count} page${r.count === 1 ? '' : 's'} ${verb}`

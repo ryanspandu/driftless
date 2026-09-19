@@ -4,6 +4,7 @@ import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { Banknote, Check, X } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkAction } from '~/components/admin/bulk-action-bar'
 import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { Can } from '~/components/providers/ability-provider'
@@ -159,37 +160,27 @@ export default function WithdrawalsPage() {
 
       {selectedIds.length > 0 ? (
         <Can permission="ecommerce:commissions:approve">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
-            <p className="text-sm">
-              <span className="font-medium">{selectedIds.length}</span>{' '}
-              {selectedIds.length === 1 ? 'withdrawal' : 'withdrawals'} selected
-            </p>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
-                Clear
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2"
-                disabled={bulkProcess.isPending}
-                onClick={() => void onBulkAct('paid')}
-              >
-                <Check className="size-4" aria-hidden />
-                Mark paid
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2 text-destructive"
-                disabled={bulkProcess.isPending}
-                onClick={() => void onBulkAct('reject')}
-              >
-                <X className="size-4" aria-hidden />
-                Reject
-              </Button>
-            </div>
-          </div>
+          <BulkActionBar
+            count={selectedIds.length}
+            noun="withdrawal"
+            onClear={() => setSelection({})}
+          >
+            <BulkAction
+              icon={Check}
+              disabled={bulkProcess.isPending}
+              onClick={() => void onBulkAct('paid')}
+            >
+              Mark paid
+            </BulkAction>
+            <BulkAction
+              destructive
+              icon={X}
+              disabled={bulkProcess.isPending}
+              onClick={() => void onBulkAct('reject')}
+            >
+              Reject
+            </BulkAction>
+          </BulkActionBar>
         </Can>
       ) : null}
 

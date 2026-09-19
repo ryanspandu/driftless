@@ -23,6 +23,7 @@ import { resolveCustomPageCapability } from '~/custom/registry'
 import { resolveCoreRoleSlot } from '~/lib/page-role-slot'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkAction, BulkDeleteButton } from '~/components/admin/bulk-action-bar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -493,25 +494,15 @@ export default function PagesPage() {
       />
 
       {selectedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
-          <span className="font-medium">{selectedIds.length} selected</span>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => void onBulk('publish')}>
-              Publish
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => void onBulk('unpublish')}>
-              Unpublish
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-destructive"
-              onClick={() => void onBulk('trash')}
-            >
-              Move to trash
-            </Button>
-          </div>
-        </div>
+        <BulkActionBar count={selectedIds.length} noun="page" onClear={() => setSelection({})}>
+          <BulkAction disabled={bulkMut.isPending} onClick={() => void onBulk('publish')}>
+            Publish
+          </BulkAction>
+          <BulkAction disabled={bulkMut.isPending} onClick={() => void onBulk('unpublish')}>
+            Unpublish
+          </BulkAction>
+          <BulkDeleteButton busy={bulkMut.isPending} onClick={() => void onBulk('trash')} />
+        </BulkActionBar>
       ) : null}
 
       <DataTable

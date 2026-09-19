@@ -20,6 +20,7 @@ import type { RowSelectionState } from '@tanstack/react-table'
 import type { ContentDto } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkAction, BulkDeleteButton } from '~/components/admin/bulk-action-bar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,7 +82,7 @@ function ContentPageInner() {
     recreateFromConflict,
   } = useOfflineContent()
 
-  // Bulk selection: change status or move rows to trash for every checked row.
+  // Bulk selection: change status or delete (soft — Trash restores) every checked row.
   const [selection, setSelection] = useState<RowSelectionState>({})
   const selectedIds = useMemo(
     () => Object.keys(selection).filter((k) => selection[k]),
@@ -106,20 +107,20 @@ function ContentPageInner() {
 
   const onBulkTrash = async () => {
     const confirmed = await confirmDelete({
-      title: `Move ${selectedIds.length} post${selectedIds.length === 1 ? '' : 's'} to trash?`,
+      title: `Delete ${selectedIds.length} post${selectedIds.length === 1 ? '' : 's'}?`,
       description: 'You can restore them from the trash later.',
-      confirmLabel: 'Move to trash',
+      confirmLabel: 'Delete',
     })
     if (!confirmed) return
     setBulkBusy(true)
     try {
       for (const id of selectedIds) await remove(id)
       reportSuccess(
-        `${selectedIds.length} post${selectedIds.length === 1 ? '' : 's'} moved to trash`
+        `${selectedIds.length} post${selectedIds.length === 1 ? '' : 's'} deleted`
       )
       setSelection({})
     } catch (err) {
-      reportError(err, 'Failed to move posts to trash')
+      reportError(err, 'Failed to delete posts')
     } finally {
       setBulkBusy(false)
     }
@@ -431,36 +432,15 @@ function ContentPageInner() {
       />
 
       {selectedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
-          <span className="font-medium">{selectedIds.length} selected</span>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={bulkBusy}
-              onClick={() => void onBulkStatus('PUBLISHED')}
-            >
-              Publish
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={bulkBusy}
-              onClick={() => void onBulkStatus('DRAFT')}
-            >
-              Unpublish
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-destructive"
-              disabled={bulkBusy}
-              onClick={() => void onBulkTrash()}
-            >
-              Move to trash
-            </Button>
-          </div>
-        </div>
+        <BulkActionBar count={selectedIds.length} noun="post" onClear={() => setSelection({})}>
+          <BulkAction disabled={bulkBusy} onClick={() => void onBulkStatus('PUBLISHED')}>
+            Publish
+          </BulkAction>
+          <BulkAction disabled={bulkBusy} onClick={() => void onBulkStatus('DRAFT')}>
+            Unpublish
+          </BulkAction>
+          <BulkDeleteButton busy={bulkBusy} onClick={() => void onBulkTrash()} />
+        </BulkActionBar>
       ) : null}
 
       <DataTable
