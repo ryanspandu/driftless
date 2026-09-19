@@ -236,6 +236,22 @@ ADMIN (CSR, Inertia)                         PUBLIC (3 modes, 1 renderer)
 Key: **one** public renderer component (`public/page.tsx` calling Puck `<Render config data/>`).
 The three modes differ only in the render path, not in implementation.
 
+The catch-all's lookup order (`PagesPublicController.show`) — the first hit wins:
+
+1. a **PUBLISHED Page** on the exact path (builder or CODE/kit);
+2. a **kit file-page** (`findFilePageByPath`, active kits only);
+3. a configured **content screen** — the blog archive / post / category / tag at the prefix set under
+   Website settings → URLs (`ContentPathsService.match`, handed to the same `PublicController` handlers);
+4. a collection's **public detail page** (`CollectionDetailService.resolve` — `/<prefix>/<slug>` rendered
+   through the collection's CODE/kit template);
+5. a configured **redirect** (`RedirectsService.resolve`);
+6. **404** (`errors/not_found`, or the operator's 404 page).
+
+A "no such post / category / tag" from step 3 falls through to 4–6 instead of ending the lookup. Reserved first
+segments (`app/services/reserved_paths.ts`) 404 before any of this. See
+[content-taxonomy-and-visibility.md](./content-taxonomy-and-visibility.md#configurable-blog-urls) and
+[cms.md](./cms.md#public-detail-pages-per-collection-off-by-default).
+
 ## Data model
 
 `pages` table (follows CMS conventions: ULID, soft-delete, revisions):
@@ -262,12 +278,14 @@ Plus `page_revisions` (mirror `cms_revisions`).
 - **Service** `app/services/pages_service.ts` — CRUD, publish, slug, revisions, `resolveData`
 - **Validators** (VineJS) — create / update / publish
 - **Controllers** — `admin/pages_controller.ts` (Inertia pages + API CRUD/publish),
-  `pages_public_controller.ts` — `show` (catch-all, PUBLISHED-only by path) + `preview`
+  `pages_public_controller.ts` — `show` (catch-all: PUBLISHED Page by path → kit file-page → configured content
+  prefix → collection detail → redirect → 404; see *Architecture*) + `preview`
   (admin `GET /admin/pages/:id/preview`, renders ANY status incl. Draft, uncached). Both
   share the private `composeAndRender` (layout/header/footer + templates + collections +
   global code/meta).
 - **Routes** — admin guarded with `middleware.permission(...)`; public catch-all `GET /*`
-  registered **last** (after `/`, `/posts/:slug`, `/admin/*`, `/api/*`, `/login`, `/offline`) + reserved-slug denylist.
+  registered **last** (after `/`, `/posts/:slug`, `/admin/*`, `/api/*`, `/login`, `/offline`) + reserved-slug denylist
+  (`reservedFirstSegment` in `app/services/reserved_paths.ts`, also enforced on save by `PagesService`).
   The preview route lives in the authed `/admin/*` group (next to `/admin/pages/:id/edit`).
 - **Permissions** — mint `pages.view/create/update/delete/publish` in RBAC
 

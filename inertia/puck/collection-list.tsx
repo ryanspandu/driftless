@@ -303,9 +303,13 @@ export function CollectionSourceField({
             <input
               className={inputCls}
               value={v.linkBase ?? ''}
-              placeholder="/blog/"
+              placeholder="/portfolio/"
               onChange={(e) => set({ linkBase: e.target.value })}
             />
+            <span className="block text-[11px] leading-snug text-muted-foreground">
+              Set to /&lt;prefix&gt;/ when the collection has Public pages on, and Link field to its
+              slug field.
+            </span>
           </label>
         </div>
       ) : null}

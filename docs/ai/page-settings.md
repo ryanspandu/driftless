@@ -34,7 +34,14 @@ builder layout ([builder-layers.md](./builder-layers.md)).
      + **global meta tags** (free-form).
    - **Appearance** (`?tab=appearance`) — the shared `AppearancePanel`: default font +
      colour palette. Identical to the builder dialog's Appearance section.
-   - **Custom code** — the same site-wide CSS/JS editor (`GlobalCodePanel`).
+   - **URLs** (`?tab=urls`) — where the built-in blog screens live (posts archive `blog`, post page
+     `posts`, category `category`, tag `tag`), each editable as a prefix; a nested prefix
+     (`resources/insights`) is allowed and the screen shows the resulting URL. Validation and the
+     301 from the old address are described in
+     [content-taxonomy-and-visibility.md](./content-taxonomy-and-visibility.md#configurable-blog-urls).
+   - **Forms** (`?tab=forms`) — the builder-form submission webhook and notification email
+     (`web_settings` section `forms`).
+   - **Custom code** (`?tab=custom-code`) — the same site-wide CSS/JS editor (`GlobalCodePanel`).
 
    This page is distinct from `/admin/settings` ("Settings"), which is now a **hub of links
    only** — every form it used to hold moved to `/admin/settings/appearance` (admin panel
@@ -61,6 +68,7 @@ builder layout ([builder-layers.md](./builder-layers.md)).
 | **Global code** | `web_settings` section `page_code`, key `snippets` | JSON `CodeSnippet[]` (sanitized server-side). |
 | **Global meta tags** | `web_settings` section `site_meta`, key `meta` | JSON `SiteMetaTag[]`. |
 | Site title/desc/favicon | `web_settings` section `site_meta` | Pre-existing keys. |
+| **Content URLs** | `web_settings` section `content_paths` | `posts_archive_prefix`, `post_detail_prefix`, `category_prefix`, `tag_prefix` (default `blog`/`posts`/`category`/`tag`). Website settings → **URLs**. See [content-taxonomy-and-visibility.md](./content-taxonomy-and-visibility.md#configurable-blog-urls). |
 | **Appearance** (font + palette) | `web_settings` section `theme` | `font_family`, `font_css_url`, `font_face_url`, `font_custom_name`, `primary_color`, `secondary_color`, `saved_colors` (JSON `[{slug,name,value}]`). Sanitized server-side. See [settings-ia.md](./settings-ia.md#web_settings--one-key-one-owning-screen). |
 
 ```ts
@@ -237,9 +245,9 @@ public page (no chrome).
 | `inertia/puck/global-code-panel.tsx` | Global code editor (fetch + draft + Save) |
 | `inertia/hooks/api/use-page-code.ts` | `useGlobalCode` / `useUpdateGlobalCode` |
 | `inertia/components/admin/meta-tags-editor.tsx` | Shared free-form meta-tag rows (per-page SEO + global) |
-| `inertia/pages/admin/website-settings.tsx` | Website settings page (Site & SEO + Custom code) |
+| `inertia/pages/admin/website-settings.tsx` | Website settings page (Site & SEO + Appearance + URLs + Forms + Custom code) |
 | `inertia/components/public-web-meta.tsx` | Site-wide title/meta tags on landing/posts (client-side); also re-sets favicon there, redundantly — see Favicon above |
-| `app/middleware/inertia_middleware.ts` | Shares `faviconUrl` (+ `cspNonce`, `siteTheme`) to every request's view/props |
+| `app/middleware/inertia_middleware.ts` | Shares `faviconUrl` (+ `cspNonce`, `siteTheme`, `contentPaths`) to every request's view/props |
 | `resources/views/inertia_layout.edge` | Root HTML shell — reads `faviconUrl` as a view local, `page.component` to scope `.theme-light` to `<body>` on non-admin/auth pages |
 | `inertia/puck/public-page-view.tsx` | Public render: per-page + global code/meta |
 | `app/services/settings_service.ts` | Global code + meta storage/appearance |

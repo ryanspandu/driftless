@@ -29,7 +29,7 @@ field on the other screen, both defaulting to `Driftless`, with nothing explaini
 | `/admin/settings/application` | via hub | Modules (install / enable / remove) | `modules` table |
 | `/admin/integrations` (+ 4 sub-pages) | **not in sidebar** | Google OAuth, CAPTCHA, GA4, Clarity | `integration_settings` (secrets in `*_enc`) |
 | `/admin/settings/api-tokens` | via hub | Personal access tokens for `/api/v1` | `auth_access_tokens` |
-| `/admin/website-settings` | **UI → Website settings** | Public site title, description, favicon, site-wide meta, appearance (font + palette), forms webhook, global custom code | `web_settings`: `site_meta`, `theme`, `forms`, `page_code` |
+| `/admin/website-settings` | **UI → Website settings** | Tabs (`?tab=`): **Site & SEO**, **Appearance** (font + palette), **URLs** (`?tab=urls` — where the blog screens live), **Forms** (webhook + notify email), **Custom code** (global snippets) | `web_settings`: `site_meta`, `theme`, `content_paths`, `forms`, `page_code` |
 
 The page title of `/admin/settings/application` is **"Modules"**. The route name is a leftover;
 link to it as *Settings → Modules*.
@@ -59,6 +59,28 @@ is `''`, so empty always means "back to the default" and no screen needs a reset
 | `site_meta` | `site_title`, `site_description`, `favicon_url`, `meta` | Website settings |
 | `page_code` | `snippets` | Website settings **and** the builder's Settings dialog |
 | `theme` | `font_family`, `font_css_url`, `font_face_url`, `font_custom_name`, `primary_color`, `secondary_color`, `saved_colors` (JSON `[{slug,name,value}]`) | Website settings (**Appearance** tab) **and** the builder's Settings dialog |
+| `content_pages` | `category_archive_page_id`, `tag_archive_page_id`, `posts_archive_page_id`, `post_detail_page_id` (page ids; empty = the built-in screen) | Appearance (**Replace built-in pages**) **and** Pages → row menu → **Use as page** |
+| `home_page` | `front_page_id` (page id; empty = the built-in landing) | Appearance (**Replace built-in pages**) **and** Pages → **Use as page** |
+| `forms` | `webhook_url`, `notify_email` | Website settings (**Forms** tab) |
+| `content_paths` | `posts_archive_prefix` (`blog`), `post_detail_prefix` (`posts`), `category_prefix` (`category`), `tag_prefix` (`tag`) — no leading slash | Website settings (**URLs** tab) |
+
+`content_paths` moves the built-in Content screens (`/blog`, `/posts/:slug`, `/category/:slug`,
+`/tag/:slug`) — e.g. both blog prefixes to `insights` gives `/insights` + `/insights/:slug`. A prefix
+may be nested (`resources/insights`); values are normalised (trimmed, lower-cased, slashes stripped),
+only the **last** patch per key counts, and a value equal to the default is stored as "no override"
+(the row is deleted). Validated **on write in `WebSettingsService.applyPatches`**, so every writer
+is covered: the admin screen, the **data import**, and the MCP tools `get_content_paths` /
+`set_content_paths` (`GET`/`PUT /api/mcp/v1/content-paths`, ability `builder:settings`, `422` with
+the reason on a problem). Read per request with fail-safe defaults.
+
+Import is the one writer that behaves differently: the settings section applies `content_paths` in a
+**separate step**, and a refusal is a *warning* in the import log — the rest of the settings still
+import. On conflict mode `skip` the target's existing `content_paths` / `content_pages` values are
+kept. Details: [content-taxonomy-and-visibility.md](./content-taxonomy-and-visibility.md#configurable-blog-urls).
+
+Mirror: `inertia/types/api.ts` (`CONTENT_PATH_FIELDS`) and `inertia/lib/content_paths.ts`, guarded by
+`tests/unit/content_paths.spec.ts`. The effective prefixes reach every page as the shared Inertia
+prop `contentPaths`.
 
 `accent_color` was **removed** from `theme` (it briefly sat alongside primary/secondary):
 `--accent` remains in `app.css` for shadcn components but is no longer operator-editable.

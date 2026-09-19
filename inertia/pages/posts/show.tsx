@@ -6,6 +6,7 @@ import { Input } from '~/components/ui/input'
 import { cn } from '~/lib/utils'
 import type { PublicContentDto } from '~/types/api'
 import { useAuthPublicConfig } from '~/hooks/api/use-auth'
+import { useContentPaths } from '~/lib/content_paths'
 
 interface PostShowProps {
   post: PublicContentDto
@@ -99,6 +100,7 @@ const MemberGate: FC = () => (
 )
 
 const PostShow: FC<PostShowProps> = ({ post, locked, canonicalUrl }) => {
+  const paths = useContentPaths()
   const { data: authConfig } = useAuthPublicConfig()
   const siteTitle = authConfig?.web?.siteTitle?.trim() || 'Driftless'
   const description =
@@ -151,7 +153,7 @@ const PostShow: FC<PostShowProps> = ({ post, locked, canonicalUrl }) => {
             {post.categories.map((c) => (
               <Link
                 key={c.id}
-                href={`/category/${c.slug}`}
+                href={paths.url('category', c.slug)}
                 className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
               >
                 {c.name}
@@ -164,7 +166,7 @@ const PostShow: FC<PostShowProps> = ({ post, locked, canonicalUrl }) => {
             {post.tags.map((t) => (
               <Link
                 key={t.id}
-                href={`/tag/${t.slug}`}
+                href={paths.url('tag', t.slug)}
                 className="text-xs text-ring underline-offset-2 hover:underline"
               >
                 #{t.name}

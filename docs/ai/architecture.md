@@ -49,7 +49,7 @@ From `start/kernel.ts`:
 2. `@adonisjs/static`
 3. `@adonisjs/cors`
 4. `@adonisjs/vite`
-5. `inertia_middleware` (shared props: `user`, `permissions`, `flash`, `errors`)
+5. `inertia_middleware` (shared props: `user`, `permissions`, `flash`, `errors`, `contentPaths` — where the blog screens live, see [content-taxonomy-and-visibility.md](./content-taxonomy-and-visibility.md#configurable-blog-urls))
 
 **Router (matched routes):**
 

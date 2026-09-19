@@ -54,6 +54,18 @@ export default class CmsCollection extends BaseModel {
   @column()
   declare kind: 'collection' | 'single'
 
+  // Public detail pages (default off): serve each PUBLISHED record at
+  // `/<detailPathPrefix>/<slug>`, rendered through the CODE/kit Page
+  // `detailPageId`. See `CollectionDetailService`.
+  @column()
+  declare detailPagesOn: boolean
+
+  @column()
+  declare detailPathPrefix: string | null
+
+  @column()
+  declare detailPageId: string | null
+
   @column.dateTime()
   declare deletedAt: DateTime | null
 

@@ -22,6 +22,7 @@ README are the committed exceptions.
 | A single bespoke coded page, one file | **[Code page](code-pages.md)** |
 | A themed, self-contained coded page with its own components/styles/assets | **Custom template (kit)** |
 | Coded structure, but one area an editor must change | **kit + `<BuilderRegion />`** |
+| One record with its own URL + SEO (a portfolio case, a directory entry) | **Collection Public pages + a record-template kit** (server-rendered) — see [Collection detail pages](#collection-detail-pages-record-templates) |
 
 > **Rule for AI assistants:** build pages with the **page builder** by default. Before creating
 > a page, ask the operator whether they want a page-builder page or a custom template. Only
@@ -67,7 +68,8 @@ export default function Brochure({ title, header, footer }: CodePageProps) {
 ### Props — `CodePageProps`
 
 From `inertia/custom/types.ts`: `title`, `path`, `seo`, `globalMeta`, `header`, `footer`,
-`bindings`, `preview`. A kit owns its markup and does **not** receive the Puck config, block
+`bindings`, `record`, `preview`, `contentFields`. (`bindings` and `record` are only set when the
+page is rendered as a **template** — see [Router kits](#router-kits--one-indextsx-many-pages).) A kit owns its markup and does **not** receive the Puck config, block
 registry, or data resolvers. The `<head>` (title, description, `og:`, canonical, robots, site
 meta) is emitted for you from the page's SEO fields.
 
@@ -126,6 +128,98 @@ inertia/custom/kits/mysite/
 
 Component pointer (internal): a file-page renders via `kitpage:<kit>/<file>`; a page a DB row
 points at uses `kit:<id>`.
+
+## Router kits — one `index.tsx`, many pages
+
+A kit can be a **router**: a single `index.tsx` that picks what to draw from the props the server hands
+it. Each remaining Page row points at the kit (`component = "kit:<id>"`); the **template** Pages — the
+role slots (`postsArchive`, `postDetail`, …) and a collection's Public pages — are told apart by props,
+checked in this order:
+
+1. `bindings.collection === "<key>"` — a collection's public detail page. `record = { collection, item }`,
+   `item.data.<field>` (a MEDIA field is already a URL).
+2. `record.post` — the `postDetail` role (`record = { post, locked }`).
+3. `record.items` + `query` — the `postsArchive` role (`record = { items, total, query }`).
+4. otherwise the Page row's own `path` (a plain lookup table of components).
+
+**A record template's own `path` is only a label — never branch on it.** The request URL is something else
+(`/portfolio/<slug>`), and the same Page row also renders (without a `record`) at its own path.
+
+```tsx
+export default function Site({ path, bindings, record }: CodePageProps) {
+  if (bindings?.collection === 'portfolio') {
+    return <PortfolioCase record={(record as PortfolioRecord | null)?.item} />
+  }
+  if (record?.post) return <Article record={record as unknown as ArticleRecord} />
+  if (record && Array.isArray(record.items) && 'query' in record) return <Archive record={record as any} />
+  const Page = ROUTES[path] ?? Home
+  return <Page />
+}
+```
+
+`resolveCapability` only receives `{ path, roleSlot }` — it cannot see `bindings` or `record` — so a
+record-template Page must be keyed on its row `path` there, or the kit omits `resolveCapability`
+([code-pages.md](code-pages.md)). The gitignored `aftrn-web` kit is a working router (home, portfolio list,
+portfolio case, insights archive, article).
+
+## Collection detail pages (record templates)
+
+Give every published record of a CMS collection its own server-rendered URL (`/<prefix>/<slug>`) with its own
+SEO — no Page row per record. Setup:
+
+1. The collection needs a **unique slug field** (a `SLUG`-typed field, or one keyed `slug`, with *Unique* on).
+2. Create a **CODE/kit Page** for the template (`create_page` with `kind:"CODE"`, `component:"kit:<id>"`, a
+   free label as `path`) and **publish** it. A builder page cannot render a record.
+3. Collection → Settings → **Public pages** (or MCP `update_collection`): turn it on, set the single-segment
+   prefix, pick the template Page.
+
+Contract (details and rules: [cms.md](cms.md#public-detail-pages-per-collection-off-by-default)):
+
+- The kit receives `props.bindings = { collection, slug }` and `props.record = { collection, item }`; branch on
+  `bindings.collection` (a router kit, above). `item` is the public record DTO — fields under `item.data`, MEDIA as
+  URLs, relations as display strings, every date an **ISO string** on both databases. The DTO carries **no
+  URL**: the kit hard-codes the prefix it was built for, with `encodeURIComponent(slug)`.
+- **SEO is per record**, by field-name convention (title from title/name/label/slug; description from
+  `seo_description`/`description`/`summary`/`excerpt`/`subtitle`; image from `seo_image`/`og_image`/`image`/
+  `featured_image`/`cover`/`thumbnail` or the first MEDIA field). Whatever the record cannot supply falls back to the
+  **template Page's** SEO — keep the template's description empty or generic and **never set `noindex` on it**.
+- **The template Page is also reachable at its own path**, where it renders with no `record` (it is hidden
+  from the sitemap). Render something sensible, or nothing.
+- Only PUBLISHED records are served; an inactive kit, an unpublished/missing template or a missing record is a
+  plain 404. Changing the prefix, or renaming a slug, records a 301.
+- To **link** to these pages from a Collection List block: *Link field* = the slug field, *Link base* =
+  `/<prefix>/`.
+
+`useCollectionRecord(key, id)` is **not** the way to build a detail page — see the client-side note below.
+
+## Configurable blog URLs — `useContentPaths`
+
+The operator can move the blog screens (Website settings → URLs: archive `blog`, post `posts`, category
+`category`, tag `tag`), so a kit must not hard-code `/blog` or `/posts/…`. The effective prefixes are a shared
+Inertia prop; read them with the hook (SSR-safe):
+
+```tsx
+import { useContentPaths } from '~/lib/content_paths'
+
+const paths = useContentPaths()
+paths.url('archive')                              // "/insights"
+paths.url('detail', encodeURIComponent(post.slug)) // "/insights/hello" — the slug must already be URL-encoded
+paths.category                                    // "category" (a bare prefix, no slash)
+```
+
+`paths.url(kind, slug)` does not encode the slug. The old `/blog/…` routes 301 to the configured address, so a
+stale hard-coded link still works — it just costs a redirect.
+
+## Rich text from the CMS — what the sanitiser leaves you
+
+Post bodies and CMS `RICHTEXT` fields reach a kit as **sanitised HTML** (`sanitizeRichText`, on write). A kit
+that renders them with `dangerouslySetInnerHTML` gets: no `<div>` (paragraphs, headings, lists, tables,
+`figure`, `blockquote`, …), **no `id` attribute on any tag**, `class` allowed on every allowed tag, and only a
+very narrow set of inline styles (`color`, `background-color`, `font-family`, `font-size`, `line-height`,
+`text-align`, `width`). So add anchors **at render time** (the `aftrn-web` kit's `withHeadingIds` gives each `<h2>` an id
+in the server-rendered string) and style the body with **descendant selectors on a wrapper you own**
+(`.prose h2 { … }`) rather than expecting wrapper elements or ids inside the HTML. See
+[security.md](security.md#content-and-page-builder-html).
 
 ## Code chrome — header / footer / layout as code
 
@@ -221,8 +315,11 @@ export default function LatestPosts() {
   `pageSize`**; default 12); `page`; `sortField` (a field key, or `created_at`/`updated_at`) +
   `sortDir`; `filterField`+`filterValue` (**both or neither**); `search`; `enabled`; `staleTime`.
   Returns a react-query result whose `data` is `{ items, total, page, pageSize, totalPages }`.
-- **One record:** `useCollectionRecord(key, id)` returns a single `CmsRecord`; pair it with
-  `CodePageProps.bindings` for a detail file-page. Import the `CmsRecord` type from the same module.
+- **One record:** `useCollectionRecord(key, id)` returns a single `CmsRecord`. It is **client-only** — it runs
+  after hydration, so the record is absent from the server-rendered HTML — and therefore only for
+  non-indexed, interactive sections. For an indexable detail page per record use the collection's
+  **Public pages** with a record-template kit ([Collection detail pages](#collection-detail-pages-record-templates)),
+  which is server-rendered. Import the `CmsRecord` type from the same module.
 - Each record is `{ id, status, data, createdAt, updatedAt }` — the collection's fields live under
   `data` (a `Record<string, unknown>`; narrow before use).
 
@@ -233,6 +330,7 @@ export default function LatestPosts() {
 | A list a crawler should read (blog index, product grid) | Collection List block — builder page, or region + `collection/<key>.tsx` | ✅ server-rendered |
 | Interactive filter / search / "load more" / personalised | `useCollectionRecords` (client) | ❌ after hydration |
 | One record, code-owned card, SEO | `collection/<key>.tsx` template on a block | ✅ server-rendered |
+| One record with its own URL + SEO | Collection **Public pages** + a record-template kit | ✅ server-rendered |
 
 > There is **no public endpoint that lists collection keys** — you pass the key you want. See
 > `inertia/custom/kits/example/pages/collection-demo.tsx` for a runnable reference.

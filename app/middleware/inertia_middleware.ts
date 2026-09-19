@@ -4,6 +4,8 @@ import type User from '#models/user'
 import UserTransformer from '#transformers/user_transformer'
 import { collectUserPermissions } from '#services/permission_ability_service'
 import { WebSettingsService } from '#services/settings_service'
+import { mapContentPaths } from '#services/content_paths'
+import { reservedFirstSegment } from '#services/reserved_paths'
 import BaseInertiaMiddleware from '@adonisjs/inertia/inertia_middleware'
 
 const webSettings = new WebSettingsService()
@@ -84,6 +86,9 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
       // from — can read it off `page.props` instead, mirroring `cspNonce`.
       appName: ctx.inertia.always(appName),
       titleFormat: ctx.inertia.always(titleFormat),
+      // Where the Content screens live (Website settings → URLs) so built-in
+      // pages link to the configured address, SSR included.
+      contentPaths: ctx.inertia.always(mapContentPaths(sections, reservedFirstSegment)),
     }
   }
 

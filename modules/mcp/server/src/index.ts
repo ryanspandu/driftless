@@ -20,7 +20,7 @@ import { api, uploadMedia, ApiError } from './client.js'
 // MIRRORS SERVER_INSTRUCTIONS in `modules/mcp/mcp_tools.ts` — keep in sync.
 const SERVER_INSTRUCTIONS = `Driftless page builder. To reproduce a design reference (a screenshot/mockup) faithfully, follow this loop — structure is easy to get right; palette, imagery and icons are what make or break fidelity:
 
-0. PAGE TYPE FIRST — ask the operator whether they want a **page-builder page** (you compose Puck blocks: the default, and everything below) or a **custom template** (a coded template the operator supplied, which you only point a page at). For a custom template: call list_custom_templates, then create_page with kind:"CODE" and component:"kit:<id>". Some templates expose a small set of author fields (headline/image/toggle/…) instead of Puck blocks — there is no tool to discover their keys/types yet, so ask the operator (or read the kit's source) which fields exist, then pass them as \`contentFields\` on create_page/update_page/set_page_content/publish_page. Either way, STOP after that — do not build blocks or run the rest of this loop. Otherwise build with the page builder:
+0. PAGE TYPE FIRST — ask the operator whether they want a **page-builder page** (you compose Puck blocks: the default, and everything below) or a **custom template** (a coded template the operator supplied, which you only point a page at). For a custom template: call list_custom_templates, then create_page with kind:"CODE" and component:"kit:<id>". Some templates expose a small set of author fields (headline/image/toggle/…) instead of Puck blocks — there is no tool to discover their keys/types yet, so ask the operator (or read the kit's source) which fields exist, then pass them as \`contentFields\` on create_page/update_page/set_page_content/publish_page. A CODE/kit page can also be the RECORD TEMPLATE for a collection\'s public detail pages: create it as above (path = any free label such as "portfolio-case"), publish it, then update_collection({ key, detailPagesOn:true, detailPathPrefix:"portfolio", detailPageId:<page id> }). The kit receives props.bindings {collection, slug} and props.record {collection, item} and must branch on bindings.collection — ask the operator which kit template handles the collection. Either way, STOP after that — do not build blocks or run the rest of this loop. Otherwise build with the page builder:
 
 1. get_block_catalog — read the blocks, recipes, and the live \`theme\` (what variant:"primary" renders as).
 2. If you have a reference image, upload_media(purpose:"reference") so you can crop real photos out of it.
@@ -357,7 +357,12 @@ server.tool(
   ({ key }) => run(() => api.get(`/api/mcp/v1/collections/${key}`))
 )
 
-server.tool('list_pages', 'List all pages.', {}, () => run(() => api.get('/api/mcp/v1/pages')))
+server.tool(
+  'list_pages',
+  'List all pages (each has id, path, status, kind BUILDER|CODE, component). To find a record-template page, pick kind CODE with status PUBLISHED.',
+  {},
+  () => run(() => api.get('/api/mcp/v1/pages'))
+)
 
 server.tool('get_page', 'Get one page by id.', { id: z.string() }, ({ id }) =>
   run(() => api.get(`/api/mcp/v1/pages/${id}`))
@@ -443,7 +448,7 @@ const FieldInput = {
 
 server.tool(
   'create_collection',
-  'Create a content collection (model). Optionally seed its fields (all-or-nothing). Keys must be lowercase snake_case and not a built-in collection (posts; products when the store module is on) — call list_collections to see existing/reserved keys.',
+  'Create a content collection (model). Optionally seed its fields (all-or-nothing). Keys must be lowercase snake_case and not a built-in collection (posts; products when the store module is on) — call list_collections to see existing/reserved keys. To give each published record its own page, set detailPagesOn + detailPathPrefix + detailPageId (needs a UNIQUE SLUG field — create it with unique:true).',
   {
     key: keySchema.describe(
       `Unique collection key — ${KEY_RULE} Also cannot be a built-in (posts/products).`
@@ -471,6 +476,26 @@ server.tool(
       .describe(
         '"collection" (default) = many records (blog posts, products). "single" = exactly one record (a homepage/settings singleton). Ignored for CONTENT/PRODUCT types.'
       ),
+    detailPagesOn: z
+      .boolean()
+      .optional()
+      .describe(
+        'Public detail pages (default off): serve every PUBLISHED record at /<detailPathPrefix>/<slug>, server-rendered through the CODE/kit template page detailPageId (the kit receives props.bindings {collection, slug} and props.record {collection, item}). Needs a UNIQUE SLUG field (create it with unique:true), kind "collection", and detailPathPrefix.'
+      ),
+    detailPathPrefix: z
+      .string()
+      .nullable()
+      .optional()
+      .describe(
+        'Single URL segment for the detail pages (lowercase letters, numbers, dashes), e.g. "portfolio". Not reserved and not used by the blog (posts/category/tag).'
+      ),
+    detailPageId: z
+      .string()
+      .nullable()
+      .optional()
+      .describe(
+        'Id of the CODE/kit Page that renders one record (create_page kind:"CODE", component:"kit:<id>", then publish it; find ids with list_pages). A builder page is rejected (422). While it is unset or not PUBLISHED the entry URLs return 404. The template page stays reachable at its own path and renders without a record: keep its description empty/generic and never set noindex on it (every record inherits the template SEO for fields the record does not supply).'
+      ),
     fields: z.array(z.object(FieldInput)).optional(),
   },
   (args) => run(() => api.post('/api/mcp/v1/collections', args))
@@ -478,7 +503,7 @@ server.tool(
 
 server.tool(
   'update_collection',
-  "Update a collection's metadata (label/icon/group/toggles/kind/type).",
+  "Update a collection's metadata (label/icon/group/toggles/kind/type) and its public detail pages (detailPagesOn / detailPathPrefix / detailPageId). Send only what changes; null clears detailPathPrefix / detailPageId. Turning detailPagesOn off keeps the prefix and template so it can be switched back on. Errors come back as 422 with a message.",
   {
     key: z.string(),
     label: z.string().optional(),
@@ -487,6 +512,22 @@ server.tool(
     revisionsOn: z.boolean().optional(),
     draftsOn: z.boolean().optional(),
     kind: z.enum(['collection', 'single']).optional(),
+    detailPagesOn: z
+      .boolean()
+      .optional()
+      .describe(
+        'Turn public detail pages (/<detailPathPrefix>/<slug>, rendered through the CODE/kit template detailPageId) on or off. See create_collection.'
+      ),
+    detailPathPrefix: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Same rules as create_collection; null clears.'),
+    detailPageId: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Same rules as create_collection; null clears.'),
     type: z
       .enum(['COLLECTION', 'CONTENT', 'PRODUCT'])
       .optional()
@@ -603,7 +644,7 @@ const autoResponsiveField = {
     .boolean()
     .optional()
     .describe(
-      'Default true: the server auto-adds mobile/tablet responsive overrides (grids drop columns, split rows stack, big headings shrink, tall heroes trim). Additive — your own responsive is kept. Pass false to author responsive by hand.'
+      'Default true: the server auto-adds mobile/tablet responsive overrides (grids drop columns, split rows stack, big headings shrink, tall heroes trim) so the page works on a phone. It is additive — any responsive you set yourself is kept. Pass false to author responsive entirely by hand.'
     ),
 }
 const SeoSchema = z
@@ -625,7 +666,7 @@ const SeoSchema = z
     jsonLdCustom: z.string().optional(),
   })
   .describe(
-    'SEO / <head> fields — set these on EVERY public page. `description` is the search-result snippet and `ogImage` the social-share image (both strongly recommended for SEO). `title` overrides the tab/SERP title (falls back to the page title). `canonical` is auto-derived when unset from the URL the page is actually served at — its own path normally, or the role-slot route (e.g. `/blog`, `/posts/:slug`) when assigned via `use_page_as_role`/`set_storefront_page` — so you rarely need to set it by hand; set `noindex:true` to keep a page out of search. `meta` adds extra <meta> tags ({ name|property, content }); `jsonLdCustom` is raw JSON-LD.'
+    'SEO / <head> fields — set these on EVERY public page. `description` is the search-result snippet and `ogImage` the social-share image (both strongly recommended for SEO). `title` overrides the tab/SERP title (falls back to the page title). `canonical` is auto-derived when unset from the URL the page is actually served at — its own path normally, or the role-slot route (e.g. the blog index or a post URL) when assigned via `use_page_as_role`/`set_storefront_page` — so you rarely need to set it by hand; set `noindex:true` to keep a page out of search. `meta` adds extra <meta> tags ({ name|property, content }); `jsonLdCustom` is raw JSON-LD.'
   )
 
 const PageMeta = {
@@ -640,7 +681,7 @@ const PageMeta = {
     .enum(['BUILDER', 'CODE'])
     .optional()
     .describe(
-      'How the page is built. BUILDER (default) = a Puck document you compose with blocks (everything else in these instructions). CODE = a hand-written component or custom template the operator wrote — you do NOT author its markup, you only point at it via `component`. Ask the operator which they want before creating.'
+      'How the page is built. BUILDER (default) = a Puck document you compose with blocks (everything else in these instructions). CODE = a hand-written component or custom template the operator wrote — you do NOT author its markup, you only point at it via `component`. Ask the operator which they want before creating. Creating or editing a CODE page needs the settings:manage permission on top of the builder:pages token ability, or it is refused with 403.'
     ),
   component: z
     .string()
@@ -672,7 +713,7 @@ const PageMeta = {
     .nullable()
     .optional()
     .describe(
-      'Kit code-chrome LAYOUT pointer ("codetpl:<kit>/layout") — the coded alternative to layoutId. Mutually exclusive with layoutId.'
+      'Kit code-chrome LAYOUT pointer ("codetpl:<kit>/layout") — the coded alternative to layoutId (a kit ships the header/footer/layout as code). Mutually exclusive with layoutId.'
     ),
   codeHeader: z
     .string()
@@ -730,7 +771,7 @@ server.tool(
     path: z
       .string()
       .describe(
-        'URL slug for the public page — no leading slash, lowercase, e.g. "about" or "blog/hello". Must be unique. Special routes (home, auth, archives, storefront) are assigned via use_page_as_role / set_storefront_page, not by path — a path under a reserved first segment (e.g. "shop/cart", "admin/…") is REJECTED (422): that segment is already owned by a fixed route, so a page there could never render. To replace what renders at e.g. /shop/cart with your own kit UI, create the page at a DIFFERENT path and call set_storefront_page({ slot:"cart", pageId }) instead.'
+        'URL slug for the public page — no leading slash, lowercase, e.g. "about" or "about/team". Must be unique. Special routes (home, auth, archives, storefront) are assigned via use_page_as_role / set_storefront_page, not by path — a path under a reserved first segment (e.g. "shop/cart", "admin/…") is REJECTED (422): that segment is already owned by a fixed route, so a page there could never render. To replace what renders at e.g. /shop/cart with your own kit UI, create the page at a DIFFERENT path and call set_storefront_page({ slot:"cart", pageId }) instead.'
       ),
     content: PuckDoc.optional(),
     ...PageMeta,
@@ -748,7 +789,7 @@ server.tool(
       .string()
       .optional()
       .describe(
-        'URL slug — no leading slash, lowercase (e.g. "about", "blog/hello"). Must stay unique, and cannot start with a reserved segment (see create_page\'s path field) — use set_storefront_page / use_page_as_role for those screens instead.'
+        'URL slug — no leading slash, lowercase (e.g. "about", "about/team"). Must stay unique, and cannot start with a reserved segment (see create_page\'s path field) — use set_storefront_page / use_page_as_role for those screens instead.'
       ),
     content: PuckDoc.optional(),
     ...PageMeta,
@@ -1238,7 +1279,7 @@ server.tool(
 )
 server.tool(
   'use_page_as_role',
-  'Assign a PUBLISHED page (a builder page OR a custom-code/kit page) to a site page-role slot ("use as page"): the home front page, the sign-in/sign-up/forgot/reset auth screens, the 404/500 error screens, and the content category/tag/posts archives (+ single post detail). pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED (a draft resolves to the built-in screen). For a `categoryArchive`/`tagArchive` page, put a Collection List bound to the `posts` collection on it — it auto-lists that category/tag. `postsArchive` (`/blog`) is the site\'s blog index (server-rendered ?q= search); a CODE/kit page there gets the resolved + searched post list as `props.record` — a builder page there is not search-aware (Collection List does not read the ?q=) and just shows its own configured content. `postDetail` (`/posts/:slug`) is the single-post page; a CODE/kit page there gets the resolved post (+ lock state) as `props.record`, SSR\'d per slug (real canonical/SEO, no client fetch) — there is no per-post builder block yet, so a builder page there renders the same content for every post; use a CODE/kit page for genuine per-post rendering.',
+  'Assign a PUBLISHED page (a builder page OR a custom-code/kit page) to a site page-role slot ("use as page"): the home front page, the sign-in/sign-up/forgot/reset auth screens, the 404/500 error screens, and the content category/tag/posts archives (+ single post detail). pageId:"" clears the slot back to the built-in screen. The page must be PUBLISHED (a draft resolves to the built-in screen). For a `categoryArchive`/`tagArchive` page, put a Collection List bound to the `posts` collection on it — it auto-lists that category/tag. `categoryArchive` (`/category/:slug` by default) and `tagArchive` (`/tag/:slug`) are movable the same way (Website settings → URLs, or set_content_paths). `postsArchive` (`/blog` by default; the operator can move it under Website settings → URLs, e.g. `/insights`) is the site\'s blog index (server-rendered ?q= search); a CODE/kit page there gets the resolved + searched post list as `props.record` — a builder page there is not search-aware (Collection List does not read the ?q=) and just shows its own configured content. `postDetail` (`/posts/:slug` by default, configurable the same way) is the single-post page; a CODE/kit page there gets the resolved post (+ lock state) as `props.record`, SSR\'d per slug (real canonical/SEO, no client fetch) — there is no per-post builder block yet, so a builder page there renders the same content for every post; use a CODE/kit page for genuine per-post rendering.',
   {
     role: z.enum([
       'home',
@@ -1255,9 +1296,46 @@ server.tool(
     ]),
     pageId: z
       .string()
-      .describe('The builder page id to assign, or "" to reset to the built-in screen.'),
+      .describe(
+        'The PUBLISHED builder or CODE/kit page id to assign, or "" to reset to the built-in screen.'
+      ),
   },
   (args) => run(() => api.put('/api/mcp/v1/page-roles', args))
+)
+server.tool(
+  'get_content_paths',
+  'Read where the built-in blog screens live (Website settings → URLs): postsArchive (default `blog`), postDetail (`posts`), category (`category`), tag (`tag`), plus the resulting example URLs.',
+  {},
+  () => run(() => api.get('/api/mcp/v1/content-paths'))
+)
+server.tool(
+  'set_content_paths',
+  "Set where the built-in blog screens live: postsArchive (default `blog`), postDetail (`posts`), category (`category`), tag (`tag`). Lowercase URL segments without a leading slash (e.g. `insights`, `resources/insights`); archive and post may share one prefix. Empty string or null resets that screen to its default. Old addresses redirect (301) automatically and links, canonical URLs and the sitemap follow. A prefix used by a page, a reserved route, another moved screen or a collection's public detail prefix is rejected with 422 and an explanation.",
+  {
+    postsArchive: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Blog index prefix, e.g. "insights" (default "blog"). "" or null resets.'),
+    postDetail: z
+      .string()
+      .nullable()
+      .optional()
+      .describe(
+        'Single post prefix, e.g. "insights" or "resources/insights" (default "posts"). "" or null resets.'
+      ),
+    category: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Category archive prefix (default "category"). "" or null resets.'),
+    tag: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Tag archive prefix (default "tag"). "" or null resets.'),
+  },
+  (args) => run(() => api.put('/api/mcp/v1/content-paths', args))
 )
 
 // ── Media ──────────────────────────────────────────────────────────────────────

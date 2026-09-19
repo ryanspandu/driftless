@@ -54,7 +54,7 @@ export const MCP_ABILITY_OPTIONS: { id: string; label: string; hint: string }[] 
   {
     id: 'builder:settings',
     label: 'Settings',
-    hint: 'appearance, breakpoints, global code, page roles',
+    hint: 'appearance, breakpoints, global code, page roles, blog URLs',
   },
   { id: 'builder:media', label: 'Media', hint: 'upload media' },
   {

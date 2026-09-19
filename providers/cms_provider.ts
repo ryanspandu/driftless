@@ -6,6 +6,7 @@ import { newUlid } from '#services/ulid_service'
 import CmsPermissionsService from '#services/cms_permissions_service'
 import { NATIVE_COLLECTIONS, nativeTableName } from '#cms/native_registry'
 import { registerPostsCollection } from '#cms/builtin/posts_collection'
+import { registerSitemapSource } from '#services/sitemap_registry'
 import { LOCK_KEYS, withAdvisoryLock } from '#services/advisory_lock'
 
 export default class CmsProvider {
@@ -17,6 +18,15 @@ export default class CmsProvider {
     // In-memory only, no DB needed: blog posts become a bindable collection for
     // the page builder in every environment.
     registerPostsCollection()
+
+    // Published records of collections with public detail pages. The source is
+    // lazy-imported (it pulls in the CMS service) and swallows its own errors in
+    // `collectSitemapEntries`, so a missing table never breaks the sitemap.
+    registerSitemapSource('cms-collection-details', async () => {
+      const { default: CollectionDetailService } =
+        await import('#services/collection_detail_service')
+      return new CollectionDetailService().sitemapEntries()
+    })
 
     const environment = this.app.getEnvironment()
     if (environment !== 'web' && environment !== 'console' && environment !== 'test') {

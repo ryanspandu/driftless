@@ -1,7 +1,11 @@
 import { test } from '@japa/runner'
+import type { ApiClient } from '@japa/api-client'
 import testUtils from '@adonisjs/core/services/test_utils'
+import db from '@adonisjs/lucid/services/db'
 import User from '#models/user'
 import Module from '#models/module'
+import Page from '#models/page'
+import { newUlid } from '#services/ulid_service'
 import ModulesService from '#services/modules_service'
 import TemplateKitsService from '#services/template_kits_service'
 
@@ -364,5 +368,156 @@ test.group('MCP builder-API | custom templates (kits)', (group) => {
     published.assertStatus(200)
     assert.deepEqual(published.body().contentFields, { headline: 'Published headline' })
     assert.isNull(published.body().draftContentFields)
+  })
+})
+
+test.group('MCP builder-API | collection public detail pages', (group) => {
+  // The truncate cleanup empties the metadata rows, but dynamic tables are not part
+  // of the migrations: drop the one these tests create so a later run never
+  // inherits a stale schema.
+  const dropTables = () => db.connection().schema.dropTableIfExists('cms_portfolio')
+  group.each.setup(async () => {
+    const truncate = await resetDatabase()
+    await dropTables()
+    return async () => {
+      await truncate()
+      await dropTables()
+    }
+  })
+
+  const template = (kind: 'CODE' | 'BUILDER' = 'CODE') =>
+    Page.create({
+      id: newUlid(),
+      title: 'Portfolio case template',
+      path: `portfolio-case-${newUlid().slice(-6)}`,
+      status: 'PUBLISHED',
+      renderMode: 'SSR',
+      kind,
+      component: kind === 'CODE' ? 'x' : null,
+      content: { root: {}, content: [] },
+      seo: {},
+    } as never)
+
+  const fields = (unique: boolean) => [
+    { key: 'title', label: 'Title', type: 'TEXT', required: true },
+    { key: 'slug', label: 'Slug', type: 'SLUG', unique },
+  ]
+
+  async function createPortfolio(client: ApiClient, t: string, body: Record<string, unknown>) {
+    return client
+      .post('/api/mcp/v1/collections')
+      .header('Authorization', bearer(t))
+      .json({ key: 'portfolio', label: 'Portfolio', ...body })
+  }
+
+  test('create_collection with detail pages on echoes the settings (201)', async ({
+    client,
+    assert,
+  }) => {
+    await enableMcp()
+    const page = await template()
+    const t = await token(['builder:collections'])
+    const res = await createPortfolio(client, t, {
+      fields: fields(true),
+      detailPagesOn: true,
+      detailPathPrefix: 'portfolio',
+      detailPageId: page.id,
+    })
+    res.assertStatus(201)
+    assert.isTrue(res.body().detailPagesOn)
+    assert.equal(res.body().detailPathPrefix, 'portfolio')
+    assert.equal(res.body().detailPageId, page.id)
+  })
+
+  test('a non-unique slug field is rejected (422 "must be unique")', async ({ client, assert }) => {
+    await enableMcp()
+    const t = await token(['builder:collections'])
+    const res = await createPortfolio(client, t, {
+      fields: fields(false),
+      detailPagesOn: true,
+      detailPathPrefix: 'portfolio',
+    })
+    res.assertStatus(422)
+    assert.include(res.body().message, 'must be unique')
+  })
+
+  test('a builder page as the template is rejected (422)', async ({ client, assert }) => {
+    await enableMcp()
+    const builder = await template('BUILDER')
+    const t = await token(['builder:collections'])
+    const res = await createPortfolio(client, t, {
+      fields: fields(true),
+      detailPagesOn: true,
+      detailPathPrefix: 'portfolio',
+      detailPageId: builder.id,
+    })
+    res.assertStatus(422)
+    assert.include(res.body().message, 'CODE')
+  })
+
+  test('a reserved prefix is rejected (422)', async ({ client, assert }) => {
+    await enableMcp()
+    const t = await token(['builder:collections'])
+    const reserved = await createPortfolio(client, t, {
+      fields: fields(true),
+      detailPagesOn: true,
+      detailPathPrefix: 'admin',
+    })
+    reserved.assertStatus(422)
+    assert.match(reserved.body().message, /reserved/)
+  })
+
+  test('update_collection: null clears the template, off keeps prefix + template', async ({
+    client,
+    assert,
+  }) => {
+    await enableMcp()
+    const page = await template()
+    const t = await token(['builder:collections'])
+    const created = await createPortfolio(client, t, {
+      fields: fields(true),
+      detailPagesOn: true,
+      detailPathPrefix: 'portfolio',
+      detailPageId: page.id,
+    })
+    created.assertStatus(201)
+
+    // Turning it off never touches the stored prefix / template.
+    const off = await client
+      .put('/api/mcp/v1/collections/portfolio')
+      .header('Authorization', bearer(t))
+      .json({ detailPagesOn: false })
+    off.assertStatus(200)
+    assert.isFalse(off.body().detailPagesOn)
+    assert.equal(off.body().detailPathPrefix, 'portfolio')
+    assert.equal(off.body().detailPageId, page.id)
+
+    // ...so it can be switched back on without re-sending them.
+    const on = await client
+      .put('/api/mcp/v1/collections/portfolio')
+      .header('Authorization', bearer(t))
+      .json({ detailPagesOn: true })
+    on.assertStatus(200)
+    assert.isTrue(on.body().detailPagesOn)
+    assert.equal(on.body().detailPathPrefix, 'portfolio')
+    assert.equal(on.body().detailPageId, page.id)
+
+    // null clears the template only.
+    const cleared = await client
+      .put('/api/mcp/v1/collections/portfolio')
+      .header('Authorization', bearer(t))
+      .json({ detailPageId: null })
+    cleared.assertStatus(200)
+    assert.isNull(cleared.body().detailPageId)
+    assert.equal(cleared.body().detailPathPrefix, 'portfolio')
+    assert.isTrue(cleared.body().detailPagesOn)
+
+    // The change is what a fresh read sees.
+    const read = await client
+      .get('/api/mcp/v1/collections/portfolio')
+      .header('Authorization', bearer(await token(['builder:read'])))
+    read.assertStatus(200)
+    assert.isNull(read.body().detailPageId)
+    assert.equal(read.body().detailPathPrefix, 'portfolio')
   })
 })

@@ -5,13 +5,18 @@
 Three related features on the built-in **Content** posts (the `contents` table — a
 first-class type, separate from generic CMS collections):
 
-1. **Categories** — a hierarchical taxonomy (`/category/:slug` archives).
-2. **Tags** — a flat taxonomy (`/tag/:slug` archives).
+1. **Categories** — a hierarchical taxonomy (`/category/:slug` archives by default).
+2. **Tags** — a flat taxonomy (`/tag/:slug` archives by default).
 3. **Post visibility** — Public / Protected (password) / Member-only, enforced
    server-side.
 
 Plus **archive overrides**: an operator can render a builder page in place of the
-built-in category/tag archive.
+built-in category/tag archive, and **configurable URLs**: the blog screens can be moved
+to another prefix (see [Configurable blog URLs](#configurable-blog-urls)).
+
+> **URLs in this document are the defaults.** `/blog`, `/posts/:slug`, `/category/:slug` and `/tag/:slug`
+> are what an untouched install serves; the operator can move any of them under
+> **Website settings → URLs** — see [Configurable blog URLs](#configurable-blog-urls).
 
 > The e-commerce module has its own parallel Categories + Tags for **products**,
 > archived under `/shop/…` so they never collide with these root archives. See
@@ -29,8 +34,8 @@ built-in category/tag archive.
 - Assign them to a post in the content editor via multi-select cards (inline
   create + a link to the manager).
 - Each has a public archive listing its **published** posts, newest first:
-  `/category/:slug` and `/tag/:slug`. A category archive shows only that
-  category's own posts (children are not rolled up).
+  `/category/:slug` and `/tag/:slug` (by default — the prefixes are configurable). A category archive
+  shows only that category's own posts (children are not rolled up).
 
 ### Models & tables
 
@@ -65,7 +70,10 @@ Admin pages: `GET /admin/content/categories`, `GET /admin/content/tags`
 (Inertia — `admin/content/categories`, `admin/content/tags`).
 
 Public archives: `GET /category/:slug`, `GET /tag/:slug`
-(`public_controller.category` / `.tag` → `posts/category`, `posts/tag`).
+(`public_controller.category` / `.tag` → `posts/category`, `posts/tag`). These are the
+*historical* routes: when the operator has moved a prefix they **301** to the configured
+address, and the configured address is served by the CMS catch-all through the same handlers
+(see [Configurable blog URLs](#configurable-blog-urls)).
 
 ### DTOs
 
@@ -161,15 +169,16 @@ archive, so the archive gets the full page builder (custom blocks, kits, layout)
 - **Slots.** `page_role_slots.ts` adds `categoryArchive` and `tagArchive`, mapped
   to `web_settings` section **`content_pages`**, keys
   **`category_archive_page_id`** / **`tag_archive_page_id`**. `settings_service.ts`
-  `WEB_DEFAULTS.content_pages` defaults both to `''` (empty = use the built-in
-  archive; the empty-string reset convention deletes the row). Mirrored in
+  `WEB_DEFAULTS.content_pages` seeds **four** keys, all `''` (empty = use the built-in
+  screen; the empty-string reset convention deletes the row) — these two, plus
+  `posts_archive_page_id` / `post_detail_page_id` from §4. Mirrored in
   `inertia/types/api.ts`.
 - **Render.** `public_controller.category` / `.tag` call
   `overrides.resolve('categoryArchive' | 'tagArchive')`. When a page is assigned
   and live, it is rendered via the page renderer with the slug **bound**
   (`bindings.params = { slug, kind: 'category' | 'tag' }`) and a `seoOverride`
-  (title = taxonomy name, `canonicalPath = /category/:slug` or `/tag/:slug`) so an
-  archive block on that page can filter to this taxonomy and SEO stays per-slug.
+  (title = taxonomy name, `canonicalPath` = the configured category/tag URL, e.g. `/category/:slug` by
+  default) so an archive block on that page can filter to this taxonomy and SEO stays per-slug.
   Otherwise the built-in `posts/category` / `posts/tag` Inertia archive renders.
 
 ### Listing the taxonomy's posts on the override page
@@ -222,7 +231,7 @@ Both archive slots are reachable by an AI agent through the builder-API
   `slot: "category" | "tag"` (tool `set_storefront_page`; needs the `ecommerce`
   module + `ecommerce:settings:manage`).
 
-Both reject a non-PUBLISHED / non-BUILDER page and clear the slot on an empty
+Both reject a non-PUBLISHED page (builder or CODE/kit) and clear the slot on an empty
 `pageId`. See [modules/mcp/README.md](../../modules/mcp/README.md#builder-api-reference).
 
 See [settings-ia.md](./settings-ia.md) for the `web_settings` key map and
@@ -233,14 +242,14 @@ See [settings-ia.md](./settings-ia.md) for the `web_settings` key map and
 ## 4. Blog index & post detail overrides ("Use as page")
 
 Two more `content_pages` role slots, alongside the category/tag archives above —
-the same override mechanism, applied to the `/blog` listing and to a single
-post's `/posts/:slug` page.
+the same override mechanism, applied to the posts listing (`/blog` by default) and to a
+single post's page (`/posts/:slug` by default).
 
 - **Slots.** `page_role_slots.ts` adds **`postsArchive`** (`posts_archive_page_id`)
   and **`postDetail`** (`post_detail_page_id`), both under `web_settings` section
   `content_pages` — same section as `categoryArchive`/`tagArchive`, empty string
   resets to the built-in screen. Mirrored in `inertia/types/api.ts`.
-- **`postsArchive` — `/blog`.** `public_controller.blog()` resolves the search
+- **`postsArchive` — the posts index (`/blog` by default).** `public_controller.blog()` resolves the search
   query (`?q=`, server-side title/body match) **before** checking the override, so
   both branches share one result set. With an override assigned, the page
   renders via `PageRenderer` with the **full** searched result — `record: {
@@ -254,7 +263,7 @@ post's `/posts/:slug` page.
   every search. No `record` shape exists for a builder page today — there is no
   per-post block yet, so a builder blog index cannot show real post data (only a
   CODE/kit page can).
-- **`postDetail` — `/posts/:slug`.** `public_controller.post()` resolves the
+- **`postDetail` — the post page (`/posts/:slug` by default).** `public_controller.post()` resolves the
   visibility gate first (`lockFor()` / `findPublishedBySlug`) so the override and
   the built-in view share identical access control, **then** checks the
   override. With one assigned: `bindings.params = { slug }` (for a future
@@ -262,8 +271,8 @@ post's `/posts/:slug` page.
   already-gated `PublicContentDto` **plus** the same `locked` flag the built-in
   view turns into a password/members prompt — a themed detail page never needs
   to re-check access or client-fetch by `?slug=`), and `seoOverride: { title:
-  post.title, imageUrl: post.featuredImage, canonicalPath: '/posts/' + post.slug
-  }` so every post gets its own `<title>`/canonical instead of sharing the
+  post.title, imageUrl: post.featuredImage, canonicalPath: <the configured post URL> }`
+  (`contentPaths.urlFor('detail', post.slug)`) so every post gets its own `<title>`/canonical instead of sharing the
   template page's. `skipSnapshot: true` always — the page renders a different
   post per slug, so its SSG snapshot (keyed on the page id) must never cache
   under this route. Same caveat as the blog index: no per-post builder block
@@ -283,10 +292,73 @@ Same tool as the category/tag archives — `PUT /api/mcp/v1/page-roles` /
 
 ---
 
+## Configurable blog URLs
+
+`Website settings → URLs` (`web_settings.content_paths`, tab `?tab=urls`) moves the built-in Content screens.
+Defaults are the historical routes, so nothing changes until a value is set.
+
+| Screen | Setting | Default |
+|---|---|---|
+| Posts archive | `posts_archive_prefix` | `blog` |
+| Post page | `post_detail_prefix` | `posts` |
+| Category archive | `category_prefix` | `category` |
+| Tag archive | `tag_prefix` | `tag` |
+
+- **Mechanism.** Routes are frozen at boot, so the configured prefix is matched in the CMS catch-all
+  (`PagesPublicController.show` → `ContentPathsService.match`) and handed to the *same* `PublicController`
+  handlers (`blog`/`post`/`category`/`tag`), with `ctx.params.slug` set and `blogSearchThrottle` applied by
+  hand. The archive is an exact match; every other screen is `<prefix>/<one slug>`. The historical routes stay
+  registered and **301** to the configured address when it differs (query string kept by
+  `redirect.forwardQueryString`). `POST /posts/:slug/unlock` stays on its fixed URL; only its redirect-back
+  follows the prefix.
+- **Value rules.** A prefix is one or more `[a-z0-9-]` segments joined by `/` — it may be **nested**
+  (`resources/insights`) — at most 120 characters. Values are **normalised** (trimmed, lower-cased, leading and
+  trailing slashes stripped) and only the **last** patch per key counts, so the value that is validated is the
+  value that is stored. An empty value resets the screen; a value equal to the default is stored as "no
+  override" (no row). The posts archive and the post page **may share one prefix** (`/insights` +
+  `/insights/:slug`); the post, category and tag prefixes may **not** share.
+- **Validation** (`ContentPathsService.validate`, run from `WebSettingsService.applyPatches`, so it covers the
+  admin screen, the data import **and** the MCP tools). Rejected: a malformed prefix, a reserved first segment
+  (`reservedFirstSegment` — `app/services/reserved_paths.ts`), the *old* address of another moved screen, two
+  `<prefix>/<slug>` screens on one prefix, a live Page or kit file-page under the prefix, and a collection's public
+  detail prefix. Only non-default values are checked, so an untouched install is unaffected.
+- **MCP.** Tools `get_content_paths` / `set_content_paths` (`GET` / `PUT /api/mcp/v1/content-paths`, ability
+  `builder:settings`; body fields `postsArchive`, `postDetail`, `category`, `tag`; an empty string resets that
+  screen). A validation problem is a `422` with the reason. See
+  [modules/mcp/README.md](../../modules/mcp/README.md#builder-api-reference).
+- **Precedence at runtime.** The catch-all order is: a Page on the exact path → a kit file-page → the configured
+  content screen → a collection's public detail page → a configured redirect → 404. A Page on the exact path
+  still wins over a content screen (this used to be silent — see the Pages guard below). A "no such post /
+  category / tag" under a moved prefix does **not** end the lookup: it falls through to the collection detail
+  lookup, then to redirects, then 404, so a manual 301 under the prefix works.
+- **Pages guard.** `PagesService` (create, and update when the path changes) rejects a Page whose path is the
+  archive prefix or lies under `<prefix>/` of any screen whose prefix has been **moved**
+  (`ContentPathsService.pathConflict`), and any path under an enabled collection's detail prefix
+  (`<prefix>/…` — the bare collection prefix is allowed, it may be that collection's list page). With the
+  default prefixes nothing is enforced (the fixed routes `/blog`, `/posts/:slug`… already win). The data import
+  writes pages directly and is not blocked.
+- **Follows the prefix:** canonical + JSON-LD, the sitemap, the `posts` collection's `url` field, the shared
+  `contentPaths` Inertia prop (built-in pages use `useContentPaths()`), and SSG snapshots (invalidated on write,
+  only when a value really changed). A kit reads the same prop — `useContentPaths()` — instead of hard-coding
+  `/insights`.
+- **Not rewritten:** links an operator typed into menus, blocks or post bodies. The 301 keeps them working.
+- **Import/export.** `content_paths` and `content_pages` travel with the **settings** section. Import applies
+  `content_paths` in a separate step: a refusal (e.g. a collection's detail prefix on the target) is a
+  **warning** in the import log — the rest of the settings still import. With conflict mode `skip`, the target's
+  existing `content_paths` / `content_pages` values are kept. Unchanged values do not invalidate the SSG cache.
+  A dry run reports the same problems as `[dry-run] warning (settings): …`.
+- Code: `app/services/content_paths.ts` (pure defaults/normalise), `content_paths_service.ts` (read, match,
+  validate, `pathConflict`), `inertia/lib/content_paths.ts` (`useContentPaths`), tests
+  `tests/functional/content_paths.spec.ts`.
+
+---
+
 ## Data transfer
 
 Categories, tags, their pivots, and post visibility all round-trip through
-import/export (`app/services/data_transfer/sections/content.ts`).
+import/export (`app/services/data_transfer/sections/content.ts`). The blog URLs
+(`content_paths`) and the four `content_pages` role pointers travel with the **settings**
+section — see [Configurable blog URLs](#configurable-blog-urls) for how an import treats them.
 
 ## Gotchas for AI agents
 
@@ -296,6 +368,9 @@ import/export (`app/services/data_transfer/sections/content.ts`).
 - Switching a post's visibility away from `PROTECTED` **wipes** the password.
 - Category archives are **not** recursive — assigning a parent doesn't surface
   children's posts on the parent archive.
+- Do not hard-code `/blog`, `/posts/…`, `/category/…` or `/tag/…` in new code: read the effective
+  prefixes (`ContentPathsService` on the server, `useContentPaths()` in the UI). See
+  [Configurable blog URLs](#configurable-blog-urls).
 - A builder page assigned to `postsArchive`/`postDetail` cannot show real post
   data yet — there is no per-post builder block, so it just renders whatever is
   configured on it, identically for every post. Only a CODE/kit page reads

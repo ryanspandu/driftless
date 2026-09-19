@@ -8,11 +8,12 @@ const qk = {
   one: (id: string) => ['pages', id] as const,
 }
 
-export function usePagesList() {
+export function usePagesList(enabled = true) {
   return useQuery({
     queryKey: qk.list,
     queryFn: () => apiFetch<PageSummaryDto[]>('/api/admin/pages'),
     staleTime: 30_000,
+    enabled,
   })
 }
 

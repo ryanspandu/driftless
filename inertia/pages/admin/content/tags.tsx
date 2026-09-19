@@ -24,12 +24,14 @@ import {
   useUpdateContentTag,
 } from '~/hooks/api/use-content-tags'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
+import { useContentPaths } from '~/lib/content_paths'
 
 type Editing = ContentTagDto | 'new' | null
 
 function TagDialog({ editing, onClose }: { editing: Editing; onClose: () => void }) {
   const createMut = useCreateContentTag()
   const updateMut = useUpdateContentTag()
+  const paths = useContentPaths()
   const isEdit = editing && editing !== 'new'
   const [name, setName] = useState(isEdit ? editing.name : '')
   const [slug, setSlug] = useState(isEdit ? editing.slug : '')
@@ -91,7 +93,7 @@ function TagDialog({ editing, onClose }: { editing: Editing; onClose: () => void
               placeholder="featured"
               className="font-mono text-sm"
             />
-            <p className="text-xs text-muted-foreground">Used in the archive URL /tag/…</p>
+            <p className="text-xs text-muted-foreground">Used in the archive URL /{paths.tag}/…</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="tag-desc">Description</Label>

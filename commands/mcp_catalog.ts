@@ -135,6 +135,7 @@ const BLOCK_HINTS: Record<string, string> = {
     '(2) template:"template" — repeat a COLLECTION template once per record; ALSO set templateId to the id of a template you made with create_template(type:"COLLECTION", collectionKey:"<same key>") (list it with list_templates). Inside that template, feed each leaf block from the record with `binding` (see behaviorSchemas) or {{fieldKey}} tokens. Without templateId this mode renders nothing. ' +
     '(3) template:"custom" — design the repeated `item` slot inline right here and bind its child blocks to record fields via `binding`/`conditions` (behaviorSchemas). ' +
     '(4) template:"code" — repeat a kit code component; set codeTemplate to "codetpl:<kit>/collection/<collectionKey>". ' +
+    'To link each card to its detail page, set source.linkField to the collection\'s SLUG field key and source.linkBase to "/<detailPathPrefix>/" (only meaningful when the collection has public detail pages on). ' +
     'Optionally design the no-records state in the `empty` slot. For the built-in POSTS collection you can pin the list to one category/tag with taxonomy: { categorySlug?, tagSlug? } (e.g. a "Latest from News" section). Do NOT use this for e-commerce products — use ProductList.',
   // Commerce module blocks:
   ProductList:

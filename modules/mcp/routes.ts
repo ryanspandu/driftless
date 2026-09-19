@@ -414,6 +414,15 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
             .put('/api/mcp/v1/page-roles', [SettingsCtrl, 'usePageAsRole'])
             .as('mcp.pageroles')
             .use(read('builder:settings'))
+          // Where the built-in blog screens live (Website settings → URLs).
+          router
+            .get('/api/mcp/v1/content-paths', [SettingsCtrl, 'getContentPaths'])
+            .as('mcp.contentpaths.get')
+            .use(read('builder:read'))
+          router
+            .put('/api/mcp/v1/content-paths', [SettingsCtrl, 'setContentPaths'])
+            .as('mcp.contentpaths')
+            .use(read('builder:settings'))
         })
         .use(middleware.permission({ permission: 'settings:manage' }))
 

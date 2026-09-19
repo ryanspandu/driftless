@@ -60,8 +60,11 @@ npm run dev            # NOT plain `node ace serve`
 - Use the shared `DataTable` (`~/components/data-table`) for **every** table — never a raw `<table>` or a custom table. See [docs/ai/frontend.md](docs/ai/frontend.md#data-tables).
 - Build pages with the **page builder**. A page can instead be hand-written React
   (`kind = CODE`, `inertia/custom/pages/`), but that is a human's deliberate choice for one
-  page — do not create code pages, or convert a builder page into one, unless asked. See
-  [docs/ai/code-pages.md](docs/ai/code-pages.md).
+  page — do not create code pages, or convert a builder page into one, unless asked. The one
+  exception is when the operator asks for **public detail pages for a collection**: those need a
+  CODE/kit template page (a builder page cannot render a record). See
+  [docs/ai/code-pages.md](docs/ai/code-pages.md) and
+  [docs/ai/cms.md](docs/ai/cms.md#public-detail-pages-per-collection-off-by-default).
 - Run `npm run typecheck` after substantive TS changes.
 
 **Don't**
@@ -123,6 +126,9 @@ smaller third-party contract. Full reference: [docs/ai/modules.md](docs/ai/modul
 | [docs/ai/templates.md](docs/ai/templates.md) | Reusable templates (header/footer/layout/component) |
 | [docs/ai/settings-ia.md](docs/ai/settings-ia.md) | Which settings screen owns which field + `web_settings` key map — read before adding a setting |
 | [docs/ai/page-settings.md](docs/ai/page-settings.md) | Page Settings + Website settings (custom code, SEO, meta) |
+| [docs/ai/code-pages.md](docs/ai/code-pages.md) | Hand-written React pages (`kind = CODE`), custom blocks, record templates for a collection's public pages — and when **not** to use them |
+| [docs/ai/custom-templates.md](docs/ai/custom-templates.md) | Coded page "kits": file-pages, code chrome, router kits, collection detail pages, `useContentPaths`, the activation toggle |
+| [docs/ai/content-taxonomy-and-visibility.md](docs/ai/content-taxonomy-and-visibility.md) | Content categories/tags, post visibility, "Use as page" archive overrides, **configurable blog URLs** (Website settings → URLs) |
 | [docs/ai/auth-pages.md](docs/ai/auth-pages.md) | Builder pages replacing `/login`, `/register`, password reset, 404/500; auth form blocks; password-reset flow |
 | [docs/ai/modules.md](docs/ai/modules.md) | Module system (first-party app areas, DB-toggled, installable from the admin) |
 | [modules/ecommerce/README.md](modules/ecommerce/README.md) | E-commerce module (integer money, hosted Stripe/PayPal checkout) — docs live with the module |

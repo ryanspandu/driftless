@@ -237,12 +237,50 @@ export const WEBSITE_SETTING_SECTIONS = {
   ADMIN_BRANDING: 'admin_branding',
   AUTH_PAGES: 'auth_pages',
   CONTENT_PAGES: 'content_pages',
+  CONTENT_PATHS: 'content_paths',
   ERROR_PAGES: 'error_pages',
   FORMS: 'forms',
   HOME_PAGE: 'home_page',
   SITE_META: 'site_meta',
   THEME: 'theme',
 } as const
+
+/**
+ * The public URL prefixes of the built-in Content screens (Website settings →
+ * URLs). Presentation mirror of `app/services/content_paths.ts`; the key pair is
+ * kept in lockstep by `tests/unit/content_paths.spec.ts`. Stored without a
+ * leading slash; an empty value resets a screen to its default.
+ */
+export const CONTENT_PATH_FIELDS = [
+  {
+    key: 'posts_archive_prefix',
+    label: 'Posts archive',
+    default: 'blog',
+    example: (p: string) => `/${p}`,
+    hint: 'The list of all posts.',
+  },
+  {
+    key: 'post_detail_prefix',
+    label: 'Post page',
+    default: 'posts',
+    example: (p: string) => `/${p}/my-post`,
+    hint: 'One post. May match the archive prefix (e.g. both “insights”).',
+  },
+  {
+    key: 'category_prefix',
+    label: 'Category archive',
+    default: 'category',
+    example: (p: string) => `/${p}/news`,
+    hint: 'Posts in one category.',
+  },
+  {
+    key: 'tag_prefix',
+    label: 'Tag archive',
+    default: 'tag',
+    example: (p: string) => `/${p}/launch`,
+    hint: 'Posts with one tag.',
+  },
+] as const
 
 /**
  * The built-in screens a published builder page can stand in for, with their
@@ -318,28 +356,28 @@ export const PAGE_ROLE_SLOTS: readonly PageRoleSlot[] = [
     section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
     key: 'category_archive_page_id',
     label: 'Category archive',
-    hint: 'Replaces the built-in /category/:slug archive',
+    hint: 'Replaces the built-in category archive (/category/:slug unless moved under Website settings → URLs)',
   },
   {
     slot: 'tagArchive',
     section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
     key: 'tag_archive_page_id',
     label: 'Tag archive',
-    hint: 'Replaces the built-in /tag/:slug archive',
+    hint: 'Replaces the built-in tag archive (/tag/:slug unless moved under Website settings → URLs)',
   },
   {
     slot: 'postsArchive',
     section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
     key: 'posts_archive_page_id',
     label: 'Blog index',
-    hint: 'Replaces the built-in /blog listing (supports ?q= search)',
+    hint: 'Replaces the built-in posts listing (/blog unless moved under Website settings → URLs; supports ?q= search)',
   },
   {
     slot: 'postDetail',
     section: WEBSITE_SETTING_SECTIONS.CONTENT_PAGES,
     key: 'post_detail_page_id',
     label: 'Post detail',
-    hint: 'Replaces the built-in /posts/:slug post page',
+    hint: 'Replaces the built-in post page (/posts/:slug unless moved under Website settings → URLs)',
   },
 ] as const
 
@@ -774,6 +812,11 @@ export interface CmsCollectionDto {
   revisionsOn: boolean
   draftsOn: boolean
   kind: 'collection' | 'single'
+  /** Public detail pages: each PUBLISHED record is served at `/<prefix>/<slug>`. Off by default. */
+  detailPagesOn: boolean
+  detailPathPrefix: string | null
+  /** The CODE/kit Page that renders one record. */
+  detailPageId: string | null
   fields: CmsFieldDto[]
   createdAt: string
   updatedAt: string
@@ -797,6 +840,9 @@ export interface CreateCmsCollectionRequest {
   revisionsOn?: boolean
   draftsOn?: boolean
   kind?: 'collection' | 'single'
+  detailPagesOn?: boolean
+  detailPathPrefix?: string | null
+  detailPageId?: string | null
   fields: CreateCmsCollectionFieldRequest[]
 }
 
@@ -807,6 +853,10 @@ export interface UpdateCmsCollectionRequest {
   revisionsOn?: boolean
   draftsOn?: boolean
   kind?: 'collection' | 'single'
+  /** Public detail pages (`/<prefix>/<slug>` through a template page). `null` clears. */
+  detailPagesOn?: boolean
+  detailPathPrefix?: string | null
+  detailPageId?: string | null
   /** Rename the collection key (renames its physical storage live). */
   key?: string
   /** Switch COLLECTION ↔ CONTENT (allowed only while empty). */

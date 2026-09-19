@@ -7,7 +7,8 @@ import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent } from '~/components/ui/card'
 import { Switch } from '~/components/ui/switch'
-import { AppSelect } from '~/components/ui/app-select'
+import { AppSelect, type AppSelectOption } from '~/components/ui/app-select'
+import { usePagesList } from '~/hooks/api/use-pages'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { BackButton } from '~/components/admin/back-button'
@@ -53,6 +54,9 @@ interface SettingsForm {
   revisionsOn: boolean
   draftsOn: boolean
   kind: 'collection' | 'single'
+  detailPagesOn: boolean
+  detailPathPrefix: string
+  detailPageId: string
 }
 
 function baselineOf(c: CmsCollectionDto): SettingsForm {
@@ -65,6 +69,9 @@ function baselineOf(c: CmsCollectionDto): SettingsForm {
     revisionsOn: c.revisionsOn,
     draftsOn: c.draftsOn,
     kind: c.kind ?? 'collection',
+    detailPagesOn: c.detailPagesOn ?? false,
+    detailPathPrefix: c.detailPathPrefix ?? '',
+    detailPageId: c.detailPageId ?? '',
   }
 }
 
@@ -129,6 +136,9 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
         revisionsOn: form.revisionsOn,
         draftsOn: form.draftsOn,
         kind: form.kind,
+        detailPagesOn: form.detailPagesOn,
+        detailPathPrefix: form.detailPathPrefix.trim() || null,
+        detailPageId: form.detailPageId || null,
         key: form.key.trim(),
         type: form.type,
       })
@@ -386,6 +396,26 @@ function SettingsPanel({
   // Content and Product are both metadata-only (no table, no single-type toggle).
   const isMetadata = isContent || isProduct
   const keyError = keyHint(form.key)
+  const detailUnavailable = isMetadata || form.kind === 'single'
+  // Only fetched while the section is in use (the list needs page permissions).
+  const pages = usePagesList(form.detailPagesOn && !detailUnavailable)
+  // Only a published CODE/kit page can render a record; a builder page cannot.
+  const templateOptions = useMemo<AppSelectOption[]>(() => {
+    const live = (pages.data ?? [])
+      .filter((p) => p.status === 'PUBLISHED' && p.kind === 'CODE')
+      .map((p) => ({ value: p.id, label: `${p.title} — /${p.path} · code` }))
+    const options: AppSelectOption[] = [{ value: '', label: 'Choose a template page…' }, ...live]
+    // A template that was deleted or unpublished since: show it, so the select is
+    // not silently blank while the entry URLs 404.
+    if (form.detailPageId && pages.data && !live.some((o) => o.value === form.detailPageId)) {
+      options.push({
+        value: form.detailPageId,
+        label: '⚠ Current template is unpublished or deleted — choose another',
+      })
+    }
+    return options
+  }, [pages.data, form.detailPageId])
+  const detailPrefix = form.detailPathPrefix.trim().replace(/^\/+|\/+$/g, '')
 
   return (
     <Card>
@@ -546,6 +576,77 @@ function SettingsPanel({
             </div>
           </div>
         </section>
+
+        {detailUnavailable ? null : (
+          <section className="grid gap-6 p-6 md:grid-cols-[180px_minmax(0,1fr)]">
+            <div>
+              <h3 className="text-sm font-medium">Public pages</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                A web page for every published entry.
+              </p>
+            </div>
+            <div className="space-y-5">
+              <div className="flex items-center justify-between gap-4">
+                <label htmlFor="coll-detail-on" className="cursor-pointer">
+                  <span className="block text-sm">Expose detail pages</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Each published entry gets its own URL, rendered server-side through a template
+                    page. Needs a unique slug field. Off by default.
+                  </span>
+                </label>
+                <Switch
+                  id="coll-detail-on"
+                  checked={form.detailPagesOn}
+                  disabled={disabled}
+                  onCheckedChange={(v) => set({ detailPagesOn: v })}
+                />
+              </div>
+              {form.detailPagesOn ? (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="coll-detail-prefix">URL prefix</Label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">/</span>
+                      <Input
+                        id="coll-detail-prefix"
+                        className="font-mono"
+                        value={form.detailPathPrefix}
+                        onChange={(e) => set({ detailPathPrefix: e.target.value })}
+                        placeholder={form.key}
+                        disabled={disabled}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      One segment (lowercase letters, numbers, dashes). Example:{' '}
+                      <code>/{detailPrefix || form.key}/my-entry</code>
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="coll-detail-page">Template page</Label>
+                    <AppSelect
+                      id="coll-detail-page"
+                      value={form.detailPageId}
+                      onChange={(value) => set({ detailPageId: value })}
+                      options={templateOptions}
+                      disabled={disabled || pages.isPending}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      A published custom-code page that receives the entry (a builder page cannot).
+                      Until one is chosen, the entry URLs return 404.
+                    </p>
+                    {pages.isError ? (
+                      <p className="text-xs text-destructive" role="alert">
+                        The list of pages could not be loaded — you may not have permission to view
+                        pages.
+                      </p>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </section>
+        )}
       </CardContent>
     </Card>
   )

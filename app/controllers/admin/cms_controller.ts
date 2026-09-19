@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import CmsService from '#services/cms_service'
+import { DetailSettingsError } from '#services/collection_detail_rules'
 
 const cmsService = new CmsService()
 
@@ -16,9 +17,22 @@ export default class CmsController {
   }
 
   async collectionsStore({ request, response }: HttpContext) {
-    const { key, label, icon, group, type, revisionsOn, draftsOn, kind, fields } = request.all()
-    try {
-      const col = await cmsService.createCollection({
+    const {
+      key,
+      label,
+      icon,
+      group,
+      type,
+      revisionsOn,
+      draftsOn,
+      kind,
+      fields,
+      detailPagesOn,
+      detailPathPrefix,
+      detailPageId,
+    } = request.all()
+    const create = (detail: { on?: boolean; prefix?: string | null; pageId?: string | null }) =>
+      cmsService.createCollection({
         key,
         label,
         icon,
@@ -28,15 +42,50 @@ export default class CmsController {
         draftsOn,
         kind,
         fields,
+        detailPagesOn: detail.on,
+        detailPathPrefix: detail.prefix,
+        detailPageId: detail.pageId,
+      })
+    try {
+      const col = await create({
+        on: detailPagesOn,
+        prefix: detailPathPrefix,
+        pageId: detailPageId,
       })
       return response.status(201).json(col)
     } catch (e) {
+      // A collection that arrives with public pages switched on (an exported
+      // collection imported here) must not be lost because this site cannot host
+      // them — a taken prefix, no slug field. Create it with the feature off and
+      // say why, so the operator can turn it on in the collection's settings.
+      if (e instanceof DetailSettingsError && detailPagesOn === true) {
+        try {
+          const col = await create({ on: false, prefix: null, pageId: null })
+          return response
+            .status(201)
+            .json({ ...col, warnings: [`Public pages were left off: ${e.message}`] })
+        } catch (retry) {
+          return response.status(422).json({ message: (retry as Error).message })
+        }
+      }
       return response.status(422).json({ message: (e as Error).message })
     }
   }
 
   async collectionsUpdate({ params, request, response }: HttpContext) {
-    const { label, icon, group, revisionsOn, draftsOn, kind, key, type } = request.all()
+    const {
+      label,
+      icon,
+      group,
+      revisionsOn,
+      draftsOn,
+      kind,
+      key,
+      type,
+      detailPagesOn,
+      detailPathPrefix,
+      detailPageId,
+    } = request.all()
     try {
       const col = await cmsService.updateCollection(params.key, {
         label,
@@ -47,6 +96,9 @@ export default class CmsController {
         kind,
         key,
         type,
+        detailPagesOn,
+        detailPathPrefix,
+        detailPageId,
       })
       return response.json(col)
     } catch (e) {

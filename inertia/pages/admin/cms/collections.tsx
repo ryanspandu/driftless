@@ -33,6 +33,7 @@ import {
   resolveCollectionLucideIcon,
 } from '~/components/cms/collection-icon-lucide'
 import { useAbility } from '~/components/providers/ability-provider'
+import { toast } from 'sonner'
 
 type CollectionPermissions = ReturnType<typeof useAbility>['permissions']
 
@@ -52,6 +53,10 @@ function exportCollection(c: CmsCollectionDto): void {
       kind: c.kind,
       revisionsOn: c.revisionsOn,
       draftsOn: c.draftsOn,
+      // Public detail pages: the toggle and prefix travel; the template page id
+      // does not (page ids are not portable — pick it again after importing).
+      detailPagesOn: c.detailPagesOn,
+      detailPathPrefix: c.detailPathPrefix,
       fields: c.fields.map((f) => ({
         key: f.key,
         label: f.label,
@@ -239,7 +244,11 @@ export default function CmsCollectionsPage() {
   const onImportCollection = async (parsed: unknown) => {
     const body = (parsed as { collection?: unknown }).collection
     if (!body || typeof body !== 'object') throw new Error('This export has no collection.')
-    await createMut.mutateAsync(body as CreateCmsCollectionRequest)
+    const created = await createMut.mutateAsync(body as CreateCmsCollectionRequest)
+    // The server creates the collection with public pages OFF when this site
+    // cannot host them (taken prefix, no slug field) and says why.
+    const warnings = (created as { warnings?: string[] }).warnings ?? []
+    for (const message of warnings) toast.warning(message)
   }
 
   const handleDelete = (key: string) => {

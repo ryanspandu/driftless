@@ -6,6 +6,7 @@ import type { ContentVisibility } from '~/types/api'
 import { PostVisibilityIcon } from '~/pages/posts/category'
 import { useAuthPublicConfig } from '~/hooks/api/use-auth'
 import { PostSearchForm } from '~/components/post-search-form'
+import { useContentPaths } from '~/lib/content_paths'
 
 interface BlogPost {
   id: string
@@ -34,6 +35,7 @@ interface BlogIndexProps {
  * CODE/kit page from Pages → "Use as page → Blog index".
  */
 const BlogIndex: FC<BlogIndexProps> = ({ posts, total, query = '', canonicalUrl }) => {
+  const paths = useContentPaths()
   const { data: authConfig } = useAuthPublicConfig()
   const siteTitle = authConfig?.web?.siteTitle?.trim() || 'Driftless'
   const pageTitle = query ? `“${query}” · Blog · ${siteTitle}` : `Blog · ${siteTitle}`
@@ -69,7 +71,7 @@ const BlogIndex: FC<BlogIndexProps> = ({ posts, total, query = '', canonicalUrl 
             {posts.map((p) => (
               <li key={p.id}>
                 <Link
-                  href={`/posts/${p.slug}`}
+                  href={paths.url('detail', p.slug)}
                   className="flex items-center gap-4 rounded-xl border border-border p-3 transition-colors hover:border-foreground/40"
                 >
                   {p.featuredImage ? (

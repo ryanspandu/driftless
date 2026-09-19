@@ -97,7 +97,7 @@ Commits: `2d478a7`, `dab07d3`, `9359ced`, `5bb7d8c`, `c4954e4`, `0922d13`,
   through the guarded dynamic-import boundary; needs the `ecommerce` module +
   `ecommerce:settings:manage`.
 - Both are gated by the **`builder:settings`** ability, validate a
-  **PUBLISHED + BUILDER** target, clear the slot on an empty `pageId`, and are
+  **PUBLISHED** target (builder or CODE/kit page), clear the slot on an empty `pageId`, and are
   mirrored into both the in-app and stdio tool manifests.
 - Docs: [modules/mcp/README.md](../../modules/mcp/README.md#builder-api-reference).
 
@@ -156,3 +156,38 @@ Commits: `2d478a7`, `dab07d3`, `9359ced`, `5bb7d8c`, `c4954e4`, `0922d13`,
   `TrashModal`/`DeleteConfirmProvider` no longer swallow errors; a shared `<Toaster>` is mounted in every layout,
   the storefront branches and the kit-fields editor (whose toasts previously rendered nowhere). Cart, checkout
   and login/register stay inline. Docs: [frontend.md](./frontend.md#save-feedback-toasts).
+
+## 17. Configurable blog URLs + collection public detail pages
+
+- **Website settings → URLs** (`?tab=urls`, `web_settings.content_paths`): move `/blog`, `/posts/:slug`,
+  `/category/:slug`, `/tag/:slug` (e.g. to `/insights`; a prefix may be nested, and the archive and the post page
+  may share one). Matched in the CMS catch-all, the old routes **301** (query string kept), canonical / JSON-LD /
+  sitemap / `posts` collection `url` / SSG snapshots follow, and the effective prefixes are the shared Inertia prop
+  `contentPaths` (`useContentPaths()` in `inertia/lib/content_paths.ts`). Validation lives in
+  `WebSettingsService.applyPatches`, so it covers the admin screen, the data import and the new MCP tools
+  **`get_content_paths` / `set_content_paths`** (`/api/mcp/v1/content-paths`, `builder:settings`, `422` on a problem).
+  `PagesService` now also refuses a Page under a moved prefix or under an enabled collection's detail prefix; a
+  Page on the exact path still wins at runtime; "no such post/category/tag" falls through to redirects, then 404.
+  `WEB_DEFAULTS.content_pages` seeds all four role keys. Docs:
+  [content-taxonomy-and-visibility.md](./content-taxonomy-and-visibility.md#configurable-blog-urls).
+- **Collections → Settings → Public pages** (`cms_collections.detail_pages_on/detail_path_prefix/detail_page_id`,
+  default off): `/<prefix>/<slug>` per PUBLISHED record through a **CODE/kit template** (checked when chosen; a
+  builder page is refused; PUBLISHED + active kit enforced when serving). Needs a **unique** slug field and a
+  single-segment prefix that is not reserved, not the blog's and not another collection's. Per-record SEO with a
+  fallback to the template's, sitemap (one narrow query per collection), 301s when a published record's slug or an
+  enabled collection's prefix changes, restore-from-Trash re-validates the prefix (comes back OFF if unusable),
+  turning it off is never blocked. MCP `create_collection` / `update_collection` carry the fields. Docs:
+  [cms.md](./cms.md#public-detail-pages-per-collection-off-by-default).
+- **Import/export:** a new data section **`collection_detail`** (order 74, after `pages` and `settings`) carries each
+  collection's `detail_*` settings (template id remapped in `regenerate` mode) — `collections` no longer does, so
+  a prefix clash can never cost a collection. `content_paths` is applied in its own step of the settings import: a
+  refusal is a **warning**, the rest of the settings still import, and `skip` keeps the target's `content_paths` /
+  `content_pages`. Section warnings now reach the import log (`⚠ <section>: …`) and are shown on the data-transfer
+  screen; a dry run runs each section's optional read-only `preflight` (`[dry-run] warning (<section>): …`).
+  `formatVersion` stays `1` (additive; an older build ignores the new section).
+- **Kits:** the gitignored `aftrn-web` kit is a **router kit** — one `index.tsx` that tells its pages apart by props
+  (`bindings.collection`, `record.post`, `record.items`, else the Page's `path`) — and the working reference for
+  record templates. Docs: [custom-templates.md](./custom-templates.md#router-kits--one-indextsx-many-pages),
+  [code-pages.md](./code-pages.md#record-templates-collection-detail-pages),
+  [security.md](./security.md#content-and-page-builder-html) (what the rich-text sanitiser leaves a kit).
+- Tests repointed from the gitignored `aftrn-web` kit to the committed `example` kit (`template_kit_active.spec.ts`).

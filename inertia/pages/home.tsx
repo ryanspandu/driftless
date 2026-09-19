@@ -17,6 +17,7 @@ import {
 import type { PublicContentDto } from '~/types/api'
 import { buttonVariants } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
+import { useContentPaths } from '~/lib/content_paths'
 
 interface HomeProps {
   posts?: PublicContentDto[]
@@ -101,6 +102,7 @@ const TESTIMONIALS = [
 ]
 
 const Home: FC<HomeProps> = ({ posts = [], canonicalUrl }) => {
+  const paths = useContentPaths()
   const { props } = usePage<{ user?: { id?: number } }>()
   const primaryCta = props.user
     ? { href: '/admin/dashboard', label: 'Go to dashboard' }
@@ -288,7 +290,7 @@ const Home: FC<HomeProps> = ({ posts = [], canonicalUrl }) => {
             {posts.slice(0, 3).map((p) => (
               <Link
                 key={p.id}
-                href={`/posts/${p.slug}`}
+                href={paths.url('detail', p.slug)}
                 className="group rounded-2xl border border-border bg-card p-6 transition-shadow hover:shadow-lg"
               >
                 <h3 className="font-semibold group-hover:text-primary">{p.title}</h3>
