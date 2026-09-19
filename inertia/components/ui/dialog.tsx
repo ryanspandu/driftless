@@ -51,29 +51,97 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
   )
 }
 
-interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {}
+type DialogSlot = 'plain' | 'fixed' | 'body'
 
+/**
+ * Where a DialogHeader / DialogFooter is being rendered, so it can style itself:
+ * `fixed` = pinned outside the scroll area, `body` = inside it (a footer nested in
+ * a <form> sticks to the bottom instead), `plain` = used outside DialogContent.
+ */
+const DialogSlotContext = React.createContext<DialogSlot>('plain')
+
+interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {
+  /**
+   * Opt out of the automatic layout below, for dialogs that lay out their own
+   * header / scroll region / footer (and keep the classic `p-6` padding).
+   */
+  bare?: boolean
+}
+
+/**
+ * Capped at 85vh. A direct-child DialogHeader and DialogFooter stay pinned; everything
+ * else scrolls in between. A DialogFooter nested inside the body (e.g. inside a
+ * <form>) sticks to the bottom of the scroll area instead.
+ */
 const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
-  ({ className, children, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn(
-        'relative z-10 w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-xl',
-        'transition-all duration-200 ease-out',
-        'group-data-[state=closed]/dialog:scale-95 group-data-[state=closed]/dialog:opacity-0',
-        'group-data-[state=open]/dialog:scale-100 group-data-[state=open]/dialog:opacity-100',
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  )
+  ({ className, children, bare, ...props }, ref) => {
+    const header: React.ReactNode[] = []
+    const footer: React.ReactNode[] = []
+    const body: React.ReactNode[] = []
+    if (!bare) {
+      for (const child of React.Children.toArray(children)) {
+        if (React.isValidElement(child) && child.type === DialogHeader) header.push(child)
+        else if (React.isValidElement(child) && child.type === DialogFooter) footer.push(child)
+        else body.push(child)
+      }
+    }
+
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          'relative z-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-xl',
+          bare ? 'p-6' : 'flex max-h-[85vh] flex-col overflow-hidden',
+          'transition-all duration-200 ease-out',
+          'group-data-[state=closed]/dialog:scale-95 group-data-[state=closed]/dialog:opacity-0',
+          'group-data-[state=open]/dialog:scale-100 group-data-[state=open]/dialog:opacity-100',
+          className
+        )}
+        {...props}
+      >
+        {bare ? (
+          children
+        ) : (
+          <>
+            {header.length > 0 ? (
+              <DialogSlotContext.Provider value="fixed">{header}</DialogSlotContext.Provider>
+            ) : null}
+            <DialogSlotContext.Provider value="body">
+              <div
+                className={cn(
+                  'min-h-0 flex-1 overflow-y-auto px-6',
+                  header.length > 0 ? 'pb-6' : 'py-6',
+                  // A footer nested in the body sticks to its bottom edge, so it
+                  // supplies the bottom spacing itself.
+                  'has-[[data-dialog-footer]]:pb-0'
+                )}
+              >
+                {body}
+              </div>
+            </DialogSlotContext.Provider>
+            {footer.length > 0 ? (
+              <DialogSlotContext.Provider value="fixed">{footer}</DialogSlotContext.Provider>
+            ) : null}
+          </>
+        )}
+      </div>
+    )
+  }
 )
 DialogContent.displayName = 'DialogContent'
 
 function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex flex-col space-y-1.5 mb-4', className)} {...props} />
+  const slot = React.useContext(DialogSlotContext)
+  return (
+    <div
+      className={cn(
+        'flex flex-col space-y-1.5',
+        slot === 'fixed' ? 'shrink-0 px-6 pb-4 pt-6' : 'mb-4',
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
 function DialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
@@ -85,7 +153,20 @@ function DialogDescription({ className, ...props }: React.HTMLAttributes<HTMLPar
 }
 
 function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex items-center justify-end gap-2 mt-6', className)} {...props} />
+  const slot = React.useContext(DialogSlotContext)
+  return (
+    <div
+      data-dialog-footer={slot === 'body' ? '' : undefined}
+      className={cn(
+        'flex items-center justify-end gap-2',
+        slot === 'fixed' && 'shrink-0 border-t px-6 py-4',
+        slot === 'body' && 'sticky bottom-0 z-10 -mx-6 mt-6 border-t bg-card px-6 py-4',
+        slot === 'plain' && 'mt-6',
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
 export { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter }

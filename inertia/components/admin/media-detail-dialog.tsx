@@ -63,7 +63,7 @@ type Props = {
 export function MediaDetailDialog({ item, open, onOpenChange, canWrite }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden p-0">
+      <DialogContent bare className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden p-0">
         {item ? (
           <MediaDetailInner
             key={item.id}

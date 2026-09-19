@@ -386,7 +386,7 @@ function EditFieldDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl">
         <button
           type="button"
           onClick={() => handleClose(false)}
@@ -602,7 +602,7 @@ export function AddFieldDialog({
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <button
             type="button"
             onClick={() => handleOpenChange(false)}

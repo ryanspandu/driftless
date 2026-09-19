@@ -349,7 +349,7 @@ function ComponentEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !saving && onOpenChange(v)}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl">
         <button
           type="button"
           onClick={() => !saving && onOpenChange(false)}

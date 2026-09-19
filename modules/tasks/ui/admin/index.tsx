@@ -544,7 +544,7 @@ export default function TasksAdminPage() {
           if (!o) setEditing(false)
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{form.id ? 'Task details' : 'New task'}</DialogTitle>
           </DialogHeader>

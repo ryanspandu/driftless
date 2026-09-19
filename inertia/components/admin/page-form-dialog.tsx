@@ -291,6 +291,7 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        bare
         className={cn(
           'flex max-h-[85vh] flex-col',
           // Wider when the SEO section is showing: it lays the preview and its

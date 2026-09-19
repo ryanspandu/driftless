@@ -46,7 +46,7 @@ export function MediaImagePicker({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-2xl">
+      <DialogContent bare className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Insert image</DialogTitle>
         </DialogHeader>
