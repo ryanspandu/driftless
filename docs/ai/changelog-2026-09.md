@@ -2,7 +2,8 @@
 
 A summary of the features shipped this session, with pointers to the full docs.
 Commits: `2d478a7`, `dab07d3`, `9359ced`, `5bb7d8c`, `c4954e4`, `0922d13`,
-`5e0bd7b`, `509ad24`, `82d5a5a`.
+`5e0bd7b`, `509ad24`, `82d5a5a`, `2091d96`, `be004ee`, `786891c`, `1e3abf3`, `4497876`,
+`3cf8851`, `e904f81`.
 
 ## 1. CMS `MULTISELECT` field + field-key auto-fill — `2d478a7`
 
@@ -110,3 +111,48 @@ Commits: `2d478a7`, `dab07d3`, `9359ced`, `5bb7d8c`, `c4954e4`, `0922d13`,
   and the SSR resolver loop are now **fill-only**. Client + SSR cache keys carry
   the pin identically (no refetch). MCP block catalog re-emitted.
 - Docs: [content-taxonomy-and-visibility.md](./content-taxonomy-and-visibility.md#3-category--tag-archive-overrides-use-as-page).
+
+## 12. One rich-text editor everywhere (HTML), silent-data-loss fix — `2091d96`
+
+- Product **Description**, CMS `RICHTEXT` custom fields and Task **Description** now use the full Content editor
+  (`ArticleEditor`). The old, smaller `RichTextEditor` emitted TipTap **JSON** but `sanitizeRichText()` only
+  accepts strings, so every `RICHTEXT` custom-field save was silently stored as `''`. All three now store
+  sanitized **HTML** like `Content.body`.
+- `Product.description` migrated `jsonb → text` (best-effort plain-text backfill); Task descriptions
+  backfilled; both are now sanitized server-side. The sanitizer allowlist was widened to match the editor's
+  toolbar (constrained inline styles, `youtube-nocookie` iframes, details, task lists).
+- The Product editor remounts `ArticleEditor` once its async data arrives (it only reads `value` initially).
+- **MCP:** `create_product`/`update_product` `description` is now an **HTML string** (was TipTap JSON) in both
+  `modules/mcp/mcp_tools.ts` and the stdio mirror `modules/mcp/server/src/index.ts`.
+- Docs: [security.md](./security.md#content-and-page-builder-html), [frontend.md](./frontend.md#ui-components).
+
+## 13. Editor bubble toolbar follows scroll; `bare` editors get a border — `be004ee`
+
+- TipTap's `BubbleMenu` only repositions on `window` scroll, but the admin scrolls inside `<main>`; the
+  toolbar stayed stranded when scrolling. `ArticleEditor` now dispatches the plugin's `updatePosition` meta from
+  every scrollable ancestor.
+
+## 14. Modals: max height, pinned header/footer — `786891c`
+
+- `DialogContent` is capped at 85vh; a direct-child header/footer stay pinned and only the body scrolls. Modals
+  that lay out their own regions pass `bare`. Docs: [frontend.md](./frontend.md#ui-components).
+
+## 15. "Applied to all products" discounts — `1e3abf3`, `4497876`
+
+- A discount flagged `automatic` needs no code and lowers every product's price on the storefront and in the
+  basket (per-unit percent, or fixed off each item in the base currency). It stacks with other automatic
+  discounts and a shopper's code (summed, fitted to the subtotal); each records its own redemption.
+- Storefront DTO `price` is the discounted figure, `compareAt` the list price, `automaticOff` the per-unit
+  reduction. The product editor lists them above Categories with a per-product on/off switch (exclusion list on
+  the discount). Discount form Starts/Ends use the shared `DatePicker`.
+- **MCP:** there are no discount tools (products/variants/categories/tags only); `list_products` is unaffected.
+- Docs: [modules/ecommerce/README.md](../../modules/ecommerce/README.md#automatic-applied-to-all-products-discounts).
+
+## 16. Save feedback is a toast everywhere (admin + shopper account) — `e904f81`
+
+- `QueryProvider` gained a global `MutationCache`: every failed mutation toasts the server's message, and
+  `meta.successMessage` on a hook toasts success. `~/lib/notify` (`reportSuccess`/`reportError`, de-duplicating)
+  covers non-react-query calls. ~110 files: inline "Saved" flashes and inline server-error blocks removed;
+  `TrashModal`/`DeleteConfirmProvider` no longer swallow errors; a shared `<Toaster>` is mounted in every layout,
+  the storefront branches and the kit-fields editor (whose toasts previously rendered nowhere). Cart, checkout
+  and login/register stay inline. Docs: [frontend.md](./frontend.md#save-feedback-toasts).

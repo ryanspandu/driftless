@@ -12,11 +12,26 @@ User-authored HTML is sanitized on the server at every write boundary:
 - CMS fields of type `RICHTEXT`;
 - Puck `RichText` blocks in pages and templates.
 
-The formatting allowlist keeps normal rich text such as headings, lists, links,
-tables, code, and images. Scripts, event-handler attributes, unsafe URL schemes
-such as `javascript:`, inline styles, and unrecognised tags/attributes are
-removed. Do not introduce a new `dangerouslySetInnerHTML` sink for editor input
-without routing its value through `#services/html_sanitizer_service` first.
+Product descriptions (`ecommerce_products.description`) and task descriptions
+(`tasks.description`) are HTML sanitized the same way — they used to be TipTap
+JSON with no sanitization. All of these fields are edited with the same
+`ArticleEditor` (`inertia/components/admin/article-editor.tsx`), so the
+allowlist in `sanitizeRichText()` is deliberately as wide as that editor's
+toolbar can produce, and no wider:
+
+- headings `h1`–`h6`, lists (incl. task-list checkboxes), links, tables (with
+  `colgroup`/`col`), code, images, `details`/`summary`, `mark`, `sub`/`sup`;
+- a **narrow, per-property regex-validated** set of inline styles on text/image/
+  table-cell elements — `color`, `background-color`, `font-family`, `font-size`,
+  `line-height`, `text-align`, `width` — via `sanitize-html`'s `allowedStyles`;
+- `iframe` only from `www.youtube-nocookie.com` (the editor's YouTube embed);
+  `CodeEmbed` keeps its own, broader provider list (see below) through an
+  explicit `allowedIframeHostnames: undefined` override.
+
+Scripts, event-handler attributes, unsafe URL schemes such as `javascript:`, any
+other inline style property, and unrecognised tags/attributes are removed. Do
+not introduce a new `dangerouslySetInnerHTML` sink for editor input without
+routing its value through `#services/html_sanitizer_service` first.
 
 ### Code Embed and trusted snippets
 

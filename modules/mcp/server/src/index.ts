@@ -1353,7 +1353,12 @@ const ImageInput = z.object({
 })
 const productOptional = {
   subtitle: z.string().nullable().optional(),
-  description: z.record(z.any()).optional().describe('Rich-text/TipTap JSON; usually omit'),
+  description: z
+    .string()
+    .optional()
+    .describe(
+      'Product description as HTML — headings, lists, links, tables, images and YouTube embeds survive; scripts and unknown markup are stripped server-side. Omit to leave it unchanged.'
+    ),
   status: z
     .enum(['draft', 'active', 'archived'])
     .optional()

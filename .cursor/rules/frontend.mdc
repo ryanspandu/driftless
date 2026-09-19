@@ -12,5 +12,6 @@ See [docs/ai/frontend.md](../../docs/ai/frontend.md).
 - Alias `~/` → `inertia/`. Use `Button` from `~/components/ui/button` for actions.
 - Data: TanStack Query hooks in `inertia/hooks/api/` + `~/lib/api-client.ts` for `/api/admin/*`.
 - Tables: always use the shared `DataTable` from `~/components/data-table` — never a raw `<table>` or a custom table. Search top-left, filters via the `filters` prop beside search, uniform pagination footer (rows per page / pagination / go to page). See [docs/ai/frontend.md](../../docs/ai/frontend.md#data-tables).
+- Save feedback is a toast, never an inline "Saved"/error line: put `meta: { successMessage }` on the `useMutation` (the global `MutationCache` toasts failures), or use `reportSuccess`/`reportError` from `~/lib/notify` for non-react-query calls. See [docs/ai/frontend.md](../../docs/ai/frontend.md#save-feedback-toasts).
 - Check `permissions` shared prop or `~/lib/ability` before showing admin actions.
 - Do not hand-edit `@generated` / `.adonisjs/client/` types.
