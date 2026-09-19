@@ -92,8 +92,12 @@ object into memory and `response.send` it), so each page view is billed as the a
 - **SVG, PDF, docs and fonts keep streaming through the app**, because it sanitizes SVG and forces
   `Content-Disposition: attachment`, which a bare bucket URL cannot.
 - **Objects carry real metadata.** `pushToS3` now sends `Content-Type` (from the extension) and
-  `Cache-Control: public, max-age=31536000, immutable`. Objects uploaded before this have neither, so
-  run `node ace media:s3-headers --apply` once after enabling it (dry-run without `--apply`).
+  `Cache-Control: public, max-age=31536000, immutable`. Objects uploaded before this have neither and
+  a public bucket would serve them as `application/octet-stream` (a download, not a picture), so run
+  `node ace media:s3-headers --apply` **before** setting `S3_PUBLIC_URL` (dry-run without `--apply`;
+  on Railway the command is `node build/bin/console.js media:s3-headers`). The step-by-step —
+  custom domain, order, verification `curl`s, WAF rule — is in
+  [RAILWAY_DEPLOYMENT.md](../RAILWAY_DEPLOYMENT.md).
 
 Bucket requirements before turning it on:
 

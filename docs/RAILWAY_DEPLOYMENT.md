@@ -182,11 +182,60 @@ directly — see [storage-driver.md](./ai/storage-driver.md)) reach the exact sa
 does, and it removes two Volume-specific tradeoffs entirely: `web` can run replicas, and a
 redeploy of `web` has no extra downtime.
 
-**Cutting `web`'s egress bill:** by default `web` streams every image out of the bucket to the
-visitor, and Railway bills that as egress. Set `S3_PUBLIC_URL` on `web` (the bucket's public
-`r2.dev` or custom-domain URL) and images/video are redirected to the bucket instead. Read the
-public-read and shared-bucket caveats in [storage-driver.md](./ai/storage-driver.md#serving-media-straight-from-the-bucket-s3_public_url)
-first, then run `node ace media:s3-headers --apply` once.
+**Cutting `web`'s egress bill — serve media straight from R2 (recommended).** By default `web`
+streams every image out of the bucket to the visitor, and Railway bills that as egress. With
+`S3_PUBLIC_URL` set, `/media/*` answers a `302` to the bucket instead and the bytes never touch
+`web` (R2 egress is free; on a custom domain Cloudflare also caches them). Existing `/media/…`
+URLs keep working — nothing in the content changes. Do it in this order:
+
+1. **Give the bucket a public hostname.** Cloudflare → R2 → the bucket → **Settings → Custom
+   Domains → Add**, enter e.g. `cdn.example.com`, **Connect Domain**, wait for **Active**. The
+   zone must be on the same Cloudflare account as the bucket; the DNS record (a proxied CNAME) is
+   created for you — do not add or edit it by hand. Prefer this to the `r2.dev` URL, which is
+   rate-limited and not meant for production.
+2. **Fix the metadata of existing objects — before enabling anything.** Objects uploaded before
+   this feature have no `Content-Type`, so a public bucket serves them as
+   `application/octet-stream` and browsers download instead of display. In the `web` service's
+   **Console** (or `railway run`):
+
+   ```bash
+   node build/bin/console.js media:s3-headers            # dry run: would update N, missing M
+   node build/bin/console.js media:s3-headers --apply    # re-uploads with Content-Type + Cache-Control
+   ```
+
+   Safe to repeat, and it changes nothing users can see. New uploads already carry the headers.
+3. **Verify the bucket hostname.** Expect `content-type: image/png` and
+   `cache-control: public, max-age=31536000, immutable` (still `octet-stream`? purge the hostname
+   in Cloudflare → Caching → Purge Cache):
+
+   ```bash
+   curl -sI https://cdn.example.com/<a-media-filename>.png | grep -iE "content-type|cache-control"
+   ```
+
+4. **Protect what shares the bucket.** Paid digital downloads live under `ecommerce/…` in the same
+   bucket, guarded only by app-side grants; on a public hostname those keys become fetchable. If
+   the shop sells downloads, add a Cloudflare WAF custom rule on the CDN hostname —
+   `URI Path starts with /ecommerce/` → **Block** — or use a separate bucket for public media.
+5. **Turn it on.** Set on `web` (no trailing slash) and let Railway redeploy:
+
+   ```
+   S3_PUBLIC_URL=https://cdn.example.com
+   ```
+
+6. **Verify the redirect.** Expect `HTTP/2 302` and `location: https://cdn.example.com/<file>`:
+
+   ```bash
+   curl -sI --max-redirs 0 https://example.com/media/<a-media-filename>.png
+   ```
+
+   A browser that opened the image before may keep showing its cached copy (it was served with a
+   one-year `immutable` cache) — test in a private window.
+
+Only JPG/PNG/GIF/WebP and MP4/WebM (plus their WebP derivatives) are redirected; SVG, PDF, docs and
+fonts keep streaming through `web`, which sanitizes SVG and forces downloads. Add a bucket **CORS**
+rule (`GET` from the site origin) only if something `fetch()`es or canvas-reads an image; `<img>`
+and `<video>` do not need it. Background and rationale:
+[storage-driver.md](./ai/storage-driver.md#serving-media-straight-from-the-bucket-s3_public_url).
 
 **Fallback — local disk + Railway Volume:** leave `STORAGE_DRIVER` unset (defaults to `local`),
 and attach a Volume to the `web` service only, mounted at `/app/storage` (the common parent of
@@ -270,6 +319,7 @@ out to need them):
 | `SESSION_DRIVER` | `cookie` |
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` — matches `config/database.ts` exactly, no code change |
 | `STORAGE_DRIVER` + `S3_*` | See §3 |
+| `S3_PUBLIC_URL` (`web`, optional) | See §3 — redirect media to the bucket's public hostname |
 | `MEDIA_URL_PREFIX` | Leave default |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_USERNAME` | Your own real values, never sample credentials |
 | `LIMITER_STORE` | `redis` |
