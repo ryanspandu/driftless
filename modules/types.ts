@@ -1,5 +1,6 @@
 import type { ApplicationService, HttpRouterService } from '@adonisjs/core/types'
 import type { middleware } from '#start/kernel'
+import type { PageRoleClaim } from '#services/page_role_slots'
 
 /** The app's named-middleware collection (includes `moduleEnabled`). */
 export type NamedMiddleware = typeof middleware
@@ -106,6 +107,15 @@ export interface ModuleManifest {
    * installed module reserves its paths without core knowing it exists.
    */
   reservedSegments?: string[]
+  /**
+   * The builder pages currently standing in for this module's own screens ("Use as page"),
+   * with the fixed URL each screen lives at (`null` when it has none).
+   *
+   * A role page is a template served at that URL, so core stops serving the page's own slug
+   * as a second address and leaves it out of the sitemap. Called per public request while the
+   * module is enabled — keep it to one indexed read.
+   */
+  pageRoles?: () => Promise<PageRoleClaim[]>
   /**
    * Tables this module owns, in creation order.
    *

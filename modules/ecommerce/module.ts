@@ -312,5 +312,29 @@ export default defineModule({
     })
   },
 
+  /**
+   * Pages standing in for storefront screens, with each screen's fixed URL (`null` for the
+   * per-slug templates: product, category, tag). Core uses it to keep such a page's own slug
+   * from being a second address — see `PageRolesService`.
+   */
+  async pageRoles() {
+    const { default: EcommerceSetting } = await import('#modules/ecommerce/models/setting')
+    const store = await EcommerceSetting.find('default')
+    if (!store) return []
+    const roles: Array<[string | null, string | null]> = [
+      [store.shopPageId, '/shop'],
+      [store.cartPageId, '/shop/cart'],
+      [store.checkoutPageId, '/shop/checkout'],
+      [store.orderPageId, '/shop/order'],
+      [store.accountPageId, '/shop/account'],
+      [store.loginPageId, '/shop/account/login'],
+      [store.registerPageId, '/shop/account/register'],
+      [store.productPageId, null],
+      [store.categoryPageId, null],
+      [store.tagPageId, null],
+    ]
+    return roles.flatMap(([pageId, canonical]) => (pageId ? [{ pageId, canonical }] : []))
+  },
+
   registerRoutes,
 })

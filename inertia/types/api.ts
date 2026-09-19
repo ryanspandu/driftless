@@ -554,6 +554,12 @@ export interface PageSummaryDto {
    * file-page that lives in a kit folder as code — read-only in the admin.
    */
   source?: 'db' | 'file'
+  /**
+   * Set only for a page standing in for a built-in screen ("Use as page"): the URL that
+   * screen is actually served at, or `null` when it has none (a per-slug template). The
+   * page's own `path` is not a public address then — the server redirects/404s it.
+   */
+  liveUrl?: string | null
 }
 
 export interface PageDto extends PageSummaryDto {

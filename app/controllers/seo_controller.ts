@@ -5,67 +5,13 @@ import { siteUrl } from '#helpers/site_url'
 import { collectSitemapEntries } from '#services/sitemap_registry'
 import { WebSettingsService } from '#services/settings_service'
 import { renderAiCrawlerBlock, type AiCrawlerGroup } from '#services/ai_crawlers'
-import { PAGE_ROLE_SLOTS } from '#services/page_role_slots'
-import ModulesService from '#services/modules_service'
+import PageRolesService from '#services/page_roles_service'
 import ContentPathsService from '#services/content_paths_service'
-import CmsCollection from '#models/cms_collection'
 
 const contentService = new ContentService()
 const contentPaths = new ContentPathsService()
 const webSettingsService = new WebSettingsService()
-const modulesService = new ModulesService()
-
-/**
- * Every page id currently standing in for a built-in screen (home, login,
- * post detail, cart, checkout, ...) — core role slots plus the ecommerce
- * module's own. A role page is a TEMPLATE served at a fixed URL that has
- * nothing to do with its own `path` column (see `page_renderer.ts`'s
- * canonical-URL comment for the same distinction); listing it a second time
- * at its raw slug in the sitemap is duplicate/junk content, not a real page.
- */
-async function rolePageIds(sections: Record<string, Record<string, string>>): Promise<Set<string>> {
-  const ids = new Set<string>()
-  for (const { section, key } of PAGE_ROLE_SLOTS) {
-    const id = sections[section]?.[key]?.trim()
-    if (id) ids.add(id)
-  }
-
-  // A collection's public detail template renders every record — its own path
-  // is not a real page either.
-  // (a failed lookup — e.g. the migration has not run yet — just hides nothing)
-  const detailTemplates = await CmsCollection.query()
-    .where('detail_pages_on', true)
-    .whereNotNull('detail_page_id')
-    .whereNull('deleted_at')
-    .select('detail_page_id')
-    .catch(() => [] as CmsCollection[])
-  for (const c of detailTemplates) {
-    if (c.detailPageId) ids.add(c.detailPageId)
-  }
-
-  if (await modulesService.isEnabled('ecommerce')) {
-    const { default: EcommerceSetting } = await import('#modules/ecommerce/models/setting')
-    const store = await EcommerceSetting.find('default')
-    if (store) {
-      for (const id of [
-        store.productPageId,
-        store.shopPageId,
-        store.cartPageId,
-        store.checkoutPageId,
-        store.orderPageId,
-        store.accountPageId,
-        store.loginPageId,
-        store.registerPageId,
-        store.categoryPageId,
-        store.tagPageId,
-      ]) {
-        if (id) ids.add(id)
-      }
-    }
-  }
-
-  return ids
-}
+const pageRoles = new PageRolesService()
 
 export default class SeoController {
   async robots({ response }: HttpContext) {
@@ -119,7 +65,7 @@ Host: ${base}
       const pages = await Page.query().where('status', 'PUBLISHED').whereNull('deleted_at')
       // Module-contributed URLs (e.g. e-commerce product pages).
       const contributed = await collectSitemapEntries()
-      const rolePages = await rolePageIds(sections)
+      const rolePages = await pageRoles.claimedIds()
 
       entries = [
         { loc: `${base}/`, lastmod: now },

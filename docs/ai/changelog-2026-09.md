@@ -191,3 +191,24 @@ Commits: `2d478a7`, `dab07d3`, `9359ced`, `5bb7d8c`, `c4954e4`, `0922d13`,
   [code-pages.md](./code-pages.md#record-templates-collection-detail-pages),
   [security.md](./security.md#content-and-page-builder-html) (what the rich-text sanitiser leaves a kit).
 - Tests repointed from the gitignored `aftrn-web` kit to the committed `example` kit (`template_kit_active.spec.ts`).
+
+## 18. A "Use as page" page's own slug is no longer a second address
+
+A page standing in for a built-in screen (front page, sign in/up, forgot password, posts archive, post/category/
+tag templates, a collection's detail template, and e-commerce shop/cart/checkout/order/account/sign-in/up and
+product/category/tag templates) is a **template served at that screen's URL**. Its own `path` used to keep
+answering too (`/static-bloom` *and* `/`, the seeded landing page at `/home` *and* `/`) — duplicate content the
+sitemap already hid. Now the catch-all in `PagesPublicController.show` asks `PageRolesService.urlFor(page.id)`:
+
+- role with a fixed URL → **301** to it, query string kept (`/static-bloom?x=1` → `/?x=1`);
+- role without one (error pages, reset form, per-slug templates, detail templates) → **404**;
+- the page's slug **is** the screen's URL (a `blog` page as the posts archive) → served as before;
+- the role is cleared → the slug works again.
+
+One source, two readers: `PageRolesService` (`app/services/page_roles_service.ts`) folds core's
+`PAGE_ROLE_SLOTS`, collection detail templates and each enabled module's manifest **`pageRoles()`** (new optional
+`ModuleManifest` field, read by shape — e-commerce implements it) into `pageId → URL | null`. The sitemap
+(`SeoController`) now uses the same service instead of its own copy, which also removes its direct import of the
+e-commerce model. The Pages list gets `liveUrl` on such rows so **View** opens the real URL (or previews the
+template when there is none). Tests: `tests/functional/page_role_slug_hidden.spec.ts`, plus a case per storefront
+slot in `modules/ecommerce/tests/ecommerce_storefront_overrides.spec.ts`.

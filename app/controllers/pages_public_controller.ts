@@ -11,6 +11,7 @@ import TemplateKitsService from '#services/template_kits_service'
 import { WebSettingsService } from '#services/settings_service'
 import ContentPathsService from '#services/content_paths_service'
 import CollectionDetailService from '#services/collection_detail_service'
+import PageRolesService from '#services/page_roles_service'
 import { blogSearchThrottle } from '#start/limiter'
 
 const renderer = new PageRenderer()
@@ -20,6 +21,7 @@ const templateKits = new TemplateKitsService()
 const webSettingsService = new WebSettingsService()
 const contentPaths = new ContentPathsService()
 const collectionDetails = new CollectionDetailService()
+const pageRoles = new PageRolesService()
 
 /**
  * Signal "no such page" so the exception handler can shape the response.
@@ -102,6 +104,17 @@ export default class PagesPublicController {
     const pageKit = page.component?.startsWith('kit:') ? page.component.slice(4) : null
     if (pageKit && !(await templateKits.activeSet()).has(pageKit)) {
       pageNotFound()
+    }
+
+    // A page standing in for a built-in screen (front page, sign in, cart, ...) is a
+    // template served at that screen's own URL — its slug is not a second address for
+    // it. Send the old slug to the real URL (301, query kept via `forwardQueryString`),
+    // or 404 when the screen has no fixed URL. A role page whose slug IS the screen's
+    // URL (e.g. `blog` as the posts archive) is left alone.
+    const roleUrl = await pageRoles.urlFor(page.id)
+    if (roleUrl !== undefined && roleUrl !== `/${path}`) {
+      if (roleUrl === null) pageNotFound()
+      return response.redirect().status(301).toPath(roleUrl)
     }
 
     /**

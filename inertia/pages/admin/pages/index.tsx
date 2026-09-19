@@ -305,8 +305,11 @@ export default function PagesPage() {
         // admin-only preview (drafts aren't reachable on the public route).
         cell: ({ row }) => {
           const r = row.original
-          const published = r.status === 'PUBLISHED'
-          const href = published ? `/${r.path}` : `/admin/pages/${r.id}/preview`
+          // A role page (front page, sign in, cart...) is served at its screen's URL, not
+          // its own slug; a role with no fixed URL can only be previewed.
+          const liveUrl = r.liveUrl === undefined ? `/${r.path}` : r.liveUrl
+          const published = r.status === 'PUBLISHED' && liveUrl !== null
+          const href = published ? liveUrl : `/admin/pages/${r.id}/preview`
           return (
             <a
               href={href}
@@ -314,7 +317,13 @@ export default function PagesPage() {
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-              title={published ? 'Open the live page' : 'Preview this draft'}
+              title={
+                published
+                  ? 'Open the live page'
+                  : liveUrl === null
+                    ? 'This screen has no fixed URL — preview the template'
+                    : 'Preview this draft'
+              }
             >
               <ExternalLink className="size-3.5" />
               {published ? 'View' : 'Preview'}

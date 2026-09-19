@@ -49,3 +49,13 @@ export const PAGE_ROLE_SLOTS_BY_SLOT: Record<OverrideSlot, { section: string; ke
   Object.fromEntries(
     PAGE_ROLE_SLOTS.map((s) => [s.slot, { section: s.section, key: s.key }])
   ) as Record<OverrideSlot, { section: string; key: string }>
+
+/**
+ * A page holding a role, and where that screen lives. `canonical` is its fixed public URL
+ * (`/shop/cart`), or `null` when there is none (a per-slug template like a category archive).
+ * Core's own roles and each module's `pageRoles()` both report in this shape.
+ */
+export interface PageRoleClaim {
+  pageId: string
+  canonical: string | null
+}

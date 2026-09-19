@@ -85,6 +85,12 @@ Those three reach furthest outside a package: `boot` runs arbitrary code against
 container, `reservedSegments` claims public URLs, and `maintenance` runs on a schedule with
 nobody watching. Without the check, `kind` would be a label rather than a boundary.
 
+**`pageRoles()`** (optional, any `kind`) reports which builder pages currently stand in for the
+module's own screens ("Use as page") and the fixed URL each lives at (`null` for per-slug
+templates). Core reads it by shape while the module is enabled, so a role page's own slug 301s to
+that URL (or 404s) instead of being a second address, and the sitemap skips it — see
+`PageRolesService`. It runs on public page requests, so keep it to one indexed read.
+
 Dependency pruning **repeats until it settles**. Dropping one module can leave a third
 unsatisfied, and stopping after a single pass would load a package whose dependency is not
 there — the exact state the check exists to prevent.
