@@ -83,6 +83,20 @@ test.group('E-commerce | storefront screen overrides', (group) => {
       assert.equal(res.body().props.page.title, `Custom ${slot.key}`)
     })
 
+    test(`${slot.url}: the assigned page's own slug 301s to it instead of being a second address`, async ({
+      client,
+      assert,
+    }) => {
+      const page = await seedPage(`own-slug-${slot.key}`, 'Custom')
+      const row = await settings.getOrCreate()
+      ;(row as unknown as Record<string, unknown>)[slot.key] = page.id
+      await row.save()
+
+      const res = await client.get(`/own-slug-${slot.key}`).redirects(0)
+      res.assertStatus(301)
+      assert.equal(res.header('location'), slot.url)
+    })
+
     test(`${slot.url} falls back to the built-in screen for a draft override`, async ({
       client,
       assert,

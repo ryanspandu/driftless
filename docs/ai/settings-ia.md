@@ -64,6 +64,10 @@ is `''`, so empty always means "back to the default" and no screen needs a reset
 | `forms` | `webhook_url`, `notify_email` | Website settings (**Forms** tab) |
 | `content_paths` | `posts_archive_prefix` (`blog`), `post_detail_prefix` (`posts`), `category_prefix` (`category`), `tag_prefix` (`tag`) — no leading slash | Website settings (**URLs** tab) |
 
+A page holding any role ("Use as page", including e-commerce's) is served **only** at that screen's URL:
+its own slug 301s there (or 404s when the screen has no fixed URL) — see `PageRolesService` and
+[changelog-2026-09.md §18](./changelog-2026-09.md).
+
 `content_paths` moves the built-in Content screens (`/blog`, `/posts/:slug`, `/category/:slug`,
 `/tag/:slug`) — e.g. both blog prefixes to `insights` gives `/insights` + `/insights/:slug`. A prefix
 may be nested (`resources/insights`); values are normalised (trimmed, lower-cased, slashes stripped),

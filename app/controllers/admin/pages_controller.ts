@@ -9,6 +9,7 @@ import {
 } from '#services/custom_templates.generated'
 import { fileSummaries } from '#services/file_pages'
 import TemplateKitsService from '#services/template_kits_service'
+import PageRolesService from '#services/page_roles_service'
 import type User from '#models/user'
 import { abilityAllowsCode, collectUserPermissions } from '#services/permission_ability_service'
 import { hasPrivilegedPageContent } from '#services/html_sanitizer_service'
@@ -16,6 +17,7 @@ import { hasPrivilegedPageContent } from '#services/html_sanitizer_service'
 const pagesService = new PagesService()
 const cmsService = new CmsService()
 const templateKits = new TemplateKitsService()
+const pageRoles = new PageRolesService()
 
 /**
  * The kit a page's component belongs to, or null. Covers a single-template kit
@@ -53,7 +55,13 @@ export default class PagesController {
       return !kit || activeKits.has(kit)
     })
     const dbPaths = new Set(dbPages.map((p) => p.path))
-    return response.json([...dbPages, ...fileSummaries(dbPaths, activeKits)])
+    // A page standing in for a built-in screen is served at that screen's URL, not its
+    // own slug — tell the list where "View" should point (`null` = no fixed URL).
+    const roleUrls = await pageRoles.urlsByPage()
+    const rows = dbPages.map((p) =>
+      roleUrls.has(p.id) ? { ...p, liveUrl: roleUrls.get(p.id) ?? null } : p
+    )
+    return response.json([...rows, ...fileSummaries(dbPaths, activeKits)])
   }
 
   async show({ params, response }: HttpContext) {
