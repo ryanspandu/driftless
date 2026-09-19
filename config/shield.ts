@@ -1,4 +1,5 @@
 import env from '#start/env'
+import { mediaPublicBaseUrl } from '#services/media_url'
 import type { HttpContext } from '@adonisjs/core/http'
 import { defineConfig } from '@adonisjs/shield'
 
@@ -80,6 +81,12 @@ const connectSrc = isDev
       'https://www.clarity.ms',
     ]
 
+// With `S3_PUBLIC_URL` set, `/media/*` 302s images and video to the bucket. `img-src`
+// already allows `https:`, but `<video>` falls back to `default-src 'self'` unless
+// `media-src` names the bucket's origin — the redirect target would be blocked.
+const mediaBaseUrl = mediaPublicBaseUrl()
+const mediaSrc = ["'self'", ...(mediaBaseUrl ? [new URL(mediaBaseUrl).origin] : [])]
+
 const shieldConfig = defineConfig({
   /**
    * Configure CSP policies for your app. Refer documentation
@@ -106,6 +113,7 @@ const shieldConfig = defineConfig({
       // and are kept separate from style elements (which require a nonce).
       styleSrcAttr: ["'unsafe-inline'"],
       imgSrc: ["'self'", 'https:', 'data:'],
+      mediaSrc,
       fontSrc: ["'self'", 'https:', 'data:'],
       connectSrc,
       frameSrc: [

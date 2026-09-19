@@ -120,4 +120,16 @@ test.group('SSG snapshot CSP nonce restamp', (group) => {
     res.assertStatus(200)
     assert.include(res.text(), '<p>plain</p>')
   })
+
+  test('the CSP names media-src explicitly, so a <video> is not left to default-src', async ({
+    client,
+    assert,
+  }) => {
+    // Without `media-src`, video falls back to `default-src 'self'` and a redirect to the
+    // bucket's origin (S3_PUBLIC_URL) would be blocked. The bucket origin itself is added
+    // only when that env var is set at boot; here `'self'` must at least be listed.
+    const res = await client.get('/')
+    const csp = res.header('content-security-policy') ?? ''
+    assert.match(csp, /(^|;\s*)media-src 'self'/)
+  })
 })
