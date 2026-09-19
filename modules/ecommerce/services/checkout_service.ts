@@ -98,11 +98,17 @@ export default class CheckoutService {
      */
     const base = await pricing.price(input.lines, { currency: input.currency })
 
-    let discount: Awaited<ReturnType<DiscountService['validate']>> | null = null
-    if (input.discountCode?.trim()) {
-      // Throws with a client-safe reason if the code is not usable here.
-      discount = await discounts.validate(input.discountCode, base, input.email)
-    }
+    /**
+     * Automatic ("applied to all products") discounts always apply; a code the
+     * buyer entered stacks on top, and the amounts are summed. The code throws a
+     * client-safe reason if it is not usable here.
+     */
+    const applied = await discounts.evaluateBasket(base, {
+      code: input.discountCode,
+      email: input.email,
+      baseCurrency: store.currency,
+    })
+    const discount = applied.code
 
     /**
      * Shipping, resolved from the **method id** the client chose — never from a
@@ -152,7 +158,7 @@ export default class CheckoutService {
     const priced = await pricing.price(input.lines, {
       currency: input.currency,
       shippingAmount,
-      discountAmount: discount?.amount ?? 0,
+      discountAmount: applied.amount,
     })
 
     /**
@@ -258,11 +264,12 @@ export default class CheckoutService {
        * else between validation and here, this throws and the whole checkout —
        * order, items, stock hold — rolls back together.
        */
-      if (discount) {
+      // One redemption per discount that contributed, so each one's quota is spent.
+      for (const evaluation of applied.evaluations) {
         await discounts.claim(
-          discount.discount.id,
+          evaluation.discount.id,
           created.id,
-          priced.discountAmount,
+          evaluation.amount,
           { email: input.email, accountId: input.accountId ?? null },
           trx
         )

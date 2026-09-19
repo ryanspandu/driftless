@@ -41,6 +41,8 @@ export interface CartDto {
   email: string | null
   /** The applied coupon code, if any. */
   discountCode: string | null
+  /** "Applied to all products" discounts taken off this basket. */
+  automaticDiscounts?: { name: string; amount: MoneyDto }[]
 }
 
 export interface OrderStatusDto {

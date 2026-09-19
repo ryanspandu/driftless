@@ -70,6 +70,8 @@ export interface CartDto {
   email: string | null
   /** The applied coupon code, if one is valid for the current basket. */
   discountCode: string | null
+  /** Automatic ("applied to all products") discounts taken off this basket. */
+  automaticDiscounts: { name: string; amount: MoneyDto }[]
 }
 
 export default class CartService {
@@ -249,6 +251,7 @@ export default class CartService {
       digitalOnly: false,
       email: cart.email,
       discountCode: null,
+      automaticDiscounts: [],
     }
 
     if (lines.length === 0) return empty
@@ -267,31 +270,60 @@ export default class CartService {
       priced = await pricing.price(survivors, { currency })
     }
 
-    // Apply the persisted coupon, if any. A code that has since become invalid
-    // (expired, over its limit, basket no longer qualifies) is dropped silently
-    // rather than blocking the basket.
-    let discountAmount = 0
-    let appliedCode: string | null = null
+    /**
+     * Automatic discounts always apply; the persisted coupon stacks on top when
+     * there is one. A code that has since become invalid (expired, over its
+     * limit, basket no longer qualifies) is dropped silently rather than
+     * blocking the basket — the automatic discounts still stand.
+     */
+    const evaluate = (code: string | null) =>
+      discounts.evaluateBasket(priced, {
+        code,
+        email: cart.email,
+        baseCurrency: store.currency,
+      })
+
+    let applied = await evaluate(null)
     if (cart.discountCode) {
       try {
-        const evaluated = await discounts.validate(cart.discountCode, priced, cart.email)
-        discountAmount = evaluated.amount
-        appliedCode = evaluated.discount.code
+        applied = await evaluate(cart.discountCode)
       } catch {
         cart.discountCode = null
         await cart.save()
       }
     }
 
-    const total = Math.max(priced.totalAmount - discountAmount, 0)
+    const discountAmount = applied.amount
+    const appliedCode = applied.code?.discount.code ?? null
+
+    /**
+     * Re-price with the discount so tax and the total come from the same
+     * arithmetic checkout uses. Subtracting it afterwards would leave tax
+     * computed on the undiscounted goods and the basket total a shade higher
+     * than the amount actually charged.
+     */
+    const final =
+      discountAmount > 0
+        ? await pricing.price(
+            priced.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })),
+            { currency, discountAmount }
+          )
+        : priced
+    const total = final.totalAmount
 
     return {
       lines: await this.decorateLines(priced, store.locale),
       currency: priced.currency,
       subtotal: Money.toDto(priced.subtotalAmount, priced.currency, store.locale),
       discount: Money.toDto(discountAmount, priced.currency, store.locale),
-      tax: Money.toDto(priced.taxAmount, priced.currency, store.locale),
+      tax: Money.toDto(final.taxAmount, priced.currency, store.locale),
       total: Money.toDto(total, priced.currency, store.locale),
+      automaticDiscounts: applied.evaluations
+        .filter((e) => e.discount.automatic)
+        .map((e) => ({
+          name: e.discount.name ?? e.discount.code,
+          amount: Money.toDto(e.amount, priced.currency, store.locale),
+        })),
       itemCount: priced.lines.reduce((sum, line) => sum + line.quantity, 0),
       digitalOnly: priced.digitalOnly,
       email: cart.email,

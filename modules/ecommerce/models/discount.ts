@@ -8,6 +8,8 @@ export type DiscountType = 'percent' | 'fixed' | 'free_shipping'
 export interface DiscountScope {
   productIds?: string[]
   categoryIds?: string[]
+  /** Products an admin switched this discount off for, one by one. */
+  excludedProductIds?: string[]
 }
 
 export default class Discount extends BaseModel {
@@ -71,6 +73,14 @@ export default class Discount extends BaseModel {
 
   @column(booleanColumn)
   declare enabled: boolean
+
+  /**
+   * Applied to every product without a code. Behaves as a price reduction: a
+   * percentage off each unit, or (base currency only) a fixed amount off each
+   * unit. See `DiscountService.automaticUnitDiscount`.
+   */
+  @column(booleanColumn)
+  declare automatic: boolean
 
   @column()
   declare createdByUserId: number | null

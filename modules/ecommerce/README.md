@@ -223,6 +223,29 @@ Marketing is usually a different person's job than fulfilment, so it gets its ow
 It stays in the same module because discounts and affiliates share the order and customer
 tables, and one module may not import another's models.
 
+## Automatic ("applied to all products") discounts
+
+A discount flagged `automatic` has no code: it lowers every product's price on the storefront and
+in the basket. Design rules worth knowing before changing it:
+
+- **Per unit, not per basket.** A percentage comes off each unit; a fixed amount comes off *each
+  item*, and only in the store's base currency (no exchange rate is ever invented). That is what lets
+  the price on a product page equal the price at checkout — `StorefrontCatalogService` and
+  `DiscountService.evaluateBasket` both call the same `automaticUnitBreakdown`.
+- **Shown as a sale.** The storefront DTO's `price` becomes the discounted figure and `compareAt` the
+  list price (a higher compare-at the shop set itself is kept), so blocks that already strike through
+  `compareAt` show it with no changes. SSG snapshots never bake prices in, so a change appears
+  without republishing.
+- **Stacks.** Several automatic discounts add up (each from the list price, capped at the unit
+  price), and a shopper's code adds on top; the sum is fitted to the subtotal. Each contributing
+  discount gets its own `discount_redemptions` row, and `release` gives every one of them back.
+- **Off per product.** `appliesTo.excludedProductIds` on the discount; toggled from the product
+  editor (`PUT /api/admin/ecommerce/products/:id/automatic-discounts/:discountId`). New products
+  are covered by default.
+- **Code-only conditions are dropped** (minimum basket, maximum discount, per-customer limit), and
+  free shipping cannot be automatic — a product page cannot depend on who is looking. Its internal
+  `AUTO-…` code can never be typed at checkout.
+
 ## Installing
 
 The module ships **`autoEnable: false`** deliberately. `ModulesService.reconcile()` runs on

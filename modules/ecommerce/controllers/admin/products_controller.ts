@@ -10,6 +10,7 @@ import AuditLogService from '#services/audit_log_service'
 import type User from '#models/user'
 import { readFile } from 'node:fs/promises'
 import CatalogService from '#modules/ecommerce/services/catalog_service'
+import DiscountService from '#modules/ecommerce/services/discount_service'
 import ProductImportService from '#modules/ecommerce/services/import_service'
 import {
   createProductValidator,
@@ -21,9 +22,12 @@ import {
 const catalog = new CatalogService()
 const importer = new ProductImportService()
 const audit = new AuditLogService()
+const discounts = new DiscountService()
 
 const fail = (response: HttpContext['response'], error: unknown) =>
   apiFail(response, error, 'ecommerce/products')
+
+const productDiscountValidator = vine.compile(vine.object({ applies: vine.boolean() }))
 
 const bulkIdsValidator = vine.compile(
   vine.object({
@@ -134,6 +138,41 @@ export default class ProductsController {
       })
 
       return response.json(result)
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /** The "applied to all products" discounts, with this product's on/off state for each. */
+  async automaticDiscounts({ params, response }: HttpContext) {
+    try {
+      // 404 for an unknown product rather than a list that belongs to nothing.
+      await catalog.find(String(params.id))
+      return response.json(await discounts.forProduct(String(params.id)))
+    } catch (error) {
+      return fail(response, error)
+    }
+  }
+
+  /** Switch one automatic discount on or off for this product only. */
+  async setAutomaticDiscount(ctx: HttpContext) {
+    const { params, request, response, auth } = ctx
+    try {
+      const { applies } = await request.validateUsing(productDiscountValidator)
+      const productId = String(params.id)
+      await catalog.find(productId)
+      await discounts.setForProduct(productId, String(params.discountId), applies)
+
+      await audit.record({
+        actor: { type: 'user', user: auth.user as User },
+        action: 'product.discount_toggled',
+        subjectType: 'product',
+        subjectId: productId,
+        changes: { discountId: String(params.discountId), applies },
+        ctx,
+      })
+
+      return response.json(await discounts.forProduct(productId))
     } catch (error) {
       return fail(response, error)
     }

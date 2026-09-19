@@ -945,6 +945,8 @@ export interface DiscountDto {
   enabled: boolean
   /** Whether it would be honoured right now, all conditions considered. */
   live: boolean
+  /** Applied to all products with no code. */
+  automatic: boolean
 }
 
 export interface AffiliateDto {
@@ -1003,6 +1005,42 @@ export function useDiscounts() {
   })
 }
 
+/** An "applied to all products" discount, as one product's editor lists it. */
+export interface ProductAutomaticDiscountDto {
+  id: string
+  name: string
+  type: DiscountType
+  /** Percentage for `percent`, integer minor units for `fixed`. */
+  value: number
+  /** Inside its window and quota right now. */
+  live: boolean
+  /** False once switched off for this product. */
+  applies: boolean
+}
+
+export function useProductAutomaticDiscounts(productId: string | null) {
+  return useQuery({
+    queryKey: ['ecommerce', 'product-automatic-discounts', productId],
+    enabled: Boolean(productId),
+    queryFn: () =>
+      apiFetch<ProductAutomaticDiscountDto[]>(`${BASE}/products/${productId}/automatic-discounts`),
+  })
+}
+
+/** Turn one automatic discount on or off for a single product. Saves immediately. */
+export function useSetProductAutomaticDiscount(productId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ discountId, applies }: { discountId: string; applies: boolean }) =>
+      apiFetch<ProductAutomaticDiscountDto[]>(
+        `${BASE}/products/${productId}/automatic-discounts/${discountId}`,
+        { method: 'PUT', body: JSON.stringify({ applies }) }
+      ),
+    onSuccess: (list) =>
+      qc.setQueryData(['ecommerce', 'product-automatic-discounts', productId], list),
+  })
+}
+
 export function useSaveDiscount() {
   const qc = useQueryClient()
   return useMutation({
@@ -1016,7 +1054,11 @@ export function useSaveDiscount() {
             method: 'POST',
             body: JSON.stringify(input),
           }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'discounts'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'discounts'] })
+      // A product's editor lists the automatic ones, so they go stale together.
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'product-automatic-discounts'] })
+    },
   })
 }
 
@@ -1024,7 +1066,11 @@ export function useDeleteDiscount() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`${BASE}/discounts/${id}`, { method: 'DELETE' }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'discounts'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'discounts'] })
+      // A product's editor lists the automatic ones, so they go stale together.
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'product-automatic-discounts'] })
+    },
   })
 }
 
@@ -1036,7 +1082,11 @@ export function useBulkDeleteDiscounts() {
         method: 'POST',
         body: JSON.stringify({ ids }),
       }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ecommerce', 'discounts'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'discounts'] })
+      // A product's editor lists the automatic ones, so they go stale together.
+      void qc.invalidateQueries({ queryKey: ['ecommerce', 'product-automatic-discounts'] })
+    },
   })
 }
 
