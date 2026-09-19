@@ -45,6 +45,8 @@
 - Prefer `~/components/ui/button` (`Button`) over raw `<button>` for actions.
 - Use Tailwind utility classes; design tokens in `inertia/css/app.css`.
 - Base UI primitives under `inertia/components/ui/`.
+- Report every save/delete/toggle with a toast (`meta.successMessage` on the mutation hook; `reportSuccess`/`reportError`
+  from `~/lib/notify` otherwise) — see [frontend.md](./frontend.md#save-feedback-toasts). Don't add inline "Saved" flashes.
 
 ## Generated code
 

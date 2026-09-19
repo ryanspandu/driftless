@@ -101,7 +101,7 @@ issues }`.
 | `GET /forms` · `GET /forms/:id`                                                                    | `builder:read`                   | named form definitions a FormBlock renders |
 | `POST /forms` · `PUT /forms/:id` · `DELETE /forms/:id`                                             | `builder:forms`                  | `fields` validated (422 + reason on a bad schema) |
 | `GET /products` · `GET /products/:id` · `GET /categories`                                          | `builder:read`                   | needs the `ecommerce` module              |
-| `POST /products` · `PUT\|DELETE /products/:id`                                                     | `builder:products`               | `price` (minor units) auto-adds a variant |
+| `POST /products` · `PUT\|DELETE /products/:id`                                                     | `builder:products`               | `price` (minor units) auto-adds a variant; `description` is sanitised HTML |
 | `POST /products/:id/variants` · `PUT\|DELETE /variants/:variantId`                                 | `builder:products`               |                                           |
 | `POST /categories` · `PUT\|DELETE /categories/:id`                                                 | `builder:products`               |                                           |
 | `POST /api/v1/cms/:key/records` …                                                                  | `cms:write`                      | records — the existing v1 API             |

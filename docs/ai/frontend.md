@@ -39,7 +39,31 @@ Prefer hooks for CRUD tables and mutations; use Inertia props for page shell dat
 - Shadcn-style primitives under `inertia/components/ui/` (Button, Dialog, Table, etc.).
 - **Button**: `@base-ui/react/button` + CVA in `button.tsx`. Use `render={<Link href="..." />}` for link-styled buttons (`nativeButton` defaults to `false` for non-button renders).
 - Icons: `lucide-react`, `react-icons`.
-- Rich text: TipTap in `inertia/components/cms/rich-text-editor.tsx`.
+- Rich text: one editor for every surface — `ArticleEditor` (`inertia/components/admin/article-editor.tsx`,
+  TipTap; emits **HTML**, pass `bare` inside a card). Content bodies, CMS `RICHTEXT` fields, product and task
+  descriptions all use it; the server sanitizes on save (see [security.md](./security.md)). It only reads `value`
+  as the *initial* content, so a form that hydrates asynchronously must remount it (e.g. via a `key`) once the
+  data arrives — see the Product editor. The Puck page-builder `RichText` block has its own minimal editor.
+- Dialogs: `DialogContent` caps its height at 85vh, pins a direct-child `DialogHeader`/`DialogFooter` and scrolls
+  only the body between them; a `DialogFooter` nested in a `<form>` sticks to the bottom of the scroll area. Do
+  not add `max-h`/`overflow-y-auto` to a dialog. A dialog that lays out its own header/scroll region/footer passes
+  `bare` (and keeps the classic `p-6`).
+
+## Save feedback (toasts)
+
+Every save/create/update/delete/toggle reports success **and** failure with a sonner toast — no inline "Saved"
+flashes, and no server-error text next to the button. Client-side field validation still shows inline.
+
+- **react-query mutations** need nothing at the call site for failures: `QueryProvider` has a global
+  `MutationCache` that toasts every failure with the server's message. Put the success wording on the hook:
+  `meta: { successMessage: 'User deleted' }` (or `(data, vars) => string`). `meta: { silent: true }` opts out of the
+  automatic error toast when the caller handles the error itself.
+- **Everything else** (raw `api.post`/`fetch`, `router.*`, offline-store writes, shopper `accountApi`) calls
+  `reportSuccess()` / `reportError(err, 'Failed to …')` from `~/lib/notify`. `reportError` de-duplicates per error
+  object, so it is safe next to the global handler.
+- Wording: sentence case, past tense, no full stop — `User created`, `3 discounts deleted`.
+- Mount `<Toaster>` from `~/components/ui/toaster` only in layouts (admin, auth, public, the storefront branches of
+  `layout-shell.tsx`, the builders); pages must not add their own. Cart/checkout/login stay inline by design.
 
 ## Data tables
 

@@ -32,7 +32,7 @@ export const FIELD_TYPE_CHOICES: ReadonlyArray<{
   { type: 'TEXT', label: 'Text', hint: 'Single-line string' },
   { type: 'TEXTAREA', label: 'Long text', hint: 'Multi-line string' },
   { type: 'EMAIL', label: 'Email', hint: 'Email address with format validation' },
-  { type: 'RICHTEXT', label: 'Rich text', hint: 'Formatted document (TipTap JSON)' },
+  { type: 'RICHTEXT', label: 'Rich text', hint: 'Formatted text (HTML)' },
   { type: 'SLUG', label: 'Slug', hint: 'URL-friendly, unique, auto-generated from a source field' },
   { type: 'NUMBER', label: 'Number', hint: 'Integer or decimal' },
   { type: 'INTEGER', label: 'Integer', hint: 'Whole numbers only' },
