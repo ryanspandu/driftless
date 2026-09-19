@@ -114,6 +114,14 @@ Files:
 />
 ```
 
+### Bulk actions
+
+Every list page that lets you check rows shows the same bar — use `BulkActionBar` (`~/components/admin/bulk-action-bar`),
+don't hand-roll one: `N <noun>s selected` on the left, a ghost **Clear** and the page's actions on the right. A destructive
+bulk action is `BulkDeleteButton` — always labelled **Delete** with a trash icon (even when it is a soft delete the Trash can
+undo; the confirm dialog says "Delete N …?"). Other actions use `BulkAction` (`icon`, `destructive`). Pass a controlled
+`rowSelection` to the `DataTable` so Clear actually unchecks the rows.
+
 ### List URL param convention
 
 **Every url-synced admin list uses the same query-param names:** `?page=`,

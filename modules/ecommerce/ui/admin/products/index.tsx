@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkDeleteButton } from '~/components/admin/bulk-action-bar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -387,43 +388,10 @@ export default function ProductsPage() {
         }
       />
 
-      <div className="flex justify-end">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1.5"
-          onClick={() => {
-            setTrashOpen(true)
-            void trashedQuery.refetch()
-          }}
-        >
-          <Trash2 className="size-4" />
-          Trash{trashedItems.length ? ` (${trashedItems.length})` : ''}
-        </Button>
-      </div>
-
       {selectedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
-          <p className="text-sm">
-            <span className="font-medium">{selectedIds.length}</span>{' '}
-            {selectedIds.length === 1 ? 'product' : 'products'} selected
-          </p>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
-              Clear
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-2 text-destructive"
-              disabled={bulkDelete.isPending}
-              onClick={() => void onBulkDelete()}
-            >
-              <Trash2 className="size-4" aria-hidden />
-              {bulkDelete.isPending ? 'Deleting…' : 'Delete'}
-            </Button>
-          </div>
-        </div>
+        <BulkActionBar count={selectedIds.length} noun="product" onClear={() => setSelection({})}>
+          <BulkDeleteButton busy={bulkDelete.isPending} onClick={() => void onBulkDelete()} />
+        </BulkActionBar>
       ) : null}
 
       <DataTable
@@ -433,6 +401,20 @@ export default function ProductsPage() {
         // Products do not take part in offline sync, so the injected Sync
         // column would be permanently empty.
         hideSyncColumn
+        toolbarActions={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              setTrashOpen(true)
+              void trashedQuery.refetch()
+            }}
+          >
+            <Trash2 className="size-4" />
+            Trash{trashedItems.length ? ` (${trashedItems.length})` : ''}
+          </Button>
+        }
         rowSelection={selection}
         onRowSelectionChange={setSelection}
         searchPlaceholder="Search products…"

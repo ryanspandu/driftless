@@ -10,6 +10,7 @@ import {
   DialogDescription,
 } from '~/components/ui/dialog'
 import { DataTable } from '~/components/data-table'
+import { BulkActionBar, BulkAction } from '~/components/admin/bulk-action-bar'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { reportError, reportSuccess } from '~/lib/notify'
 
@@ -175,31 +176,28 @@ export function TrashModal<TRow extends { id: string | number }>({
         </DialogHeader>
 
         {selectedIds.length > 0 && (
-          <div className="mb-3 flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
-            <span>{selectedIds.length} selected</span>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1"
-                disabled={busy}
-                onClick={() => void runRestore(selectedIds)}
-              >
-                <RotateCcw className="size-4" />
-                Restore
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                className="gap-1"
-                disabled={busy}
-                onClick={() => void runForceDelete(selectedIds)}
-              >
-                <Trash2 className="size-4" />
-                Delete forever
-              </Button>
-            </div>
-          </div>
+          <BulkActionBar
+            className="mb-3"
+            count={selectedIds.length}
+            noun={itemNoun}
+            onClear={() => setSelection({})}
+          >
+            <BulkAction
+              icon={RotateCcw}
+              disabled={busy}
+              onClick={() => void runRestore(selectedIds)}
+            >
+              Restore
+            </BulkAction>
+            <BulkAction
+              destructive
+              icon={Trash2}
+              disabled={busy}
+              onClick={() => void runForceDelete(selectedIds)}
+            >
+              Delete forever
+            </BulkAction>
+          </BulkActionBar>
         )}
 
         <div className="max-h-[60vh] overflow-y-auto">
@@ -208,6 +206,7 @@ export function TrashModal<TRow extends { id: string | number }>({
             data={rows}
             getRowId={getRowId}
             enableBulkSelect
+            rowSelection={selection}
             onRowSelectionChange={setSelection}
             hideSearch
             hideSyncColumn

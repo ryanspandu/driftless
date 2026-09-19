@@ -15,6 +15,7 @@ import {
 import type { TemplateSummaryDto, TemplateType } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkDeleteButton } from '~/components/admin/bulk-action-bar'
 import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import {
   DropdownMenu,
@@ -154,7 +155,7 @@ export default function TemplatesPage() {
   const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data])
   const [trashOpen, setTrashOpen] = useState(false)
 
-  // Bulk selection — templates have no publish state, so "move to trash" is the
+  // Bulk selection — templates have no publish state, so "delete" (soft — Trash restores) is the
   // only bulk action. Code templates (`source === 'code'`) can't be selected.
   const [selection, setSelection] = useState<RowSelectionState>({})
   const selectedIds = useMemo(
@@ -165,16 +166,16 @@ export default function TemplatesPage() {
 
   const onBulkDelete = async () => {
     const confirmed = await confirmDelete({
-      title: `Move ${selectedIds.length} template${selectedIds.length === 1 ? '' : 's'} to trash?`,
+      title: `Delete ${selectedIds.length} template${selectedIds.length === 1 ? '' : 's'}?`,
       description: 'You can restore them from the trash later.',
-      confirmLabel: 'Move to trash',
+      confirmLabel: 'Delete',
     })
     if (!confirmed) return
     setBulkBusy(true)
     try {
       for (const id of selectedIds) await deleteMut.mutateAsync(id)
       reportSuccess(
-        `${selectedIds.length} template${selectedIds.length === 1 ? '' : 's'} moved to trash`
+        `${selectedIds.length} template${selectedIds.length === 1 ? '' : 's'} deleted`
       )
       setSelection({})
     } catch {
@@ -477,18 +478,9 @@ export default function TemplatesPage() {
       />
 
       {selectedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
-          <span className="font-medium">{selectedIds.length} selected</span>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-destructive"
-            disabled={bulkBusy}
-            onClick={() => void onBulkDelete()}
-          >
-            Move to trash
-          </Button>
-        </div>
+        <BulkActionBar count={selectedIds.length} noun="template" onClear={() => setSelection({})}>
+          <BulkDeleteButton busy={bulkBusy} onClick={() => void onBulkDelete()} />
+        </BulkActionBar>
       ) : null}
 
       <DataTable

@@ -6,6 +6,7 @@ import { ListTree, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { MenuSummaryDto } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkDeleteButton } from '~/components/admin/bulk-action-bar'
 import {
   Dialog,
   DialogContent,
@@ -57,28 +58,23 @@ export default function MenusPage() {
   const trashedItems = useMemo(() => trashedQuery.data ?? [], [trashedQuery.data])
   const [trashOpen, setTrashOpen] = useState(false)
 
-  // Bulk selection — menus have no publish state, so "move to trash" is the only
+  // Bulk selection — menus have no publish state, so "delete" (soft — Trash restores) is the only
   // bulk action.
   const [selection, setSelection] = useState<RowSelectionState>({})
-  const selectedIds = useMemo(
-    () => Object.keys(selection).filter((k) => selection[k]),
-    [selection]
-  )
+  const selectedIds = useMemo(() => Object.keys(selection).filter((k) => selection[k]), [selection])
   const [bulkBusy, setBulkBusy] = useState(false)
 
   const onBulkDelete = async () => {
     const confirmed = await confirmDelete({
-      title: `Move ${selectedIds.length} menu${selectedIds.length === 1 ? '' : 's'} to trash?`,
+      title: `Delete ${selectedIds.length} menu${selectedIds.length === 1 ? '' : 's'}?`,
       description: 'You can restore them from the trash later.',
-      confirmLabel: 'Move to trash',
+      confirmLabel: 'Delete',
     })
     if (!confirmed) return
     setBulkBusy(true)
     try {
       for (const id of selectedIds) await deleteMut.mutateAsync(id)
-      toast.success(
-        `${selectedIds.length} menu${selectedIds.length === 1 ? '' : 's'} moved to trash`
-      )
+      toast.success(`${selectedIds.length} menu${selectedIds.length === 1 ? '' : 's'} deleted`)
       setSelection({})
     } catch {
       // reported by the mutation handler
@@ -282,18 +278,9 @@ export default function MenusPage() {
       />
 
       {selectedIds.length > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
-          <span className="font-medium">{selectedIds.length} selected</span>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-destructive"
-            disabled={bulkBusy}
-            onClick={() => void onBulkDelete()}
-          >
-            Move to trash
-          </Button>
-        </div>
+        <BulkActionBar count={selectedIds.length} noun="menu" onClear={() => setSelection({})}>
+          <BulkDeleteButton busy={bulkBusy} onClick={() => void onBulkDelete()} />
+        </BulkActionBar>
       ) : null}
 
       <DataTable

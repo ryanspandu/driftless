@@ -3,6 +3,7 @@ import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { MoreHorizontal, Pencil, Plus, Tag, Trash2 } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkDeleteButton } from '~/components/admin/bulk-action-bar'
 import {
   Dialog,
   DialogContent,
@@ -406,27 +407,9 @@ export default function DiscountsPage() {
       />
 
       {selectedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
-          <p className="text-sm">
-            <span className="font-medium">{selectedIds.length}</span>{' '}
-            {selectedIds.length === 1 ? 'discount' : 'discounts'} selected
-          </p>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
-              Clear
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-2 text-destructive"
-              disabled={bulkRemove.isPending}
-              onClick={() => void onBulkDelete()}
-            >
-              <Trash2 className="size-4" aria-hidden />
-              {bulkRemove.isPending ? 'Deleting…' : 'Delete'}
-            </Button>
-          </div>
-        </div>
+        <BulkActionBar count={selectedIds.length} noun="discount" onClear={() => setSelection({})}>
+          <BulkDeleteButton busy={bulkRemove.isPending} onClick={() => void onBulkDelete()} />
+        </BulkActionBar>
       ) : null}
 
       <DataTable

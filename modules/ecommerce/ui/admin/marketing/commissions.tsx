@@ -4,6 +4,7 @@ import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { Banknote, Download } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkAction } from '~/components/admin/bulk-action-bar'
 import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { Can } from '~/components/providers/ability-provider'
@@ -214,10 +215,11 @@ export default function CommissionsPage() {
       />
 
       {payable.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
-          <p className="text-sm">
-            <span className="font-medium">{payable.length}</span>{' '}
-            {payable.length === 1 ? 'commission' : 'commissions'} selected ·{' '}
+        <BulkActionBar
+          count={payable.length}
+          noun="commission"
+          onClear={clearSelection}
+          detail={
             <span className="font-medium tabular-nums">
               {formatMoney(
                 payableTotal,
@@ -225,19 +227,14 @@ export default function CommissionsPage() {
                 settings.data?.locale ?? undefined
               )}
             </span>
-          </p>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={clearSelection}>
-              Clear
-            </Button>
-            <Can permission="ecommerce:commissions:approve">
-              <Button size="sm" className="gap-2" disabled={pay.isPending} onClick={markPaid}>
-                <Banknote className="size-4" aria-hidden />
-                {pay.isPending ? 'Recording…' : 'Mark as paid'}
-              </Button>
-            </Can>
-          </div>
-        </div>
+          }
+        >
+          <Can permission="ecommerce:commissions:approve">
+            <BulkAction icon={Banknote} disabled={pay.isPending} onClick={markPaid}>
+              {pay.isPending ? 'Recording…' : 'Mark as paid'}
+            </BulkAction>
+          </Can>
+        </BulkActionBar>
       ) : null}
 
       <DataTable

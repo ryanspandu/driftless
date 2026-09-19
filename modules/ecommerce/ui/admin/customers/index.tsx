@@ -3,6 +3,7 @@ import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { Download, MoreHorizontal, Plus, ShieldOff, ShieldCheck, Users } from 'lucide-react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { BulkActionBar, BulkAction } from '~/components/admin/bulk-action-bar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -235,37 +236,27 @@ export default function CustomersPage() {
 
       {selectedIds.length > 0 ? (
         <Can permission="ecommerce:customers:manage">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
-            <p className="text-sm">
-              <span className="font-medium">{selectedIds.length}</span>{' '}
-              {selectedIds.length === 1 ? 'customer' : 'customers'} selected
-            </p>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setSelection({})}>
-                Clear
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2"
-                disabled={bulkSetStatus.isPending}
-                onClick={() => void onBulkStatus('active')}
-              >
-                <ShieldCheck className="size-4" aria-hidden />
-                Unblock
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2 text-destructive"
-                disabled={bulkSetStatus.isPending}
-                onClick={() => void onBulkStatus('blocked')}
-              >
-                <ShieldOff className="size-4" aria-hidden />
-                Block
-              </Button>
-            </div>
-          </div>
+          <BulkActionBar
+            count={selectedIds.length}
+            noun="customer"
+            onClear={() => setSelection({})}
+          >
+            <BulkAction
+              icon={ShieldCheck}
+              disabled={bulkSetStatus.isPending}
+              onClick={() => void onBulkStatus('active')}
+            >
+              Unblock
+            </BulkAction>
+            <BulkAction
+              destructive
+              icon={ShieldOff}
+              disabled={bulkSetStatus.isPending}
+              onClick={() => void onBulkStatus('blocked')}
+            >
+              Block
+            </BulkAction>
+          </BulkActionBar>
         </Can>
       ) : null}
 

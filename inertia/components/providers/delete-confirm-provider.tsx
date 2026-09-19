@@ -88,9 +88,12 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
     <DeleteConfirmContext.Provider value={{ confirmDelete }}>
       {children}
       <Dialog open={state !== null} onOpenChange={handleOpenChange}>
+        {/* An arbitrary width, not `max-w-sm`: the design-token block in app.css defines
+            `--container-sm` (and md/lg/xl) as 640/768/1024/1120px, which silently makes
+            every named `max-w-*` wider than Tailwind's own scale — `max-w-sm` was 640px. */}
         <DialogContent
           bare
-          className="max-w-sm py-10"
+          className="max-w-[24rem] py-10"
           onClick={(event) => event.stopPropagation()}
         >
           <DialogHeader>
