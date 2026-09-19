@@ -10,7 +10,7 @@ import { fileTypeFromBuffer } from 'file-type'
 import sharp from 'sharp'
 import Media from '#models/media'
 import MediaVariant from '#models/media_variant'
-import { mediaUrlPrefix } from '#services/media_url'
+import { mediaPublicBaseUrl, mediaUrlPrefix } from '#services/media_url'
 import { newUlid } from '#services/ulid_service'
 import { sanitizeSvg } from '#services/html_sanitizer_service'
 import type { StorageDriver } from '#services/storage/types'
@@ -74,6 +74,46 @@ const UPLOAD_ALLOWED_MIMES = new Set([
   'font/woff2',
   'font/ttf',
   'font/otf',
+])
+
+/** Content-Type stamped on bucket objects, since a public bucket serves whatever metadata it holds. */
+const CONTENT_TYPE_BY_EXT: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  woff: 'font/woff',
+  woff2: 'font/woff2',
+  ttf: 'font/ttf',
+  otf: 'font/otf',
+}
+
+/** Same lifetime `serve()` already sends; a replaced original is cache-busted by `?v=` on the URL. */
+export const MEDIA_CACHE_CONTROL = 'public, max-age=31536000, immutable'
+
+export function contentTypeForKey(key: string): string | undefined {
+  return CONTENT_TYPE_BY_EXT[extname(key).slice(1).toLowerCase()]
+}
+
+/**
+ * Types that are safe to hand to the bucket's own origin. Everything else (SVG, PDF, docs, fonts)
+ * keeps streaming through the app, which sanitizes SVG and forces downloads via
+ * `Content-Disposition` — headers a plain bucket URL would not carry.
+ */
+const BUCKET_SERVED_MIMES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'video/mp4',
+  'video/webm',
 ])
 
 /** The JSON discriminator for a single-media export bundle. */
@@ -213,7 +253,7 @@ export default class MediaService {
     for (const name of names) {
       const full = join(this.uploadDir, name)
       if (!existsSync(full)) continue
-      await driver.putFile(name, full)
+      await driver.putFile(name, full, contentTypeForKey(name), MEDIA_CACHE_CONTROL)
       rmSync(full, { force: true })
     }
   }
@@ -435,6 +475,26 @@ export default class MediaService {
     }
   }
 
+  /**
+   * Direct bucket URL for `filename`, or null when the app must serve it itself (local storage,
+   * no `S3_PUBLIC_URL`, a type outside {@link BUCKET_SERVED_MIMES}, or a name that is neither a
+   * media row nor one of its derivatives — so private keys sharing the bucket are never
+   * reachable through this redirect). `media` is the row matching `filename`, when there is one.
+   */
+  async publicUrl(filename: string, media: Media | null): Promise<string | null> {
+    const base = mediaPublicBaseUrl()
+    if (!base) return null
+    if (media) {
+      if (!BUCKET_SERVED_MIMES.has(media.mimeType)) return null
+    } else {
+      const variant = await MediaVariant.query()
+        .where('url', `${this.urlPrefix}/${filename}`)
+        .first()
+      if (!variant) return null
+    }
+    return `${base}/${filename.split('/').map(encodeURIComponent).join('/')}`
+  }
+
   /** Serve a webp derivative by its filename. Returns false when it is unknown. */
   async serveVariant(response: HttpContext['response'], filename: string): Promise<boolean> {
     const variant = await MediaVariant.query().where('url', `${this.urlPrefix}/${filename}`).first()
@@ -453,7 +513,7 @@ export default class MediaService {
       return false
     }
 
-    response.header('Cache-Control', 'public, max-age=31536000, immutable')
+    response.header('Cache-Control', MEDIA_CACHE_CONTROL)
     response.header('X-Content-Type-Options', 'nosniff')
     response.header('Content-Security-Policy', "default-src 'none'; sandbox")
     response.header('Content-Type', 'image/webp')
@@ -809,7 +869,7 @@ export default class MediaService {
       'video/mp4',
       'video/webm',
     ])
-    response.header('Cache-Control', 'public, max-age=31536000, immutable')
+    response.header('Cache-Control', MEDIA_CACHE_CONTROL)
     response.header('X-Content-Type-Options', 'nosniff')
     response.header('Content-Security-Policy', "default-src 'none'; sandbox")
     response.header('Content-Type', media.mimeType)

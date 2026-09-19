@@ -23,6 +23,7 @@ zero replicas. `STORAGE_DRIVER=s3` removes that constraint: any process can reac
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | scope to "Object Read & Write" on just this bucket, not account-admin |
 | `S3_REGION` | `auto` (Cloudflare R2's required value); a real AWS region elsewhere |
 | `S3_FORCE_PATH_STYLE` | `false` unless the provider needs path-style addressing (R2 doesn't) |
+| `S3_PUBLIC_URL` | optional — public base URL of the bucket; turns on the direct-serve redirect (below) |
 
 ## Architecture — `app/services/storage/`
 
@@ -73,6 +74,36 @@ it resolves bytes internally (driver or disk) instead of making the controller p
 path that wouldn't exist in s3 mode. It returns a boolean (found vs not) instead of writing a 404
 itself, so the controller still owns the "try the variant next" fallback.
 
+## Serving media straight from the bucket (`S3_PUBLIC_URL`)
+
+By default `s3` mode still streams every image through the app (`serve` / `serveVariant` read the
+object into memory and `response.send` it), so each page view is billed as the app's egress. With
+`S3_PUBLIC_URL` set, `MediaController.serve` instead answers `302` → `<S3_PUBLIC_URL>/<filename>`
+(`Cache-Control: public, max-age=86400`) and the bytes never touch the app. `local` mode ignores it.
+
+- **URLs stay `/media/…`.** Content and Puck data embed those strings, so nothing is rewritten or
+  migrated — the redirect is what makes it work retroactively. The query string is forwarded
+  (`forwardQueryString: true` in `config/app.ts`), so `?v=<updatedAt>` — the cache-buster for a file
+  replaced in place — still busts the bucket URL.
+- **Only what the DB knows about.** `MediaService.publicUrl()` redirects a name only if it is a
+  `media` row of an image/video type (jpeg, png, gif, webp, mp4, webm) or a `media_variants` row.
+  Anything else — including `ecommerce/…` digital-download keys that share the bucket — 404s or keeps
+  streaming through the app.
+- **SVG, PDF, docs and fonts keep streaming through the app**, because it sanitizes SVG and forces
+  `Content-Disposition: attachment`, which a bare bucket URL cannot.
+- **Objects carry real metadata.** `pushToS3` now sends `Content-Type` (from the extension) and
+  `Cache-Control: public, max-age=31536000, immutable`. Objects uploaded before this have neither, so
+  run `node ace media:s3-headers --apply` once after enabling it (dry-run without `--apply`).
+
+Bucket requirements before turning it on:
+
+1. **Public read.** R2: enable the `r2.dev` subdomain or attach a custom domain. Digital downloads
+   live in the same bucket (`ecommerce/<ulid><ext>`, protected only by app-side grants), so on a
+   public bucket their keys become directly fetchable. Use a separate bucket for public media, or a
+   WAF rule that blocks `/ecommerce/*` on the public hostname.
+2. **CORS**: allow `GET` from the site origin if anything `fetch()`es or canvas-reads an image
+   (plain `<img>` and `<video>` do not need it).
+
 ## Digital downloads — presigned redirect, not a schema change
 
 `app/services/data_transfer/sections/media.ts` (the export/import job) and
@@ -115,7 +146,9 @@ confirmed by running it before and after this driver existed.
 |---|---|
 | `app/services/storage/*.ts` | The driver interface + both implementations + selector |
 | `app/services/media_service.ts` | Every filesystem call site, branched |
-| `app/controllers/admin/media_controller.ts` | `serve` — simplified to the 2-arg signature |
+| `app/controllers/admin/media_controller.ts` | `serve` — simplified to the 2-arg signature; redirects to `S3_PUBLIC_URL` when set |
+| `app/services/media_url.ts` | `mediaPublicBaseUrl()` — validated `S3_PUBLIC_URL`, null outside s3 mode |
+| `commands/media_s3_headers.ts` | one-off backfill of Content-Type / Cache-Control on existing objects |
 | `app/services/data_transfer/sections/media.ts` | Site export/import — the motivating call site |
 | `modules/ecommerce/services/digital_delivery_service.ts` | `attach` (write) + `claimAndServe` (presigned redirect) |
 | `modules/ecommerce/controllers/storefront/download_controller.ts`, `account_controller.ts` | Branch on `ResolvedDownload.mode` |

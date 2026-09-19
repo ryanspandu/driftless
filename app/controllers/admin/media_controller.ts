@@ -107,6 +107,18 @@ export default class MediaController {
     const segments: string[] = Array.isArray(params['*']) ? params['*'] : []
     const filename = segments.length ? segments.join('/') : null
     const media = filename ? await mediaService.findByFilename(filename) : null
+
+    // S3 with a public bucket URL: send the browser to the bucket so the bytes skip this server.
+    // `config/app.ts` forwards the query string on redirects, which keeps `?v=<updatedAt>` — the
+    // cache-buster for a replaced original — on the bucket URL.
+    if (filename) {
+      const direct = await mediaService.publicUrl(filename, media)
+      if (direct) {
+        response.header('Cache-Control', 'public, max-age=86400')
+        return response.redirect(direct)
+      }
+    }
+
     if (media && (await mediaService.serve(response, media))) return
     // Not an original — it may be a responsive webp derivative.
     if (filename && (await mediaService.serveVariant(response, filename))) return

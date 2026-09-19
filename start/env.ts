@@ -65,6 +65,12 @@ export default await Env.create(new URL('../', import.meta.url), {
   S3_REGION: Env.schema.string.optional(),
   /** Path-style bucket addressing — some S3-compatible providers need it; R2 doesn't. */
   S3_FORCE_PATH_STYLE: Env.schema.string.optional(),
+  /**
+   * Public base URL of the bucket (R2 `pub-….r2.dev` or a custom domain). When set with
+   * STORAGE_DRIVER=s3, public images/video are redirected there instead of streamed through
+   * the app, which is what keeps them out of the app's egress bill.
+   */
+  S3_PUBLIC_URL: Env.schema.string.optional(),
 
   SEED_ADMIN_EMAIL: Env.schema.string.optional(),
   SEED_ADMIN_PASSWORD: Env.schema.string.optional(),

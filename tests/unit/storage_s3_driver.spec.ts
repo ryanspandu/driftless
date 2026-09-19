@@ -45,13 +45,14 @@ test.group('storage | s3 driver', (group) => {
     const src = join(root, 'photo.webp')
     await writeFile(src, 'bytes')
 
-    await driver.putFile('media/photo.webp', src, 'image/webp')
+    await driver.putFile('media/photo.webp', src, 'image/webp', 'public, max-age=60')
 
     assert.lengthOf(calls, 1)
     assert.equal(calls[0].name, 'PutObjectCommand')
     assert.equal(calls[0].input.Bucket, 'test-bucket')
     assert.equal(calls[0].input.Key, 'media/photo.webp')
     assert.equal(calls[0].input.ContentType, 'image/webp')
+    assert.equal(calls[0].input.CacheControl, 'public, max-age=60')
   })
 
   test('readToBuffer sends a GetObjectCommand and returns its bytes', async ({ assert }) => {
