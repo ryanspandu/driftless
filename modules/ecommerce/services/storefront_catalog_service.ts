@@ -34,6 +34,13 @@ export interface PublicVariantDto {
   optionValues: Record<string, string>
   price: MoneyDto
   compareAt: MoneyDto | null
+  /**
+   * How much per unit an "applied to all products" discount has already taken
+   * off `price`, or null when none applies. `price + automaticOff` is the shop's
+   * own list price, so a storefront can show this reduction apart from any
+   * `compareAt` markdown the shop set itself.
+   */
+  automaticOff: MoneyDto | null
   imageUrl: string | null
   availability: Availability
   /** Only present when `availability` is `low_stock`. */
@@ -306,7 +313,11 @@ export default class StorefrontCatalogService {
     listed: Map<string, { price: number; compareAt: number | null }>,
     automatic: Discount[]
   ): PublicProductDto | null {
-    const priceOf = (variantId: string, basePrice: number, baseCompareAt: number | null) => {
+    const priceOf = (
+      variantId: string,
+      basePrice: number,
+      baseCompareAt: number | null
+    ): { price: number; compareAt: number | null; automaticOff: number } | null => {
       const listedPrice =
         currency === base
           ? { price: basePrice, compareAt: baseCompareAt }
@@ -319,7 +330,7 @@ export default class StorefrontCatalogService {
         listedPrice.price,
         currency === base
       )
-      if (off <= 0) return listedPrice
+      if (off <= 0) return { ...listedPrice, automaticOff: 0 }
 
       /**
        * The discounted figure becomes the price; the list price becomes the
@@ -330,6 +341,7 @@ export default class StorefrontCatalogService {
       return {
         price: listedPrice.price - off,
         compareAt: Math.max(listedPrice.compareAt ?? 0, listedPrice.price),
+        automaticOff: off,
       }
     }
 
@@ -369,6 +381,8 @@ export default class StorefrontCatalogService {
           price: Money.toDto(priced!.price, currency, locale),
           compareAt:
             priced!.compareAt === null ? null : Money.toDto(priced!.compareAt, currency, locale),
+          automaticOff:
+            priced!.automaticOff > 0 ? Money.toDto(priced!.automaticOff, currency, locale) : null,
           imageUrl: variant.imageUrl,
           availability,
           // A count only when it is low enough to be useful urgency.
