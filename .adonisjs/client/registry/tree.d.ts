@@ -458,11 +458,13 @@ export interface ApiDefinition {
         index: typeof routes['ecommerce.api.products.index']
         trash: typeof routes['ecommerce.api.products.trash']
         show: typeof routes['ecommerce.api.products.show']
+        automaticDiscounts: typeof routes['ecommerce.api.products.automaticDiscounts']
         store: typeof routes['ecommerce.api.products.store']
         import: typeof routes['ecommerce.api.products.import']
         update: typeof routes['ecommerce.api.products.update']
         destroy: typeof routes['ecommerce.api.products.destroy']
         bulkDestroy: typeof routes['ecommerce.api.products.bulkDestroy']
+        setAutomaticDiscount: typeof routes['ecommerce.api.products.setAutomaticDiscount']
         restore: typeof routes['ecommerce.api.products.restore']
         forceDestroy: typeof routes['ecommerce.api.products.forceDestroy']
       }

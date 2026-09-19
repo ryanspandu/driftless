@@ -11,7 +11,9 @@ import ProductCtaClickService from '#modules/ecommerce/services/product_cta_clic
 
 const discountValidator = vine.compile(
   vine.object({
-    code: vine.string().trim().minLength(1).maxLength(64),
+    // Optional only for an automatic discount; the service insists otherwise.
+    code: vine.string().trim().minLength(1).maxLength(64).optional(),
+    automatic: vine.boolean().optional(),
     name: vine.string().trim().maxLength(160).nullable().optional(),
     description: vine.string().trim().maxLength(1_000).nullable().optional(),
     type: vine.enum(['percent', 'fixed', 'free_shipping'] as const),
@@ -30,6 +32,7 @@ const discountValidator = vine.compile(
 const discountUpdateValidator = vine.compile(
   vine.object({
     code: vine.string().trim().minLength(1).maxLength(64).optional(),
+    automatic: vine.boolean().optional(),
     name: vine.string().trim().maxLength(160).nullable().optional(),
     description: vine.string().trim().maxLength(1_000).nullable().optional(),
     type: vine.enum(['percent', 'fixed', 'free_shipping'] as const).optional(),
@@ -165,7 +168,12 @@ export default class MarketingController {
         action: 'discount.created',
         subjectType: 'discount',
         subjectId: discount.id,
-        changes: { code: discount.code, type: discount.type, value: discount.value },
+        changes: {
+          code: discount.code,
+          automatic: discount.automatic,
+          type: discount.type,
+          value: discount.value,
+        },
         ctx,
       })
 

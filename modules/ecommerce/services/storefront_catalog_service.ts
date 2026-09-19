@@ -4,6 +4,8 @@ import Category from '#modules/ecommerce/models/category'
 import Tag from '#modules/ecommerce/models/tag'
 import { Money, type MoneyDto } from '#modules/ecommerce/services/money'
 import StoreSettingsService from '#modules/ecommerce/services/settings_service'
+import DiscountService from '#modules/ecommerce/services/discount_service'
+import type Discount from '#modules/ecommerce/models/discount'
 import { publicError } from '#exceptions/public_error'
 import CmsService from '#services/cms_service'
 import { resolvePublicCustomData } from '#cms/custom_field_resolver'
@@ -104,6 +106,7 @@ export interface StorefrontQuery {
 }
 
 const settings = new StoreSettingsService()
+const discountService = new DiscountService()
 
 export default class StorefrontCatalogService {
   async list(
@@ -278,8 +281,15 @@ export default class StorefrontCatalogService {
       }
     }
 
+    /**
+     * "Applied to all products" discounts change the price a shopper sees, so
+     * they are applied here — the same per-unit arithmetic the basket uses, which
+     * is what keeps the price on the page and the price at checkout equal.
+     */
+    const automatic = await discountService.liveAutomatic()
+
     return products
-      .map((product) => this.toDto(product, locale, currency, base, listed))
+      .map((product) => this.toDto(product, locale, currency, base, listed, automatic))
       .filter((dto): dto is PublicProductDto => dto !== null)
   }
 
@@ -293,11 +303,34 @@ export default class StorefrontCatalogService {
     locale: string,
     currency: string,
     base: string,
-    listed: Map<string, { price: number; compareAt: number | null }>
+    listed: Map<string, { price: number; compareAt: number | null }>,
+    automatic: Discount[]
   ): PublicProductDto | null {
     const priceOf = (variantId: string, basePrice: number, baseCompareAt: number | null) => {
-      if (currency === base) return { price: basePrice, compareAt: baseCompareAt }
-      return listed.get(variantId) ?? null
+      const listedPrice =
+        currency === base
+          ? { price: basePrice, compareAt: baseCompareAt }
+          : (listed.get(variantId) ?? null)
+      if (!listedPrice) return null
+
+      const off = DiscountService.automaticUnitTotal(
+        automatic,
+        product.id,
+        listedPrice.price,
+        currency === base
+      )
+      if (off <= 0) return listedPrice
+
+      /**
+       * The discounted figure becomes the price; the list price becomes the
+       * "was" price so every block that already strikes through `compareAt`
+       * shows the sale without knowing there is one. A higher compare-at the
+       * shop set itself is kept — that is the reference they chose to show.
+       */
+      return {
+        price: listedPrice.price - off,
+        compareAt: Math.max(listedPrice.compareAt ?? 0, listedPrice.price),
+      }
     }
 
     const variants = (product.variants ?? [])

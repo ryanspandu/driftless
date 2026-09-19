@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown_menu'
+import { DatePicker } from '~/components/ui/date-picker'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { MoneyInput } from '../../components/money-input'
@@ -77,6 +78,8 @@ function emptyForm() {
     usageLimit: '',
     usageLimitPerCustomer: '',
     enabled: true,
+    /** Applied to every product with no code — see the switch in the form. */
+    automatic: false,
   }
 }
 
@@ -99,6 +102,7 @@ function toForm(discount: DiscountDto): FormState {
     usageLimitPerCustomer:
       discount.usageLimitPerCustomer === null ? '' : String(discount.usageLimitPerCustomer),
     enabled: discount.enabled,
+    automatic: discount.automatic,
   }
 }
 
@@ -229,7 +233,9 @@ export default function DiscountsPage() {
       await save.mutateAsync({
         id: form.id,
         input: {
-          code: form.code.trim(),
+          // An automatic discount has no code to type; the server keeps an internal one.
+          code: form.automatic ? undefined : form.code.trim(),
+          automatic: form.automatic,
           name: form.name.trim() || null,
           description: form.description.trim() || null,
           type: form.type,
@@ -239,12 +245,13 @@ export default function DiscountsPage() {
               : form.type === 'fixed'
                 ? (form.fixedValue ?? 0)
                 : 0,
-          minSubtotalAmount: form.minSubtotalAmount,
-          maxDiscountAmount: form.type === 'percent' ? form.maxDiscountAmount : null,
+          minSubtotalAmount: form.automatic ? null : form.minSubtotalAmount,
+          maxDiscountAmount:
+            form.type === 'percent' && !form.automatic ? form.maxDiscountAmount : null,
           startsAt: form.startsAt || null,
           endsAt: form.endsAt || null,
           usageLimit: optionalInt(form.usageLimit),
-          usageLimitPerCustomer: optionalInt(form.usageLimitPerCustomer),
+          usageLimitPerCustomer: form.automatic ? null : optionalInt(form.usageLimitPerCustomer),
           enabled: form.enabled,
         },
       })
@@ -259,14 +266,22 @@ export default function DiscountsPage() {
       {
         accessorKey: 'code',
         header: ({ column }) => <DataTableColumnHeader column={column} title="Code" />,
-        cell: ({ row }) => (
-          <div className="flex min-w-0 flex-col leading-tight">
-            <span className="font-mono text-sm font-medium uppercase">{row.original.code}</span>
-            {row.original.name ? (
-              <span className="truncate text-xs text-muted-foreground">{row.original.name}</span>
-            ) : null}
-          </div>
-        ),
+        cell: ({ row }) =>
+          row.original.automatic ? (
+            <div className="flex min-w-0 flex-col gap-1 leading-tight">
+              <span className="truncate text-sm font-medium">{row.original.name}</span>
+              <Badge variant="outline" className="w-fit">
+                All products · no code
+              </Badge>
+            </div>
+          ) : (
+            <div className="flex min-w-0 flex-col leading-tight">
+              <span className="font-mono text-sm font-medium uppercase">{row.original.code}</span>
+              {row.original.name ? (
+                <span className="truncate text-xs text-muted-foreground">{row.original.name}</span>
+              ) : null}
+            </div>
+          ),
       },
       {
         accessorKey: 'type',
@@ -373,13 +388,7 @@ export default function DiscountsPage() {
     [confirmDelete, currency, remove]
   )
 
-  const statusFilter = (
-    <TableFilterTabs
-      value={filter}
-      options={FILTERS}
-      onChange={setFilter}
-    />
-  )
+  const statusFilter = <TableFilterTabs value={filter} options={FILTERS} onChange={setFilter} />
 
   return (
     <div className="space-y-6">
@@ -467,31 +476,67 @@ export default function DiscountsPage() {
 
           {form ? (
             <form onSubmit={onSubmit} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="code">Code</Label>
-                  <Input
-                    id="code"
-                    value={form.code}
-                    onChange={(e) => set('code', e.target.value.toUpperCase())}
-                    placeholder="SUMMER20"
-                    className="font-mono uppercase"
-                    required
-                  />
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="automatic">Applied to all products</Label>
                   <p className="text-xs text-muted-foreground">
-                    What shoppers type. Case does not matter at checkout.
+                    Lowers every product&apos;s price on the storefront automatically — no code to
+                    type. It adds up with any code a shopper enters, and can be turned off per
+                    product from that product&apos;s page.
                   </p>
                 </div>
+                <Switch
+                  id="automatic"
+                  checked={form.automatic}
+                  onCheckedChange={(checked) => {
+                    set('automatic', checked)
+                    // Free shipping is not a price reduction, so it cannot be automatic.
+                    if (checked && form.type === 'free_shipping') set('type', 'percent')
+                  }}
+                />
+              </div>
+
+              {form.automatic ? (
                 <div className="space-y-1.5">
-                  <Label htmlFor="name">Internal name</Label>
+                  <Label htmlFor="name">Name</Label>
                   <Input
                     id="name"
                     value={form.name}
                     onChange={(e) => set('name', e.target.value)}
                     placeholder="Summer sale"
+                    required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Your team sees this on each product&apos;s page.
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="code">Code</Label>
+                    <Input
+                      id="code"
+                      value={form.code}
+                      onChange={(e) => set('code', e.target.value.toUpperCase())}
+                      placeholder="SUMMER20"
+                      className="font-mono uppercase"
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      What shoppers type. Case does not matter at checkout.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name">Internal name</Label>
+                    <Input
+                      id="name"
+                      value={form.name}
+                      onChange={(e) => set('name', e.target.value)}
+                      placeholder="Summer sale"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -500,7 +545,11 @@ export default function DiscountsPage() {
                     id="type"
                     value={form.type}
                     onChange={(value) => set('type', value as DiscountType)}
-                    options={TYPE_OPTIONS}
+                    options={
+                      form.automatic
+                        ? TYPE_OPTIONS.filter((o) => o.value !== 'free_shipping')
+                        : TYPE_OPTIONS
+                    }
                     isSearchable={false}
                   />
                 </div>
@@ -531,7 +580,9 @@ export default function DiscountsPage() {
                       onChange={(value) => set('fixedValue', value)}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Never takes more off than the basket is worth.
+                      {form.automatic
+                        ? 'Comes off every item, in the store currency. It is skipped when a shopper browses in another currency.'
+                        : 'Never takes more off than the basket is worth.'}
                     </p>
                   </div>
                 ) : null}
@@ -544,55 +595,59 @@ export default function DiscountsPage() {
                   rows={2}
                   value={form.description}
                   onChange={(e) => set('description', e.target.value)}
-                  placeholder="Shown to the shopper when the code is accepted."
+                  placeholder={
+                    form.automatic
+                      ? 'Notes for your team.'
+                      : 'Shown to the shopper when the code is accepted.'
+                  }
                 />
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="minSubtotal">Minimum basket</Label>
-                  <MoneyInput
-                    id="minSubtotal"
-                    value={form.minSubtotalAmount}
-                    currency={currency}
-                    onChange={(value) => set('minSubtotalAmount', value)}
-                    placeholder="No minimum"
-                  />
-                </div>
-                {form.type === 'percent' ? (
+              {form.automatic ? null : (
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="maxDiscount">Maximum discount</Label>
+                    <Label htmlFor="minSubtotal">Minimum basket</Label>
                     <MoneyInput
-                      id="maxDiscount"
-                      value={form.maxDiscountAmount}
+                      id="minSubtotal"
+                      value={form.minSubtotalAmount}
                       currency={currency}
-                      onChange={(value) => set('maxDiscountAmount', value)}
-                      placeholder="No cap"
+                      onChange={(value) => set('minSubtotalAmount', value)}
+                      placeholder="No minimum"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Caps what a percentage can cost you on a large order.
-                    </p>
                   </div>
-                ) : null}
-              </div>
+                  {form.type === 'percent' ? (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="maxDiscount">Maximum discount</Label>
+                      <MoneyInput
+                        id="maxDiscount"
+                        value={form.maxDiscountAmount}
+                        currency={currency}
+                        onChange={(value) => set('maxDiscountAmount', value)}
+                        placeholder="No cap"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Caps what a percentage can cost you on a large order.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              )}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="startsAt">Starts</Label>
-                  <Input
-                    id="startsAt"
-                    type="date"
-                    value={form.startsAt}
-                    onChange={(e) => set('startsAt', e.target.value)}
+                  <Label>Starts</Label>
+                  <DatePicker
+                    value={form.startsAt || null}
+                    onChange={(v) => set('startsAt', v ?? '')}
+                    placeholder="No date"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="endsAt">Ends</Label>
-                  <Input
-                    id="endsAt"
-                    type="date"
-                    value={form.endsAt}
-                    onChange={(e) => set('endsAt', e.target.value)}
+                  <Label>Ends</Label>
+                  <DatePicker
+                    value={form.endsAt || null}
+                    onChange={(v) => set('endsAt', v ?? '')}
+                    placeholder="No date"
                   />
                 </div>
               </div>
@@ -610,18 +665,20 @@ export default function DiscountsPage() {
                     placeholder="Unlimited"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="perCustomer">Uses per customer</Label>
-                  <Input
-                    id="perCustomer"
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={form.usageLimitPerCustomer}
-                    onChange={(e) => set('usageLimitPerCustomer', e.target.value)}
-                    placeholder="Unlimited"
-                  />
-                </div>
+                {form.automatic ? null : (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="perCustomer">Uses per customer</Label>
+                    <Input
+                      id="perCustomer"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={form.usageLimitPerCustomer}
+                      onChange={(e) => set('usageLimitPerCustomer', e.target.value)}
+                      placeholder="Unlimited"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between rounded-lg border p-3">

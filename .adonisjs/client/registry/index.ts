@@ -2334,6 +2334,12 @@ const routes = {
     tokens: [{"old":"/api/admin/ecommerce/products/:id","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products/:id","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products/:id","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products/:id","type":0,"val":"products","end":""},{"old":"/api/admin/ecommerce/products/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['ecommerce.api.products.show']['types'],
   },
+  'ecommerce.api.products.automaticDiscounts': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/admin/ecommerce/products/:id/automatic-discounts',
+    tokens: [{"old":"/api/admin/ecommerce/products/:id/automatic-discounts","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products/:id/automatic-discounts","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products/:id/automatic-discounts","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products/:id/automatic-discounts","type":0,"val":"products","end":""},{"old":"/api/admin/ecommerce/products/:id/automatic-discounts","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/products/:id/automatic-discounts","type":0,"val":"automatic-discounts","end":""}],
+    types: placeholder as Registry['ecommerce.api.products.automaticDiscounts']['types'],
+  },
   'ecommerce.api.products.store': {
     methods: ["POST"],
     pattern: '/api/admin/ecommerce/products',
@@ -2363,6 +2369,12 @@ const routes = {
     pattern: '/api/admin/ecommerce/products/bulk-delete',
     tokens: [{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"products","end":""},{"old":"/api/admin/ecommerce/products/bulk-delete","type":0,"val":"bulk-delete","end":""}],
     types: placeholder as Registry['ecommerce.api.products.bulkDestroy']['types'],
+  },
+  'ecommerce.api.products.setAutomaticDiscount': {
+    methods: ["PUT"],
+    pattern: '/api/admin/ecommerce/products/:id/automatic-discounts/:discountId',
+    tokens: [{"old":"/api/admin/ecommerce/products/:id/automatic-discounts/:discountId","type":0,"val":"api","end":""},{"old":"/api/admin/ecommerce/products/:id/automatic-discounts/:discountId","type":0,"val":"admin","end":""},{"old":"/api/admin/ecommerce/products/:id/automatic-discounts/:discountId","type":0,"val":"ecommerce","end":""},{"old":"/api/admin/ecommerce/products/:id/automatic-discounts/:discountId","type":0,"val":"products","end":""},{"old":"/api/admin/ecommerce/products/:id/automatic-discounts/:discountId","type":1,"val":"id","end":""},{"old":"/api/admin/ecommerce/products/:id/automatic-discounts/:discountId","type":0,"val":"automatic-discounts","end":""},{"old":"/api/admin/ecommerce/products/:id/automatic-discounts/:discountId","type":1,"val":"discountId","end":""}],
+    types: placeholder as Registry['ecommerce.api.products.setAutomaticDiscount']['types'],
   },
   'ecommerce.api.products.restore': {
     methods: ["POST"],

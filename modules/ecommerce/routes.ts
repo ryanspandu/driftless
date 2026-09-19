@@ -712,6 +712,12 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
       router
         .get('/api/admin/ecommerce/products/:id', [ProductsCtrl, 'show'])
         .as('ecommerce.api.products.show')
+      router
+        .get('/api/admin/ecommerce/products/:id/automatic-discounts', [
+          ProductsCtrl,
+          'automaticDiscounts',
+        ])
+        .as('ecommerce.api.products.automaticDiscounts')
     })
     .use(middleware.auth())
     .use(middleware.permission({ permission: 'ecommerce:products:read' }))
@@ -736,6 +742,12 @@ export function registerRoutes(router: HttpRouterService, middleware: NamedMiddl
         .as('ecommerce.api.products.bulkDestroy')
       // Suffixed patterns registered before the bare PUT/DELETE :id above so
       // they win — same rule the trash GET route above follows.
+      router
+        .put('/api/admin/ecommerce/products/:id/automatic-discounts/:discountId', [
+          ProductsCtrl,
+          'setAutomaticDiscount',
+        ])
+        .as('ecommerce.api.products.setAutomaticDiscount')
       router
         .post('/api/admin/ecommerce/products/:id/restore', [ProductsCtrl, 'restore'])
         .as('ecommerce.api.products.restore')

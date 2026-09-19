@@ -4663,6 +4663,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['show']>>>
     }
   }
+  'ecommerce.api.products.automaticDiscounts': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admin/ecommerce/products/:id/automatic-discounts'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['automaticDiscounts']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['automaticDiscounts']>>>
+    }
+  }
   'ecommerce.api.products.store': {
     methods: ["POST"]
     pattern: '/api/admin/ecommerce/products'
@@ -4721,6 +4733,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['bulkDestroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['bulkDestroy']>>>
+    }
+  }
+  'ecommerce.api.products.setAutomaticDiscount': {
+    methods: ["PUT"]
+    pattern: '/api/admin/ecommerce/products/:id/automatic-discounts/:discountId'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; discountId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['setAutomaticDiscount']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#modules/ecommerce/controllers/admin/products_controller').default['setAutomaticDiscount']>>>
     }
   }
   'ecommerce.api.products.restore': {

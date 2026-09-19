@@ -22,6 +22,7 @@ import { Switch } from '~/components/ui/switch'
 import { AppSelect, AppMultiSelect } from '~/components/ui/app-select'
 import { toast } from 'sonner'
 import { MoneyInput } from '../../components/money-input'
+import { formatMoney } from '../../lib/money'
 import { BackButton } from '~/components/admin/back-button'
 import { PageHeader } from '~/components/admin/page-header'
 import { MediaImagePicker } from '~/components/admin/media-image-picker'
@@ -35,7 +36,9 @@ import {
   useCategories,
   useDeleteVariant,
   useProduct,
+  useProductAutomaticDiscounts,
   useSaveProduct,
+  useSetProductAutomaticDiscount,
   useSaveTag,
   useSaveVariant,
   useStoreSettings,
@@ -91,6 +94,62 @@ function emptyDraft(): VariantDraft {
     allowBackorder: false,
     imageUrl: null,
   }
+}
+
+/**
+ * The "applied to all products" discounts that touch this product, each with a
+ * switch to leave this one product out. Toggling saves straight away — it is its
+ * own resource, not part of the Save button below — and the storefront price
+ * follows on the next load.
+ */
+function AutomaticDiscountsCard({ productId, currency }: { productId: string; currency: string }) {
+  const { data } = useProductAutomaticDiscounts(productId)
+  const setApplies = useSetProductAutomaticDiscount(productId)
+
+  if (!data || data.length === 0) return null
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Automatic discounts</CardTitle>
+        <CardDescription>
+          Applied to every product with no code. Switch one off to leave this product out. Changes
+          save immediately.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {data.map((discount) => (
+          <div
+            key={discount.id}
+            className="flex items-center justify-between gap-3 rounded-lg border p-3"
+          >
+            <div className="min-w-0 space-y-0.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="truncate text-sm font-medium">{discount.name}</span>
+                {discount.live ? null : <Badge variant="warning">Not live</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {discount.type === 'percent'
+                  ? `${discount.value}% off`
+                  : `${formatMoney(discount.value, currency)} off each`}
+              </p>
+            </div>
+            <Switch
+              aria-label={`Apply ${discount.name} to this product`}
+              checked={discount.applies}
+              disabled={setApplies.isPending}
+              onCheckedChange={(applies) =>
+                setApplies.mutate(
+                  { discountId: discount.id, applies },
+                  { onError: (e) => toast.error(apiErrorMessage(e, 'Could not update discount')) }
+                )
+              }
+            />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
 }
 
 /**
@@ -689,6 +748,8 @@ export default function ProductEditPage() {
               ) : null}
             </CardContent>
           </Card>
+
+          {productId ? <AutomaticDiscountsCard productId={productId} currency={currency} /> : null}
 
           <Card>
             <CardHeader>

@@ -5,6 +5,7 @@ import { useCaptcha } from '~/hooks/use_captcha'
 import { shopApi, type CartDto } from './_api'
 import { StorefrontLayout } from './_layout'
 import { EmptyBasket } from './_empty-basket'
+import { formatMoney } from '../lib/money'
 
 /**
  * The basket.
@@ -71,6 +72,11 @@ export function CartScreen({ embedded }: { embedded?: boolean } = {}) {
       </>
     )
   }
+
+  // What the shopper's code took off: the basket's discount less the automatic ones.
+  const codeDiscount =
+    cart.discount.amount -
+    (cart.automaticDiscounts ?? []).reduce((sum, d) => sum + d.amount.amount, 0)
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
@@ -144,8 +150,14 @@ export function CartScreen({ embedded }: { embedded?: boolean } = {}) {
 
       <div className="mt-6 space-y-2 border-t border-border pt-6">
         <Row label="Subtotal" value={cart.subtotal.formatted} />
-        {cart.discount.amount > 0 ? (
-          <Row label="Discount" value={`−${cart.discount.formatted}`} />
+        {(cart.automaticDiscounts ?? []).map((d) => (
+          <Row key={d.name} label={d.name} value={`−${d.amount.formatted}`} />
+        ))}
+        {codeDiscount > 0 ? (
+          <Row
+            label={cart.discountCode ? `Coupon ${cart.discountCode}` : 'Discount'}
+            value={`−${formatMoney(codeDiscount, cart.currency)}`}
+          />
         ) : null}
         {cart.tax.amount > 0 ? <Row label="Tax" value={cart.tax.formatted} /> : null}
         <Row label="Total" value={cart.total.formatted} bold />
