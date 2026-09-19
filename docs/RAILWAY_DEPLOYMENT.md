@@ -182,6 +182,12 @@ directly — see [storage-driver.md](./ai/storage-driver.md)) reach the exact sa
 does, and it removes two Volume-specific tradeoffs entirely: `web` can run replicas, and a
 redeploy of `web` has no extra downtime.
 
+**Cutting `web`'s egress bill:** by default `web` streams every image out of the bucket to the
+visitor, and Railway bills that as egress. Set `S3_PUBLIC_URL` on `web` (the bucket's public
+`r2.dev` or custom-domain URL) and images/video are redirected to the bucket instead. Read the
+public-read and shared-bucket caveats in [storage-driver.md](./ai/storage-driver.md#serving-media-straight-from-the-bucket-s3_public_url)
+first, then run `node ace media:s3-headers --apply` once.
+
 **Fallback — local disk + Railway Volume:** leave `STORAGE_DRIVER` unset (defaults to `local`),
 and attach a Volume to the `web` service only, mounted at `/app/storage` (the common parent of
 both `storage/media` and `storage/protected/ecommerce` — no code changes needed for that choice).

@@ -23,3 +23,14 @@ export function mediaUrlPrefix(): string {
 export function mediaUrlSegment(): string {
   return mediaUrlPrefix().split('/').filter(Boolean)[0] ?? 'uploads'
 }
+
+/**
+ * Public base URL of the media bucket, or null when media must keep streaming through the app.
+ * Only meaningful in `s3` mode; a value that is not an http(s) URL is ignored rather than
+ * trusted, since it becomes a redirect target.
+ */
+export function mediaPublicBaseUrl(): string | null {
+  if (env.get('STORAGE_DRIVER', 'local') !== 's3') return null
+  const raw = (env.get('S3_PUBLIC_URL') ?? '').trim().replace(/\/+$/, '')
+  return /^https?:\/\/[^/\s]+/i.test(raw) ? raw : null
+}

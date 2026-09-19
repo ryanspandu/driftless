@@ -8,7 +8,12 @@
  */
 export interface StorageDriver {
   /** Upload the bytes at `localPath` to `key`. */
-  putFile(key: string, localPath: string, contentType?: string): Promise<void>
+  putFile(
+    key: string,
+    localPath: string,
+    contentType?: string,
+    cacheControl?: string
+  ): Promise<void>
   /** Read `key`'s bytes into memory. */
   readToBuffer(key: string): Promise<Buffer>
   /** Read `key`'s bytes to a local file at `destPath`. */

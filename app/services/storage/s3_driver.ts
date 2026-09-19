@@ -49,13 +49,14 @@ export function createS3Driver(config: S3DriverConfig, client?: S3Client): Stora
   }
 
   return {
-    async putFile(key, localPath, contentType) {
+    async putFile(key, localPath, contentType, cacheControl) {
       await s3.send(
         new PutObjectCommand({
           Bucket: bucket,
           Key: key,
           Body: createReadStream(localPath),
           ContentType: contentType,
+          CacheControl: cacheControl,
         })
       )
     },
