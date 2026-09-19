@@ -9,7 +9,6 @@ import { Can } from '~/components/providers/ability-provider'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { useUrlState } from '~/hooks/use-url-state'
-import { apiErrorMessage } from '~/lib/api-client'
 import { cn, formatAdminTableDateTime } from '~/lib/utils'
 import {
   useBulkCancelOrders,
@@ -111,14 +110,12 @@ export default function OrdersPage() {
   const bulkCancel = useBulkCancelOrders()
   const confirmDelete = useConfirmDelete()
   const [selection, setSelection] = useState<RowSelectionState>({})
-  const [bulkError, setBulkError] = useState<string | null>(null)
   const selectedIds = useMemo(
     () => Object.keys(selection).filter((id) => selection[id]),
     [selection]
   )
 
   async function onBulkCancel() {
-    setBulkError(null)
     const confirmed = await confirmDelete({
       title: `Cancel ${selectedIds.length} order${selectedIds.length === 1 ? '' : 's'}?`,
       description:
@@ -129,8 +126,8 @@ export default function OrdersPage() {
     try {
       await bulkCancel.mutateAsync({ ids: selectedIds })
       setSelection({})
-    } catch (err) {
-      setBulkError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -281,7 +278,6 @@ export default function OrdersPage() {
           </div>
         </Can>
       ) : null}
-      {bulkError ? <p className="text-sm text-destructive">{bulkError}</p> : null}
 
       <DataTable
         columns={columns}

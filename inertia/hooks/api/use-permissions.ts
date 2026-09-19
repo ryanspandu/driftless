@@ -32,6 +32,7 @@ export function usePermission(id: string | null) {
 export function useCreatePermission() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Permission created' },
     mutationFn: (body: CreatePermissionRequest) =>
       apiFetch<PermissionDto>('/api/admin/permissions', {
         method: 'POST',
@@ -44,6 +45,7 @@ export function useCreatePermission() {
 export function useUpdatePermission() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Permission updated' },
     mutationFn: ({ id, body }: { id: string; body: UpdatePermissionRequest }) =>
       apiFetch<PermissionDto>(`/api/admin/permissions/${id}`, {
         method: 'PUT',
@@ -59,6 +61,7 @@ export function useUpdatePermission() {
 export function useDeletePermission() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Permission deleted' },
     mutationFn: (id: string) =>
       apiFetch<void>(`/api/admin/permissions/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: permissionQueryKeys.all }),

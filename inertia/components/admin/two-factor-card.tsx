@@ -14,7 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/components/ui/dialog'
-import api, { toApiError } from '~/lib/api'
+import api from '~/lib/api'
+import { reportError, reportSuccess } from '~/lib/notify'
 
 /** Admin authenticator-app 2FA — enrol wizard + disable, matching the profile card style. */
 const TwoFactorCard: FC<{ enabled: boolean; onChange: (enabled: boolean) => void }> = ({
@@ -97,7 +98,6 @@ const EnrollDialog: FC<{ onClose: () => void; onDone: () => void }> = ({ onClose
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [starting, setStarting] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   // Kick off enrolment when the dialog mounts.
   useEffect(() => {
@@ -109,7 +109,12 @@ const EnrollDialog: FC<{ onClose: () => void; onDone: () => void }> = ({ onClose
         setUri(r.data.otpauthUri)
         setSecret(r.data.secret)
       })
-      .catch((e) => live && setError(toApiError(e).message))
+      .catch((e) => {
+        if (!live) return
+        // Nothing to scan without a secret, so there is no point keeping the dialog open.
+        reportError(e, 'Could not start two-factor setup')
+        onClose()
+      })
       .finally(() => live && setStarting(false))
     return () => {
       live = false
@@ -117,14 +122,14 @@ const EnrollDialog: FC<{ onClose: () => void; onDone: () => void }> = ({ onClose
   }, [])
 
   async function confirm() {
-    setError(null)
     setLoading(true)
     try {
       const r = await api.post('/api/me/2fa/confirm', { code: code.trim() })
       setRecoveryCodes(r.data.recoveryCodes)
       setStep('recovery')
+      reportSuccess('Two-factor authentication enabled')
     } catch (e) {
-      setError(toApiError(e).message)
+      reportError(e, 'Could not verify that code')
     } finally {
       setLoading(false)
     }
@@ -171,7 +176,6 @@ const EnrollDialog: FC<{ onClose: () => void; onDone: () => void }> = ({ onClose
                   onChange={(e) => setCode(e.target.value)}
                 />
               </div>
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={onClose}>
@@ -234,17 +238,15 @@ const RecoveryStep: FC<{ codes: string[]; onDone: () => void }> = ({ codes, onDo
 const DisableDialog: FC<{ onClose: () => void; onDone: () => void }> = ({ onClose, onDone }) => {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   async function submit() {
-    setError(null)
     setLoading(true)
     try {
       await api.post('/api/me/2fa/disable', { password })
       toast.success('Two-factor authentication disabled')
       onDone()
     } catch (e) {
-      setError(toApiError(e).message)
+      reportError(e, 'Could not disable two-factor authentication')
     } finally {
       setLoading(false)
     }
@@ -268,7 +270,6 @@ const DisableDialog: FC<{ onClose: () => void; onDone: () => void }> = ({ onClos
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

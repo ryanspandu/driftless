@@ -36,6 +36,7 @@ import {
 } from '~/hooks/api/use-media'
 import { isEditableImage, outputDimensions, renderEditedBlob } from '~/lib/image-edit'
 import { cn, formatAdminTableDateTime } from '~/lib/utils'
+import { reportError } from '~/lib/notify'
 
 const ASPECTS: { label: string; value: string; ratio: number | undefined }[] = [
   { label: 'Free', value: 'free', ratio: undefined },
@@ -181,7 +182,7 @@ function MediaDetailInner({
       await updateMeta.mutateAsync({ id: item.id, title, description, alt })
       toast.success('Details saved')
     } catch (e) {
-      toast.error((e as Error).message)
+      reportError(e, 'Failed to save')
     }
   }
 
@@ -203,7 +204,7 @@ function MediaDetailInner({
       resetEdit()
       setMode('info')
     } catch (e) {
-      toast.error((e as Error).message)
+      reportError(e, 'Failed to replace image')
     }
   }
 

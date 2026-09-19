@@ -30,7 +30,6 @@ import { ArticleEditor } from '~/components/admin/article-editor'
 import { FieldRenderer } from '~/components/cms/field-renderer'
 import { useCmsCollectionsList } from '~/hooks/api/use-cms-collections'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
-import { apiErrorMessage } from '~/lib/api-client'
 import { cn } from '~/lib/utils'
 import {
   useCategories,
@@ -138,12 +137,7 @@ function AutomaticDiscountsCard({ productId, currency }: { productId: string; cu
               aria-label={`Apply ${discount.name} to this product`}
               checked={discount.applies}
               disabled={setApplies.isPending}
-              onCheckedChange={(applies) =>
-                setApplies.mutate(
-                  { discountId: discount.id, applies },
-                  { onError: (e) => toast.error(apiErrorMessage(e, 'Could not update discount')) }
-                )
-              }
+              onCheckedChange={(applies) => setApplies.mutate({ discountId: discount.id, applies })}
             />
           </div>
         ))}
@@ -170,8 +164,8 @@ function TagsField({ value, onChange }: { value: string[]; onChange: (ids: strin
       const tag = await saveTag.mutateAsync({ id: null, input: { name } })
       onChange([...value, tag.id])
       setNewName('')
-    } catch (e) {
-      toast.error(apiErrorMessage(e, 'Could not create tag'))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -269,8 +263,8 @@ export default function ProductEditPage() {
   const [newVariant, setNewVariant] = useState<VariantDraft>(emptyDraft())
   const [drafts, setDrafts] = useState<Record<string, VariantDraft>>({})
 
+  // Client-side validation only — a failed save is reported by the mutation handler.
   const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   // Custom fields defined by the singleton PRODUCT-type CMS collection — the
   // ecommerce analogue of the Content editor's custom fields. Their values live
@@ -324,7 +318,6 @@ export default function ProductEditPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    setSaved(false)
 
     if (!title.trim()) {
       setError('A product needs a title.')
@@ -375,17 +368,13 @@ export default function ProductEditPage() {
         router.visit(`/admin/ecommerce/products/${result.id}`)
         return
       }
-
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to save the product'))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
   async function onSaveVariant(draft: VariantDraft) {
     if (!productId) return
-    setError(null)
     try {
       await saveVariant.mutateAsync({
         productId,
@@ -402,13 +391,11 @@ export default function ProductEditPage() {
           imageUrl: draft.imageUrl,
         },
       })
-      // A toast rather than the "Saved." line at the foot of the page, which is
-      // nowhere near the button that was clicked.
+      // Named here (not on the hook) so the toast says which variant, and so a
+      // new product's first variant does not toast a second time.
       toast.success(`Variant "${draft.title.trim() || 'Default'}" saved`)
-    } catch (err) {
-      const message = apiErrorMessage(err, 'Failed to save the variant')
-      setError(message)
-      toast.error(message)
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -818,11 +805,6 @@ export default function ProductEditPage() {
             {error ? (
               <p className="text-sm text-destructive" role="alert">
                 {error}
-              </p>
-            ) : null}
-            {saved ? (
-              <p className="text-sm text-green-600 dark:text-green-500" role="status">
-                Saved.
               </p>
             ) : null}
             <Button type="submit" className="w-full" disabled={saveProduct.isPending}>

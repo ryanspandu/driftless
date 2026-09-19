@@ -12,6 +12,7 @@ import { AbilityProvider } from '~/components/providers/ability-provider'
 import { OfflineProvider } from '~/components/providers/offline-provider'
 import { AnalyticsBeacon } from '~/components/analytics-beacon'
 import { AnalyticsScripts } from '~/components/analytics-scripts'
+import { Toaster } from '~/components/ui/toaster'
 
 type PageComponent = ComponentType<Record<string, unknown>>
 
@@ -143,6 +144,9 @@ export function LayoutShell({
         <AnalyticsBeacon />
         <AnalyticsScripts />
         {page}
+        {/* Shopper account screens (profile, addresses, payout…) report saves as
+            toasts; the site is light-only, so the toast is too. */}
+        <Toaster theme="light" />
       </div>
     )
   }

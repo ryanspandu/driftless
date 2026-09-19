@@ -25,6 +25,7 @@ export function usePageRevisions(pageId: string, enabled = true) {
 export function useRestorePageRevision() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Revision restored' },
     mutationFn: ({ pageId, revisionId }: { pageId: string; revisionId: string }) =>
       apiFetch<PageDto>(`/api/admin/pages/${pageId}/revisions/${revisionId}/restore`, {
         method: 'POST',

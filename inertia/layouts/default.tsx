@@ -1,5 +1,6 @@
 import { type Data } from '@generated/data'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
+import { Toaster } from '~/components/ui/toaster'
 import { usePage } from '@inertiajs/react'
 import { type ReactElement, useEffect } from 'react'
 import { Form, Link } from '@adonisjs/inertia/react'
@@ -59,7 +60,7 @@ export default function Layout({ children }: { children: ReactElement<Data.Share
         </div>
       </header>
       <main>{children}</main>
-      <Toaster position="top-center" richColors />
+      <Toaster />
     </>
   )
 }

@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Label } from '~/components/ui/label'
 import { AppSelect } from '~/components/ui/app-select'
 import { usePagesList } from '~/hooks/api/use-pages'
-import { apiErrorMessage } from '~/lib/api-client'
 import { useSeedStorefront, useStoreSettings, useUpdateStoreSettings } from '../_api'
 
 /**
@@ -19,13 +18,11 @@ import { useSeedStorefront, useStoreSettings, useUpdateStoreSettings } from '../
 export default function ProductPagePanel() {
   const settings = useStoreSettings()
   const pages = usePagesList()
-  const update = useUpdateStoreSettings()
+  const update = useUpdateStoreSettings('Storefront pages saved')
   const seed = useSeedStorefront()
 
   const [pageId, setPageId] = useState('')
   const [shopId, setShopId] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (!settings.data) return
@@ -44,16 +41,8 @@ export default function ProductPagePanel() {
       })),
   ]
 
-  async function onSave() {
-    setError(null)
-    setSaved(false)
-    try {
-      await update.mutateAsync({ productPageId: pageId || null, shopPageId: shopId || null })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2_000)
-    } catch (err) {
-      setError(apiErrorMessage(err))
-    }
+  function onSave() {
+    update.mutate({ productPageId: pageId || null, shopPageId: shopId || null })
   }
 
   return (
@@ -141,27 +130,17 @@ export default function ProductPagePanel() {
               variant="outline"
               className="mt-3"
               disabled={seed.isPending}
-              onClick={async () => {
-                setError(null)
-                try {
-                  await seed.mutateAsync()
-                } catch (err) {
-                  setError(apiErrorMessage(err))
-                }
-              }}
+              onClick={() => seed.mutate()}
             >
               {seed.isPending ? 'Creating…' : 'Create default pages'}
             </Button>
           </div>
         ) : null}
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
         <div className="flex items-center gap-3">
           <Button type="button" disabled={update.isPending} onClick={onSave}>
             {update.isPending ? 'Saving…' : 'Save'}
           </Button>
-          {saved ? <span className="text-sm text-emerald-600">Saved</span> : null}
         </div>
       </CardContent>
     </Card>

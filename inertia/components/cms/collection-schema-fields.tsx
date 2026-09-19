@@ -348,7 +348,6 @@ function EditFieldDialog({
   const [label, setLabel] = useState('')
   const [config, setConfig] = useState<Record<string, unknown>>({})
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const id = useId()
 
   // Seed the form from the field each time the dialog opens on a new field.
@@ -358,7 +357,6 @@ function EditFieldDialog({
     setSeededFor(activeKey)
     setLabel(field.label)
     setConfig(field.config ?? {})
-    setError(null)
   }
 
   const open = field !== null
@@ -372,13 +370,12 @@ function EditFieldDialog({
   }
 
   const handleSave = async () => {
-    setError(null)
     setSaving(true)
     try {
       await onSave({ label: label.trim(), config })
       handleClose(false)
-    } catch (e) {
-      setError((e as Error).message)
+    } catch {
+      // reported by the mutation handler
     } finally {
       setSaving(false)
     }
@@ -433,12 +430,6 @@ function EditFieldDialog({
                 siblings={siblingFields}
                 onConfigChange={setConfig}
               />
-            ) : null}
-
-            {error ? (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
             ) : null}
           </div>
         ) : null}
@@ -497,7 +488,6 @@ export function AddFieldDialog({
   const [picked, setPicked] = useState(false)
   // "type" shows the Strapi-style picker grid; "config" names the chosen field.
   const [step, setStep] = useState<'type' | 'config'>('type')
-  const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   // COMPONENT fields can reference a saved component or define fields inline.
   const [componentMode, setComponentMode] = useState<'saved' | 'inline'>('inline')
@@ -531,7 +521,6 @@ export function AddFieldDialog({
     setPicked(false)
     setKeyDirty(false)
     setStep('type')
-    setError(null)
     setComponentMode('inline')
   }
 
@@ -564,7 +553,6 @@ export function AddFieldDialog({
   }
 
   const handleAdd = async () => {
-    setError(null)
     setSaving(true)
     try {
       await onAdd({
@@ -577,8 +565,8 @@ export function AddFieldDialog({
       })
       setOpen(false)
       reset()
-    } catch (e) {
-      setError((e as Error).message)
+    } catch {
+      // reported by the mutation handler
     } finally {
       setSaving(false)
     }
@@ -883,12 +871,6 @@ export function AddFieldDialog({
                     ) : null}
                   </div>
                 </div>
-              ) : null}
-
-              {error ? (
-                <p className="text-sm text-destructive" role="alert">
-                  {error}
-                </p>
               ) : null}
             </div>
           )}

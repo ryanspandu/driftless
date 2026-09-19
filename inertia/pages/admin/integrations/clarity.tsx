@@ -8,6 +8,7 @@ import { Label } from '~/components/ui/label'
 import { BackButton } from '~/components/admin/back-button'
 import { ToggleRow } from '~/components/admin/toggle-row'
 import { Can } from '~/components/providers/ability-provider'
+import { reportSuccess } from '~/lib/notify'
 import {
   useIntegrationSettings,
   useUpdateIntegrationSettings,
@@ -19,8 +20,6 @@ export default function ClarityIntegrationPage() {
 
   const [clarityEnabled, setClarityEnabled] = useState(false)
   const [clarityProjectId, setClarityProjectId] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (!query.data) return
@@ -31,16 +30,14 @@ export default function ClarityIntegrationPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
-    setSaved(false)
     try {
       await update.mutateAsync({
         clarityEnabled,
         clarityProjectId: clarityProjectId.trim() || null,
       })
-      setSaved(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      reportSuccess('Clarity settings saved')
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -111,15 +108,6 @@ export default function ClarityIntegrationPage() {
                 </div>
               </CardContent>
             </Card>
-
-            {error ? (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            ) : null}
-            {saved ? (
-              <p className="text-sm text-green-600 dark:text-green-500">Clarity settings saved.</p>
-            ) : null}
 
             <Card>
               <CardContent className="flex flex-wrap items-center gap-2 pt-6">

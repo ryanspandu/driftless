@@ -5,7 +5,6 @@ import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { AppSelect } from '~/components/ui/app-select'
 import { Badge } from '~/components/ui/badge'
-import { apiErrorMessage } from '~/lib/api'
 import {
   useCreateRedirect,
   useDeleteRedirect,
@@ -21,20 +20,18 @@ export default function RedirectsPage() {
   const [fromPath, setFromPath] = useState('')
   const [toPath, setToPath] = useState('')
   const [status, setStatus] = useState(301)
-  const [error, setError] = useState<string | null>(null)
 
   const items = data?.items ?? []
 
   const onAdd = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
     try {
       await create.mutateAsync({ fromPath, toPath, status })
       setFromPath('')
       setToPath('')
       setStatus(301)
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Could not create redirect.'))
+    } catch {
+      // reported by the mutation handler
     }
   }
 
@@ -86,11 +83,6 @@ export default function RedirectsPage() {
               {create.isPending ? 'Adding…' : 'Add'}
             </Button>
           </form>
-          {error ? (
-            <p className="mt-2 text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
         </CardContent>
       </Card>
 

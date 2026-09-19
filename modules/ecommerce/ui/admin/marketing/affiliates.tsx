@@ -26,7 +26,6 @@ import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { Can } from '~/components/providers/ability-provider'
 import { useUrlState } from '~/hooks/use-url-state'
-import { apiErrorMessage } from '~/lib/api-client'
 import {
   useAffiliates,
   useAddAffiliate,
@@ -90,7 +89,6 @@ export default function AffiliatesPage() {
   const bulkApprove = useBulkApproveAffiliates()
   const bulkReject = useBulkRejectAffiliates()
   const [selection, setSelection] = useState<RowSelectionState>({})
-  const [bulkError, setBulkError] = useState<string | null>(null)
 
   const url = useUrlState()
   const search = url.get('q')
@@ -108,6 +106,7 @@ export default function AffiliatesPage() {
   const [addPercent, setAddPercent] = useState<number | ''>('')
   const [edit, setEdit] = useState<EditForm | null>(null)
   const [notesOf, setNotesOf] = useState<AffiliateDto | null>(null)
+  // Client-side validation for the add dialog — server failures are reported by the mutation handler.
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -133,22 +132,20 @@ export default function AffiliatesPage() {
   )
 
   async function onBulkApprove() {
-    setBulkError(null)
     try {
       await bulkApprove.mutateAsync(selectedIds)
       setSelection({})
-    } catch (err) {
-      setBulkError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
   async function onBulkReject() {
-    setBulkError(null)
     try {
       await bulkReject.mutateAsync({ ids: selectedIds })
       setSelection({})
-    } catch (err) {
-      setBulkError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -177,8 +174,8 @@ export default function AffiliatesPage() {
       setAddOpen(false)
       setAddAccount(null)
       setAddPercent('')
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler; the dialog stays open.
     }
   }
 
@@ -190,7 +187,6 @@ export default function AffiliatesPage() {
   async function submitEdit(e: FormEvent) {
     e.preventDefault()
     if (!edit) return
-    setError(null)
     try {
       await update.mutateAsync({
         id: edit.id,
@@ -201,8 +197,8 @@ export default function AffiliatesPage() {
         },
       })
       setEdit(null)
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler; the dialog stays open.
     }
   }
 
@@ -432,7 +428,6 @@ export default function AffiliatesPage() {
           </div>
         </Can>
       ) : null}
-      {bulkError ? <p className="text-sm text-destructive">{bulkError}</p> : null}
 
       <DataTable
         columns={columns}
@@ -553,7 +548,6 @@ export default function AffiliatesPage() {
                   onChange={(e) => setEdit({ ...edit, notes: e.target.value })}
                 />
               </div>
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setEdit(null)}>
                   Cancel

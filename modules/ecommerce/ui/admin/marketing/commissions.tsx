@@ -8,7 +8,6 @@ import { PageHeader } from '~/components/admin/page-header'
 import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { Can } from '~/components/providers/ability-provider'
 import { useUrlState } from '~/hooks/use-url-state'
-import { apiErrorMessage } from '~/lib/api-client'
 import { formatMoney } from '../../lib/money'
 import { useCommissions, usePayCommissions, useStoreSettings, type CommissionDto } from '../_api'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
@@ -56,7 +55,6 @@ export default function CommissionsPage() {
   const filter = url.one('status', STATUS_VALUES, DEFAULT_FILTER)
 
   const [selection, setSelection] = useState<RowSelectionState>({})
-  const [error, setError] = useState<string | null>(null)
   /**
    * DataTable owns its selection internally, so the only way to clear it from
    * out here is to remount the table. Bumping this key does that.
@@ -107,12 +105,11 @@ export default function CommissionsPage() {
   }
 
   async function markPaid() {
-    setError(null)
     try {
       await pay.mutateAsync(payable.map((c) => c.id))
       clearSelection()
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -242,8 +239,6 @@ export default function CommissionsPage() {
           </div>
         </div>
       ) : null}
-
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <DataTable
         key={tableKey}

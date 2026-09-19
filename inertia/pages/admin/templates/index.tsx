@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { router } from '@inertiajs/react'
-import { toast } from 'sonner'
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import {
   Code2,
@@ -41,7 +40,8 @@ import {
 } from '~/hooks/api/use-templates'
 import { downloadJson, fileStem } from '~/lib/export-download'
 import { formatAdminTableDateTime } from '~/lib/utils'
-import { apiErrorMessage, apiGet } from '~/lib/api'
+import { apiGet } from '~/lib/api'
+import { reportError, reportSuccess } from '~/lib/notify'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { usePathname, useRouter, useSearchParams } from '~/hooks/use-inertia-url'
 import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
@@ -63,7 +63,7 @@ async function exportTemplate(id: string, name: string): Promise<void> {
     const data = await apiGet<Record<string, unknown>>(`/api/admin/templates/${id}/export`)
     downloadJson(fileStem(name, 'template'), data)
   } catch (e) {
-    toast.error(apiErrorMessage(e, 'Could not export'))
+    reportError(e, 'Could not export')
   }
 }
 
@@ -173,9 +173,12 @@ export default function TemplatesPage() {
     setBulkBusy(true)
     try {
       for (const id of selectedIds) await deleteMut.mutateAsync(id)
+      reportSuccess(
+        `${selectedIds.length} template${selectedIds.length === 1 ? '' : 's'} moved to trash`
+      )
       setSelection({})
-    } catch (e) {
-      toast.error(apiErrorMessage(e, 'Failed to delete'))
+    } catch {
+      // reported by the mutation handler
     } finally {
       setBulkBusy(false)
     }
@@ -383,12 +386,7 @@ export default function TemplatesPage() {
                   <DropdownMenuItem
                     className="gap-2"
                     disabled={row.original.isDefault}
-                    onClick={() =>
-                      void setDefaultMut
-                        .mutateAsync(row.original.id)
-                        .then(() => toast.success('Set as default'))
-                        .catch((e) => toast.error(apiErrorMessage(e, 'Failed to set default')))
-                    }
+                    onClick={() => setDefaultMut.mutate(row.original.id)}
                   >
                     <Star className="size-4" />
                     Set default
@@ -396,12 +394,7 @@ export default function TemplatesPage() {
                 ) : null}
                 <DropdownMenuItem
                   className="gap-2"
-                  onClick={() =>
-                    void duplicateMut
-                      .mutateAsync(row.original.id)
-                      .then(() => toast.success('Template duplicated'))
-                      .catch((e) => toast.error(apiErrorMessage(e, 'Failed to duplicate')))
-                  }
+                  onClick={() => duplicateMut.mutate(row.original.id)}
                 >
                   <Copy className="size-4" />
                   Duplicate
@@ -422,8 +415,9 @@ export default function TemplatesPage() {
                         if (!confirmed) return
                         try {
                           await deleteMut.mutateAsync(row.original.id)
-                        } catch (e) {
-                          toast.error(apiErrorMessage(e, 'Failed to delete'))
+                          reportSuccess('Template deleted')
+                        } catch {
+                          // reported by the mutation handler
                         }
                       }
                     )
@@ -535,6 +529,7 @@ export default function TemplatesPage() {
         initial={dialogInitial}
         onSubmit={async (values) => {
           const created = await createMut.mutateAsync(values)
+          // No success toast: the builder route has its own Toaster, so it would be lost.
           router.visit(`/admin/templates/${created.id}/edit`)
         }}
       />

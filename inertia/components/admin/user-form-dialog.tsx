@@ -109,8 +109,8 @@ export function UserFormDialog({
       const pw = await generatePassword();
       setPassword(pw);
       setShowPassword(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate password");
+    } catch {
+      // reported by the mutation handler
     } finally {
       setGenerating(false);
     }
@@ -154,8 +154,8 @@ export function UserFormDialog({
         await onSubmit({ mode: "edit", id: mode.row.id, body });
       }
       onOpenChange(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
+    } catch {
+      // reported by the mutation handler
     } finally {
       setSubmitting(false);
     }

@@ -24,7 +24,6 @@ import {
   ExistingFieldsCard,
   type FieldRowData,
 } from '~/components/cms/collection-schema-fields'
-import { ApiError } from '~/lib/api'
 import { useCmsCollectionsList, useCreateCmsCollection } from '~/hooks/api/use-cms-collections'
 import { useModulesList } from '~/hooks/api/use-modules'
 import { ComboboxInput } from '~/components/ui/combobox-input'
@@ -140,7 +139,6 @@ export default function NewCmsCollectionPage() {
     (m) => m.name === 'ecommerce' && m.enabled
   )
   const [fields, setFields] = useState<SchemaFieldDraft[]>(defaultCollectionFields)
-  const [error, setError] = useState<string | null>(null)
 
   // Metadata-only collections extend a built-in editor that already owns its core
   // columns — so they seed no default fields (custom ones only).
@@ -220,7 +218,6 @@ export default function NewCmsCollectionPage() {
     })
 
   const onSubmit = async () => {
-    setError(null)
     try {
       const body: CreateCmsCollectionRequest = {
         key,
@@ -242,12 +239,8 @@ export default function NewCmsCollectionPage() {
       }
       const created = await createMut.mutateAsync(body)
       router.push(`/admin/cms/collections/${encodeURIComponent(created.key)}`)
-    } catch (e) {
-      if (e instanceof ApiError) {
-        setError(e.message)
-      } else {
-        setError((e as Error).message)
-      }
+    } catch {
+      // reported by the mutation handler
     }
   }
 
@@ -400,8 +393,6 @@ export default function NewCmsCollectionPage() {
         }
       />
       {duplicateKey ? <p className="text-xs text-destructive">Field keys must be unique.</p> : null}
-
-      {error ? <p className="text-sm text-destructive">Error: {error}</p> : null}
 
       <div className="flex justify-end gap-3">
         <Button variant="outline" render={<Link href="/admin/cms/collections" />}>

@@ -14,7 +14,6 @@ import { Label } from '~/components/ui/label'
 import { Switch } from '~/components/ui/switch'
 import { Textarea } from '~/components/ui/textarea'
 import { AppSelect, type AppSelectOption } from '~/components/ui/app-select'
-import { apiErrorMessage } from '~/lib/api'
 import { useTemplatesList } from '~/hooks/api/use-templates'
 import {
   useCodeComponents,
@@ -107,7 +106,6 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
   const [footerTemplateId, setFooterTemplateId] = useState<string>('')
   const [pathDirty, setPathDirty] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [seo, setSeo] = useState<Record<string, unknown>>({})
 
   // Each picker's list is only fetched once its choice is active — most pages
@@ -219,7 +217,6 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
       setFooterTemplateId('')
       setPathDirty(false)
     }
-    setError(null)
     setSeo({})
     seoSeededKeyRef.current = null
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -238,7 +235,6 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
     setSubmitting(true)
     try {
       // `buildWith` is a UI choice; both coded options persist as `kind='CODE'`,
@@ -277,8 +273,8 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
         ...(showSeo ? { seo } : {}),
       })
       onOpenChange(false)
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to save'))
+    } catch {
+      // reported by the mutation handler
     } finally {
       setSubmitting(false)
     }
@@ -558,12 +554,6 @@ export function PageFormDialog({ open, onOpenChange, mode, onSubmit }: Props) {
                   </>
                 )}
               </div>
-            ) : null}
-
-            {error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
             ) : null}
           </div>
 

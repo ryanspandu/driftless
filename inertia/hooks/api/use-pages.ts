@@ -98,6 +98,7 @@ export function useUpdatePage() {
 export function useDeletePage() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Page deleted' },
     mutationFn: (id: string) => apiFetch<void>(`/api/admin/pages/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.list }),
   })
@@ -142,6 +143,7 @@ export function useDiscardDraft() {
 export function useDuplicatePage() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Page duplicated' },
     mutationFn: (id: string) =>
       apiFetch<PageDto>(`/api/admin/pages/${id}/duplicate`, { method: 'POST' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.list }),
@@ -172,6 +174,20 @@ export function useImportPage() {
 export function useBulkPages() {
   const qc = useQueryClient()
   return useMutation({
+    meta: {
+      successMessage: (
+        r: { count: number },
+        v: { action: 'publish' | 'unpublish' | 'trash' | 'delete' }
+      ) => {
+        const verb = {
+          publish: 'published',
+          unpublish: 'unpublished',
+          trash: 'moved to trash',
+          delete: 'deleted',
+        }[v.action]
+        return `${r.count} page${r.count === 1 ? '' : 's'} ${verb}`
+      },
+    },
     mutationFn: (vars: { ids: string[]; action: 'publish' | 'unpublish' | 'trash' | 'delete' }) =>
       apiFetch<{ count: number }>('/api/admin/pages/bulk', {
         method: 'POST',

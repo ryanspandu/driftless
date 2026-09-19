@@ -1,6 +1,7 @@
 import { type ReactElement, type ReactNode } from 'react'
 import { usePage } from '@inertiajs/react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
+import { Toaster } from '~/components/ui/toaster'
 import { useEffect } from 'react'
 import { type Data } from '@generated/data'
 import { AppSidebar } from '~/components/admin/sidebar'
@@ -38,7 +39,7 @@ export default function AdminLayout({
           <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
         </div>
       </div>
-      <Toaster position="top-center" richColors />
+      <Toaster />
     </TooltipProvider>
   )
 }

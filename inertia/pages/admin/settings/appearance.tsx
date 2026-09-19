@@ -60,8 +60,6 @@ function AdminPanelSection() {
   const [projectName, setProjectName] = useState('Driftless')
   const [projectTagline, setProjectTagline] = useState('Admin panel')
   const [logoUrl, setLogoUrl] = useState('/logo.svg')
-  const [saved, setSaved] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!ab) return
@@ -72,7 +70,6 @@ function AdminPanelSection() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    setFormError(null)
     try {
       await update.mutateAsync({
         patches: [
@@ -93,10 +90,8 @@ function AdminPanelSection() {
           },
         ],
       })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not save.')
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -151,16 +146,6 @@ function AdminPanelSection() {
               Save admin sidebar
             </Button>
           </div>
-          {formError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {formError}
-            </p>
-          ) : null}
-          {saved ? (
-            <p className="text-sm text-green-600 dark:text-green-500" role="status">
-              Admin sidebar saved.
-            </p>
-          ) : null}
         </CardContent>
       </Card>
     </form>
@@ -182,8 +167,6 @@ function PageOverridesSection() {
   const pages = usePagesList()
   const update = useUpdateWebsiteSettings()
   const [values, setValues] = useState<Record<string, string>>({})
-  const [saved, setSaved] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!data?.sections) return
@@ -218,7 +201,6 @@ function PageOverridesSection() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    setFormError(null)
     try {
       await update.mutateAsync({
         patches: PAGE_OVERRIDE_SLOTS.map((slot) => ({
@@ -227,10 +209,8 @@ function PageOverridesSection() {
           value: values[slot.key] ?? '',
         })),
       })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not save.')
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -277,16 +257,6 @@ function PageOverridesSection() {
               Save page overrides
             </Button>
           </div>
-          {formError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {formError}
-            </p>
-          ) : null}
-          {saved ? (
-            <p className="text-sm text-green-600 dark:text-green-500" role="status">
-              Page overrides saved.
-            </p>
-          ) : null}
         </CardContent>
       </Card>
     </form>

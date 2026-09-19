@@ -442,7 +442,8 @@ export default function CmsCollectionsPage() {
         description="Recreates the collection schema. Referenced relation targets must already exist."
         expectedType={COLLECTION_EXPORT_TYPE}
         expectedLabel="collection"
-        successMessage="Collection imported"
+        // `useCreateCmsCollection` already toasts "Collection created".
+        successMessage={false}
         onImport={onImportCollection}
       />
     </div>

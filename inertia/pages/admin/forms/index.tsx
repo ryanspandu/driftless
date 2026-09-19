@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { router } from '@inertiajs/react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { toast } from 'sonner'
 import { Copy, Inbox, MoreHorizontal, Plus, SquarePen, Trash2 } from 'lucide-react'
 import type { FormSummaryDto } from '~/types/api'
 import { Badge } from '~/components/ui/badge'
@@ -78,7 +77,11 @@ export default function FormsListPage() {
         id: 'updatedAt',
         accessorFn: (r) => r.updatedAt,
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Updated" className="ml-auto w-full justify-end" />
+          <DataTableColumnHeader
+            column={column}
+            title="Updated"
+            className="ml-auto w-full justify-end"
+          />
         ),
         cell: ({ row }) => (
           <div className="text-right text-xs text-muted-foreground tabular-nums">
@@ -111,15 +114,7 @@ export default function FormsListPage() {
               >
                 <Inbox className="size-4" /> View submissions
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gap-2"
-                onClick={() =>
-                  void dupMut
-                    .mutateAsync(row.original.id)
-                    .then(() => toast.success('Form duplicated'))
-                    .catch(() => toast.error('Could not duplicate'))
-                }
-              >
+              <DropdownMenuItem className="gap-2" onClick={() => dupMut.mutate(row.original.id)}>
                 <Copy className="size-4" /> Duplicate
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -129,7 +124,7 @@ export default function FormsListPage() {
                   void confirmDelete({
                     description: 'Delete this form? Its submissions are kept.',
                   }).then((confirmed) => {
-                    if (confirmed) void deleteMut.mutateAsync(row.original.id)
+                    if (confirmed) deleteMut.mutate(row.original.id)
                   })
                 }}
               >
@@ -151,7 +146,11 @@ export default function FormsListPage() {
         count={listQuery.isLoading ? undefined : rows.length}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => router.visit('/admin/forms/submissions')}>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => router.visit('/admin/forms/submissions')}
+            >
               <Inbox className="size-4" /> All submissions
             </Button>
             <Button className="gap-2" onClick={() => setDialogOpen(true)}>

@@ -20,6 +20,7 @@ import {
   type FormStatus,
   type FormSubmission,
 } from '~/hooks/api/use-forms'
+import { reportSuccess } from '~/lib/notify'
 
 type Filter = FormStatus | 'all'
 
@@ -185,7 +186,10 @@ export function FormsInbox({ formId }: { formId?: string }) {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        updateStatus.mutate({ id: open.id, status: 'spam' })
+                        updateStatus.mutate(
+                          { id: open.id, status: 'spam' },
+                          { onSuccess: () => reportSuccess('Marked as spam') }
+                        )
                         setOpen(null)
                       }}
                     >
@@ -196,7 +200,10 @@ export function FormsInbox({ formId }: { formId?: string }) {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        updateStatus.mutate({ id: open.id, status: 'read' })
+                        updateStatus.mutate(
+                          { id: open.id, status: 'read' },
+                          { onSuccess: () => reportSuccess('Marked as not spam') }
+                        )
                         setOpen(null)
                       }}
                     >
@@ -207,7 +214,12 @@ export function FormsInbox({ formId }: { formId?: string }) {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => updateStatus.mutate({ id: open.id, status: 'new' })}
+                      onClick={() =>
+                        updateStatus.mutate(
+                          { id: open.id, status: 'new' },
+                          { onSuccess: () => reportSuccess('Marked as unread') }
+                        )
+                      }
                     >
                       <Envelope className="size-4" /> Mark unread
                     </Button>

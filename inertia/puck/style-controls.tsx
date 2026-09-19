@@ -8,7 +8,7 @@ import {
   type TextareaHTMLAttributes,
 } from 'react'
 import { AlignCenter, AlignLeft, AlignRight, Plus } from 'lucide-react'
-import { toast } from 'sonner'
+import { reportError } from '~/lib/notify'
 import { cn } from '~/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { useUpdateWebsiteSettings, useWebsiteSettings } from '~/hooks/api/use-website-settings'
@@ -427,7 +427,7 @@ function AddSwatchPopover({
   onSaved: (value: string) => void
 }) {
   const saved = useContext(SavedColorsContext)
-  const update = useUpdateWebsiteSettings()
+  const update = useUpdateWebsiteSettings('Colour saved')
   const settingsQuery = useWebsiteSettings()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
@@ -470,7 +470,7 @@ function AddSwatchPopover({
           onSaved(savedColorRef(slug))
           setOpen(false)
         },
-        onError: () => toast.error('Could not save colour'),
+        onError: (err) => reportError(err, 'Could not save colour'),
       }
     )
   }

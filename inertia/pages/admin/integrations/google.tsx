@@ -9,6 +9,7 @@ import { Label } from '~/components/ui/label'
 import { BackButton } from '~/components/admin/back-button'
 import { ToggleRow } from '~/components/admin/toggle-row'
 import { Can } from '~/components/providers/ability-provider'
+import { reportSuccess } from '~/lib/notify'
 import {
   useIntegrationSettings,
   useUpdateIntegrationSettings,
@@ -23,8 +24,6 @@ export default function GoogleIntegrationPage() {
   const [googleClientId, setGoogleClientId] = useState('')
   const [googleClientSecretNew, setGoogleClientSecretNew] = useState('')
   const [clearGoogleSecret, setClearGoogleSecret] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (!query.data) return
@@ -38,8 +37,6 @@ export default function GoogleIntegrationPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
-    setSaved(false)
     try {
       await update.mutateAsync({
         googleAuthEnabled,
@@ -53,9 +50,9 @@ export default function GoogleIntegrationPage() {
       })
       setGoogleClientSecretNew('')
       setClearGoogleSecret(false)
-      setSaved(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      reportSuccess('Google settings saved')
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -180,15 +177,6 @@ export default function GoogleIntegrationPage() {
                 </div>
               </CardContent>
             </Card>
-
-            {error ? (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            ) : null}
-            {saved ? (
-              <p className="text-sm text-green-600 dark:text-green-500">Google settings saved.</p>
-            ) : null}
 
             <Card>
               <CardContent className="flex flex-wrap items-center gap-2 pt-6">

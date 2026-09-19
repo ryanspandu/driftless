@@ -160,7 +160,6 @@ export default function CmsComponentsPage() {
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<CmsComponentDto | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [importOpen, setImportOpen] = useState(false)
 
@@ -188,16 +187,11 @@ export default function CmsComponentsPage() {
   }
 
   const handleDelete = (c: CmsComponentDto) => {
-    setError(null)
     void confirmDelete({
       title: 'Delete component',
       description: `Delete component "${c.label}"? Any collection using it must remove the field first.`,
     }).then((confirmed) => {
-      if (confirmed) {
-        deleteMut.mutate(c.key, {
-          onError: (e) => setError((e as Error).message),
-        })
-      }
+      if (confirmed) deleteMut.mutate(c.key)
     })
   }
 
@@ -220,8 +214,6 @@ export default function CmsComponentsPage() {
           </div>
         }
       />
-
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <div className="relative max-w-sm">
         <Search
@@ -279,7 +271,8 @@ export default function CmsComponentsPage() {
         description="Recreates the component from a JSON export."
         expectedType={COMPONENT_EXPORT_TYPE}
         expectedLabel="component"
-        successMessage="Component imported"
+        // `useCreateCmsComponent` already toasts "Component created".
+        successMessage={false}
         onImport={onImportComponent}
       />
     </div>
@@ -308,7 +301,6 @@ function ComponentEditorDialog({
   const [keyTouched, setKeyTouched] = useState(false)
   const [config, setConfig] = useState<Record<string, unknown>>({ fields: [] })
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -322,7 +314,6 @@ function ComponentEditorDialog({
       setConfig({ fields: [] })
     }
     setKeyTouched(false)
-    setError(null)
   }, [open, editing])
 
   const fields = (config.fields as CmsComponentField[] | undefined) ?? []
@@ -334,14 +325,13 @@ function ComponentEditorDialog({
     label.trim().length > 0 && (isEdit || !keyMessage) && !schemaErr && !saving
 
   const handleSave = async () => {
-    setError(null)
     setSaving(true)
     try {
       if (isEdit) await onUpdate(editing!.key, { label, fields })
       else await onCreate({ key, label, fields })
       onOpenChange(false)
-    } catch (e) {
-      setError((e as Error).message)
+    } catch {
+      // reported by the mutation handler
     } finally {
       setSaving(false)
     }
@@ -406,7 +396,6 @@ function ComponentEditorDialog({
             disabled={saving}
           />
           {schemaErr ? <p className="text-xs text-destructive">{schemaErr}</p> : null}
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </div>
 
         <DialogFooter>

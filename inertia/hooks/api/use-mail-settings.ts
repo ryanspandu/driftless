@@ -47,6 +47,7 @@ export function useUpdateMailSettings() {
         method: 'PUT',
         body: JSON.stringify(body),
       }),
+    meta: { successMessage: 'Email settings saved' },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: mailSettingsQueryKey })
     },
@@ -151,6 +152,7 @@ export function useUpdateMailEvent() {
         method: 'PUT',
         body: JSON.stringify(body),
       }),
+    meta: { successMessage: 'Notification updated' },
     onSuccess: (list) => {
       // The response is the whole list, so seed the cache rather than refetch.
       qc.setQueryData(mailEventsQueryKey, list)

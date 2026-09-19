@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { AlertTriangle, Database, Hammer, Loader2, Power, RefreshCw } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import {
@@ -17,7 +17,6 @@ import {
 } from '~/hooks/api/use-schema'
 import { useStartModuleInstall } from '~/hooks/api/use-module-install'
 import { useDeployment, type RestartKind } from '~/hooks/api/use-deployment'
-import { apiErrorMessage } from '~/lib/api-client'
 
 const ORIGIN_LABEL: Record<MigrationOrigin, string> = {
   core: 'Core',
@@ -120,7 +119,6 @@ export function ModuleInstallDialog({
   const pending = usePendingMigrations(open && canListMigrations)
   const deployment = useDeployment(open)
   const start = useStartModuleInstall()
-  const [error, setError] = useState<string | null>(null)
 
   const groups = useMemo(
     () => groupByOwner(pending.data?.migrations ?? []),
@@ -147,13 +145,12 @@ export function ModuleInstallDialog({
 
   async function onConfirm() {
     if (!target) return
-    setError(null)
     try {
       const started = await start.mutateAsync(target.name)
       onStarted(started.jobId)
       onOpenChange(false)
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to start the install'))
+    } catch {
+      // Reported by the mutation handler; the dialog stays open.
     }
   }
 
@@ -270,12 +267,6 @@ export function ModuleInstallDialog({
             is production.
           </p>
         </div>
-
-        {error ? (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
-        ) : null}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={start.isPending}>

@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { reportError } from '~/lib/notify'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { MediaDto } from '~/types/api'
 import { Button } from '~/components/ui/button'
@@ -114,7 +115,6 @@ export default function MediaPage() {
   const deleteMut = useDeleteMedia()
   const importMut = useImportMedia()
   const [importOpen, setImportOpen] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
 
   const trashedQuery = useTrashedMedia()
   const restoreMut = useRestoreMedia()
@@ -199,14 +199,11 @@ export default function MediaPage() {
 
   const onUpload = useCallback(
     async (file: File) => {
-      setUploadError(null)
       try {
         await uploadMut.mutateAsync(file)
         toast.success(`Uploaded ${file.name}`)
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Upload failed'
-        setUploadError(msg)
-        toast.error(msg)
+        reportError(e, 'Upload failed')
       }
     },
     [uploadMut]
@@ -244,7 +241,6 @@ export default function MediaPage() {
               disabled={uploadMut.isPending}
               hint="Images, video (MP4/WebM), PDF, or Word documents up to 100 MB."
             />
-            {uploadError ? <p className="mt-2 text-sm text-destructive">{uploadError}</p> : null}
           </CardContent>
         </Card>
       ) : null}
@@ -372,7 +368,7 @@ export default function MediaPage() {
                     onClick={() => {
                       void exportMediaItem(item.id, item.filename)
                         .then(() => toast.success('Media exported'))
-                        .catch((e) => toast.error((e as Error).message))
+                        .catch((e) => reportError(e, 'Could not export'))
                     }}
                   >
                     <Download className="size-4" />
@@ -392,7 +388,6 @@ export default function MediaPage() {
                         if (!confirmed) return
                         deleteMut.mutate(item.id, {
                           onSuccess: () => toast.success('File deleted'),
-                          onError: (e) => toast.error((e as Error).message),
                         })
                       })
                     }}

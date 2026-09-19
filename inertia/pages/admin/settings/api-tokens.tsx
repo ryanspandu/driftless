@@ -111,8 +111,8 @@ function ApiTokensPageInner() {
       resetForm()
       setCopied(false)
       setCreated(result)
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to create token.')
+    } catch {
+      // Reported by the mutation handler; the dialog stays open.
     }
   }
 

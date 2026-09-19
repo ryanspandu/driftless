@@ -32,6 +32,7 @@ export function useMenu(id: string, enabled = true) {
 export function useCreateMenu() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Menu created' },
     mutationFn: (body: CreateMenuRequest) =>
       apiFetch<MenuDto>('/api/admin/menus', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['menus', 'list'] }),
@@ -41,6 +42,7 @@ export function useCreateMenu() {
 export function useUpdateMenu() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Menu updated' },
     mutationFn: ({ id, ...body }: { id: string } & UpdateMenuRequest) =>
       apiFetch<MenuDto>(`/api/admin/menus/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: (_data, vars) => {

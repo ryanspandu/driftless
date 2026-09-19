@@ -37,7 +37,6 @@ export default function FormDetailPage({ id }: { id: string }) {
     successMessage: string
     status: FormDefinitionStatus
   } | null>(null)
-  const [savedFlash, setSavedFlash] = useState(false)
 
   useEffect(() => {
     if (form && !settings) {
@@ -63,18 +62,14 @@ export default function FormDetailPage({ id }: { id: string }) {
 
   const saveSettings = () => {
     if (!settings) return
-    update
-      .mutateAsync({
-        id,
-        title: settings.title,
-        slug: settings.slug,
-        successMessage: settings.successMessage || null,
-        status: settings.status,
-      })
-      .then(() => {
-        setSavedFlash(true)
-        window.setTimeout(() => setSavedFlash(false), 2000)
-      })
+    // Success and failure are toasted by the mutation itself.
+    update.mutate({
+      id,
+      title: settings.title,
+      slug: settings.slug,
+      successMessage: settings.successMessage || null,
+      status: settings.status,
+    })
   }
 
   return (
@@ -175,7 +170,6 @@ export default function FormDetailPage({ id }: { id: string }) {
                   <Button onClick={saveSettings} disabled={update.isPending}>
                     Save settings
                   </Button>
-                  {savedFlash ? <span className="text-sm text-emerald-600">Saved</span> : null}
                 </div>
               </CardContent>
             </Card>

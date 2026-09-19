@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '~/component
 import { DragDropImageUpload } from '~/components/drag-drop-image-upload'
 import { ChevronDown, Download, FileArchive, Loader2 } from 'lucide-react'
 import { apiFetch } from '~/lib/api-client'
+import { reportError } from '~/lib/notify'
 import {
   useTransferJob,
   useTransferHistory,
@@ -259,7 +260,7 @@ export default function DataTransferPage() {
       )
       setExportJobId(data.jobId as string)
     } catch (e) {
-      setError((e as Error).message)
+      reportError(e, 'Request failed')
     } finally {
       setSubmitting(false)
     }
@@ -285,7 +286,7 @@ export default function DataTransferPage() {
       if (dryRun) setDryReport(data.result as ImportResult)
       else setImportJobId(data.jobId as string)
     } catch (e) {
-      setError((e as Error).message)
+      reportError(e, 'Request failed')
     } finally {
       setSubmitting(false)
     }

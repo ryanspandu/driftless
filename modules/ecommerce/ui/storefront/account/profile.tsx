@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { accountApi, type AccountDto } from '../_api'
 import { FIELD_CLASS, SUBMIT_CLASS } from '../_layout'
-import { apiErrorMessage } from '~/lib/api-client'
+import { reportError, reportSuccess } from '~/lib/notify'
 
 export function ProfileSection({
   account,
@@ -40,13 +40,9 @@ function ProfileForm({
   const [phone, setPhone] = useState(account.phone ?? '')
   const [acceptsMarketing, setAcceptsMarketing] = useState(account.acceptsMarketing)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
-    setSaved(false)
     setSaving(true)
     try {
       await accountApi.updateProfile({
@@ -56,10 +52,9 @@ function ProfileForm({
         acceptsMarketing,
       })
       await onUpdated()
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2_000)
+      reportSuccess('Profile updated')
     } catch (err) {
-      setError(apiErrorMessage(err))
+      reportError(err, 'Failed to update profile')
     } finally {
       setSaving(false)
     }
@@ -124,13 +119,10 @@ function ProfileForm({
         <span className="text-muted-foreground">Email me about offers and news.</span>
       </label>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
       <div className="flex items-center gap-3">
         <button type="submit" disabled={saving} className={`${SUBMIT_CLASS} w-auto px-6`}>
           {saving ? 'Saving…' : 'Save changes'}
         </button>
-        {saved ? <span className="text-sm text-emerald-600">Saved</span> : null}
       </div>
     </form>
   )
@@ -140,13 +132,11 @@ function PasswordForm() {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    setSaved(false)
     if (newPassword.length < 8) {
       setError('New password must be at least 8 characters.')
       return
@@ -156,10 +146,9 @@ function PasswordForm() {
       await accountApi.changePassword({ currentPassword, newPassword })
       setCurrentPassword('')
       setNewPassword('')
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2_000)
+      reportSuccess('Password updated')
     } catch (err) {
-      setError(apiErrorMessage(err))
+      reportError(err, 'Failed to update password')
     } finally {
       setSaving(false)
     }
@@ -208,7 +197,6 @@ function PasswordForm() {
         <button type="submit" disabled={saving} className={`${SUBMIT_CLASS} w-auto px-6`}>
           {saving ? 'Updating…' : 'Update password'}
         </button>
-        {saved ? <span className="text-sm text-emerald-600">Updated</span> : null}
       </div>
     </form>
   )
@@ -299,7 +287,6 @@ function TwoFactorEnroll({ onCancel, onDone }: { onCancel: () => void; onDone: (
   const [code, setCode] = useState('')
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   // Start enrolment when this view mounts.
   useEffect(() => {
@@ -311,7 +298,7 @@ function TwoFactorEnroll({ onCancel, onDone }: { onCancel: () => void; onDone: (
         setUri(r.otpauthUri)
         setSecret(r.secret)
       })
-      .catch((err) => live && setError(apiErrorMessage(err)))
+      .catch((err) => live && reportError(err, 'Failed to start two-factor setup'))
     return () => {
       live = false
     }
@@ -319,13 +306,13 @@ function TwoFactorEnroll({ onCancel, onDone }: { onCancel: () => void; onDone: (
 
   async function confirm(e: FormEvent) {
     e.preventDefault()
-    setError(null)
     setLoading(true)
     try {
       const r = await accountApi.confirmEnroll2fa({ code: code.trim() })
       setRecoveryCodes(r.recoveryCodes)
+      reportSuccess('Two-factor authentication enabled')
     } catch (err) {
-      setError(apiErrorMessage(err))
+      reportError(err, 'Failed to verify the code')
     } finally {
       setLoading(false)
     }
@@ -392,7 +379,6 @@ function TwoFactorEnroll({ onCancel, onDone }: { onCancel: () => void; onDone: (
           className={FIELD_CLASS}
         />
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="flex items-center gap-3">
         <button
           type="submit"
@@ -417,17 +403,16 @@ function TwoFactorEnroll({ onCancel, onDone }: { onCancel: () => void; onDone: (
 function TwoFactorDisable({ onCancel, onDone }: { onCancel: () => void; onDone: () => void }) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
     setLoading(true)
     try {
       await accountApi.disable2fa({ password })
+      reportSuccess('Two-factor authentication disabled')
       onDone()
     } catch (err) {
-      setError(apiErrorMessage(err))
+      reportError(err, 'Failed to disable two-factor authentication')
     } finally {
       setLoading(false)
     }
@@ -448,7 +433,6 @@ function TwoFactorDisable({ onCancel, onDone }: { onCancel: () => void; onDone: 
           className={FIELD_CLASS}
         />
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="flex items-center gap-3">
         <button
           type="submit"

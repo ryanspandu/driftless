@@ -46,6 +46,7 @@ export function useDeleteFormSubmission() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiDelete<{ ok: true }>(`/api/admin/forms/${id}`),
+    meta: { successMessage: 'Submission deleted' },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['forms'] }),
   })
 }

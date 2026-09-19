@@ -12,7 +12,6 @@ import { CountrySelect } from '../../components/country-select'
 import { Switch } from '~/components/ui/switch'
 import { Textarea } from '~/components/ui/textarea'
 import { PageHeader } from '~/components/admin/page-header'
-import { apiErrorMessage } from '~/lib/api-client'
 import { formatMoney } from '../../lib/money'
 import {
   useCreateManualOrder,
@@ -76,6 +75,7 @@ export default function NewOrderPage() {
     country: '',
     phone: '',
   })
+  // Client-side validation only — a failed create is reported by the mutation handler.
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<ManualOrderResult | null>(null)
   const [copied, setCopied] = useState(false)
@@ -190,8 +190,8 @@ export default function NewOrderPage() {
         internalNote: internalNote.trim() || null,
       })
       setCreated(result)
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler; the created-order card is the success feedback.
     }
   }
 

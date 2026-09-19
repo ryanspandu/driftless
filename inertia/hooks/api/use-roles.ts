@@ -29,6 +29,7 @@ export function useRole(id: string | null) {
 export function useCreateRole() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Role created' },
     mutationFn: (body: CreateRoleRequest) =>
       apiFetch<RoleDto>('/api/admin/roles', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: roleQueryKeys.all }),
@@ -38,6 +39,7 @@ export function useCreateRole() {
 export function useUpdateRole() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Role updated' },
     mutationFn: ({ id, body }: { id: string; body: UpdateRoleRequest }) =>
       apiFetch<RoleDto>(`/api/admin/roles/${id}`, {
         method: 'PUT',
@@ -53,6 +55,7 @@ export function useUpdateRole() {
 export function useDeleteRole() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Role deleted' },
     mutationFn: (id: string) => apiFetch<void>(`/api/admin/roles/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: roleQueryKeys.all }),
   })

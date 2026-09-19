@@ -25,7 +25,6 @@ import { DataTable, DataTableColumnHeader } from '~/components/data-table'
 import { TrashModal } from '~/components/trash-modal'
 import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
 import { Can } from '~/components/providers/ability-provider'
-import { apiErrorMessage } from '~/lib/api-client'
 import { formatAdminTableDateTime } from '~/lib/utils'
 import {
   useDeleteTag,
@@ -69,7 +68,6 @@ export default function TagsPage() {
   const confirmDelete = useConfirmDelete()
 
   const [form, setForm] = useState<FormState | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   // Trash (soft-delete + restore), mirroring the core Templates page.
   const trashedQuery = useTrashedTags()
@@ -87,7 +85,6 @@ export default function TagsPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (!form) return
-    setError(null)
 
     try {
       await save.mutateAsync({
@@ -99,8 +96,8 @@ export default function TagsPage() {
         },
       })
       setForm(null)
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -159,7 +156,6 @@ export default function TagsPage() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     onClick={() => {
-                      setError(null)
                       setForm(toForm(tag))
                     }}
                   >
@@ -247,7 +243,6 @@ export default function TagsPage() {
                 <Button
                   className="gap-2"
                   onClick={() => {
-                    setError(null)
                     setForm(emptyForm())
                   }}
                 >
@@ -337,8 +332,6 @@ export default function TagsPage() {
                   onChange={(e) => set('description', e.target.value)}
                 />
               </div>
-
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setForm(null)}>

@@ -31,6 +31,7 @@ export function useForm(id: string, enabled = true) {
 export function useCreateForm() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Form created' },
     mutationFn: (body: CreateFormRequest) =>
       apiPost<FormDefinitionDto>('/api/admin/forms/definitions', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.list() }),
@@ -42,6 +43,7 @@ export function useUpdateForm() {
   return useMutation({
     mutationFn: ({ id, ...body }: UpdateFormRequest & { id: string }) =>
       apiPut<FormDefinitionDto>(`/api/admin/forms/definitions/${id}`, body),
+    meta: { successMessage: 'Form saved' },
     onSuccess: (form) => {
       qc.setQueryData(qk.one(form.id), form)
       qc.invalidateQueries({ queryKey: qk.list() })
@@ -52,6 +54,7 @@ export function useUpdateForm() {
 export function useDeleteForm() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Form deleted' },
     mutationFn: (id: string) => apiDelete<{ ok: true }>(`/api/admin/forms/definitions/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.list() }),
   })
@@ -60,6 +63,7 @@ export function useDeleteForm() {
 export function useDuplicateForm() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Form duplicated' },
     mutationFn: (id: string) =>
       apiPost<FormDefinitionDto>(`/api/admin/forms/definitions/${id}/duplicate`, {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.list() }),

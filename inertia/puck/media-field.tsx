@@ -13,6 +13,7 @@ import { Input } from '~/components/ui/input'
 import { useMedia, useMediaList, useUploadMedia } from '~/hooks/api/use-media'
 import { isImageMime, isVideoMime } from '~/puck/media-mime'
 import { cn } from '~/lib/utils'
+import { reportError } from '~/lib/notify'
 
 /**
  * Reusable media picker used as a Puck custom field (and, via `MediaIdField`, as
@@ -161,7 +162,7 @@ export function MediaPickerDialog({
         done.push(await upload.mutateAsync(file))
         setUploadedCount(done.length)
       } catch (error) {
-        setUploadError((error as Error).message || `Could not upload ${file.name}`)
+        reportError(error, `Could not upload ${file.name}`)
         break
       }
     }

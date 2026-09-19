@@ -94,6 +94,7 @@ export function useCmsRevisions(key: string, id: string) {
 export function useRestoreCmsRevision(key: string, id: string) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Revision restored' },
     mutationFn: (revisionId: string) => cmsRecords.restoreRevision(key, id, revisionId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.one(key, id) })

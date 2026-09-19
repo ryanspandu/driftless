@@ -14,6 +14,7 @@ import { AppSelect } from '~/components/ui/app-select'
 import { BackButton } from '~/components/admin/back-button'
 import { ToggleRow } from '~/components/admin/toggle-row'
 import { Can } from '~/components/providers/ability-provider'
+import { reportSuccess } from '~/lib/notify'
 import {
   useIntegrationSettings,
   useUpdateIntegrationSettings,
@@ -43,8 +44,6 @@ export default function CaptchaIntegrationPage() {
   const [captchaOnCheckout, setCaptchaOnCheckout] = useState(false)
   const [captchaOnForms, setCaptchaOnForms] = useState(false)
   const [captchaOnDiscount, setCaptchaOnDiscount] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (!query.data) return
@@ -63,8 +62,6 @@ export default function CaptchaIntegrationPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
-    setSaved(false)
     try {
       await update.mutateAsync({
         captchaEnabled,
@@ -86,9 +83,9 @@ export default function CaptchaIntegrationPage() {
       })
       setCaptchaSecretNew('')
       setClearCaptchaSecret(false)
-      setSaved(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      reportSuccess('CAPTCHA settings saved')
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -307,15 +304,6 @@ export default function CaptchaIntegrationPage() {
                 </p>
               </CardContent>
             </Card>
-
-            {error ? (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            ) : null}
-            {saved ? (
-              <p className="text-sm text-green-600 dark:text-green-500">CAPTCHA settings saved.</p>
-            ) : null}
 
             <Card>
               <CardContent className="flex flex-wrap items-center gap-2 pt-6">

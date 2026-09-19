@@ -52,6 +52,7 @@ export function useUsersList(query: UserListQuery) {
 export function useCreateUser() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'User created' },
     mutationFn: (body: CreateUserRequest) =>
       apiFetch<UserPublic>('/api/admin/users', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: userQueryKeys.all }),
@@ -61,6 +62,7 @@ export function useCreateUser() {
 export function useUpdateUser() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'User updated' },
     mutationFn: ({ id, body }: { id: string; body: UpdateUserRequest }) =>
       apiFetch<UserPublic>(`/api/admin/users/${id}`, {
         method: 'PUT',
@@ -76,6 +78,7 @@ export function useUpdateUser() {
 export function useDeleteUser() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'User deleted' },
     mutationFn: (id: string) => apiFetch<void>(`/api/admin/users/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: userQueryKeys.all }),
   })

@@ -9,7 +9,7 @@ import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import { AppSelect } from "~/components/ui/app-select";
 import { FieldRenderer } from "~/components/cms/field-renderer";
-import { apiErrorMessage } from "~/lib/api";
+import { reportError } from "~/lib/notify";
 
 export interface RecordFormValue {
   status: ContentStatus;
@@ -81,7 +81,7 @@ export interface RecordFormProps {
  * Shared record form used by the dedicated create/edit pages. Keeps its own
  * internal draft state — parent pages remount it on route change so there is
  * no need to externalize that state. Submits through the async `onSubmit`
- * callback and surfaces any thrown error inline.
+ * callback and toasts any thrown error.
  */
 export function RecordForm({
   collection,
@@ -98,7 +98,6 @@ export function RecordForm({
     () => initial?.status ?? "DRAFT",
   );
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (fieldKey: string, value: unknown) => {
     setData((prev) => ({ ...prev, [fieldKey]: value }));
@@ -107,11 +106,10 @@ export function RecordForm({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    setError(null);
     try {
       await onSubmit(prepareSubmitPayload(collection, data, status));
     } catch (e) {
-      setError(apiErrorMessage(e, "Failed to save"));
+      reportError(e, "Failed to save");
     } finally {
       setSubmitting(false);
     }
@@ -146,7 +144,6 @@ export function RecordForm({
         ))}
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
         {extraActions}

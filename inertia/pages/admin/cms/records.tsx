@@ -27,6 +27,7 @@ import { useConfirmDelete } from '~/components/providers/delete-confirm-provider
 import { toSyncStatus } from '~/lib/offline/sync-status'
 import { mergeSearchParamsLive, replaceUrlIfChanged } from '~/lib/table-url-params'
 import { formatAdminTableDateTime } from '~/lib/utils'
+import { reportError, reportSuccess } from '~/lib/notify'
 import { TableFilterTabs } from '~/components/admin/table-filter-tabs'
 
 function parseStatusParam(raw: string | null, draftsOn: boolean): ContentStatus | 'ALL' {
@@ -219,7 +220,11 @@ function CmsRecordsPageInner({ collectionKey: key }: { collectionKey: string }) 
         void confirmDelete({
           description: `Delete "${cmsRecordLabel(row, collection)}"? This cannot be undone.`,
         }).then((confirmed) => {
-          if (confirmed) void offline.remove(row.id)
+          if (!confirmed) return
+          offline.remove(row.id).then(
+            () => reportSuccess('Record deleted'),
+            (err) => reportError(err, 'Failed to delete')
+          )
         })
       },
       onRevisions: (row) => setRevisionsFor(row.id),

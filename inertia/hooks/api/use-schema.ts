@@ -53,6 +53,7 @@ export function useUninstallModule() {
         `/api/admin/modules/${name}/uninstall`,
         { method: 'POST', body: JSON.stringify({ confirm }) }
       ),
+    meta: { successMessage: 'Module uninstalled' },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: qk.pending })
       void qc.invalidateQueries({ queryKey: ['modules', 'list'] })

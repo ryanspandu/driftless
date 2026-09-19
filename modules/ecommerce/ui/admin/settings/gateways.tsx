@@ -8,7 +8,7 @@ import { Label } from '~/components/ui/label'
 import { Switch } from '~/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '~/components/ui/tabs'
 import { cn } from '~/lib/utils'
-import { apiErrorMessage } from '~/lib/api-client'
+import { reportError, reportSuccess } from '~/lib/notify'
 import { useGateways, useUpdateGateway, useVerifyGateway, type GatewayCredentialDto } from '../_api'
 
 type GatewayKey = 'stripe' | 'paypal' | 'lemonsqueezy'
@@ -81,9 +81,6 @@ function GatewayForm({
   const [secretKey, setSecretKey] = useState<string | null>(null)
   const [webhookSecret, setWebhookSecret] = useState<string | null>(null)
 
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
-
   useEffect(() => {
     setEnabled(credential?.enabled ?? false)
     setPublicKey(credential?.publicKey ?? '')
@@ -93,10 +90,8 @@ function GatewayForm({
     setWebhookSecret(null)
   }, [credential])
 
-  async function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
-    setSaved(false)
 
     const input: Record<string, unknown> = { enabled }
     if (isLemon) {
@@ -107,22 +102,18 @@ function GatewayForm({
     if (secretKey !== null) input.secretKey = secretKey
     if (webhookSecret !== null) input.webhookSecret = webhookSecret
 
-    try {
-      await update.mutateAsync({ gateway, mode, input })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to save credentials'))
-    }
+    update.mutate({ gateway, mode, input })
   }
 
   async function onVerify() {
-    setError(null)
     try {
       const result = await verify.mutateAsync({ gateway, mode })
-      if (!result.ok) setError(result.message ?? 'Verification failed')
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Verification failed'))
+      // A failed check is a 200 carrying `ok: false`, so the mutation handler
+      // never sees it — the persistent status card below records it either way.
+      if (result.ok) reportSuccess('Credentials verified')
+      else reportError(new Error(result.message ?? 'Verification failed'))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -227,17 +218,6 @@ function GatewayForm({
             </p>
           </div>
         </div>
-      ) : null}
-
-      {error ? (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {saved ? (
-        <p className="text-sm text-green-600 dark:text-green-500" role="status">
-          Saved.
-        </p>
       ) : null}
 
       <div className="flex items-center justify-end gap-2 border-t pt-4">

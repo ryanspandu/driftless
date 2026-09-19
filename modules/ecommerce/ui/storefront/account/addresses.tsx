@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { accountApi, type AddressDto, type AddressInput } from '../_api'
 import { FIELD_CLASS, SUBMIT_CLASS } from '../_layout'
 import { CountrySelect } from '../../components/country-select'
-import { apiErrorMessage } from '~/lib/api-client'
+import { reportError, reportSuccess } from '~/lib/notify'
 
 export function AddressesSection() {
   const [addresses, setAddresses] = useState<AddressDto[] | null>(null)
@@ -27,12 +27,22 @@ export function AddressesSection() {
 
   const setDefault = async (id: string, role: 'shipping' | 'billing') => {
     const patch = role === 'shipping' ? { isDefaultShipping: true } : { isDefaultBilling: true }
-    await accountApi.updateAddress(id, patch).catch((err) => setError(apiErrorMessage(err)))
+    try {
+      await accountApi.updateAddress(id, patch)
+      reportSuccess('Default address updated')
+    } catch (err) {
+      reportError(err, 'Failed to update default address')
+    }
     await load()
   }
 
   const remove = async (id: string) => {
-    await accountApi.deleteAddress(id).catch((err) => setError(apiErrorMessage(err)))
+    try {
+      await accountApi.deleteAddress(id)
+      reportSuccess('Address deleted')
+    } catch (err) {
+      reportError(err, 'Failed to delete address')
+    }
     await load()
   }
 
@@ -57,8 +67,6 @@ export function AddressesSection() {
           </button>
         ) : null}
       </div>
-
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       {editing === 'new' ? (
         <AddressForm
@@ -233,9 +241,10 @@ function AddressForm({
     try {
       if (address) await accountApi.updateAddress(address.id, form)
       else await accountApi.createAddress(form)
+      reportSuccess('Address saved')
       await onSaved()
     } catch (err) {
-      setError(apiErrorMessage(err))
+      reportError(err, 'Failed to save address')
     } finally {
       setSaving(false)
     }

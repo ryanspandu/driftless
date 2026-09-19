@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/components/ui/dialog'
-import { apiErrorMessage } from '~/lib/api-client'
 import { useCreateCustomer } from '../_api'
 
 /**
@@ -34,6 +33,7 @@ export function CreateCustomerDialog({
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [acceptsMarketing, setAcceptsMarketing] = useState(false)
+  // Client-side validation only — a failed create is reported by the mutation handler.
   const [error, setError] = useState<string | null>(null)
 
   function reset() {
@@ -72,8 +72,8 @@ export function CreateCustomerDialog({
         acceptsMarketing,
       })
       handleOpenChange(false)
-    } catch (err) {
-      setError(apiErrorMessage(err))
+    } catch {
+      // Reported by the mutation handler; the dialog stays open.
     }
   }
 

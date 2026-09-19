@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { reportError } from '~/lib/notify'
 import { Button } from '~/components/ui/button'
 import { useGlobalCode, useUpdateGlobalCode } from '~/hooks/api/use-page-code'
 import type { CodeSnippet } from './custom-code'
@@ -56,8 +57,8 @@ export function GlobalCodePanel({
       setDraft(res.snippets)
       lastServerRef.current = JSON.stringify(res.snippets)
       toast.success('Global code saved')
-    } catch {
-      toast.error('Failed to save global code')
+    } catch (err) {
+      reportError(err, 'Failed to save global code')
     }
   }
 

@@ -8,13 +8,14 @@ import {
   DialogTitle,
 } from '~/components/ui/dialog'
 import { DragDropImageUpload } from '~/components/drag-drop-image-upload'
+import { reportError } from '~/lib/notify'
 
 /**
  * Drag-&-drop JSON importer, shared across Pages / Templates / Collections /
  * Components. Reads the dropped `.json`, checks it carries the expected
  * `_type` discriminator client-side (a friendly pre-check — the server stays
  * the source of truth), then hands the parsed object to `onImport` (which
- * should throw on failure so the error shows inline).
+ * should throw on failure — the error is toasted; the file-shape checks stay inline).
  */
 export function ImportJsonDialog({
   open,
@@ -36,7 +37,8 @@ export function ImportJsonDialog({
   /** Human name of the export kind, used in the mismatch message (e.g. "page"). */
   expectedLabel: string
   hint?: string
-  successMessage?: string
+  /** Toast on success; `false` when `onImport` already reports its own. */
+  successMessage?: string | false
   onImport: (parsed: unknown) => Promise<void>
 }) {
   const [error, setError] = useState<string | null>(null)
@@ -65,10 +67,10 @@ export function ImportJsonDialog({
     }
     try {
       await onImport(parsed)
-      toast.success(successMessage ?? 'Imported')
+      if (successMessage !== false) toast.success(successMessage ?? 'Imported')
       close(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Import failed')
+      reportError(e, 'Import failed')
     }
   }
 

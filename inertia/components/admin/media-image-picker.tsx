@@ -6,6 +6,7 @@ import { Input } from '~/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { DragDropImageUpload } from '~/components/drag-drop-image-upload'
 import { mediaSrc, useMediaList, useUploadMedia } from '~/hooks/api/use-media'
+import { reportError } from '~/lib/notify'
 
 /**
  * Lightweight "insert image" picker for the article editor: paste a URL, or
@@ -40,7 +41,7 @@ export function MediaImagePicker({
       toast.success(`Uploaded ${file.name}`)
       pick(media.url)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Upload failed')
+      reportError(e, 'Upload failed')
     }
   }
 

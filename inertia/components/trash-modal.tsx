@@ -1,33 +1,34 @@
-import * as React from "react";
-import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
-import { RotateCcw, Trash2, X } from "lucide-react";
-import { Button } from "~/components/ui/button";
+import * as React from 'react'
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
+import { RotateCcw, Trash2, X } from 'lucide-react'
+import { Button } from '~/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "~/components/ui/dialog";
-import { DataTable } from "~/components/data-table";
-import { useConfirmDelete } from "~/components/providers/delete-confirm-provider";
+} from '~/components/ui/dialog'
+import { DataTable } from '~/components/data-table'
+import { useConfirmDelete } from '~/components/providers/delete-confirm-provider'
+import { reportError, reportSuccess } from '~/lib/notify'
 
 export type TrashModalProps<TRow extends { id: string | number }> = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title?: string;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title?: string
   /** Soft-deleted rows to display. */
-  rows: TRow[];
+  rows: TRow[]
   /** Columns to show (TrashModal appends its own Restore / Delete-forever actions). */
-  columns: ColumnDef<TRow, unknown>[];
-  isLoading?: boolean;
-  emptyMessage?: string;
-  getRowId?: (row: TRow) => string;
-  onRestore: (id: string) => Promise<void>;
-  onForceDelete: (id: string) => Promise<void>;
+  columns: ColumnDef<TRow, unknown>[]
+  isLoading?: boolean
+  emptyMessage?: string
+  getRowId?: (row: TRow) => string
+  onRestore: (id: string) => Promise<void>
+  onForceDelete: (id: string) => Promise<void>
   /** Singular noun for the items, used in confirmation copy (e.g. "post", "user"). */
-  itemNoun?: string;
-};
+  itemNoun?: string
+}
 
 /**
  * Reusable Trash dialog: lists soft-deleted rows in the shared `DataTable`, with
@@ -37,71 +38,91 @@ export type TrashModalProps<TRow extends { id: string | number }> = {
 export function TrashModal<TRow extends { id: string | number }>({
   open,
   onOpenChange,
-  title = "Trash",
+  title = 'Trash',
   rows,
   columns,
   isLoading,
-  emptyMessage = "Trash is empty.",
+  emptyMessage = 'Trash is empty.',
   getRowId,
   onRestore,
   onForceDelete,
-  itemNoun = "item",
+  itemNoun = 'item',
 }: TrashModalProps<TRow>) {
-  const confirmDelete = useConfirmDelete();
-  const [selection, setSelection] = React.useState<RowSelectionState>({});
-  const [busy, setBusy] = React.useState(false);
+  const confirmDelete = useConfirmDelete()
+  const [selection, setSelection] = React.useState<RowSelectionState>({})
+  const [busy, setBusy] = React.useState(false)
 
   const resolveId = React.useCallback(
     (row: TRow) => String(getRowId ? getRowId(row) : row.id),
-    [getRowId],
-  );
+    [getRowId]
+  )
 
   const selectedIds = React.useMemo(
     () => Object.keys(selection).filter((k) => selection[k]),
-    [selection],
-  );
+    [selection]
+  )
 
   React.useEffect(() => {
-    if (!open) setSelection({});
-  }, [open]);
+    if (!open) setSelection({})
+  }, [open])
+
+  const plural = (n: number) => `${n} ${itemNoun}${n === 1 ? '' : 's'}`
+
+  /**
+   * Runs `action` over the ids one at a time. Stops at the first failure and
+   * reports it (a host that goes through react-query has already toasted the
+   * same error, and `reportError` will not show it twice), then still tells the
+   * user how many made it through — a half-finished bulk restore should not be
+   * silent.
+   */
+  const runAll = async (
+    ids: string[],
+    action: (id: string) => Promise<void>,
+    done: (n: number) => string
+  ) => {
+    let completed = 0
+    setBusy(true)
+    try {
+      for (const id of ids) {
+        await action(id)
+        completed += 1
+      }
+    } catch (error) {
+      reportError(error, 'Could not finish that action')
+    } finally {
+      setBusy(false)
+      if (completed > 0) {
+        setSelection({})
+        reportSuccess(done(completed))
+      }
+    }
+  }
 
   const runRestore = async (ids: string[]) => {
-    if (!ids.length) return;
-    setBusy(true);
-    try {
-      for (const id of ids) await onRestore(id);
-      setSelection({});
-    } finally {
-      setBusy(false);
-    }
-  };
+    if (!ids.length) return
+    await runAll(ids, onRestore, (n) => `${plural(n)} restored`)
+  }
 
   const runForceDelete = async (ids: string[]) => {
-    if (!ids.length) return;
+    if (!ids.length) return
     const ok = await confirmDelete({
-      title: "Delete forever",
-      description: `Permanently delete ${ids.length} ${itemNoun}${ids.length === 1 ? "" : "s"}? This cannot be undone.`,
-      confirmLabel: "Delete forever",
-    });
-    if (!ok) return;
-    setBusy(true);
-    try {
-      for (const id of ids) await onForceDelete(id);
-      setSelection({});
-    } finally {
-      setBusy(false);
-    }
-  };
+      title: 'Delete forever',
+      description: `Permanently delete ${ids.length} ${itemNoun}${ids.length === 1 ? '' : 's'}? This cannot be undone.`,
+      confirmLabel: 'Delete forever',
+    })
+    if (!ok) return
+    await runAll(ids, onForceDelete, (n) => `${plural(n)} deleted permanently`)
+  }
 
   const trashColumns = React.useMemo<ColumnDef<TRow, unknown>[]>(
     () => [
       ...columns,
       {
-        id: "trash-actions",
+        id: 'trash-actions',
         enableSorting: false,
         header: () => <span className="sr-only">Actions</span>,
         cell: ({ row }) => {
-          const id = resolveId(row.original);
+          const id = resolveId(row.original)
           return (
             <div className="flex items-center justify-end gap-1">
               <Button
@@ -125,13 +146,13 @@ export function TrashModal<TRow extends { id: string | number }>({
                 <Trash2 className="size-4" />
               </Button>
             </div>
-          );
+          )
         },
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runRestore/runForceDelete are stable enough; busy gates them
-    [columns, resolveId, busy],
-  );
+    [columns, resolveId, busy]
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -148,8 +169,8 @@ export function TrashModal<TRow extends { id: string | number }>({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
             {isLoading
-              ? "Loading…"
-              : `${rows.length} deleted ${itemNoun}${rows.length === 1 ? "" : "s"}. Restore to recover, or delete forever to remove permanently.`}
+              ? 'Loading…'
+              : `${rows.length} deleted ${itemNoun}${rows.length === 1 ? '' : 's'}. Restore to recover, or delete forever to remove permanently.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -190,10 +211,10 @@ export function TrashModal<TRow extends { id: string | number }>({
             onRowSelectionChange={setSelection}
             hideSearch
             hideSyncColumn
-            emptyMessage={isLoading ? "Loading…" : emptyMessage}
+            emptyMessage={isLoading ? 'Loading…' : emptyMessage}
           />
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

@@ -20,6 +20,7 @@ export function useCmsComponentsList() {
 export function useCreateCmsComponent() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Component created' },
     mutationFn: (body: CreateCmsComponentRequest) => cmsComponents.create(body),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.list }),
   })
@@ -28,6 +29,7 @@ export function useCreateCmsComponent() {
 export function useUpdateCmsComponent() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Component updated' },
     mutationFn: ({ key, body }: { key: string; body: UpdateCmsComponentRequest }) =>
       cmsComponents.update(key, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.list }),
@@ -37,6 +39,7 @@ export function useUpdateCmsComponent() {
 export function useDeleteCmsComponent() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successMessage: 'Component deleted' },
     mutationFn: (key: string) => cmsComponents.remove(key),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.list }),
   })

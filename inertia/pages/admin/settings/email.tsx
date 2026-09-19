@@ -23,7 +23,7 @@ import {
   type MailEventDto,
   type UpdateMailSettingsRequest,
 } from '~/hooks/api/use-mail-settings'
-import { apiErrorMessage } from '~/lib/api-client'
+import { reportError, reportSuccess } from '~/lib/notify'
 import { cn } from '~/lib/utils'
 import { useTemplatesList } from '~/hooks/api/use-templates'
 import { useUpdateWebsiteSettings, useWebsiteSettings } from '~/hooks/api/use-website-settings'
@@ -59,8 +59,6 @@ function EmailSettings() {
   const [password, setPassword] = useState<string | null>(null)
 
   const [testTo, setTestTo] = useState('')
-  const [formError, setFormError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   const data = query.data
 
@@ -99,8 +97,6 @@ function EmailSettings() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    setFormError(null)
-    setSaved(false)
 
     const body: UpdateMailSettingsRequest = {
       enabled,
@@ -116,20 +112,19 @@ function EmailSettings() {
 
     try {
       await update.mutateAsync(body)
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setFormError(apiErrorMessage(err, 'Failed to save email settings'))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
   async function onSendTest() {
-    setFormError(null)
     try {
       const result = await sendTest.mutateAsync(testTo.trim())
-      if (!result.ok) setFormError(result.message ?? 'Failed to send')
-    } catch (err) {
-      setFormError(apiErrorMessage(err, 'Failed to send test email'))
+      // A refused send comes back as `{ ok: false }`, not a rejection.
+      if (result.ok) reportSuccess('Test email sent')
+      else reportError(new Error(result.message ?? 'Failed to send'), 'Failed to send test email')
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -285,17 +280,6 @@ function EmailSettings() {
               </div>
             </div>
 
-            {formError ? (
-              <p className="text-sm text-destructive" role="alert">
-                {formError}
-              </p>
-            ) : null}
-            {saved ? (
-              <p className="text-sm text-green-600 dark:text-green-500" role="status">
-                Saved.
-              </p>
-            ) : null}
-
             <div className="flex justify-end border-t pt-4">
               <Button type="submit" disabled={update.isPending}>
                 {update.isPending ? 'Saving…' : 'Save'}
@@ -403,8 +387,6 @@ function EventCopyEditor({ event }: { event: MailEventDto }) {
   const codeEmails = useCodeEmailTemplates()
   const codeEmailTemplates = codeEmails.data ?? []
   const [draft, setDraft] = useState<Record<string, string>>({})
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   // Seed the copy draft once per event, keyed by its stable id. Re-seeding on
   // every `event` change wiped unsaved copy edits when changing the Design
@@ -423,7 +405,6 @@ function EventCopyEditor({ event }: { event: MailEventDto }) {
   }, [event])
 
   async function save() {
-    setError(null)
     try {
       await update.mutateAsync({
         key: event.key,
@@ -433,10 +414,8 @@ function EventCopyEditor({ event }: { event: MailEventDto }) {
           COPY_FIELDS.map((f) => [f.key, draft[f.key]?.trim() ? draft[f.key] : null])
         ),
       })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Could not save'))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -474,7 +453,7 @@ function EventCopyEditor({ event }: { event: MailEventDto }) {
         <AppSelect
           id={`${event.key}-template`}
           value={event.codeTemplate ?? event.templateId ?? ''}
-          onChange={(v) => void update.mutateAsync({ key: event.key, templateId: v || null })}
+          onChange={(v) => update.mutate({ key: event.key, templateId: v || null })}
           options={[
             { value: '', label: 'Built-in layout' },
             ...emailTemplates.map((t) => ({ value: t.id, label: t.name })),
@@ -510,18 +489,8 @@ function EventCopyEditor({ event }: { event: MailEventDto }) {
         <Button type="button" size="sm" onClick={() => void save()} disabled={update.isPending}>
           {update.isPending ? 'Saving…' : 'Save content'}
         </Button>
-        {saved ? (
-          <span className="text-xs text-green-600 dark:text-green-500" role="status">
-            Saved.
-          </span>
-        ) : null}
         <span className="text-xs text-muted-foreground">Empty fields use the wording shown.</span>
       </div>
-      {error ? (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      ) : null}
     </div>
   )
 }
@@ -529,17 +498,7 @@ function EventCopyEditor({ event }: { event: MailEventDto }) {
 function NotificationSettings() {
   const events = useMailEvents()
   const update = useUpdateMailEvent()
-  const [error, setError] = useState<string | null>(null)
   const [openKey, setOpenKey] = useState<string | null>(null)
-
-  async function toggle(key: string, enabled: boolean) {
-    setError(null)
-    try {
-      await update.mutateAsync({ key, enabled })
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Could not change that setting'))
-    }
-  }
 
   const list = events.data ?? []
 
@@ -596,7 +555,7 @@ function NotificationSettings() {
                   <Switch
                     checked={event.enabled}
                     disabled={!event.canDisable || update.isPending}
-                    onCheckedChange={(value) => void toggle(event.key, value)}
+                    onCheckedChange={(value) => update.mutate({ key: event.key, enabled: value })}
                     aria-label={`Send ${event.label}`}
                   />
                 </div>
@@ -606,11 +565,6 @@ function NotificationSettings() {
             </div>
           ))
         )}
-        {error ? (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
-        ) : null}
       </CardContent>
     </Card>
   )
@@ -629,8 +583,6 @@ function EmailBranding() {
   const [logoUrl, setLogoUrl] = useState('')
   const [accentColor, setAccentColor] = useState('#4f39f6')
   const [footerNote, setFooterNote] = useState('')
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!section) return
@@ -641,7 +593,6 @@ function EmailBranding() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
     try {
       await update.mutateAsync({
         patches: [
@@ -650,10 +601,8 @@ function EmailBranding() {
           { section: 'email_branding', key: 'footer_note', value: footerNote.trim() },
         ],
       })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 2500)
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Could not save.'))
+    } catch {
+      // Reported by the mutation handler.
     }
   }
 
@@ -717,17 +666,7 @@ function EmailBranding() {
             <Button type="submit" disabled={isPending || update.isPending}>
               Save branding
             </Button>
-            {saved ? (
-              <span className="text-sm text-green-600 dark:text-green-500" role="status">
-                Saved.
-              </span>
-            ) : null}
           </div>
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
         </CardContent>
       </Card>
     </form>

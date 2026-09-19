@@ -83,7 +83,6 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
   const tab = url.one('tab', TABS, 'settings')
   const [form, setForm] = useState<SettingsForm | null>(null)
   const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
 
   const query = useCmsCollection(key)
   const updateMut = useUpdateCmsCollection(key)
@@ -111,7 +110,6 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
   // Reset local settings edits when navigating to a different collection.
   useEffect(() => {
     setForm(null)
-    setSaveError(null)
   }, [key])
 
   const baseline = collection ? baselineOf(collection) : null
@@ -123,7 +121,6 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
   const handleSave = async () => {
     if (!form) return
     setSaving(true)
-    setSaveError(null)
     try {
       const updated = await updateMut.mutateAsync({
         label: form.label,
@@ -141,8 +138,8 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
         return
       }
       setForm(null)
-    } catch (e) {
-      setSaveError((e as Error).message)
+    } catch {
+      // reported by the mutation handler
     } finally {
       setSaving(false)
     }
@@ -244,7 +241,6 @@ export default function CmsCollectionDetailPage({ collectionKey: key }: { collec
               disabled={isNative}
               groupOptions={groupOptions}
               ecommerceEnabled={ecommerceEnabled}
-              error={saveError}
             />
           </TabsContent>
 
@@ -377,14 +373,12 @@ function SettingsPanel({
   disabled,
   groupOptions,
   ecommerceEnabled,
-  error,
 }: {
   form: SettingsForm
   onChange: (next: SettingsForm) => void
   disabled: boolean
   groupOptions: string[]
   ecommerceEnabled: boolean
-  error: string | null
 }) {
   const set = (patch: Partial<SettingsForm>) => onChange({ ...form, ...patch })
   const isContent = form.type === 'CONTENT'
@@ -552,12 +546,6 @@ function SettingsPanel({
             </div>
           </div>
         </section>
-
-        {error ? (
-          <div className="px-6 py-3">
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   )
